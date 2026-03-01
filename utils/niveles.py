@@ -22,7 +22,7 @@ UMBRAL_SOBRECUMPLIMIENTO_DEC = 1.05
 NIVEL_COLOR = {
     "Peligro":           "#D32F2F",
     "Alerta":            "#FBAF17",
-    "Cumplimiento":      "#2E7D32",
+    "Cumplimiento":      "#43A047",
     "Sobrecumplimiento": "#1A3A5C",
     "Sin dato":          "#BDBDBD",
 }

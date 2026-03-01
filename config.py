@@ -15,7 +15,7 @@ COLORES = {
     "peligro_claro":          "#FFCDD2",
     "alerta":                 "#FBAF17",
     "alerta_claro":           "#FEF3D0",
-    "cumplimiento":           "#2E7D32",
+    "cumplimiento":           "#43A047",
     "cumplimiento_claro":     "#E8F5E9",
     "sobrecumplimiento":      "#1A3A5C",
     "sobrecumplimiento_claro":"#D0E4FF",

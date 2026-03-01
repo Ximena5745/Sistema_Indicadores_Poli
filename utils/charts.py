@@ -13,7 +13,7 @@ from config import COLORES, COLOR_CATEGORIA
 COLOR_CAT = {
     "Peligro":           "#D32F2F",
     "Alerta":            "#FBAF17",
-    "Cumplimiento":      "#2E7D32",
+    "Cumplimiento":      "#43A047",
     "Sobrecumplimiento": "#1A3A5C",
     "Sin dato":          "#BDBDBD",
 }
