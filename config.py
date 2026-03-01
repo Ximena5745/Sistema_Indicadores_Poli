@@ -11,15 +11,15 @@ DB_PATH   = DATA_DB / "registros_om.db"
 
 # ── Paleta de colores institucional ──────────────────────────────────────────
 COLORES = {
-    "peligro":                "#C62828",
-    "peligro_claro":          "#FFCDD2",
-    "alerta":                 "#F57F17",
-    "alerta_claro":           "#FFF9C4",
-    "cumplimiento":           "#2E7D32",
-    "cumplimiento_claro":     "#C8E6C9",
-    "sobrecumplimiento":      "#0277BD",
-    "sobrecumplimiento_claro":"#B3E5FC",
-    "sin_dato":               "#9E9E9E",
+    "peligro":                "#EC0677",
+    "peligro_claro":          "#FDE8F3",
+    "alerta":                 "#FBAF17",
+    "alerta_claro":           "#FEF3D0",
+    "cumplimiento":           "#1FB2DE",
+    "cumplimiento_claro":     "#E0F7FA",
+    "sobrecumplimiento":      "#1A3A5C",
+    "sobrecumplimiento_claro":"#D0E4FF",
+    "sin_dato":               "#BDBDBD",
     "primario":               "#1A3A5C",
     "secundario":             "#1565C0",
     "fondo":                  "#F4F6F9",
@@ -27,24 +27,25 @@ COLORES = {
 }
 
 COLOR_CATEGORIA = {
-    "Peligro":          COLORES["peligro"],
-    "Alerta":           COLORES["alerta"],
-    "Cumplimiento":     COLORES["cumplimiento"],
+    "Peligro":           COLORES["peligro"],
+    "Alerta":            COLORES["alerta"],
+    "Cumplimiento":      COLORES["cumplimiento"],
     "Sobrecumplimiento": COLORES["sobrecumplimiento"],
-    "Sin dato":         COLORES["sin_dato"],
+    "Sin dato":          COLORES["sin_dato"],
 }
 
 COLOR_CATEGORIA_CLARO = {
-    "Peligro":          COLORES["peligro_claro"],
-    "Alerta":           COLORES["alerta_claro"],
-    "Cumplimiento":     COLORES["cumplimiento_claro"],
+    "Peligro":           COLORES["peligro_claro"],
+    "Alerta":            COLORES["alerta_claro"],
+    "Cumplimiento":      COLORES["cumplimiento_claro"],
     "Sobrecumplimiento": COLORES["sobrecumplimiento_claro"],
-    "Sin dato":         "#EEEEEE",
+    "Sin dato":          "#EEEEEE",
 }
 
 # ── Umbrales de cumplimiento ──────────────────────────────────────────────────
-UMBRAL_PELIGRO = 0.80
-UMBRAL_ALERTA  = 1.00
+UMBRAL_PELIGRO          = 0.80
+UMBRAL_ALERTA           = 1.00
+UMBRAL_SOBRECUMPLIMIENTO = 1.05
 
 # ── Orden de categorías ──────────────────────────────────────────────────────
 ORDEN_CATEGORIAS = ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin dato"]

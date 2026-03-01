@@ -1,6 +1,11 @@
 """
 pages/2_Indicadores_en_Riesgo.py — Indicadores en Riesgo con semáforo interactivo.
+
+Solo muestra indicadores cuyo ID existe en indicadores_kawak.xlsx.
+Todos los gráficos filtran la tabla inferior al hacer clic.
 """
+from pathlib import Path
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -14,20 +19,56 @@ from utils.charts import (
     panel_detalle_indicador,
     COLOR_CAT,
 )
-from config import COLORES
+from utils.niveles import NIVEL_COLOR, NIVEL_BG, NIVEL_ORDEN
+
+# ── Ruta kawak ────────────────────────────────────────────────────────────────
+_DATA_RAW   = Path(__file__).parent.parent / "data" / "raw"
+_RUTA_KAWAK = _DATA_RAW / "indicadores_kawak.xlsx"
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _kawak_ids() -> set:
+    """Devuelve el conjunto de IDs presentes en indicadores_kawak.xlsx."""
+    if not _RUTA_KAWAK.exists():
+        return set()
+    df = pd.read_excel(str(_RUTA_KAWAK), engine="openpyxl",
+                       keep_default_na=False, na_values=[""])
+    df.columns = [str(c).strip() for c in df.columns]
+    col_id = next((c for c in df.columns if c.upper() == "ID"), None)
+    if not col_id:
+        return set()
+    def _clean(x):
+        try:
+            f = float(x)
+            return str(int(f)) if f == int(f) else str(f)
+        except (TypeError, ValueError):
+            return str(x).strip()
+    return set(df[col_id].apply(_clean).dropna().unique())
+
 
 # ── Carga de datos ────────────────────────────────────────────────────────────
-df_raw = cargar_dataset()
+df_raw_all = cargar_dataset()
 
-if df_raw.empty:
+if df_raw_all.empty:
     st.error("No se pudo cargar Dataset_Unificado.xlsx.")
     st.stop()
 
+# Filtrar solo IDs presentes en kawak
+kawak_set = _kawak_ids()
+if kawak_set and "Id" in df_raw_all.columns:
+    df_raw = df_raw_all[df_raw_all["Id"].isin(kawak_set)].copy()
+else:
+    df_raw = df_raw_all.copy()
+
 # ── Session state ─────────────────────────────────────────────────────────────
-if "categoria_activa" not in st.session_state:
-    st.session_state.categoria_activa = "Peligro"
-if "indicador_detalle_p2" not in st.session_state:
-    st.session_state.indicador_detalle_p2 = None
+for _k, _v in [
+    ("categoria_activa",       "Peligro"),
+    ("indicador_detalle_p2",   None),
+    ("p2_sel_proceso",         None),
+    ("p2_sel_linea",           None),
+]:
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
 
 # ── Sidebar — Filtros ─────────────────────────────────────────────────────────
 st.sidebar.markdown("## Filtros")
@@ -38,7 +79,7 @@ anios_sel = st.sidebar.multiselect("Año", options=anios_disp, default=[])
 period_disp = sorted(df_raw["Periodicidad"].dropna().unique().tolist()) if "Periodicidad" in df_raw.columns else []
 period_sel = st.sidebar.multiselect("Periodicidad", options=period_disp, default=[])
 
-# ── Aplicar filtros ───────────────────────────────────────────────────────────
+# ── Aplicar filtros sidebar ────────────────────────────────────────────────────
 df = df_raw.copy()
 if anios_sel:
     df = df[df["Anio"].isin(anios_sel)]
@@ -58,15 +99,15 @@ st.markdown("### Semáforo de Desempeño")
 st.caption("Haz clic en una categoría para filtrar todas las visualizaciones.")
 
 semaforo_config = [
-    ("Sobrecumplimiento", "🔵", COLORES["sobrecumplimiento"]),
-    ("Cumplimiento",      "🟢", COLORES["cumplimiento"]),
-    ("Alerta",            "🟡", COLORES["alerta"]),
-    ("Peligro",           "🔴", COLORES["peligro"]),
+    ("Sobrecumplimiento", "🔵", NIVEL_COLOR["Sobrecumplimiento"]),
+    ("Cumplimiento",      "🔵", NIVEL_COLOR["Cumplimiento"]),
+    ("Alerta",            "🟡", NIVEL_COLOR["Alerta"]),
+    ("Peligro",           "🔴", NIVEL_COLOR["Peligro"]),
 ]
 
 col_sems = st.columns(4)
 for i, (cat, icon, color) in enumerate(semaforo_config):
-    n_cat = (df_con_datos["Categoria"] == cat).sum()
+    n_cat = int((df_con_datos["Categoria"] == cat).sum())
     pct   = round(n_cat / total * 100, 1) if total > 0 else 0
     activa = st.session_state.categoria_activa == cat
     borde  = f"3px solid {color}" if activa else f"1px solid {color}"
@@ -85,6 +126,8 @@ for i, (cat, icon, color) in enumerate(semaforo_config):
         )
         if st.button(f"Ver {cat}", key=f"sem_{cat}", use_container_width=True):
             st.session_state.categoria_activa = cat
+            st.session_state["p2_sel_proceso"] = None
+            st.session_state["p2_sel_linea"]   = None
             st.rerun()
 
 st.markdown("---")
@@ -94,14 +137,32 @@ cat_act = st.session_state.categoria_activa
 df_cat = df_con_datos[df_con_datos["Categoria"] == cat_act].copy()
 df_cat["Cumplimiento%"] = (df_cat["Cumplimiento_norm"] * 100).round(1)
 
+color_act = NIVEL_COLOR.get(cat_act, "#9E9E9E")
+
+# ── Indicadores de filtro activo por gráfico ──────────────────────────────────
+sel_proceso = st.session_state.get("p2_sel_proceso")
+sel_linea   = st.session_state.get("p2_sel_linea")
+
+filtros_graf = [v for v in (sel_proceso, sel_linea) if v]
+if filtros_graf:
+    fc1, fc2 = st.columns([6, 1])
+    with fc1:
+        st.info("📊 Filtro gráfico: " + " · ".join(f"**{v}**" for v in filtros_graf))
+    with fc2:
+        if st.button("✖ Limpiar", key="p2_clear_graf"):
+            st.session_state["p2_sel_proceso"] = None
+            st.session_state["p2_sel_linea"]   = None
+            st.rerun()
+
 # ── Gráficos (4) ──────────────────────────────────────────────────────────────
-st.markdown(f"### Visualizaciones para: {cat_act}")
+st.markdown(f"### Visualizaciones — {cat_act}")
 
 col_g1, col_g2 = st.columns(2)
 
-# Gráfico 1 — Top 10 menor/mayor cumplimiento
+# Gráfico 1 — Top 10 menor/mayor cumplimiento (interactivo → dialog)
 with col_g1:
     st.markdown("**Top 10 — Cumplimiento**")
+    st.caption("💡 Clic en una barra para ver el detalle del indicador.")
     if cat_act in ("Peligro", "Alerta"):
         df_top = df_cat.nsmallest(10, "Cumplimiento_norm")
         titulo_top = "10 indicadores con menor cumplimiento"
@@ -115,7 +176,7 @@ with col_g1:
             x=df_top["Cumplimiento%"].tolist(),
             y=etiquetas,
             orientation="h",
-            marker_color=COLOR_CAT.get(cat_act, "#9E9E9E"),
+            marker_color=color_act,
             text=df_top["Cumplimiento%"].round(1).astype(str) + "%",
             textposition="outside",
             customdata=df_top["Id"].tolist(),
@@ -124,16 +185,15 @@ with col_g1:
         fig_top.update_layout(
             height=400,
             xaxis=dict(title="Cumplimiento (%)", ticksuffix="%"),
-            yaxis=dict(title=""),
+            yaxis=dict(title="", autorange="reversed"),
             plot_bgcolor="white",
             paper_bgcolor="white",
-            margin=dict(l=10, r=10, t=30, b=30),
+            margin=dict(l=10, r=60, t=30, b=30),
             title=titulo_top,
         )
         event_top = st.plotly_chart(fig_top, use_container_width=True, on_select="rerun",
                                     selection_mode="points", key="fig_top10")
 
-        # Click en barra → detalle
         if event_top and event_top.selection and event_top.selection.get("points"):
             pt_idx = event_top.selection["points"][0].get("point_index", None)
             if pt_idx is not None:
@@ -142,19 +202,21 @@ with col_g1:
     else:
         st.info("Sin datos para esta categoría.")
 
-# Gráfico 2 — Distribución por Proceso (dona)
+# Gráfico 2 — Distribución por Proceso (dona, interactivo → filtra tabla)
 with col_g2:
     st.markdown("**Distribución por Proceso**")
+    st.caption("💡 Clic en un segmento para filtrar la tabla.")
     if not df_cat.empty and "Proceso" in df_cat.columns:
         proc_counts = df_cat.groupby("Proceso").size().reset_index(name="count")
+        proc_colors = [
+            "#1A3A5C", "#1565C0", "#0277BD", "#0288D1", "#0097A7",
+            "#00897B", "#43A047", "#7CB342", "#C0CA33", "#FDD835",
+        ]
         fig_dona = go.Figure(go.Pie(
-            labels=proc_counts["Proceso"],
-            values=proc_counts["count"],
+            labels=proc_counts["Proceso"].tolist(),
+            values=proc_counts["count"].tolist(),
             hole=0.4,
-            marker=dict(colors=[
-                "#1A3A5C", "#1565C0", "#0277BD", "#0288D1", "#0097A7",
-                "#00897B", "#43A047", "#7CB342", "#C0CA33", "#FDD835",
-            ]),
+            marker=dict(colors=proc_colors[:len(proc_counts)]),
             hovertemplate="<b>%{label}</b><br>%{value} indicadores<br>%{percent}<extra></extra>",
         ))
         fig_dona.update_layout(
@@ -164,15 +226,23 @@ with col_g2:
             paper_bgcolor="white",
             margin=dict(t=20, b=20),
         )
-        st.plotly_chart(fig_dona, use_container_width=True)
+        ev_dona = st.plotly_chart(fig_dona, use_container_width=True,
+                                  on_select="rerun", key="fig_dona_proc")
+        if ev_dona and ev_dona.selection and ev_dona.selection.get("points"):
+            clicked_proc = ev_dona.selection["points"][0].get("label")
+            if clicked_proc and clicked_proc != st.session_state.get("p2_sel_proceso"):
+                st.session_state["p2_sel_proceso"] = clicked_proc
+                st.session_state["p2_sel_linea"]   = None
+                st.rerun()
     else:
         st.info("Sin datos.")
 
 col_g3, col_g4 = st.columns(2)
 
-# Gráfico 3 — Comparativo por Línea Estratégica
+# Gráfico 3 — Comparativo por Línea Estratégica (interactivo → filtra tabla)
 with col_g3:
     st.markdown("**Comparativo por Línea Estratégica**")
+    st.caption("💡 Clic en una barra para filtrar la tabla.")
     col_linea = "Linea" if "Linea" in df_cat.columns else None
     if col_linea and not df_cat.empty:
         linea_avg = (
@@ -182,15 +252,15 @@ with col_g3:
             .sort_values("Cumplimiento_pct")
         )
         fig_linea = go.Figure(go.Bar(
-            x=linea_avg[col_linea],
-            y=linea_avg["Cumplimiento_pct"].round(1),
-            marker_color=COLOR_CAT.get(cat_act, COLORES["primario"]),
+            x=linea_avg[col_linea].tolist(),
+            y=linea_avg["Cumplimiento_pct"].round(1).tolist(),
+            marker_color=color_act,
             text=linea_avg["Cumplimiento_pct"].round(1).astype(str) + "%",
             textposition="outside",
             hovertemplate="<b>%{x}</b><br>Promedio: %{y:.1f}%<extra></extra>",
         ))
-        fig_linea.add_hline(y=100, line_dash="dash", line_color="green", line_width=1.5)
-        fig_linea.add_hline(y=80,  line_dash="dot",  line_color="red",   line_width=1)
+        fig_linea.add_hline(y=100, line_dash="dash", line_color="#1FB2DE", line_width=1.5)
+        fig_linea.add_hline(y=80,  line_dash="dot",  line_color="#EC0677", line_width=1)
         fig_linea.update_layout(
             height=380,
             yaxis=dict(title="Cumplimiento promedio (%)", ticksuffix="%"),
@@ -199,7 +269,14 @@ with col_g3:
             paper_bgcolor="white",
             margin=dict(t=20, b=60),
         )
-        st.plotly_chart(fig_linea, use_container_width=True)
+        ev_linea = st.plotly_chart(fig_linea, use_container_width=True,
+                                   on_select="rerun", key="fig_linea_est")
+        if ev_linea and ev_linea.selection and ev_linea.selection.get("points"):
+            clicked_linea = ev_linea.selection["points"][0].get("x")
+            if clicked_linea and clicked_linea != st.session_state.get("p2_sel_linea"):
+                st.session_state["p2_sel_linea"]   = clicked_linea
+                st.session_state["p2_sel_proceso"] = None
+                st.rerun()
     else:
         st.info("No hay columna Linea en los datos.")
 
@@ -237,18 +314,37 @@ with col_g4:
 
 st.markdown("---")
 
-# ── Tabla detallada ───────────────────────────────────────────────────────────
-st.markdown(f"### Tabla Detallada — {cat_act}")
+# ── Tabla detallada (filtrada por gráficos) ───────────────────────────────────
+titulo_tabla = f"### Tabla Detallada — {cat_act}"
+if sel_proceso:
+    titulo_tabla += f" · Proceso: *{sel_proceso}*"
+elif sel_linea:
+    titulo_tabla += f" · Línea: *{sel_linea}*"
+st.markdown(titulo_tabla)
 
 df_tabla_det = df_cat.copy()
+if sel_proceso and "Proceso" in df_tabla_det.columns:
+    df_tabla_det = df_tabla_det[df_tabla_det["Proceso"] == sel_proceso]
+elif sel_linea and "Linea" in df_tabla_det.columns:
+    df_tabla_det = df_tabla_det[df_tabla_det["Linea"] == sel_linea]
+
 df_tabla_det["Cumplimiento%"] = df_tabla_det["Cumplimiento_norm"].apply(
     lambda x: f"{round(x*100,1)}%" if pd.notna(x) else "—"
 )
-cols_show = ["Id", "Indicador", "Proceso", "Subproceso", "Periodicidad", "Periodo", "Cumplimiento%", "Categoria"]
+
+# Colorear celda Categoria
+def _estilo_cat(row):
+    bg = NIVEL_BG.get(str(row.get("Categoria", "")), "")
+    return [f"background-color: {bg}" if c == "Categoria" else "" for c in row.index]
+
+cols_show = ["Id", "Indicador", "Proceso", "Subproceso", "Periodicidad",
+             "Periodo", "Cumplimiento%", "Categoria"]
 cols_disp = [c for c in cols_show if c in df_tabla_det.columns]
 
+st.caption(f"Mostrando **{len(df_tabla_det)}** indicadores")
+
 event_tabla = st.dataframe(
-    df_tabla_det[cols_disp],
+    df_tabla_det[cols_disp].style.apply(_estilo_cat, axis=1),
     use_container_width=True,
     hide_index=True,
     on_select="rerun",
@@ -265,7 +361,7 @@ with col_exp:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
-# Click en tabla → capturar id
+# Click en tabla → capturar id para detalle
 if event_tabla and event_tabla.selection and event_tabla.selection.get("rows"):
     idx = event_tabla.selection["rows"][0]
     if "Id" in df_tabla_det.columns:

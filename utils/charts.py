@@ -11,11 +11,11 @@ from openpyxl.styles import PatternFill, Font
 from config import COLORES, COLOR_CATEGORIA
 
 COLOR_CAT = {
-    "Peligro":          "#C62828",
-    "Alerta":           "#F57F17",
-    "Cumplimiento":     "#2E7D32",
-    "Sobrecumplimiento":"#0277BD",
-    "Sin dato":         "#9E9E9E",
+    "Peligro":           "#EC0677",
+    "Alerta":            "#FBAF17",
+    "Cumplimiento":      "#1FB2DE",
+    "Sobrecumplimiento": "#1A3A5C",
+    "Sin dato":          "#BDBDBD",
 }
 
 
@@ -49,8 +49,13 @@ def grafico_historico_indicador(df_ind: pd.DataFrame, titulo: str = "") -> go.Fi
         annotation_font_size=10,
     )
     fig.add_hrect(
-        y0=100, y1=y_max, fillcolor="#C8E6C9", opacity=0.45, line_width=0,
-        annotation_text="Cumplimiento ≥ 100%", annotation_position="top left",
+        y0=100, y1=105, fillcolor="#E0F7FA", opacity=0.50, line_width=0,
+        annotation_text="Cumplimiento 100–105%", annotation_position="top left",
+        annotation_font_size=10,
+    )
+    fig.add_hrect(
+        y0=105, y1=y_max, fillcolor="#D0E4FF", opacity=0.45, line_width=0,
+        annotation_text="Sobrecumplimiento > 105%", annotation_position="top left",
         annotation_font_size=10,
     )
 
@@ -135,11 +140,11 @@ def exportar_excel(df: pd.DataFrame, nombre_hoja: str = "Datos") -> bytes:
 def colorear_tabla_categoria(df: pd.DataFrame, col_categoria: str = "Categoria") -> pd.DataFrame.style:
     """Aplica estilos de color a filas según categoría."""
     COLOR_BG = {
-        "Peligro":          "#FFCDD2",
-        "Alerta":           "#FFF9C4",
-        "Cumplimiento":     "#C8E6C9",
-        "Sobrecumplimiento":"#B3E5FC",
-        "Sin dato":         "#EEEEEE",
+        "Peligro":           "#FDE8F3",
+        "Alerta":            "#FEF3D0",
+        "Cumplimiento":      "#E0F7FA",
+        "Sobrecumplimiento": "#D0E4FF",
+        "Sin dato":          "#F5F5F5",
     }
 
     def estilo_fila(row):

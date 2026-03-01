@@ -612,8 +612,45 @@ with tabs[0]:
 # ─────────────────────────────────────────────────────────────────────────────
 with tabs[1]:
     st.markdown("### Tabla Consolidada")
-    f_id_con, f_nom_con, f_proc_con, f_sub_con, f_est_con = _filtros_cascada(df_con, "con")
-    df_filtrado = _aplicar_filtros_tabla(df_con, f_id_con, f_nom_con,
+
+    # ── Gráfico por Vicerrectoría (interactivo → filtra tabla) ────────────────
+    _CON_V = "Vicerrectoria"
+    _KEY_CON_V = "con_sel_vicerr"
+
+    if _CON_V in df_con.columns and COL_ESTADO in df_con.columns:
+        st.markdown("#### Por Vicerrectoría")
+        st.caption("💡 Haz clic en una barra para filtrar la tabla.")
+
+        vicerr_stats_con = _agg_estado(df_con, _CON_V)
+        fig_con_v = _bar_h(vicerr_stats_con, _CON_V)
+        ev_con_v  = st.plotly_chart(fig_con_v, use_container_width=True,
+                                    on_select="rerun", key="con_chart_vicerr")
+
+        if ev_con_v.selection and ev_con_v.selection.get("points"):
+            clicked_con_v = ev_con_v.selection["points"][0].get("y")
+            if clicked_con_v != st.session_state.get(_KEY_CON_V):
+                st.session_state[_KEY_CON_V] = clicked_con_v
+
+        sel_con_v = st.session_state.get(_KEY_CON_V)
+        if sel_con_v:
+            hv1, hv2 = st.columns([7, 1])
+            with hv1:
+                st.info(f"📊 Filtro activo: **{sel_con_v}**")
+            with hv2:
+                if st.button("✖ Todos", key="con_clear_vicerr"):
+                    st.session_state[_KEY_CON_V] = None
+                    st.rerun()
+
+        st.markdown("---")
+
+    # ── Filtros y tabla ───────────────────────────────────────────────────────
+    # Pre-filtrar por Vicerrectoría seleccionada en gráfico
+    _sel_v_con = st.session_state.get(_KEY_CON_V) if _CON_V in df_con.columns else None
+    df_con_base = df_con[df_con[_CON_V] == _sel_v_con].copy() \
+                  if _sel_v_con and _CON_V in df_con.columns else df_con
+
+    f_id_con, f_nom_con, f_proc_con, f_sub_con, f_est_con = _filtros_cascada(df_con_base, "con")
+    df_filtrado = _aplicar_filtros_tabla(df_con_base, f_id_con, f_nom_con,
                                          f_proc_con, f_sub_con, f_est_con)
     st.caption(f"Mostrando **{len(df_filtrado)}** de **{len(df_con)}** indicadores")
 
