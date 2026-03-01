@@ -1,12 +1,18 @@
 """
 pages/1_Resumen_General.py — Reporte de Cumplimiento.
 
-Fuente: data/raw/indicadores_kawak.xlsx (último reporte por indicador).
+Fuente: data/raw/indicadores_kawak.xlsx
+  · Último reporte habilitado por periodicidad (no simplemente el último registro)
+  · Niveles: Sobrecumplimiento | Cumplimiento | Alerta | Peligro | No aplica | Pendiente de reporte
+
 Tabs:
-  📊 Resumen     — KPIs + gráficas principales (estáticas)
+  📊 Resumen     — KPIs + gráficas principales
   📋 Consolidado — Vicerrectoría → filtra Proceso → filtra tabla + todos los filtros
 """
+import calendar
 import html as _html
+import math
+from datetime import date as _date
 from pathlib import Path
 
 import pandas as pd
@@ -21,27 +27,74 @@ _DATA_RAW   = Path(__file__).parent.parent / "data" / "raw"
 _RUTA_KAWAK = _DATA_RAW / "indicadores_kawak.xlsx"
 _RUTA_MAPA  = _DATA_RAW / "Subproceso-Proceso-Area.xlsx"
 
-# ── Niveles locales: "Sin dato" → "Pendiente de reporte" ─────────────────────
+# ── Niveles extendidos (además de los 4 estándar) ─────────────────────────────
+_NO_APLICA   = "No aplica"
 _PEND        = "Pendiente de reporte"
-_NIVEL_COLOR = {**NIVEL_COLOR, _PEND: "#BDBDBD"}
-_NIVEL_BG    = {**NIVEL_BG,    _PEND: "#F5F5F5"}
-_NIVEL_ICON  = {**NIVEL_ICON,  _PEND: "⚪"}
-_NIVEL_ORDEN = ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", _PEND]
+
+_NIVEL_COLOR = {
+    **NIVEL_COLOR,
+    _NO_APLICA: "#78909C",
+    _PEND:      "#BDBDBD",
+}
+_NIVEL_BG = {
+    **NIVEL_BG,
+    _NO_APLICA: "#ECEFF1",
+    _PEND:      "#F5F5F5",
+}
+_NIVEL_ICON = {
+    **NIVEL_ICON,
+    _NO_APLICA: "⚫",
+    _PEND:      "⚪",
+}
+_NIVEL_ORDEN = [
+    "Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento",
+    _NO_APLICA, _PEND,
+]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _to_num(v):
+def _is_null(v) -> bool:
+    """True si v es NaN, None, vacío o la cadena 'nan'."""
+    if v is None:
+        return True
     try:
-        return float(str(v).strip())
+        if pd.isna(v):
+            return True
+    except (TypeError, ValueError):
+        pass
+    try:
+        f = float(str(v).strip())
+        return math.isnan(f)
+    except (ValueError, TypeError):
+        pass
+    return str(v).strip().lower() in ("", "nan", "none")
+
+
+def _to_num(v):
+    """Convierte a float; devuelve None si es nulo o no numérico."""
+    if _is_null(v):
+        return None
+    try:
+        f = float(str(v).strip())
+        return None if math.isnan(f) else f
     except (ValueError, TypeError):
         return None
 
 
 def _nivel(row) -> str:
-    """Umbrales fijos; sin dato → Pendiente de reporte."""
+    """
+    Clasifica el nivel de cumplimiento del indicador:
+      · Resultado == 'N/A' → No aplica
+      · cumplimiento nulo  → Pendiente de reporte
+      · valor numérico     → Peligro / Alerta / Cumplimiento / Sobrecumplimiento
+    """
+    res = str(row.get("Resultado", "")).strip().upper()
+    if res in ("N/A", "NA"):
+        return _NO_APLICA
+
     c = _to_num(row.get("cumplimiento", ""))
     if c is None:
         return _PEND
@@ -49,13 +102,13 @@ def _nivel(row) -> str:
 
 
 def _limpiar(v) -> str:
-    if pd.isna(v) if not isinstance(v, str) else False:
+    if _is_null(v):
         return ""
     return _html.unescape(str(v)).strip()
 
 
 def _id_limpio(x) -> str:
-    if pd.isna(x) if not isinstance(x, str) else False:
+    if _is_null(x):
         return ""
     try:
         f = float(x)
@@ -67,8 +120,67 @@ def _id_limpio(x) -> str:
 def _fmt_num(v) -> str:
     n = _to_num(v)
     if n is None:
-        return str(v) if str(v).strip() not in ("", "nan") else "—"
+        s = str(v).strip()
+        return s if s and s.lower() not in ("nan", "none", "") else "—"
     return f"{n:,.2f}".rstrip("0").rstrip(".")
+
+
+# ── Periodicidad → fecha de corte del último periodo esperado ─────────────────
+def _corte_periodicidad(periodicidad: str, hoy: _date) -> pd.Timestamp:
+    """
+    Devuelve la fecha fin del último periodo COMPLETO que debería haberse reportado.
+    Si hoy = 01/03/2026:
+      Mensual     → 28/02/2026
+      Bimestral   → 28/02/2026  (ene-feb completo)
+      Trimestral  → 31/12/2025  (Q1-2026 no cerró aún)
+      Cuatrimestral → 31/12/2025
+      Semestral   → 31/12/2025
+      Anual       → 31/12/2025
+    """
+    p = str(periodicidad).strip().lower()
+    y, m = hoy.year, hoy.month
+
+    def _fin(yr, mo):
+        return pd.Timestamp(yr, mo, calendar.monthrange(yr, mo)[1], 23, 59, 59)
+
+    # Anual
+    if any(x in p for x in ("anual", "annual", "año", "año")):
+        return pd.Timestamp(y - 1, 12, 31, 23, 59, 59)
+
+    # Semestral / Bianual
+    if any(x in p for x in ("semestral", "bianual", "semest")):
+        return pd.Timestamp(y - 1, 12, 31, 23, 59, 59) if m <= 6 \
+               else pd.Timestamp(y, 6, 30, 23, 59, 59)
+
+    # Cuatrimestral (Jan-Apr, May-Aug, Sep-Dec)
+    if any(x in p for x in ("cuatrimestral", "cuatrim")):
+        if m <= 4:
+            return pd.Timestamp(y - 1, 12, 31, 23, 59, 59)
+        if m <= 8:
+            return pd.Timestamp(y, 4, 30, 23, 59, 59)
+        return pd.Timestamp(y, 8, 31, 23, 59, 59)
+
+    # Trimestral (Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec)
+    if any(x in p for x in ("trimestral", "trim", "quarter", "cuartr")):
+        q = (m - 1) // 3   # 0=Q1, 1=Q2, 2=Q3, 3=Q4
+        if q == 0:
+            return pd.Timestamp(y - 1, 12, 31, 23, 59, 59)
+        return _fin(y, q * 3)
+
+    # Bimestral (Jan-Feb, Mar-Apr, May-Jun, Jul-Aug, Sep-Oct, Nov-Dec)
+    if any(x in p for x in ("bimestral", "bimest", "bimen")):
+        b = (m - 1) // 2   # 0=Jan-Feb, 1=Mar-Apr, ...
+        if b == 0:
+            return pd.Timestamp(y - 1, 12, 31, 23, 59, 59)
+        return _fin(y, b * 2)
+
+    # Mensual
+    if any(x in p for x in ("mensual", "monthly", "mes")):
+        return pd.Timestamp(y - 1, 12, 31, 23, 59, 59) if m == 1 \
+               else _fin(y, m - 1)
+
+    # Por defecto: último año completo
+    return pd.Timestamp(y - 1, 12, 31, 23, 59, 59)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -100,7 +212,8 @@ def _cargar_mapa() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando indicadores_kawak.xlsx...")
-def _cargar_kawak() -> pd.DataFrame:
+def _cargar_kawak_raw() -> pd.DataFrame:
+    """Carga y limpia kawak. NO calcula Nivel (se hace fuera para evitar stale cache)."""
     if not _RUTA_KAWAK.exists():
         return pd.DataFrame()
 
@@ -118,24 +231,64 @@ def _cargar_kawak() -> pd.DataFrame:
 
     if "Id" in df.columns:
         df["Id"] = df["Id"].apply(_id_limpio)
-    for col in ["Indicador", "Clasificacion", "Sentido", "Subproceso"]:
+    for col in ["Indicador", "Clasificacion", "Sentido", "Subproceso", "Resultado"]:
         if col in df.columns:
             df[col] = df[col].apply(_limpiar)
 
     if "fecha" in df.columns:
         df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-    df = df.sort_values("fecha", ascending=True)
-    df = df.groupby("Id", as_index=False).last()
 
-    # Nivel con "Pendiente de reporte" para indicadores sin cumplimiento
+    return df
+
+
+def _preparar_kawak(df_all: pd.DataFrame) -> pd.DataFrame:
+    """
+    Selecciona el último reporte habilitado por periodicidad y calcula el Nivel.
+    Siempre corre fuera del caché para reflejar cambios en _nivel() al instante.
+    """
+    if df_all.empty:
+        return df_all
+
+    hoy = _date.today()
+
+    def _ultimo_valido(group):
+        per = str(group["Periodicidad"].iloc[0]) if "Periodicidad" in group.columns else ""
+        corte = _corte_periodicidad(per, hoy)
+        en_periodo = group[group["fecha"].notna() & (group["fecha"] <= corte)]
+        if en_periodo.empty:
+            # Sin reporte en el periodo esperado: devuelve la última fila
+            # con cumplimiento forzado a null (Pendiente de reporte)
+            fila = group.sort_values("fecha").iloc[[-1]].copy()
+            fila["cumplimiento"] = None
+            fila["Resultado"]    = ""
+            return fila
+        return en_periodo.sort_values("fecha").iloc[[-1]]
+
+    col_per = "Periodicidad" if "Periodicidad" in df_all.columns else None
+    if col_per and "fecha" in df_all.columns:
+        df = (df_all.sort_values("fecha")
+              .groupby("Id", group_keys=False)
+              .apply(_ultimo_valido)
+              .reset_index(drop=True))
+    else:
+        # Fallback: último registro por indicador
+        df = (df_all.sort_values("fecha")
+              .groupby("Id", as_index=False)
+              .last())
+
+    # Nivel de cumplimiento (siempre fresco)
     df["Nivel de cumplimiento"] = df.apply(_nivel, axis=1)
 
+    # Columnas formateadas para mostrar
     df["Cumplimiento"] = df["cumplimiento"].apply(_fmt_num)
-    df["Resultado"]    = df["Resultado"].apply(
-        lambda v: _fmt_num(v) if _to_num(v) is not None else str(v)
-    )
-    df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—")
+    if "Resultado" in df.columns:
+        df["Resultado"] = df["Resultado"].apply(
+            lambda v: _fmt_num(v) if _to_num(v) is not None else (str(v) if str(v).strip() else "—")
+        )
+    df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—") \
+                          if "fecha" in df.columns else "—"
 
+    # Merge con jerarquía de procesos
     mapa = _cargar_mapa()
     if not mapa.empty and "Subproceso" in df.columns:
         df = df.merge(mapa, on="Subproceso", how="left")
@@ -156,14 +309,13 @@ def _fig_donut(df):
     fig = go.Figure(go.Pie(
         labels=labels, values=values, hole=0.55,
         marker=dict(colors=colors, line=dict(color="white", width=2)),
-        textinfo="label+value",
-        textfont=dict(size=12),
+        textinfo="label+value", textfont=dict(size=12),
         hovertemplate="<b>%{label}</b><br>%{value} indicadores (%{percent})<extra></extra>",
     ))
     fig.update_layout(
-        height=320, showlegend=True,
+        height=340, showlegend=True,
         legend=dict(orientation="v", x=1.02, y=0.5),
-        margin=dict(t=10, b=10, l=10, r=140),
+        margin=dict(t=10, b=10, l=10, r=160),
         paper_bgcolor="white",
         annotations=[dict(text=f"<b>{total}</b><br>total",
                           x=0.5, y=0.5, font_size=16, showarrow=False)],
@@ -239,7 +391,6 @@ def _aplicar_filtros(df, txt_id, txt_nom, sel_vicerr, sel_proc, sel_sub, sel_niv
 
 
 def _filtros_ui(df_opciones, prefix):
-    """df_opciones: dataset completo, usado para poblar los dropdowns con todas las opciones."""
     with st.expander("🔍 Filtros", expanded=True):
         r1c1, r1c2 = st.columns(2)
         with r1c1:
@@ -249,35 +400,33 @@ def _filtros_ui(df_opciones, prefix):
                                     placeholder="Buscar nombre...")
 
         r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-
         with r2c1:
             opts_v = [""] + sorted(df_opciones["Vicerrectoria"].dropna().unique().tolist()) \
                      if "Vicerrectoria" in df_opciones.columns else [""]
             sel_vicerr = st.selectbox("Vicerrectoría", opts_v, key=f"{prefix}_vicerr",
                                       format_func=lambda x: "— Todas —" if x == "" else x)
-
         with r2c2:
-            if sel_vicerr and "Vicerrectoria" in df_opciones.columns and "Proceso" in df_opciones.columns:
+            if sel_vicerr and "Vicerrectoria" in df_opciones.columns:
                 proc_pool = df_opciones.loc[df_opciones["Vicerrectoria"] == sel_vicerr,
-                                            "Proceso"].dropna().unique().tolist()
+                                            "Proceso"].dropna().unique().tolist() \
+                            if "Proceso" in df_opciones.columns else []
             else:
                 proc_pool = df_opciones["Proceso"].dropna().unique().tolist() \
                             if "Proceso" in df_opciones.columns else []
             opts_p = [""] + sorted(proc_pool)
             sel_proc = st.selectbox("Proceso", opts_p, key=f"{prefix}_proc",
                                     format_func=lambda x: "— Todos —" if x == "" else x)
-
         with r2c3:
-            if sel_proc and "Proceso" in df_opciones.columns and "Subproceso" in df_opciones.columns:
+            if sel_proc and "Proceso" in df_opciones.columns:
                 sub_pool = df_opciones.loc[df_opciones["Proceso"] == sel_proc,
-                                           "Subproceso"].dropna().unique().tolist()
+                                           "Subproceso"].dropna().unique().tolist() \
+                           if "Subproceso" in df_opciones.columns else []
             else:
                 sub_pool = df_opciones["Subproceso"].dropna().unique().tolist() \
                            if "Subproceso" in df_opciones.columns else []
             opts_s = [""] + sorted(sub_pool)
             sel_sub = st.selectbox("Subproceso", opts_s, key=f"{prefix}_sub",
                                    format_func=lambda x: "— Todos —" if x == "" else x)
-
         with r2c4:
             niv_opts = [""] + [n for n in _NIVEL_ORDEN
                                if n in df_opciones["Nivel de cumplimiento"].unique()]
@@ -302,38 +451,36 @@ def _estilo_nivel(row):
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("# 🏠 Reporte de Cumplimiento")
-st.caption("Último reporte por indicador · Fuente: **indicadores_kawak.xlsx**")
+st.caption("Último reporte habilitado por periodicidad · Fuente: **indicadores_kawak.xlsx**")
 st.markdown("---")
 
-df_raw = _cargar_kawak()
-
-if df_raw.empty:
+# Carga: raw (cacheado) → preparar (fuera del caché, siempre fresco)
+_raw = _cargar_kawak_raw()
+if _raw.empty:
     st.error("No se encontró **indicadores_kawak.xlsx** en `data/raw/`.")
     st.stop()
 
+with st.spinner("Procesando niveles de cumplimiento..."):
+    df_raw = _preparar_kawak(_raw)
+
 total = len(df_raw)
 cnts  = df_raw["Nivel de cumplimiento"].value_counts()
-n_pend = int(cnts.get(_PEND, 0))
 
-# ── KPIs (nivel de página, fuera de tabs) ─────────────────────────────────────
+# ── KPIs ──────────────────────────────────────────────────────────────────────
 kc = st.columns(6)
-with kc[0]:
-    st.metric("Total indicadores", total)
-for i, (niv, d_color) in enumerate([
-        ("Peligro",           "inverse"),
-        ("Alerta",            "off"),
-        ("Cumplimiento",      "normal"),
-        ("Sobrecumplimiento", "normal"),
-], 1):
-    n   = int(cnts.get(niv, 0))
-    pct = round(n / total * 100, 1) if total else 0
+metricas = [
+    ("Total",              total,                                 None,       "off"),
+    ("🔴 Peligro",         int(cnts.get("Peligro", 0)),           None,       "inverse"),
+    ("🟡 Alerta",          int(cnts.get("Alerta", 0)),            None,       "off"),
+    ("🔵 Cumplimiento",    int(cnts.get("Cumplimiento", 0))
+                         + int(cnts.get("Sobrecumplimiento", 0)), None,       "normal"),
+    ("⚫ No aplica",       int(cnts.get(_NO_APLICA, 0)),          None,       "off"),
+    ("⚪ Pendiente",       int(cnts.get(_PEND, 0)),               None,       "off"),
+]
+for i, (label, val, _, dc) in enumerate(metricas):
+    pct = f"{round(val/total*100,1)}%" if total and label != "Total" else None
     with kc[i]:
-        st.metric(f"{_NIVEL_ICON[niv]} {niv}", n,
-                  delta=f"{pct}%", delta_color=d_color)
-with kc[5]:
-    pct_p = round(n_pend / total * 100, 1) if total else 0
-    st.metric(f"{_NIVEL_ICON[_PEND]} Pend. reporte", n_pend,
-              delta=f"{pct_p}%", delta_color="off")
+        st.metric(label, val, delta=pct, delta_color=dc)
 
 st.markdown("---")
 
@@ -346,13 +493,10 @@ tab_res, tab_con = st.tabs(["📊 Resumen", "📋 Consolidado"])
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_res:
     st.markdown("### Distribución General de Cumplimiento")
-
     gr1, gr2 = st.columns([1, 2])
-
     with gr1:
         st.markdown("#### Por Nivel")
         st.plotly_chart(_fig_donut(df_raw), use_container_width=True, key="res_donut")
-
     with gr2:
         st.markdown("#### Por Vicerrectoría")
         if "Vicerrectoria" in df_raw.columns:
@@ -377,7 +521,7 @@ with tab_con:
     _KEY_V = "rc_con_vicerr"
     _KEY_P = "rc_con_proc"
 
-    # ── Gráfico Vicerrectoría → filtra gráfico Proceso y tabla ───────────────
+    # ── Gráfico Vicerrectoría → filtra Proceso + tabla ───────────────────────
     if "Vicerrectoria" in df_raw.columns:
         st.markdown("#### Por Vicerrectoría")
         st.caption("💡 Clic en una barra para filtrar el gráfico de Proceso y la tabla.")
@@ -390,23 +534,21 @@ with tab_con:
             clicked_v = ev_cv.selection["points"][0].get("y")
             if clicked_v != st.session_state.get(_KEY_V):
                 st.session_state[_KEY_V] = clicked_v
-                st.session_state[_KEY_P] = None   # resetear Proceso al cambiar Vicerrectoría
+                st.session_state[_KEY_P] = None
                 st.rerun()
 
         sel_v = st.session_state.get(_KEY_V)
         if sel_v:
             hv1, hv2 = st.columns([7, 1])
             with hv1:
-                st.info(f"📊 Vicerrectoría seleccionada: **{sel_v}**")
+                st.info(f"📊 Vicerrectoría: **{sel_v}**")
             with hv2:
                 if st.button("✖ Todos", key="con_clear_vicerr"):
                     st.session_state[_KEY_V] = None
                     st.session_state[_KEY_P] = None
                     st.rerun()
-
         st.markdown("---")
 
-    # df pre-filtrado por Vicerrectoría del gráfico
     sel_v = st.session_state.get(_KEY_V)
     df_por_vicerr = df_raw[df_raw["Vicerrectoria"] == sel_v].copy() \
                     if sel_v and "Vicerrectoria" in df_raw.columns else df_raw.copy()
@@ -430,22 +572,19 @@ with tab_con:
         if sel_p:
             hp1, hp2 = st.columns([7, 1])
             with hp1:
-                st.info(f"📊 Proceso seleccionado: **{sel_p}**")
+                st.info(f"📊 Proceso: **{sel_p}**")
             with hp2:
                 if st.button("✖ Todos", key="con_clear_proc"):
                     st.session_state[_KEY_P] = None
                     st.rerun()
-
         st.markdown("---")
 
-    # df pre-filtrado también por Proceso del gráfico
     sel_p = st.session_state.get(_KEY_P)
     df_por_proc = df_por_vicerr[df_por_vicerr["Proceso"] == sel_p].copy() \
                   if sel_p and "Proceso" in df_por_vicerr.columns else df_por_vicerr
 
-    # ── Todos los filtros UI (se aplican sobre el df ya filtrado por gráficos) ─
+    # ── Filtros UI ─────────────────────────────────────────────────────────────
     f_id, f_nom, f_vicerr_ui, f_proc_ui, f_sub, f_niv = _filtros_ui(df_raw, "con")
-
     df_tabla = _aplicar_filtros(df_por_proc, f_id, f_nom, f_vicerr_ui, f_proc_ui, f_sub, f_niv)
 
     st.caption(f"Mostrando **{len(df_tabla)}** de **{total}** indicadores")
@@ -458,15 +597,15 @@ with tab_con:
         "Vicerrectoria", "Area", "Proceso", "Subproceso",
         "Clasificacion", "Sentido", "Periodicidad",
     ]
-    cols_show = [c for c in COLS_TABLA if c in df_tabla.columns]
+    cols_show  = [c for c in COLS_TABLA if c in df_tabla.columns]
     df_mostrar = df_tabla[cols_show].copy()
 
     col_cfg = {
-        "Indicador":             st.column_config.TextColumn("Indicador",            width="large"),
+        "Indicador":             st.column_config.TextColumn("Indicador",             width="large"),
         "Nivel de cumplimiento": st.column_config.TextColumn("Nivel de cumplimiento", width="medium"),
         "Cumplimiento":          st.column_config.TextColumn("Cumplimiento",          width="small"),
         "Resultado":             st.column_config.TextColumn("Resultado",             width="small"),
-        "Meta":                  st.column_config.TextColumn("Meta",                 width="small"),
+        "Meta":                  st.column_config.TextColumn("Meta",                  width="small"),
     }
 
     st.dataframe(
