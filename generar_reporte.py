@@ -39,6 +39,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RUTA_ORIGEN = os.path.join(BASE_DIR, "data", "raw", "lmi_reporte.xls")
 RUTA_SALIDA = os.path.join(BASE_DIR, "data", "raw", "Seguimiento_Reporte.xlsx")
 
+# Archivo de respaldo Kawak (puede no existir; se omite sin error si falta).
+RUTA_KAWAK  = os.path.join(BASE_DIR, "data", "raw", "indicadores_kawak.xlsx")
+
+# Nombres de columnas en indicadores_kawak.xlsx
+# (el script los busca también por variantes comunes si no coinciden exactamente).
+KAWAK_COL_ID     = "Id"          # columna que identifica el indicador
+KAWAK_COL_FECHA  = "Fecha"       # columna de fecha / período
+KAWAK_COL_RESULT = "Resultado"   # columna de valor / resultado
+
 # Columna cuyo cambio entre filas consecutivas marca un nuevo indicador único.
 # Cambiar si la columna clave de la fuente tuviera otro nombre.
 COLUMNA_REVISAR = "Id"
@@ -189,6 +198,156 @@ def _tiene_dato(v) -> bool:
         return False
     s = str(v).strip()
     return s not in ("", "-", "nan", "NaN", "None")
+
+
+def _id_normalizar(x) -> str:
+    """Normaliza un Id a string limpio (mismo criterio que data_loader._id_a_str)."""
+    if x is None:
+        return ""
+    try:
+        if pd.isna(x):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    try:
+        f = float(x)
+        return str(int(f)) if f == int(f) else str(f)
+    except (ValueError, TypeError):
+        return str(x).strip()
+
+
+def _tiene_dato_kawak(v) -> bool:
+    """
+    Igual que _tiene_dato pero más robusto ante tipos pandas.
+    N/A (string) SÍ cuenta como dato válido (indicador medido, no aplicable).
+    """
+    try:
+        if pd.isna(v):
+            return False
+    except (TypeError, ValueError):
+        pass
+    s = str(v).strip()
+    return s not in ("", "-", "nan", "NaN", "None")
+
+
+def _detectar_col(df: pd.DataFrame, candidatos: list) -> str | None:
+    """Devuelve la primera columna que coincida (case-insensitive) con los candidatos."""
+    col_lower = {c.lower(): c for c in df.columns}
+    for cand in candidatos:
+        found = col_lower.get(cand.lower())
+        if found:
+            return found
+    return None
+
+
+def leer_kawak(ruta: str) -> dict:
+    """
+    Carga indicadores_kawak.xlsx y construye un diccionario de búsqueda:
+        {(id_str, año, mes): resultado}
+
+    Retorna {} si el archivo no existe o si las columnas requeridas no se encuentran.
+    """
+    if not os.path.exists(ruta):
+        print(f"    INFO: {ruta} no encontrado — se omite cruce Kawak.")
+        return {}
+
+    try:
+        df = pd.read_excel(ruta, engine="openpyxl")
+    except Exception as exc:
+        print(f"    ADVERTENCIA kawak: no se pudo leer el archivo: {exc}")
+        return {}
+
+    df.columns = [str(c).strip() for c in df.columns]
+
+    col_id  = _detectar_col(df, [KAWAK_COL_ID,     "Id", "ID", "Codigo", "Código", "codigo"])
+    col_fec = _detectar_col(df, [KAWAK_COL_FECHA,  "Fecha", "Periodo", "Period", "FechaPeriodo", "Mes"])
+    col_res = _detectar_col(df, [KAWAK_COL_RESULT, "Resultado", "Valor", "Value", "Result", "Dato"])
+
+    if not col_id or not col_fec or not col_res:
+        print(f"    ADVERTENCIA kawak: columnas requeridas no encontradas.\n"
+              f"    Disponibles: {df.columns.tolist()}")
+        return {}
+
+    lookup = {}
+    omitidas = 0
+    for _, row in df.iterrows():
+        kid = _id_normalizar(row[col_id])
+        if not kid:
+            continue
+
+        fecha_raw = row[col_fec]
+        resultado = row[col_res]
+
+        # Convertir fecha a (año, mes)
+        try:
+            if isinstance(fecha_raw, (pd.Timestamp, date)):
+                ts = pd.Timestamp(fecha_raw)
+            elif isinstance(fecha_raw, (int, float)) and not pd.isna(fecha_raw):
+                # Número de serie de Excel
+                ts = pd.Timestamp("1899-12-30") + pd.Timedelta(days=int(fecha_raw))
+            else:
+                ts = pd.Timestamp(str(fecha_raw).strip())
+            lookup[(kid, ts.year, ts.month)] = resultado
+        except Exception:
+            omitidas += 1
+
+    if omitidas:
+        print(f"    INFO kawak: {omitidas} filas con fecha no parseable fueron omitidas.")
+
+    print(f"    Kawak cargado: {len(lookup)} registros (Id × período).")
+    return lookup
+
+
+def enriquecer_desde_kawak(df_p: pd.DataFrame, kawak: dict,
+                            col_p1: str, col_p2: str | None,
+                            fecha_p1, fecha_p2) -> tuple:
+    """
+    Para cada fila con 'Estado del indicador' == 'Pendiente de reporte':
+      - Busca el resultado en el diccionario kawak por (Id, año, mes).
+      - Si existe un dato (incluyendo 'N/A'), lo escribe en la columna de período
+        y recalcula 'Reportado' y 'Estado del indicador'.
+
+    Retorna (df_enriquecido, n_actualizados).
+    """
+    if not kawak:
+        return df_p, 0
+
+    df_p = df_p.copy()
+    n_act = 0
+
+    for i, row in df_p.iterrows():
+        if row.get("Estado del indicador") != "Pendiente de reporte":
+            continue
+
+        kid      = _id_normalizar(row.get("Id", ""))
+        cambiado = False
+
+        # ── Período 1 (más reciente) ──────────────────────────────────────────
+        if fecha_p1 and not _tiene_dato(row.get(col_p1, "")):
+            res1 = kawak.get((kid, fecha_p1.year, fecha_p1.month))
+            if res1 is not None and _tiene_dato_kawak(res1):
+                df_p.at[i, col_p1] = res1
+                cambiado = True
+
+        # ── Período 2 ─────────────────────────────────────────────────────────
+        if col_p2 and fecha_p2 and not _tiene_dato(row.get(col_p2, "")):
+            res2 = kawak.get((kid, fecha_p2.year, fecha_p2.month))
+            if res2 is not None and _tiene_dato_kawak(res2):
+                df_p.at[i, col_p2] = res2
+                cambiado = True
+
+        # ── Recalcular Reportado y Estado si algo cambió ──────────────────────
+        if cambiado:
+            p1_ok = _tiene_dato(df_p.at[i, col_p1])
+            p2_ok = _tiene_dato(df_p.at[i, col_p2]) if col_p2 else True
+            df_p.at[i, "Reportado"]            = "Sí" if p1_ok else "No"
+            df_p.at[i, "Estado del indicador"] = (
+                "Reportado" if (p1_ok and p2_ok) else "Pendiente de reporte"
+            )
+            if p1_ok or p2_ok:
+                n_act += 1
+
+    return df_p, n_act
 
 
 def agregar_columnas_seguimiento(df: pd.DataFrame, col_p1: str, col_p2: str) -> pd.DataFrame:
@@ -369,9 +528,13 @@ def main():
     escribir_hoja(ws_seg, df)
     print("    OK")
 
-    # ── 6. Hojas por periodicidad ────────────────────────────────────────────
+    # ── 6. Cargar Kawak (opcional) ───────────────────────────────────────────
+    print(f"\n[5] Cargando respaldo Kawak: {RUTA_KAWAK}")
+    kawak_lookup = leer_kawak(RUTA_KAWAK)
+
+    # ── 7. Hojas por periodicidad ────────────────────────────────────────────
     periodicidades = [p for p in df["Periodicidad"].dropna().unique() if p]
-    print(f"\n[5] Periodicidades: {periodicidades}")
+    print(f"\n[6] Periodicidades: {periodicidades}")
     resumen_data = []
 
     for perio in periodicidades:
@@ -386,15 +549,25 @@ def main():
             print(f"       Periodo 1 -> {fechas[0].strftime('%d/%m/%Y')}  "
                   f"| Periodo {n_periodos} -> {fechas[-1].strftime('%d/%m/%Y')}")
 
-        # Columnas de seguimiento
+        # Columnas de seguimiento (usando datos LMI)
         col_p1 = periodo_cols[0]
         col_p2 = periodo_cols[1] if n_periodos >= 2 else None
         df_p = agregar_columnas_seguimiento(df_p, col_p1, col_p2)
 
+        # Enriquecer con Kawak los pendientes
+        fecha_p1 = fechas[0] if fechas else None
+        fecha_p2 = fechas[1] if len(fechas) > 1 else None
+        df_p, n_kawak = enriquecer_desde_kawak(
+            df_p, kawak_lookup, col_p1, col_p2, fecha_p1, fecha_p2
+        )
+
         reportados = (df_p["Reportado"] == "Sí").sum()
         pendientes = (df_p["Estado del indicador"] == "Pendiente de reporte").sum()
-        print(f"       Reportados (período más reciente) : {reportados}/{total}")
-        print(f"       Pendientes de reporte (2 períodos): {pendientes}/{total}")
+        print(f"       Reportados (LMI)            : {reportados - n_kawak}/{total}")
+        if kawak_lookup:
+            print(f"       Actualizados desde Kawak   : {n_kawak}")
+        print(f"       Reportados total           : {reportados}/{total}")
+        print(f"       Pendientes de reporte      : {pendientes}/{total}")
 
         # Escribir hoja
         ws = wb.create_sheet(title=perio[:31])
