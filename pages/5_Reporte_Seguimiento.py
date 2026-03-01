@@ -147,27 +147,49 @@ def _bar_h(df_stats, col_cat, height=None):
     """Gráfica de barras horizontales apiladas (Reportado/Pendiente)."""
     col_rep = "Reportado"            if "Reportado"            in df_stats.columns else None
     col_pen = "Pendiente de reporte" if "Pendiente de reporte" in df_stats.columns else None
+
+    # Orden explícito: mayor total arriba — evita desalineación barra/etiqueta
+    cats = list(df_stats[col_cat].astype(str))
+
     fig = go.Figure()
     if col_rep:
+        vals = df_stats[col_rep].tolist()
         fig.add_trace(go.Bar(
-            y=df_stats[col_cat], x=df_stats[col_rep],
+            y=cats, x=vals,
             orientation="h", name="Reportado", marker_color=CORP["reportado"],
-            text=df_stats[col_rep], textposition="outside",
+            text=[v if v > 0 else "" for v in vals],
+            textposition="inside", insidetextanchor="middle",
+            textfont=dict(size=11, color="white"),
         ))
     if col_pen:
+        vals = df_stats[col_pen].tolist()
         fig.add_trace(go.Bar(
-            y=df_stats[col_cat], x=df_stats[col_pen],
+            y=cats, x=vals,
             orientation="h", name="Pendiente", marker_color=CORP["pendiente"],
-            text=df_stats[col_pen], textposition="outside",
+            text=[v if v > 0 else "" for v in vals],
+            textposition="inside", insidetextanchor="middle",
+            textfont=dict(size=11, color="white"),
         ))
-    h = height or max(300, len(df_stats) * 38 + 60)
+
+    # Altura: mínimo 40 px por categoría para que barra y etiqueta alineen
+    h = height or max(320, len(df_stats) * 42 + 70)
+    # Margen izquierdo dinámico según el largo del nombre más largo
+    max_len = max((len(str(c)) for c in cats), default=10)
+    margin_l = min(max(max_len * 6, 120), 340)
+
     fig.update_layout(
         barmode="stack", height=h,
         xaxis_title="Indicadores", yaxis_title="",
-        yaxis=dict(autorange="reversed"),
+        yaxis=dict(
+            categoryorder="array",
+            categoryarray=cats,        # orden fijo = mismo que los datos
+            autorange="reversed",
+            tickfont=dict(size=10),
+        ),
+        uniformtext_minsize=9, uniformtext_mode="hide",
         plot_bgcolor="white", paper_bgcolor="white",
-        legend=dict(orientation="h", y=-0.15),
-        margin=dict(t=15, b=50, l=10, r=10),
+        legend=dict(orientation="h", y=-0.12),
+        margin=dict(t=15, b=50, l=margin_l, r=30),
     )
     return fig
 
@@ -175,8 +197,12 @@ def _bar_h(df_stats, col_cat, height=None):
 def _agg_estado(df, col_cat):
     """Agrupa df por col_cat y calcula Reportado/Pendiente/Total."""
     COL_E = "Estado del indicador"
-    if COL_E not in df.columns:
+    if COL_E not in df.columns or col_cat not in df.columns:
         return pd.DataFrame()
+    df = df.copy()
+    # Normalizar espacios para evitar duplicados de categoría
+    df[col_cat] = df[col_cat].astype(str).str.strip()
+    df = df[df[col_cat].notna() & (df[col_cat] != "nan")]
     stats = (
         df.groupby(col_cat)[COL_E]
         .value_counts().unstack(fill_value=0).reset_index()
@@ -640,7 +666,7 @@ for tab_idx, perio in enumerate(perios, 2):
         col_proc_p = "Proceso" if "Proceso" in df_p.columns else None
         if col_proc_p and COL_E in df_p.columns:
             proc_p_s = _agg_estado(df_p, col_proc_p)
-            fig_pg   = _bar_h(proc_p_s, col_proc_p, height=280)
+            fig_pg   = _bar_h(proc_p_s, col_proc_p)   # altura automática
             st.plotly_chart(fig_pg, use_container_width=True)
 
         st.markdown("---")
