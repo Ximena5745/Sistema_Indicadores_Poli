@@ -20,18 +20,18 @@ UMBRAL_SOBRECUMPLIMIENTO_DEC = 1.05
 
 # ── Colores de referencia (sólido) ─────────────────────────────────────────────
 NIVEL_COLOR = {
-    "Peligro":           "#EC0677",
+    "Peligro":           "#D32F2F",
     "Alerta":            "#FBAF17",
-    "Cumplimiento":      "#1FB2DE",
+    "Cumplimiento":      "#2E7D32",
     "Sobrecumplimiento": "#1A3A5C",
     "Sin dato":          "#BDBDBD",
 }
 
 # ── Colores de fondo (celdas de tabla) ─────────────────────────────────────────
 NIVEL_BG = {
-    "Peligro":           "#FDE8F3",
+    "Peligro":           "#FFCDD2",
     "Alerta":            "#FEF3D0",
-    "Cumplimiento":      "#E0F7FA",
+    "Cumplimiento":      "#E8F5E9",
     "Sobrecumplimiento": "#D0E4FF",
     "Sin dato":          "#F5F5F5",
 }

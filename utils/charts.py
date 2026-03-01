@@ -11,9 +11,9 @@ from openpyxl.styles import PatternFill, Font
 from config import COLORES, COLOR_CATEGORIA
 
 COLOR_CAT = {
-    "Peligro":           "#EC0677",
+    "Peligro":           "#D32F2F",
     "Alerta":            "#FBAF17",
-    "Cumplimiento":      "#1FB2DE",
+    "Cumplimiento":      "#2E7D32",
     "Sobrecumplimiento": "#1A3A5C",
     "Sin dato":          "#BDBDBD",
 }
@@ -49,7 +49,7 @@ def grafico_historico_indicador(df_ind: pd.DataFrame, titulo: str = "") -> go.Fi
         annotation_font_size=10,
     )
     fig.add_hrect(
-        y0=100, y1=105, fillcolor="#E0F7FA", opacity=0.50, line_width=0,
+        y0=100, y1=105, fillcolor="#E8F5E9", opacity=0.50, line_width=0,
         annotation_text="Cumplimiento 100–105%", annotation_position="top left",
         annotation_font_size=10,
     )

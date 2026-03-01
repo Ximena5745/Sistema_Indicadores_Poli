@@ -11,12 +11,12 @@ DB_PATH   = DATA_DB / "registros_om.db"
 
 # ── Paleta de colores institucional ──────────────────────────────────────────
 COLORES = {
-    "peligro":                "#EC0677",
-    "peligro_claro":          "#FDE8F3",
+    "peligro":                "#D32F2F",
+    "peligro_claro":          "#FFCDD2",
     "alerta":                 "#FBAF17",
     "alerta_claro":           "#FEF3D0",
-    "cumplimiento":           "#1FB2DE",
-    "cumplimiento_claro":     "#E0F7FA",
+    "cumplimiento":           "#2E7D32",
+    "cumplimiento_claro":     "#E8F5E9",
     "sobrecumplimiento":      "#1A3A5C",
     "sobrecumplimiento_claro":"#D0E4FF",
     "sin_dato":               "#BDBDBD",
