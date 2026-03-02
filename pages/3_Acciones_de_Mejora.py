@@ -1,14 +1,18 @@
 """
 pages/3_Acciones_de_Mejora.py — Oportunidades de Mejora.
 
-Fuente principal : data/raw/OM.xls          (encabezados en fila 8)
-Plan de Acción   : data/raw/Plan de accion/*.xls  (consolidado)
+Fuente principal : data/raw/OM.xlsx / OM.xls  (encabezados en fila 8)
+Plan de Acción   : data/raw/Plan de accion/*.xlsx / *.xls  (consolidado)
 
 Interacción:
   · Seleccionar una fila en la tabla de OM despliega las acciones
     del Plan de Acción asociadas (vínculo: Id ↔ Id Oportunidad de mejora).
+  · Sección inferior muestra procesos con acciones retrasadas.
 """
+import datetime
+
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from utils.data_loader import cargar_om, cargar_plan_accion
@@ -16,7 +20,7 @@ from utils.charts import exportar_excel
 
 # ── Carga de datos ─────────────────────────────────────────────────────────────
 st.markdown("# 📋 Oportunidades de Mejora")
-st.caption("Fuente: **OM.xls** · Plan de Acción consolidado")
+st.caption("Fuente: **OM.xlsx** · Plan de Acción consolidado")
 st.markdown("---")
 
 df_om = cargar_om()
@@ -24,7 +28,7 @@ df_pa = cargar_plan_accion()
 
 if df_om.empty:
     st.error(
-        "No se encontró **OM.xls** en `data/raw/`. "
+        "No se encontró **OM.xlsx** en `data/raw/`. "
         "Verifica que el archivo exista y que los encabezados estén en la fila 8."
     )
     st.stop()
@@ -34,7 +38,8 @@ _COLS_OM = [
     "Id", "Fecha de identificación", "Avance (%)", "Estado",
     "Tipo de acción", "Tipo de oportunidad", "Procesos", "Sede",
     "Descripción", "Fuente", "Fecha de creación",
-    "Fecha estimada de cierre", "Fecha real de cierre", "Comentario",
+    "Fecha estimada de cierre", "Fecha real de cierre",
+    "Días vencida", "Meses sin avance", "Comentario",
 ]
 _COLS_PA = [
     "Id Acción", "Fecha creación", "Clasificación", "Avance (%)",
@@ -53,23 +58,26 @@ _COL_PA_ID = next(
 ) if not df_pa.empty else None
 
 # Columnas clave en OM
-_COL_AV     = next((c for c in df_om.columns if "avance" in c.lower()), None)
-_COL_ESTADO = next((c for c in df_om.columns if c.lower() == "estado"), None)
+_COL_AV      = next((c for c in df_om.columns if "avance" in c.lower()), None)
+_COL_ESTADO  = next((c for c in df_om.columns if c.lower() == "estado"), None)
+_COL_DIAS    = next((c for c in df_om.columns if "días vencida" in c.lower() or "dias vencida" in c.lower()), None)
 
 
 # ── KPIs ──────────────────────────────────────────────────────────────────────
-total        = len(df_om)
-cnt_cerradas = int((df_om[_COL_ESTADO] == "Cerrada").sum()) if _COL_ESTADO else 0
-cnt_abiertas = total - cnt_cerradas
-avance_prom  = float(df_om[_COL_AV].mean()) if _COL_AV else 0.0
-cnt_pa       = len(df_pa)
+total         = len(df_om)
+cnt_cerradas  = int((df_om[_COL_ESTADO] == "Cerrada").sum())  if _COL_ESTADO else 0
+cnt_abiertas  = total - cnt_cerradas
+avance_prom   = float(df_om[_COL_AV].mean())                  if _COL_AV     else 0.0
+cnt_vencidas  = int((df_om[_COL_DIAS] > 0).sum())             if _COL_DIAS   else 0
+cnt_pa        = len(df_pa)
 
-kc = st.columns(5)
-kc[0].metric("Total OM",         total)
-kc[1].metric("Abiertas",         cnt_abiertas)
-kc[2].metric("Cerradas",         cnt_cerradas)
-kc[3].metric("Avance promedio",  f"{round(avance_prom, 1)}%")
-kc[4].metric("Acciones de plan", cnt_pa)
+kc = st.columns(6)
+kc[0].metric("Total OM",          total)
+kc[1].metric("Abiertas",          cnt_abiertas)
+kc[2].metric("Cerradas",          cnt_cerradas)
+kc[3].metric("Avance promedio",   f"{round(avance_prom, 1)}%")
+kc[4].metric("OM vencidas",       cnt_vencidas,  delta=None if cnt_vencidas == 0 else f"⚠ {cnt_vencidas}")
+kc[5].metric("Acciones de plan",  cnt_pa)
 
 st.markdown("---")
 
@@ -135,6 +143,8 @@ ev = st.dataframe(
         "Comentario":          st.column_config.TextColumn("Comentario",       width="medium"),
         "Procesos":            st.column_config.TextColumn("Procesos",         width="medium"),
         "Tipo de oportunidad": st.column_config.TextColumn("Tipo oportunidad", width="medium"),
+        "Días vencida":        st.column_config.NumberColumn("Días vencida",   format="%d"),
+        "Meses sin avance":    st.column_config.NumberColumn("Meses sin avance", format="%d"),
     },
 )
 
@@ -174,7 +184,7 @@ if ev.selection and ev.selection.rows:
     if df_pa.empty or _COL_PA_ID is None:
         st.info(
             "No se encontraron archivos en `data/raw/Plan de accion/`. "
-            "Coloca los archivos PA_*.xls en esa carpeta."
+            "Coloca los archivos PA_*.xlsx en esa carpeta."
         )
     else:
         df_plan = df_pa[df_pa[_COL_PA_ID].astype(str) == om_id].copy()
@@ -219,3 +229,104 @@ if ev.selection and ev.selection.rows:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="exp_pa",
             )
+
+
+# ── Análisis: Procesos con acciones retrasadas ────────────────────────────────
+st.markdown("---")
+st.markdown("### ⚠️ Procesos con acciones retrasadas en el Plan de Acción")
+
+if df_pa.empty or _COL_PA_ID is None:
+    st.info("Sin datos de Plan de Acción disponibles.")
+else:
+    _COL_FECHA_LIM = next(
+        (c for c in df_pa.columns if "fecha límite de ejecución" in c.lower()
+         or "fecha limite de ejecucion" in c.lower()),
+        None,
+    )
+    _COL_ESTADO_PA = next(
+        (c for c in df_pa.columns if "estado (plan de acción)" in c.lower()
+         or "estado (plan de accion)" in c.lower()),
+        None,
+    )
+    _COL_PROC_RESP = next(
+        (c for c in df_pa.columns if "proceso responsable" in c.lower()),
+        None,
+    )
+
+    if _COL_FECHA_LIM and _COL_ESTADO_PA and _COL_PROC_RESP:
+        hoy = pd.Timestamp(datetime.date.today())
+
+        # Retrasada: fecha límite vencida Y estado ≠ Ejecutado
+        mask_ret = (
+            pd.to_datetime(df_pa[_COL_FECHA_LIM], errors="coerce") < hoy
+        ) & (
+            df_pa[_COL_ESTADO_PA].astype(str).str.strip() != "Ejecutado"
+        )
+        df_ret = df_pa[mask_ret].copy()
+
+        if df_ret.empty:
+            st.success("✅ No hay acciones del Plan de Acción retrasadas.")
+        else:
+            # Conteo por proceso responsable
+            resumen = (
+                df_ret.groupby(_COL_PROC_RESP)
+                .size()
+                .reset_index(name="Acciones retrasadas")
+                .sort_values("Acciones retrasadas", ascending=False)
+            )
+
+            col_g, col_t = st.columns([3, 2])
+
+            with col_g:
+                fig = go.Figure(go.Bar(
+                    x=resumen["Acciones retrasadas"],
+                    y=resumen[_COL_PROC_RESP],
+                    orientation="h",
+                    marker_color="#D32F2F",
+                    text=resumen["Acciones retrasadas"],
+                    textposition="outside",
+                ))
+                fig.update_layout(
+                    title=f"Acciones retrasadas por proceso ({len(df_ret)} total)",
+                    xaxis_title="N° acciones retrasadas",
+                    yaxis={"categoryorder": "total ascending"},
+                    height=max(300, len(resumen) * 35 + 80),
+                    margin=dict(l=10, r=40, t=50, b=30),
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col_t:
+                st.caption(f"**{len(df_ret)}** acción(es) retrasada(s) en **{len(resumen)}** proceso(s)")
+                st.dataframe(resumen, use_container_width=True, hide_index=True)
+
+            # Tabla detalle de acciones retrasadas
+            with st.expander("📋 Ver detalle de acciones retrasadas"):
+                _cols_ret = [c for c in [
+                    _COL_PA_ID, _COL_PROC_RESP,
+                    "Descripción", "Acción", _COL_ESTADO_PA, _COL_FECHA_LIM,
+                    "Responsable de ejecución",
+                ] if c in df_ret.columns]
+
+                df_ret_show = df_ret[_cols_ret].copy()
+                if _COL_FECHA_LIM in df_ret_show.columns:
+                    df_ret_show[_COL_FECHA_LIM] = (
+                        pd.to_datetime(df_ret_show[_COL_FECHA_LIM], errors="coerce")
+                        .dt.strftime("%d/%m/%Y").fillna("—")
+                    )
+                st.dataframe(df_ret_show, use_container_width=True, hide_index=True,
+                             column_config={
+                                 "Descripción": st.column_config.TextColumn("Descripción", width="large"),
+                                 "Acción":      st.column_config.TextColumn("Acción",      width="large"),
+                             })
+                st.download_button(
+                    "📥 Exportar acciones retrasadas (Excel)",
+                    data=exportar_excel(df_ret_show, "Acciones_Retrasadas"),
+                    file_name="acciones_retrasadas.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="exp_ret",
+                )
+    else:
+        st.warning(
+            "No se encontraron las columnas necesarias en el Plan de Acción "
+            "(`Proceso responsable`, `Fecha límite de ejecución`, `Estado (Plan de Acción)`)."
+        )

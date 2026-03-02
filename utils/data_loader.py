@@ -157,7 +157,7 @@ def cargar_om() -> pd.DataFrame:
     xls  = DATA_RAW / "OM.xls"
 
     if xlsx.exists():
-        path, header = xlsx, 0
+        path, header = xlsx, 7
     elif xls.exists():
         path, header = xls, 7
     else:
