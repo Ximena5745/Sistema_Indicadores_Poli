@@ -1,12 +1,12 @@
 """
 pages/1_Resumen_General.py — Reporte de Cumplimiento.
 
-Fuente: data/raw/indicadores_kawak.xlsx
-  · Último reporte habilitado por periodicidad (no simplemente el último registro)
+Fuente: data/output/Resultados Consolidados.xlsx (hoja Consolidado Historico)
+  · Selección de año y mes para análisis
   · Niveles: Sobrecumplimiento | Cumplimiento | Alerta | Peligro | No aplica | Pendiente de reporte
 
 Mejoras:
-  · Banner de fecha de corte visible
+  · Selector de año y mes
   · KPIs con comparativa vs período anterior
   · Caption de tendencia (mejoraron/empeoraron)
   · Desglose por Clasificación
@@ -27,9 +27,17 @@ from utils.niveles import NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, nivel_desde_pct
 
 # ── Rutas ─────────────────────────────────────────────────────────────────────
 from pathlib import Path
-_DATA_RAW   = Path(__file__).parent.parent / "data" / "raw"
-_RUTA_KAWAK = _DATA_RAW / "indicadores_kawak.xlsx"
-_RUTA_MAPA  = _DATA_RAW / "Subproceso-Proceso-Area.xlsx"
+_DATA_OUTPUT = Path(__file__).parent.parent / "data" / "output"
+_DATA_RAW    = Path(__file__).parent.parent / "data" / "raw"
+_RUTA_CONSOLIDADOS = _DATA_OUTPUT / "Resultados Consolidados.xlsx"
+_RUTA_MAPA         = _DATA_RAW / "Subproceso-Proceso-Area.xlsx"
+
+# Meses en español para selección
+MESES_OPCIONES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+]
+_MES_NUM = {m: i+1 for i, m in enumerate(MESES_OPCIONES)}
 
 # ── Niveles extendidos ─────────────────────────────────────────────────────────
 _NO_APLICA   = "No aplica"
@@ -188,28 +196,57 @@ def _cargar_mapa() -> pd.DataFrame:
             .reset_index(drop=True))
 
 
-@st.cache_data(ttl=300, show_spinner="Cargando indicadores_kawak.xlsx...")
-def _cargar_kawak_raw() -> pd.DataFrame:
-    if not _RUTA_KAWAK.exists():
+@st.cache_data(ttl=300, show_spinner="Cargando Resultados Consolidados.xlsx...")
+def _cargar_consolidados() -> pd.DataFrame:
+    """Carga datos desde Resultados Consolidados.xlsx hoja Consolidado Historico."""
+    if not _RUTA_CONSOLIDADOS.exists():
         return pd.DataFrame()
-    df = pd.read_excel(str(_RUTA_KAWAK), engine="openpyxl",
-                       keep_default_na=False, na_values=[""])
+    try:
+        df = pd.read_excel(str(_RUTA_CONSOLIDADOS), sheet_name="Consolidado Historico",
+                           engine="openpyxl", keep_default_na=False, na_values=[""])
+    except Exception:
+        return pd.DataFrame()
+    
     df.columns = [str(c).strip() for c in df.columns]
-    _rename = {
-        "ID": "Id", "nombre": "Indicador", "clasificacion": "Clasificacion",
-        "sentido": "Sentido", "proceso": "Subproceso", "frecuencia": "Periodicidad",
-        "resultado": "Resultado", "meta": "Meta",
-        "fecha": "fecha", "fecha_corte": "fecha_corte",
+    
+    col_renames = {
+        "Id": "Id", "Indicador": "Indicador", "Proceso": "Proceso",
+        "Periodicidad": "Periodicidad", "Sentido": "Sentido",
+        "Fecha": "fecha", "Mes": "Mes", "Periodo": "Periodo",
+        "Meta": "Meta", "Ejecucion": "Ejecucion", "Cumplimiento": "cumplimiento",
+        "Cumplimiento Real": "cumplimiento_real",
     }
-    df = df.rename(columns={k: v for k, v in _rename.items() if k in df.columns})
+    
+    for col in df.columns:
+        col_lower = col.lower()
+        if "año" in col_lower or "aio" in col_lower:
+            col_renames[col] = "Anio"
+    
+    df = df.rename(columns={k: v for k, v in col_renames.items() if k in df.columns})
+    
+    if "Anio" in df.columns:
+        df["Anio"] = pd.to_numeric(df["Anio"], errors="coerce")
+    
     if "Id" in df.columns:
         df["Id"] = df["Id"].apply(_id_limpio)
-    for col in ["Indicador", "Clasificacion", "Sentido", "Subproceso", "Resultado"]:
+    for col in ["Indicador", "Proceso", "Periodicidad", "Sentido", "Mes", "Periodo"]:
         if col in df.columns:
             df[col] = df[col].apply(_limpiar)
+    
     if "fecha" in df.columns:
         df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
+    
     return df
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _obtener_anios_disponibles() -> list:
+    """Retorna lista de años disponibles en el dataset."""
+    df = _cargar_consolidados()
+    if df.empty or "Anio" not in df.columns:
+        return []
+    anios = sorted(df["Anio"].dropna().unique().tolist())
+    return [int(a) for a in anios if not pd.isna(a)]
 
 
 # Dataset_Unificado para el dialog de detalle (histórico completo)
@@ -218,51 +255,91 @@ def _cargar_historico_detalle() -> pd.DataFrame:
     return cargar_dataset()
 
 
-def _preparar_kawak_en_fecha(df_all: pd.DataFrame, hoy: _date) -> pd.DataFrame:
+def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.DataFrame:
     """
-    Selecciona el último reporte habilitado por periodicidad para la fecha `hoy`.
-    Versión parametrizada para permitir comparación vs período anterior.
+    Selecciona los datos según el año y mes seleccionados.
+    Para cada indicador, toma el último registro disponible hasta esa fecha.
     """
     if df_all.empty:
         return df_all
-
-    def _ultimo_valido(group):
-        per   = str(group["Periodicidad"].iloc[0]) if "Periodicidad" in group.columns else ""
-        corte = _corte_periodicidad(per, hoy)
+    
+    mes_num = _MES_NUM.get(mes, 12)
+    fecha_corte = pd.Timestamp(anio, mes_num, 1)
+    
+    df_filtrado = df_all[df_all["fecha"].notna() & (df_all["fecha"] <= fecha_corte)].copy()
+    
+    if df_filtrado.empty:
+        df_filtrado = df_all.copy()
+    
+    def _ultimo_por_periodo(group):
+        per = str(group["Periodicidad"].iloc[0]) if "Periodicidad" in group.columns else ""
+        corte = _corte_periodicidad_per(per, anio, mes_num)
         en_periodo = group[group["fecha"].notna() & (group["fecha"] <= corte)]
         if en_periodo.empty:
             fila = group.sort_values("fecha").iloc[[-1]].copy()
             fila["cumplimiento"] = None
-            fila["Resultado"]    = ""
             return fila
         return en_periodo.sort_values("fecha").iloc[[-1]]
-
-    col_per = "Periodicidad" if "Periodicidad" in df_all.columns else None
-    if col_per and "fecha" in df_all.columns:
-        df = (df_all.sort_values("fecha")
+    
+    col_per = "Periodicidad" if "Periodicidad" in df_filtrado.columns else None
+    if col_per and "fecha" in df_filtrado.columns:
+        df = (df_filtrado.sort_values("fecha")
               .groupby("Id", group_keys=False)
-              .apply(_ultimo_valido)
+              .apply(_ultimo_por_periodo)
               .reset_index(drop=True))
     else:
-        df = (df_all.sort_values("fecha")
+        df = (df_filtrado.sort_values("fecha")
               .groupby("Id", as_index=False)
               .last())
-
+    
     df["Nivel de cumplimiento"] = df.apply(_nivel, axis=1)
-    df["Cumplimiento"]  = df["cumplimiento"].apply(_fmt_num)
-    if "Resultado" in df.columns:
-        df["Resultado"] = df["Resultado"].apply(
-            lambda v: _fmt_num(v) if _to_num(v) is not None
-            else (str(v) if str(v).strip() else "—")
-        )
+    df["Cumplimiento"] = df["cumplimiento"].apply(_fmt_num)
+    if "cumplimiento_real" in df.columns:
+        df["Cumplimiento Real"] = df["cumplimiento_real"].apply(_fmt_num)
     df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—") \
                           if "fecha" in df.columns else "—"
-
+    
     mapa = _cargar_mapa()
-    if not mapa.empty and "Subproceso" in df.columns:
-        df = df.merge(mapa, on="Subproceso", how="left")
-
+    if not mapa.empty:
+        if "Proceso" in df.columns:
+            df = df.merge(mapa, left_on="Proceso", right_on="Subproceso", how="left")
+            if "Vicerrectoria_y" in df.columns:
+                df["Vicerrectoria"] = df["Vicerrectoria_y"]
+                df = df.drop(columns=["Vicerrectoria_y", "Subproceso_y", "Proceso_y"], errors="ignore")
+                df = df.rename(columns={"Subproceso_x": "Subproceso", "Proceso_x": "Proceso"})
+    
     return df
+
+
+def _corte_periodicidad_per(periodicidad: str, anio: int, mes: int) -> pd.Timestamp:
+    """Retorna la fecha de corte según periodicidad para el año/mes dado."""
+    p = str(periodicidad).strip().lower()
+    
+    def _fin(yr, mo):
+        return pd.Timestamp(yr, mo, calendar.monthrange(yr, mo)[1], 23, 59, 59)
+    
+    if any(x in p for x in ("anual", "annual", "año")):
+        return pd.Timestamp(anio - 1, 12, 31, 23, 59, 59)
+    if any(x in p for x in ("semestral", "bianual", "semest")):
+        if mes <= 6:
+            return pd.Timestamp(anio - 1, 12, 31, 23, 59, 59)
+        else:
+            return pd.Timestamp(anio, 6, 30, 23, 59, 59)
+    if any(x in p for x in ("trimestral", "trim", "quarter")):
+        q = (mes - 1) // 3
+        if q == 0:
+            return pd.Timestamp(anio - 1, 12, 31, 23, 59, 59)
+        return _fin(anio, q * 3)
+    if any(x in p for x in ("bimestral", "bimest")):
+        b = (mes - 1) // 2
+        if b == 0:
+            return pd.Timestamp(anio - 1, 12, 31, 23, 59, 59)
+        return _fin(anio, b * 2)
+    if any(x in p for x in ("mensual", "monthly", "mes")):
+        if mes == 1:
+            return pd.Timestamp(anio - 1, 12, 31, 23, 59, 59)
+        return _fin(anio, mes - 1)
+    return pd.Timestamp(anio - 1, 12, 31, 23, 59, 59)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -414,40 +491,61 @@ def _estilo_nivel(row):
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("# 🏠 Reporte de Cumplimiento")
-st.caption("Último reporte habilitado por periodicidad · Fuente: **indicadores_kawak.xlsx**")
+st.caption("Fuente: **Resultados Consolidados.xlsx** · Hoja: Consolidado Historico")
 
-# Carga
-_raw = _cargar_kawak_raw()
+# Carga de datos
+_raw = _cargar_consolidados()
 if _raw.empty:
-    st.error("No se encontró **indicadores_kawak.xlsx** en `data/raw/`.")
+    st.error("No se encontró **Resultados Consolidados.xlsx** en `data/output/`.")
     st.stop()
 
-hoy = _date.today()
+# Obtener años disponibles
+anios_disponibles = _obtener_anios_disponibles()
+if not anios_disponibles:
+    st.error("No se encontraron años en los datos.")
+    st.stop()
+
+# ── Selector de Año y Mes ─────────────────────────────────────────────────────
+st.markdown("### 📅 Selección de Período")
+
+col_sel1, col_sel2 = st.columns(2)
+with col_sel1:
+    anio_seleccionado = st.selectbox(
+        "Año",
+        options=anios_disponibles,
+        index=anios_disponibles.index(2025) if 2025 in anios_disponibles else len(anios_disponibles) - 1,
+        key="anio_seleccionado"
+    )
+with col_sel2:
+    mes_seleccionado = st.selectbox(
+        "Mes",
+        options=MESES_OPCIONES,
+        index=11,  # Diciembre por defecto
+        key="mes_seleccionado"
+    )
+
+# Calcular mes anterior para comparativa
+mes_num = _MES_NUM[mes_seleccionado]
+if mes_num == 1:
+    anio_prev = anio_seleccionado - 1
+    mes_prev = 12
+else:
+    anio_prev = anio_seleccionado
+    mes_prev = mes_num - 1
 
 with st.spinner("Procesando niveles de cumplimiento..."):
-    df_raw = _preparar_kawak_en_fecha(_raw, hoy)
+    df_raw = _preparar_datos_por_fecha(_raw, anio_seleccionado, mes_seleccionado)
+    df_prev = _preparar_datos_por_fecha(_raw, anio_prev, MESES_OPCIONES[mes_prev - 1])
 
-# ── Período anterior para comparativa ────────────────────────────────────────
-# Retroceder ~1 mes para obtener el snapshot del período previo
-if hoy.month == 1:
-    hoy_prev = _date(hoy.year - 1, 12, 1)
-else:
-    hoy_prev = _date(hoy.year, hoy.month - 1, 1)
-
-df_prev = _preparar_kawak_en_fecha(_raw, hoy_prev)
-
-# Calcular corte actual (mensual como referencia)
-corte_actual = _corte_periodicidad("mensual", hoy)
-MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-            "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+# Calcular fecha de corte
+corte_actual = pd.Timestamp(anio_seleccionado, mes_num, 1)
 
 # ── Banner de fecha de corte ──────────────────────────────────────────────────
 st.markdown(
     f"""<div style="background:#E3EAF4;border-radius:8px;padding:10px 18px;
         border-left:4px solid #1A3A5C;margin-bottom:12px;">
-        📅 <b>Corte de análisis:</b> {MESES_ES[corte_actual.month-1]} {corte_actual.year}
-        &nbsp;·&nbsp; Datos al <b>{corte_actual.strftime('%d/%m/%Y')}</b>
-        &nbsp;·&nbsp; Generado: {hoy.strftime('%d/%m/%Y')}
+        📅 <b>Corte de análisis:</b> {mes_seleccionado} {anio_seleccionado}
+        &nbsp;·&nbsp; Generado: {_date.today().strftime('%d/%m/%Y')}
     </div>""",
     unsafe_allow_html=True,
 )
@@ -550,6 +648,30 @@ with tab_res:
 with tab_con:
     st.markdown("### Vista Consolidada")
     st.caption("💡 Clic en un segmento de color para filtrar. Clic en una fila de la tabla para ver el detalle.")
+    
+    # ── Filtros de Año y Mes para Consolidado ─────────────────────────────────
+    with st.expander("🔍 Filtros de Período", expanded=False):
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            anio_con = st.selectbox(
+                "Año",
+                options=anios_disponibles,
+                index=anios_disponibles.index(anio_seleccionado) if anio_seleccionado in anios_disponibles else 0,
+                key="anio_consolidado"
+            )
+        with fc2:
+            mes_con = st.selectbox(
+                "Mes",
+                options=MESES_OPCIONES,
+                index=MESES_OPCIONES.index(mes_seleccionado),
+                key="mes_consolidado"
+            )
+        
+        if st.button("🔄 Actualizar Vista Consolidada", key="btn_actualizar_consolidado"):
+            st.rerun()
+    
+    # Recalcular datos para consolidado si cambió el filtro
+    df_consolidado = _preparar_datos_por_fecha(_raw, anio_con, mes_con)
 
     _KEY_V     = "rc_con_vicerr"
     _KEY_V_NIV = "rc_con_vicerr_niv"
@@ -567,9 +689,9 @@ with tab_con:
     col_v, col_p = st.columns(2)
     with col_v:
         st.markdown("#### Por Vicerrectoría")
-        if "Vicerrectoria" in df_raw.columns:
+        if "Vicerrectoria" in df_consolidado.columns:
             ev_cv = st.plotly_chart(
-                _fig_barras_nivel(df_raw, "Vicerrectoria"),
+                _fig_barras_nivel(df_consolidado, "Vicerrectoria"),
                 use_container_width=True, on_select="rerun", key="con_vicerr_chart",
             )
             if ev_cv.selection and ev_cv.selection.get("points"):
@@ -597,7 +719,7 @@ with tab_con:
     # Filtrar por Vicerrectoría seleccionada
     sel_v     = st.session_state.get(_KEY_V)
     sel_v_niv = st.session_state.get(_KEY_V_NIV)
-    df_por_vicerr = df_raw.copy()
+    df_por_vicerr = df_consolidado.copy()
     if sel_v and "Vicerrectoria" in df_por_vicerr.columns:
         df_por_vicerr = df_por_vicerr[df_por_vicerr["Vicerrectoria"] == sel_v]
     if sel_v_niv:
@@ -676,7 +798,7 @@ with tab_con:
     sel_s     = st.session_state.get(_KEY_S)
     sel_s_niv = st.session_state.get(_KEY_S_NIV)
 
-    df_chart_filt = df_raw.copy()
+    df_chart_filt = df_consolidado.copy()
     if sel_v and "Vicerrectoria" in df_chart_filt.columns:
         df_chart_filt = df_chart_filt[df_chart_filt["Vicerrectoria"] == sel_v]
     if sel_v_niv:
@@ -690,10 +812,11 @@ with tab_con:
     if sel_s_niv:
         df_chart_filt = df_chart_filt[df_chart_filt["Nivel de cumplimiento"] == sel_s_niv]
 
-    f_id, f_nom, f_vicerr_ui, f_proc_ui, f_sub, f_niv = _filtros_ui(df_raw, "con")
+    f_id, f_nom, f_vicerr_ui, f_proc_ui, f_sub, f_niv = _filtros_ui(df_consolidado, "con")
     df_tabla = _aplicar_filtros(df_chart_filt, f_id, f_nom, f_vicerr_ui, f_proc_ui, f_sub, f_niv)
 
-    st.caption(f"Mostrando **{len(df_tabla)}** de **{total}** indicadores · clic en fila para detalle")
+    total_consolidado = len(df_consolidado)
+    st.caption(f"Mostrando **{len(df_tabla)}** de **{total_consolidado}** indicadores · clic en fila para detalle")
     st.markdown("---")
 
     # ── Tabla ───────────────────────────────────────────────────────────────
