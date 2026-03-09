@@ -31,6 +31,7 @@ _DATA_OUTPUT = Path(__file__).parent.parent / "data" / "output"
 _DATA_RAW    = Path(__file__).parent.parent / "data" / "raw"
 _RUTA_CONSOLIDADOS = _DATA_OUTPUT / "Resultados Consolidados.xlsx"
 _RUTA_MAPA         = _DATA_RAW / "Subproceso-Proceso-Area.xlsx"
+_RUTA_KAWAK_DIR    = _DATA_RAW / "Kawak"
 
 # Meses en español para selección
 MESES_OPCIONES = [
@@ -267,6 +268,25 @@ def _obtener_anios_disponibles() -> list:
     return [int(a) for a in anios if not pd.isna(a)]
 
 
+@st.cache_data(ttl=600, show_spinner="Cargando IDs de Kawak...")
+def _obtener_ids_kawak() -> set:
+    """Retorna conjunto de IDs únicos de los archivos Kawak."""
+    if not _RUTA_KAWAK_DIR.exists():
+        return set()
+    archivos = list(_RUTA_KAWAK_DIR.glob("*.xlsx"))
+    ids_kawak = set()
+    for arch in archivos:
+        try:
+            df = pd.read_excel(arch, engine="openpyxl")
+            id_col = "ID" if "ID" in df.columns else ("Id" if "Id" in df.columns else None)
+            if id_col:
+                ids = df[id_col].dropna().astype(str).unique()
+                ids_kawak.update(ids)
+        except Exception:
+            pass
+    return ids_kawak
+
+
 # Dataset_Unificado para el dialog de detalle (histórico completo)
 @st.cache_data(ttl=300, show_spinner=False)
 def _cargar_historico_detalle() -> pd.DataFrame:
@@ -277,9 +297,12 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     """
     Selecciona los datos según el año y mes seleccionados.
     Para cada indicador, toma el último registro disponible hasta esa fecha.
+    Solo incluye indicadores que existen en los archivos de Kawak.
     """
     if df_all.empty:
         return df_all
+    
+    ids_kawak = _obtener_ids_kawak()
     
     mes_num = _MES_NUM.get(mes, 12)
     ultimo_dia_mes = calendar.monthrange(anio, mes_num)[1]
@@ -289,6 +312,9 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     
     if df_filtrado.empty:
         df_filtrado = df_all.copy()
+    
+    if ids_kawak:
+        df_filtrado = df_filtrado[df_filtrado["Id"].isin(ids_kawak)]
     
     df = (df_filtrado.sort_values("fecha")
           .groupby("Id", as_index=False)
@@ -493,7 +519,7 @@ def _estilo_nivel(row):
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("# 🏠 Reporte de Cumplimiento")
-st.caption("Fuente: **Resultados Consolidados.xlsx** · Hoja: Consolidado Historico")
+st.caption("Fuente: **Resultados Consolidados.xlsx** · Hoja: Consolidado Historico · Solo indicadores de Kawak")
 
 # Carga de datos
 _raw = _cargar_consolidados()
