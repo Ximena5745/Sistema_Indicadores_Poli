@@ -100,13 +100,31 @@ def _to_num(v):
 
 
 def _nivel(row) -> str:
-    res = str(row.get("Resultado", "")).strip().upper()
-    if res in ("N/A", "NA"):
-        return _NO_APLICA
+    """Determina el nivel de cumplimiento del indicador."""
     c = _to_num(row.get("cumplimiento", ""))
     if c is None:
         return _PEND
-    return nivel_desde_pct(c)
+    
+    sentido = str(row.get("Sentido", "Positivo")).strip().lower()
+    
+    if sentido == "negativo":
+        return _nivel_negativo(c)
+    
+    return nivel_desde_pct(c * 100)
+
+
+def _nivel_negativo(cumplimiento: float) -> str:
+    """Para indicadores de sentido negativo: menor cumplimiento es mejor."""
+    try:
+        c = float(cumplimiento)
+    except (TypeError, ValueError):
+        return _PEND
+    pct = c * 100
+    if pct > 100:
+        return "Peligro"
+    if pct > 80:
+        return "Alerta"
+    return "Cumplimiento"
 
 
 def _limpiar(v) -> str:
@@ -264,33 +282,17 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
         return df_all
     
     mes_num = _MES_NUM.get(mes, 12)
-    fecha_corte = pd.Timestamp(anio, mes_num, 1)
+    ultimo_dia_mes = calendar.monthrange(anio, mes_num)[1]
+    fecha_corte = pd.Timestamp(anio, mes_num, ultimo_dia_mes, 23, 59, 59)
     
     df_filtrado = df_all[df_all["fecha"].notna() & (df_all["fecha"] <= fecha_corte)].copy()
     
     if df_filtrado.empty:
         df_filtrado = df_all.copy()
     
-    def _ultimo_por_periodo(group):
-        per = str(group["Periodicidad"].iloc[0]) if "Periodicidad" in group.columns else ""
-        corte = _corte_periodicidad_per(per, anio, mes_num)
-        en_periodo = group[group["fecha"].notna() & (group["fecha"] <= corte)]
-        if en_periodo.empty:
-            fila = group.sort_values("fecha").iloc[[-1]].copy()
-            fila["cumplimiento"] = None
-            return fila
-        return en_periodo.sort_values("fecha").iloc[[-1]]
-    
-    col_per = "Periodicidad" if "Periodicidad" in df_filtrado.columns else None
-    if col_per and "fecha" in df_filtrado.columns:
-        df = (df_filtrado.sort_values("fecha")
-              .groupby("Id", group_keys=False)
-              .apply(_ultimo_por_periodo)
-              .reset_index(drop=True))
-    else:
-        df = (df_filtrado.sort_values("fecha")
-              .groupby("Id", as_index=False)
-              .last())
+    df = (df_filtrado.sort_values("fecha")
+          .groupby("Id", as_index=False)
+          .last())
     
     df["Nivel de cumplimiento"] = df.apply(_nivel, axis=1)
     df["Cumplimiento"] = df["cumplimiento"].apply(_fmt_num)
@@ -510,10 +512,11 @@ st.markdown("### 📅 Selección de Período")
 
 col_sel1, col_sel2 = st.columns(2)
 with col_sel1:
+    anio_default = 2025 if 2025 in anios_disponibles else (anios_disponibles[-1] if anios_disponibles else 2024)
     anio_seleccionado = st.selectbox(
         "Año",
         options=anios_disponibles,
-        index=anios_disponibles.index(2025) if 2025 in anios_disponibles else len(anios_disponibles) - 1,
+        index=anios_disponibles.index(anio_default) if anio_default in anios_disponibles else 0,
         key="anio_seleccionado"
     )
 with col_sel2:
@@ -666,11 +669,8 @@ with tab_con:
                 index=MESES_OPCIONES.index(mes_seleccionado),
                 key="mes_consolidado"
             )
-        
-        if st.button("🔄 Actualizar Vista Consolidada", key="btn_actualizar_consolidado"):
-            st.rerun()
     
-    # Recalcular datos para consolidado si cambió el filtro
+    # Recalcular datos para consolidado con los valores seleccionados
     df_consolidado = _preparar_datos_por_fecha(_raw, anio_con, mes_con)
 
     _KEY_V     = "rc_con_vicerr"
