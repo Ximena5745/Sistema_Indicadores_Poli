@@ -112,16 +112,13 @@ def _nivel(row) -> str:
     if c is None:
         return _PEND
     
-    sentido = str(row.get("Sentido", "Positivo")).strip().lower()
-    
-    if sentido == "negativo":
-        return _nivel_negativo(c)
-    
+    # Para positivo: cumplimiento = ejec/meta  → mayor es mejor
+    # Para negativo: cumplimiento = meta/ejec  → ratio ya invertido, misma interpretación
     return nivel_desde_pct(c * 100)
 
 
 def _nivel_negativo(cumplimiento: float) -> str:
-    """Para indicadores de sentido negativo: menor cumplimiento es mejor."""
+    """DEPRECATED — ya no se usa. La lógica se unificó en _nivel."""
     try:
         c = float(cumplimiento)
     except (TypeError, ValueError):
