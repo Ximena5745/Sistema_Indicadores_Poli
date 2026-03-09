@@ -347,7 +347,8 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
           .last())
     
     df["Nivel de cumplimiento"] = df.apply(_nivel, axis=1)
-    df["Cumplimiento"] = df["cumplimiento"].apply(_fmt_num)
+    _cum_display = "cumplimiento_real" if "cumplimiento_real" in df.columns else "cumplimiento"
+    df["Cumplimiento"] = df[_cum_display].apply(_fmt_num)
     if "cumplimiento_real" in df.columns:
         df["Cumplimiento Real"] = df["cumplimiento_real"].apply(_fmt_num)
     df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—") \
@@ -370,9 +371,9 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
                 merge_cols["Vicerrectoria"] = vic_col
             
             if merge_cols:
-                df = df.merge(mapa[list(merge_cols.keys())].drop_duplicates(), 
-                             left_on="Proceso", 
-                             right_on=proc_col if proc_col else "Proceso", 
+                df = df.merge(mapa[list(merge_cols.values())].drop_duplicates(),
+                             left_on="Proceso",
+                             right_on=proc_col if proc_col else "Proceso",
                              how="left")
                 if vic_col and vic_col in df.columns:
                     df = df.rename(columns={vic_col: "Vicerrectoria"})
