@@ -263,7 +263,7 @@ def _cargar_consolidados() -> pd.DataFrame:
         # Derivar Anio desde Fecha para evitar dependencia de fórmulas Excel cacheadas
         df["Anio"] = df["fecha"].dt.year
     
-    # Usar siempre los valores de la fórmula Excel (ya renombrados por col_renames)
+    # Normalizar columnas de cumplimiento (pueden venir vacías si son fórmulas Excel sin caché)
     if "cumplimiento" in df.columns:
         df["cumplimiento"] = pd.to_numeric(df["cumplimiento"], errors="coerce")
     else:
@@ -274,7 +274,25 @@ def _cargar_consolidados() -> pd.DataFrame:
     else:
         df["cumplimiento_real"] = None
 
-    # Si cumplimiento está vacío, rellenar desde cumplimiento_real
+    # Si cumplimiento está vacío (fórmulas Excel sin caché), calcular desde Meta/Ejecucion
+    ejec_col = next((c for c in df.columns
+                     if c.lower().replace("ó", "o").replace("ú", "u")
+                        in ("ejecucion", "ejecución")), None)
+    if ejec_col and "Meta" in df.columns and "Sentido" in df.columns:
+        meta_n = pd.to_numeric(df["Meta"], errors="coerce")
+        ejec_n = pd.to_numeric(df[ejec_col], errors="coerce")
+        valid  = meta_n.notna() & ejec_n.notna() & (meta_n != 0)
+        sentido_neg = df["Sentido"].str.strip().str.lower() == "negativo"
+
+        ratio_real = (ejec_n / meta_n).clip(lower=0).where(~sentido_neg,
+                      (meta_n / ejec_n).clip(lower=0))
+        ratio_cap  = ratio_real.clip(upper=1.3)
+
+        mask_calc = df["cumplimiento"].isna() & valid
+        df.loc[mask_calc, "cumplimiento"]      = ratio_cap[mask_calc]
+        df.loc[mask_calc, "cumplimiento_real"] = ratio_real[mask_calc]
+
+    # Si cumplimiento aún vacío, rellenar desde cumplimiento_real
     mask_fill = df["cumplimiento"].isna() & df["cumplimiento_real"].notna()
     df.loc[mask_fill, "cumplimiento"] = df.loc[mask_fill, "cumplimiento_real"]
     
