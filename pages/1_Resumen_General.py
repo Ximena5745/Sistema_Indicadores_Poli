@@ -15,7 +15,7 @@ Mejoras:
 import calendar
 import html as _html
 import math
-from datetime import date as _date, timedelta as _td
+from datetime import date as _date
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -360,20 +360,15 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
             mapa_cols = list(mapa.columns)
             proc_col = next((c for c in mapa_cols if "proceso" in c.lower()), "Proceso")
             vic_col = next((c for c in mapa_cols if "icerrector" in c.lower()), None)
-            sub_col = next((c for c in mapa_cols if "subproceso" in c.lower()), None)
-            
-            merge_cols = {}
-            if sub_col:
-                merge_cols["Subproceso"] = sub_col
-            if proc_col:
-                merge_cols["Proceso_mapa"] = proc_col
-            if vic_col:
-                merge_cols["Vicerrectoria"] = vic_col
-            
-            if merge_cols:
-                df = df.merge(mapa[list(merge_cols.values())].drop_duplicates(),
+            # Merge al nivel de Proceso (excluir Subproceso: es más granular y rompe unicidad)
+            cols_proc = [c for c in [proc_col, vic_col] if c]
+            if cols_proc and proc_col:
+                mapa_proc = (mapa[cols_proc]
+                             .drop_duplicates(subset=[proc_col])
+                             .reset_index(drop=True))
+                df = df.merge(mapa_proc,
                              left_on="Proceso",
-                             right_on=proc_col if proc_col else "Proceso",
+                             right_on=proc_col,
                              how="left")
                 if vic_col and vic_col in df.columns:
                     df = df.rename(columns={vic_col: "Vicerrectoria"})
