@@ -842,7 +842,7 @@ def limpiar_cierres_existentes(ws):
 # ESCRITURA DE FILAS
 # ─────────────────────────────────────────────────────────────────────
 
-def escribir_filas(ws, filas, signos, start_row=None):
+def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
     """
     Escribe filas nuevas con fórmulas correctamente referenciadas.
 
@@ -851,6 +851,10 @@ def escribir_filas(ws, filas, signos, start_row=None):
         y col O (Ejecucion_Signo) = 'No Aplica'
       - Las fórmulas L y M incluyen OR(K{r}="") → devuelven ""
         automáticamente cuando K está vacío (no muestra 0%).
+
+    Manejo Métrica:
+      - Si el Id está en ids_metrica → col K = None, col N = 'Metrica',
+        col O = 'No Aplica'. No se calcula cumplimiento.
 
     Columnas:
       A(1)  Id          B(2)  Indicador   C(3)  Proceso
@@ -880,13 +884,21 @@ def escribir_filas(ws, filas, signos, start_row=None):
         meta    = nan2none(fila.get('Meta'))
         ejec    = nan2none(fila.get('Ejecucion'))
         es_na   = fila.get('es_na', False)
+        es_metrica = ids_metrica is not None and id_str in ids_metrica
 
-        # Si es N/A: Ejecucion = None (celda vacía) y signo = 'N/A'
-        if es_na:
-            ejec        = None
-            ejec_signo  = SIGNO_NA
+        # Métrica: sin ejecución ni cumplimiento; solo se registra el valor
+        if es_metrica:
+            ejec       = None
+            meta_signo = 'Metrica'
+            ejec_signo = SIGNO_NA
+        # N/A: Ejecucion = None (celda vacía) y signo = 'No Aplica'
+        elif es_na:
+            ejec       = None
+            meta_signo = sg['meta_signo']
+            ejec_signo = SIGNO_NA
         else:
-            ejec_signo  = sg['ejec_signo']
+            meta_signo = sg['meta_signo']
+            ejec_signo = sg['ejec_signo']
 
         # A–F: datos base
         ws.cell(r, 1).value = fila.get('Id')
@@ -904,7 +916,7 @@ def escribir_filas(ws, filas, signos, start_row=None):
 
         # J, K: Meta y Ejecución
         ws.cell(r, 10).value = meta
-        ws.cell(r, 11).value = ejec   # None cuando es N/A → celda vacía
+        ws.cell(r, 11).value = ejec   # None cuando es N/A o Métrica → celda vacía
 
         # L, M: cumplimiento
         # Cuando K=None (vacío), OR(K{r}="") es True → devuelve ""
@@ -914,8 +926,8 @@ def escribir_filas(ws, filas, signos, start_row=None):
         ws.cell(r, 13).number_format = '0.00%'
 
         # N–Q: signos y decimales
-        ws.cell(r, 14).value = sg['meta_signo']
-        ws.cell(r, 15).value = ejec_signo    # 'N/A' o signo normal
+        ws.cell(r, 14).value = meta_signo
+        ws.cell(r, 15).value = ejec_signo    # 'No Aplica', 'Metrica' o signo normal
         ws.cell(r, 16).value = sg['dec_meta']
         ws.cell(r, 17).value = sg['dec_ejec']
 
@@ -1116,6 +1128,16 @@ def main():
                                 metadatos_kawak=meta_kawak, metadatos_cmi=meta_cmi)
     print(f"  Catálogo: {len(df_cat):,} indicadores")
 
+    # Identificar IDs de tipo "Métrica" (no tienen meta de cumplimiento)
+    ids_metrica = {
+        str(row['Id']).strip()
+        for _, row in df_cat.iterrows()
+        if 'metrica' in str(row.get('Tipo_API', '')).lower()
+    }
+    if ids_metrica:
+        print(f"  Indicadores tipo Métrica: {len(ids_metrica)} IDs → "
+              f"se escribirán con Meta_Signo='Metrica' y Ejec_Signo='No Aplica'")
+
     # ── 6. Abrir workbook ─────────────────────────────────────────
     print("\n[6] Copiando base a outputs...")
     shutil.copy(INPUT_FILE, OUTPUT_FILE)
@@ -1140,7 +1162,7 @@ def main():
     regs_hist.sort(key=lambda x: (str(x['Id']), x['fecha']))
     ws_hist = wb['Consolidado Historico']
     if regs_hist:
-        ultima = escribir_filas(ws_hist, regs_hist, signos)
+        ultima = escribir_filas(ws_hist, regs_hist, signos, ids_metrica=ids_metrica)
         print(f"  Última fila: {ultima}")
     else:
         print("  Sin filas nuevas.")
@@ -1153,7 +1175,7 @@ def main():
     regs_sem.sort(key=lambda x: (str(x['Id']), x['fecha']))
     ws_sem = wb['Consolidado Semestral']
     if regs_sem:
-        ultima = escribir_filas(ws_sem, regs_sem, signos)
+        ultima = escribir_filas(ws_sem, regs_sem, signos, ids_metrica=ids_metrica)
         print(f"  Última fila: {ultima}")
     else:
         print("  Sin filas nuevas.")
@@ -1186,7 +1208,7 @@ def main():
           f"{len(regs_cierres)-len(regs_cierres_nuevos):,} | "
           f"Nuevos: {len(regs_cierres_nuevos):,} | N/A: {na_c:,} | Omitidos: {skip_c:,}")
     if regs_cierres_nuevos:
-        ultima = escribir_filas(ws_cierres, regs_cierres_nuevos, signos)
+        ultima = escribir_filas(ws_cierres, regs_cierres_nuevos, signos, ids_metrica=ids_metrica)
         print(f"  Última fila: {ultima}")
     else:
         print("  Sin filas nuevas.")
