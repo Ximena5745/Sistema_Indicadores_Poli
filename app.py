@@ -74,10 +74,30 @@ st.markdown(
         border-top: 1px solid #DEE2E6;
         margin: 1rem 0;
     }
+
+    /* Botón Actualizar datos en sidebar */
+    [data-testid="stSidebar"] div[data-testid="stButton"] button {
+        background-color: #1565C0;
+        color: white !important;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
+        background-color: #0D47A1;
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+# ── Botón de actualización en sidebar ────────────────────────────────────────
+with st.sidebar:
+    st.markdown("---")
+    if st.button("🔄 Actualizar datos", use_container_width=True):
+        st.cache_data.clear()
+        st.success("Datos actualizados.")
+    st.markdown("---")
 
 # ── Navegación multipágina ────────────────────────────────────────────────────
 pages = {
