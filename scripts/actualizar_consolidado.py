@@ -56,6 +56,12 @@ KW_META = ['planeado', 'presupuestado', 'propuesto', 'programado', 'objetivo',
 
 SIGNO_NA = 'No Aplica'   # valor a escribir en Ejecucion_Signo cuando no hay dato
 
+MESES_ES = {
+    1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+    5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+    9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre',
+}
+
 
 # ─────────────────────────────────────────────────────────────────────
 # UTILIDADES
@@ -116,6 +122,29 @@ def limpiar_html(val):
 def nan2none(v):
     """Convierte NaN/None a None para openpyxl."""
     return None if (v is None or (isinstance(v, float) and np.isnan(v))) else v
+
+
+def _calc_cumpl(meta, ejec, sentido, tope=1.3):
+    """Calcula (cumpl_capped, cumpl_real) a partir de meta, ejec y sentido.
+
+    Retorna (None, None) si no se puede calcular.
+    """
+    if meta is None or ejec is None:
+        return None, None
+    try:
+        m, e = float(meta), float(ejec)
+    except (TypeError, ValueError):
+        return None, None
+    if m == 0:
+        return None, None
+    if sentido == 'Positivo':
+        raw = e / m
+    else:
+        if e == 0:
+            return None, None
+        raw = m / e
+    raw = max(raw, 0.0)
+    return min(raw, tope), raw
 
 
 def _id_str(val):
@@ -504,6 +533,47 @@ def cargar_metadatos_cmi():
 
 
 # ─────────────────────────────────────────────────────────────────────
+# MAPA SUBPROCESO → PROCESO
+# ─────────────────────────────────────────────────────────────────────
+
+def cargar_mapa_procesos():
+    """
+    Lee Subproceso-Proceso-Area.xlsx y retorna un dict
+    {subproceso_lower: proceso_real} para homologar los valores de
+    'Proceso' (que en la fuente kawak contiene el Subproceso) al
+    Proceso real de la institución.
+    """
+    path = BASE_PATH / "Subproceso-Proceso-Area.xlsx"
+    if not path.exists():
+        return {}
+    try:
+        df = pd.read_excel(path)
+        df.columns = [str(c).strip() for c in df.columns]
+        col_sub  = next((c for c in df.columns if 'Subproceso' in c and '.1' not in c), None)
+        col_proc = next((c for c in df.columns if c.lower() == 'proceso'), None)
+        if not col_sub or not col_proc:
+            return {}
+        mapa = {}
+        for _, row in df.iterrows():
+            sub  = str(row.get(col_sub, '') or '').strip()
+            proc = str(row.get(col_proc, '') or '').strip()
+            if sub and proc:
+                mapa[sub.lower()] = proc
+        return mapa
+    except Exception as e:
+        print(f"  [AVISO] Error leyendo Subproceso-Proceso-Area.xlsx: {e}")
+        return {}
+
+
+def homologar_proceso(subproceso, mapa_procesos):
+    """Retorna el Proceso real a partir del Subproceso. Si no hay match,
+    devuelve el Subproceso original."""
+    if not mapa_procesos or not subproceso:
+        return subproceso
+    return mapa_procesos.get(str(subproceso).strip().lower(), subproceso)
+
+
+# ─────────────────────────────────────────────────────────────────────
 # CATÁLOGO
 # ─────────────────────────────────────────────────────────────────────
 
@@ -647,11 +717,12 @@ def expandir_analisis(df_api):
 
 def obtener_signos(df_hist, df_sem, df_cierres):
     signos = {}
-    col_ejec_candidates = ['Ejecución Signo', 'Ejecucion Signo']
+    col_ejec_candidates = ['Ejecución Signo', 'Ejecucion Signo', 'Ejecución s', 'Ejecucion s']
+    col_ms_candidates   = ['Meta Signo', 'Meta s', 'Meta_Signo']
     for df, col_ms_c, col_es_c in [
-        (df_hist,    ['Meta Signo'], col_ejec_candidates),
-        (df_sem,     ['Meta Signo'], col_ejec_candidates),
-        (df_cierres, ['Meta Signo'], col_ejec_candidates),
+        (df_hist,    col_ms_candidates, col_ejec_candidates),
+        (df_sem,     col_ms_candidates, col_ejec_candidates),
+        (df_cierres, col_ms_candidates, col_ejec_candidates),
     ]:
         col_ms = next((c for c in col_ms_c if c in df.columns), None)
         col_es = next((c for c in col_es_c if c in df.columns), None)
@@ -741,7 +812,7 @@ def deduplicar_sheet(ws, nombre=''):
     """
     Elimina filas con LLAVE duplicada (mismo Id+Fecha), conservando la que
     tenga ejecución más completa (no nula, no cero).
-    Reconstruye las fórmulas G,H,I,L,M,R en todas las filas restantes.
+    Col H (índice 7) = 'Ejecución' (valor real).
     """
     filas = []
     for row in ws.iter_rows(min_row=2, values_only=False):
@@ -751,7 +822,7 @@ def deduplicar_sheet(ws, nombre=''):
             llave = make_llave(row[0].value, row[5].value)
         except Exception:
             llave = None
-        filas.append({'row_idx': row[0].row, 'llave': llave, 'ejec': row[10].value})
+        filas.append({'row_idx': row[0].row, 'llave': llave, 'ejec': row[7].value})
 
     grupos = defaultdict(list)
     for f in filas:
@@ -768,20 +839,7 @@ def deduplicar_sheet(ws, nombre=''):
     for r_idx in sorted(filas_a_borrar, reverse=True):
         ws.delete_rows(r_idx)
 
-    # Reconstruir fórmulas con índices físicos actualizados
-    for row in ws.iter_rows(min_row=2, values_only=False):
-        if row[0].value is None:
-            continue
-        r = row[0].row
-        row[6].value  = formula_G(r)
-        row[7].value  = formula_H(r)
-        row[8].value  = formula_I(r)
-        row[11].value = formula_L(r);  row[11].number_format = '0.00%'
-        row[12].value = formula_M(r);  row[12].number_format = '0.00%'
-        row[17].value = formula_R(r)
-
-    print(f"  [{nombre}] {len(filas_a_borrar)} duplicados eliminados, "
-          f"formulas reconstruidas.")
+    print(f"  [{nombre}] {len(filas_a_borrar)} duplicados eliminados.")
     return len(filas_a_borrar)
 
 
@@ -854,22 +912,7 @@ def limpiar_cierres_existentes(ws):
     for r_idx in filas_a_borrar:
         ws.delete_rows(r_idx)
 
-    # Reconstruir fórmulas con índices físicos post-eliminación
-    for row in ws.iter_rows(min_row=2, values_only=False):
-        if row[0].value is None:
-            continue
-        r = row[0].row
-        row[6].value  = formula_G(r)
-        row[7].value  = formula_H(r)
-        row[8].value  = formula_I(r)
-        row[11].value = formula_L(r)
-        row[11].number_format = '0.00%'
-        row[12].value = formula_M(r)
-        row[12].number_format = '0.00%'
-        row[17].value = formula_R(r)
-
-    print(f"  limpiar_cierres: {len(filas_a_borrar)} filas eliminadas, "
-          f"fórmulas reconstruidas en {len(filas_a_conservar)} filas.")
+    print(f"  limpiar_cierres: {len(filas_a_borrar)} filas eliminadas.")
     return len(filas_a_borrar)
 
 
@@ -879,33 +922,18 @@ def limpiar_cierres_existentes(ws):
 
 def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
     """
-    Escribe filas nuevas con fórmulas correctamente referenciadas.
+    Escribe filas nuevas con valores directos calculados en Python.
+    NO usa fórmulas Excel (openpyxl no las evalúa, quedan como cadenas).
 
-    Manejo No Aplica:
-      - Si fila['es_na'] == True → col K (Ejecucion) = None
-        y col O (Ejecucion_Signo) = 'No Aplica'
-      - Las fórmulas L y M incluyen OR(K{r}="") → devuelven ""
-        automáticamente cuando K está vacío (no muestra 0%).
-
-    Manejo Métrica / No Aplica:
-      - El estado se escribe en col S (19) = Tipo_Registro:
-          'Metrica'   si el Id está en ids_metrica
-          'No Aplica' si fila['es_na'] == True
-          ''          en cualquier otro caso
-      - Las columnas de signo (N=Meta Signo, O=Ejec Signo) SIEMPRE
-        conservan el formato original (%, $, ENT, etc.).
-      - Para es_na: Ejecucion (K) = None → cumplimiento devuelve "".
-      - Para Metrica: Ejecucion se escribe con el valor real.
-
-    Columnas:
-      A(1)  Id          B(2)  Indicador   C(3)  Proceso
-      D(4)  Periodicidad  E(5) Sentido    F(6)  Fecha
-      G(7)  =YEAR(F)    H(8)  =mes        I(9)  =semestre
-      J(10) Meta         K(11) Ejecución
-      L(12) =cumpl.acot  M(13) =cumpl.libre
-      N(14) Meta Signo   O(15) Ejec Signo
-      P(16) Dec_Meta     Q(17) Dec_Ejec
-      R(18) =llave       S(19) Tipo_Registro
+    Esquema del archivo real (21 + 1 cols):
+      A(1)  Id            B(2)  Indicador     C(3)  Proceso
+      D(4)  Periodicidad  E(5)  Sentido       F(6)  Fecha
+      G(7)  Meta          H(8)  Ejecución     I(9)  Cumplimiento (capped)
+      J(10) Cumpl. Real   K(11) Meta s        L(12) Ejecución s
+      M(13) Año           N(14) Mes           O(15) Semestre
+      P(16) Dec_Meta      Q(17) Dec_Ejec      R(18) PDI
+      S(19) linea         T(20) LLAVE         U(21) dd
+      V(22) Tipo_Registro
     """
     if start_row is None:
         start_row = get_last_data_row(ws) + 1
@@ -918,20 +946,21 @@ def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
             'dec_meta': 0, 'dec_ejec': 0,
         })
 
-        fecha_val = fila.get('fecha')
-        if isinstance(fecha_val, pd.Timestamp):
-            fecha_val = fecha_val.to_pydatetime().date()
+        fecha_raw = fila.get('fecha')
+        fecha_dt  = pd.to_datetime(fecha_raw) if fecha_raw is not None else None
+        fecha_val = fecha_dt.to_pydatetime().date() if fecha_dt is not None else None
 
         meta    = nan2none(fila.get('Meta'))
         ejec    = nan2none(fila.get('Ejecucion'))
         es_na   = fila.get('es_na', False)
+        sentido = str(fila.get('Sentido', 'Positivo'))
         es_metrica = ids_metrica is not None and id_str in ids_metrica
 
-        # N/A: Ejecucion = None → cumplimiento devuelve ""
         if es_na:
             ejec = None
 
-        # Tipo_Registro: identifica el tipo sin tocar los signos
+        ejec_signo = SIGNO_NA if es_na else sg['ejec_signo']
+
         if es_metrica:
             tipo_registro = 'Metrica'
         elif es_na:
@@ -939,41 +968,61 @@ def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
         else:
             tipo_registro = ''
 
+        cumpl_capped, cumpl_real = _calc_cumpl(meta, ejec, sentido)
+
+        llave = (fila.get('LLAVE') or
+                 make_llave(fila.get('Id'), fecha_val))
+
         # A–F: datos base
         ws.cell(r, 1).value = fila.get('Id')
         ws.cell(r, 2).value = fila.get('Indicador', '')
         ws.cell(r, 3).value = fila.get('Proceso', '')
         ws.cell(r, 4).value = fila.get('Periodicidad', '')
-        ws.cell(r, 5).value = fila.get('Sentido', '')
+        ws.cell(r, 5).value = sentido
         ws.cell(r, 6).value = fecha_val
         ws.cell(r, 6).number_format = 'YYYY-MM-DD'
 
-        # G, H, I: fórmulas año/mes/semestre
-        ws.cell(r, 7).value = formula_G(r)
-        ws.cell(r, 8).value = formula_H(r)
-        ws.cell(r, 9).value = formula_I(r)
+        # G: Meta, H: Ejecución
+        ws.cell(r, 7).value = meta
+        ws.cell(r, 8).value = ejec
 
-        # J, K: Meta y Ejecución (K=None cuando es_na → cumplimiento vacío)
-        ws.cell(r, 10).value = meta
-        ws.cell(r, 11).value = ejec
+        # I: Cumplimiento (capped), J: Cumplimiento Real
+        ws.cell(r, 9).value  = cumpl_capped
+        ws.cell(r, 10).value = cumpl_real
+        if cumpl_capped is not None:
+            ws.cell(r, 9).number_format  = '0.00%'
+        if cumpl_real is not None:
+            ws.cell(r, 10).number_format = '0.00%'
 
-        # L, M: cumplimiento
-        ws.cell(r, 12).value         = formula_L(r)
-        ws.cell(r, 12).number_format = '0.00%'
-        ws.cell(r, 13).value         = formula_M(r)
-        ws.cell(r, 13).number_format = '0.00%'
+        # K: Meta s, L: Ejecución s
+        ws.cell(r, 11).value = sg['meta_signo']
+        ws.cell(r, 12).value = ejec_signo
 
-        # N–Q: signos y decimales — siempre conservan el formato original (%, $, ENT…)
-        ws.cell(r, 14).value = sg['meta_signo']
-        ws.cell(r, 15).value = sg['ejec_signo']
-        ws.cell(r, 16).value = sg['dec_meta']
-        ws.cell(r, 17).value = sg['dec_ejec']
+        # M: Año, N: Mes, O: Semestre
+        if fecha_dt is not None:
+            ws.cell(r, 13).value = fecha_dt.year
+            ws.cell(r, 14).value = MESES_ES.get(fecha_dt.month, '')
+            ws.cell(r, 15).value = f"{fecha_dt.year}-{1 if fecha_dt.month <= 6 else 2}"
+            ws.cell(r, 21).value = fecha_dt.day    # U: dd
+        else:
+            ws.cell(r, 13).value = None
+            ws.cell(r, 14).value = ''
+            ws.cell(r, 15).value = ''
+            ws.cell(r, 21).value = None
 
-        # R: llave compuesta
-        ws.cell(r, 18).value = formula_R(r)
+        # P: Decimales_Meta, Q: Decimales_Ejecucion
+        ws.cell(r, 16).value = sg.get('dec_meta', 0)
+        ws.cell(r, 17).value = sg.get('dec_ejec', 0)
 
-        # S: Tipo_Registro — 'Metrica', 'No Aplica' o '' para normales
-        ws.cell(r, 19).value = tipo_registro
+        # R: PDI (0 para filas nuevas de API), S: linea (vacío)
+        ws.cell(r, 18).value = 0
+        ws.cell(r, 19).value = ''
+
+        # T: LLAVE
+        ws.cell(r, 20).value = llave
+
+        # V: Tipo_Registro
+        ws.cell(r, 22).value = tipo_registro
 
         r += 1
 
@@ -1021,7 +1070,8 @@ def _extraer_registro(row, hist_escalas):
     return meta, ejec, fuente, es_na
 
 
-def construir_registros_historico(df_fuente, llaves_existentes, hist_escalas):
+def construir_registros_historico(df_fuente, llaves_existentes, hist_escalas,
+                                  mapa_procesos=None):
     registros = []
     skipped   = 0
     conteo_na = 0
@@ -1033,9 +1083,11 @@ def construir_registros_historico(df_fuente, llaves_existentes, hist_escalas):
             continue
         if es_na:
             conteo_na += 1
+        subproceso = row.get('Proceso', '')
+        proceso    = homologar_proceso(subproceso, mapa_procesos)
         registros.append({
             'Id': row['Id'], 'Indicador': limpiar_html(str(row.get('Indicador', ''))),
-            'Proceso': row.get('Proceso', ''), 'Periodicidad': row.get('Periodicidad', ''),
+            'Proceso': proceso, 'Periodicidad': row.get('Periodicidad', ''),
             'Sentido': row.get('Sentido', ''), 'fecha': row['fecha'],
             'Meta': meta, 'Ejecucion': ejec, 'LLAVE': row['LLAVE'],
             'es_na': es_na,
@@ -1043,14 +1095,16 @@ def construir_registros_historico(df_fuente, llaves_existentes, hist_escalas):
     return registros, skipped, conteo_na
 
 
-def construir_registros_semestral(df_fuente, llaves_existentes, hist_escalas):
+def construir_registros_semestral(df_fuente, llaves_existentes, hist_escalas,
+                                  mapa_procesos=None):
     df = df_fuente[df_fuente['fecha'].dt.month.isin([6, 12])].copy()
     df = df[df['fecha'] == df['fecha'].apply(
         lambda d: pd.Timestamp(d.year, d.month, ultimo_dia_mes(d.year, d.month)))]
-    return construir_registros_historico(df, llaves_existentes, hist_escalas)
+    return construir_registros_historico(df, llaves_existentes, hist_escalas,
+                                         mapa_procesos=mapa_procesos)
 
 
-def construir_registros_cierres(df_fuente, hist_escalas):
+def construir_registros_cierres(df_fuente, hist_escalas, mapa_procesos=None):
     df = df_fuente.copy()
     df['año'] = df['fecha'].dt.year
     df['mes'] = df['fecha'].dt.month
@@ -1072,9 +1126,11 @@ def construir_registros_cierres(df_fuente, hist_escalas):
                 continue
             if es_na:
                 conteo_na += 1
+            subproceso = row.get('Proceso', '')
+            proceso    = homologar_proceso(subproceso, mapa_procesos)
             registros.append({
                 'Id': id_val, 'Indicador': limpiar_html(str(row.get('Indicador', ''))),
-                'Proceso': row.get('Proceso', ''), 'Periodicidad': row.get('Periodicidad', ''),
+                'Proceso': proceso, 'Periodicidad': row.get('Periodicidad', ''),
                 'Sentido': row.get('Sentido', ''), 'fecha': row['fecha'],
                 'Meta': meta, 'Ejecucion': ejec, 'LLAVE': row['LLAVE'],
                 'es_na': es_na,
@@ -1124,10 +1180,19 @@ def main():
     for df_ in [df_hist, df_sem, df_cierres]:
         df_['Fecha'] = pd.to_datetime(df_['Fecha'])
 
-    df_hist['Meta_num'] = pd.to_numeric(df_hist['Meta'], errors='coerce')
-    hist_escalas = df_hist.groupby('Id')['Meta_num'].median().to_dict()
+    # Filtrar fechas fuera de rango (año > AÑO_CIERRE_ACTUAL) solo para cálculos derivados
+    n_fuera_rango = (df_hist['Fecha'].dt.year > AÑO_CIERRE_ACTUAL).sum()
+    if n_fuera_rango:
+        print(f"  [AVISO] {n_fuera_rango} filas con Fecha > {AÑO_CIERRE_ACTUAL} en Histórico "
+              f"(se excluyen del cálculo de escalas pero se conservan en el OUTPUT).")
+    df_hist_rango = df_hist[df_hist['Fecha'].dt.year <= AÑO_CIERRE_ACTUAL]
+
+    df_hist_rango = df_hist_rango.copy()
+    df_hist_rango['Meta_num'] = pd.to_numeric(df_hist_rango['Meta'], errors='coerce')
+    hist_escalas = df_hist_rango.groupby('Id')['Meta_num'].median().to_dict()
     signos       = obtener_signos(df_hist, df_sem, df_cierres)
-    # Calcular LLAVEs desde Id+Fecha (la columna LLAVE es fórmula sin caché → siempre NaN)
+    # Calcular LLAVEs desde Id+Fecha (col LLAVE del archivo es confiable, pero por seguridad
+    # también calculamos desde Id+Fecha para no depender de la columna T)
     llave_hist = llaves_de_df(df_hist)
     llave_sem  = llaves_de_df(df_sem)
     print(f"  Histórico: {len(df_hist):,} | Semestral: {len(df_sem):,} | "
@@ -1135,9 +1200,11 @@ def main():
 
     # ── 3. Metadatos maestros ─────────────────────────────────────
     print("\n[3] Cargando metadatos maestros...")
-    meta_kawak = cargar_metadatos_kawak()
-    meta_cmi   = cargar_metadatos_cmi()
-    print(f"  Kawak: {len(meta_kawak)} IDs | CMI: {len(meta_cmi)} IDs")
+    meta_kawak    = cargar_metadatos_kawak()
+    meta_cmi      = cargar_metadatos_cmi()
+    mapa_procesos = cargar_mapa_procesos()
+    print(f"  Kawak: {len(meta_kawak)} IDs | CMI: {len(meta_cmi)} IDs | "
+          f"Mapa procesos: {len(mapa_procesos)} subprocesos")
 
     def _apply_meta(row, field, fallback):
         ids = _id_str(row['Id'])
@@ -1173,19 +1240,19 @@ def main():
     # (columna Tipo == 'Metrica' o nombre Indicador contiene 'metrica')
     ids_metrica = cargar_lmi_reporte()
     if ids_metrica:
-        print(f"  Indicadores tipo Métrica: {len(ids_metrica)} IDs → "
-              f"col S (Tipo_Registro)='Metrica'; signos sin cambio")
+        print(f"  Indicadores tipo Metrica: {len(ids_metrica)} IDs -> "
+              f"col V (Tipo_Registro)='Metrica'; signos sin cambio")
 
     # ── 6. Abrir workbook ─────────────────────────────────────────
     print("\n[6] Copiando base a outputs...")
     shutil.copy(INPUT_FILE, OUTPUT_FILE)
     wb = openpyxl.load_workbook(OUTPUT_FILE)
 
-    # Asegurar header Tipo_Registro (col S=19) en las tres hojas
+    # Asegurar header Tipo_Registro en col V(22) — NO renombrar col S "linea"
     for nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
         ws_h = wb[nombre_hoja]
-        if ws_h.cell(1, 19).value != 'Tipo_Registro':
-            ws_h.cell(1, 19).value = 'Tipo_Registro'
+        if ws_h.cell(1, 22).value != 'Tipo_Registro':
+            ws_h.cell(1, 22).value = 'Tipo_Registro'
 
     # Limpiar cierres existentes ANTES de escribir
     print("\n[6b] Limpiando Consolidado Cierres (solo 31/12 por Id+Año)...")
@@ -1195,12 +1262,12 @@ def main():
     # ── 7. Histórico ──────────────────────────────────────────────
     print("\n[7] Nuevos registros Histórico...")
     regs_hist, skip_hist, na_hist = construir_registros_historico(
-        df_fuente_api, llave_hist, hist_escalas)
+        df_fuente_api, llave_hist, hist_escalas, mapa_procesos=mapa_procesos)
     print(f"  Nuevos: {len(regs_hist):,} | N/A: {na_hist:,} | Omitidos: {skip_hist:,}")
     if len(df_kawak25) > 0:
         llaves_usadas = llave_hist | {r['LLAVE'] for r in regs_hist}
         regs_k25, sk25, na_k25 = construir_registros_historico(
-            df_kawak25, llaves_usadas, hist_escalas)
+            df_kawak25, llaves_usadas, hist_escalas, mapa_procesos=mapa_procesos)
         regs_hist += regs_k25
         print(f"  + Kawak 2025: {len(regs_k25):,} adicionales (N/A: {na_k25}, omitidos: {sk25})")
     regs_hist.sort(key=lambda x: (str(x['Id']), x['fecha']))
@@ -1214,7 +1281,7 @@ def main():
     # ── 8. Semestral ──────────────────────────────────────────────
     print("\n[8] Nuevos registros Semestral...")
     regs_sem, skip_sem, na_sem = construir_registros_semestral(
-        df_fuente_api, llave_sem, hist_escalas)
+        df_fuente_api, llave_sem, hist_escalas, mapa_procesos=mapa_procesos)
     print(f"  Nuevos: {len(regs_sem):,} | N/A: {na_sem:,} | Omitidos: {skip_sem:,}")
     regs_sem.sort(key=lambda x: (str(x['Id']), x['fecha']))
     ws_sem = wb['Consolidado Semestral']
@@ -1226,9 +1293,11 @@ def main():
 
     # ── 9. Cierres ────────────────────────────────────────────────
     print("\n[9] Nuevos registros Cierres...")
-    regs_cierres, skip_c, na_c = construir_registros_cierres(df_fuente_api, hist_escalas)
+    regs_cierres, skip_c, na_c = construir_registros_cierres(
+        df_fuente_api, hist_escalas, mapa_procesos=mapa_procesos)
     if len(df_kawak25) > 0:
-        regs_k25_c, sk25_c, na_k25_c = construir_registros_cierres(df_kawak25, hist_escalas)
+        regs_k25_c, sk25_c, na_k25_c = construir_registros_cierres(
+            df_kawak25, hist_escalas, mapa_procesos=mapa_procesos)
         llaves_c = {r['LLAVE'] for r in regs_cierres}
         regs_k25_c = [r for r in regs_k25_c if r['LLAVE'] not in llaves_c]
         regs_cierres += regs_k25_c

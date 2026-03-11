@@ -224,14 +224,20 @@ def _cargar_consolidados() -> pd.DataFrame:
         "Tipo_Registro": "Tipo_Registro",
         "Decimales_Meta": "Dec_Meta", "Decimales_Ejecucion": "Dec_Ejec",
     }
-    # Signo de Meta y Ejecución — pueden tener variantes con/sin acento
+    # Signo de Meta y Ejecución — pueden tener variantes: 'Meta s', 'Ejecución s',
+    # 'Meta Signo', 'Ejecucion Signo', etc.
     for col in df.columns:
-        col_lower = col.lower()
+        col_lower = col.lower().strip()
+        col_norm  = col_lower.replace("ó", "o").replace("ú", "u").replace("á", "a")
         if "año" in col_lower or "aio" in col_lower:
             col_renames[col] = "Anio"
-        elif "meta" in col_lower and "signo" in col_lower:
+        elif col_norm in ("meta s", "meta signo", "meta_signo"):
             col_renames[col] = "Meta_Signo"
-        elif ("ejec" in col_lower or "ejecuci" in col_lower) and "signo" in col_lower:
+        elif "meta" in col_norm and "signo" in col_norm:
+            col_renames[col] = "Meta_Signo"
+        elif col_norm in ("ejecucion s", "ejecuci\u00f3n s", "ejecucion signo"):
+            col_renames[col] = "Ejec_Signo"
+        elif ("ejec" in col_norm or "ejecuci" in col_norm) and ("signo" in col_norm or col_norm.endswith(" s")):
             col_renames[col] = "Ejec_Signo"
 
     df = df.rename(columns={k: v for k, v in col_renames.items() if k in df.columns})

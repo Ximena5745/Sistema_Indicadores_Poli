@@ -15,6 +15,8 @@ _RENAME = {
     "Ejecución":     "Ejecucion",
     "Clasificación": "Clasificacion",
     "Ejecución s":   "Ejecucion_s",
+    "Meta s":        "Meta_Signo",
+    "Ejecución s":   "Ejec_Signo",
 }
 
 
