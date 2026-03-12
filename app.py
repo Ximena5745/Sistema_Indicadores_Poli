@@ -47,6 +47,15 @@ st.markdown(
         background-color: #F4F6F9;
     }
 
+    /* Usar todo el ancho disponible — elimina el max-width de Streamlit */
+    .block-container,
+    [data-testid="stMainBlockContainer"] {
+        max-width: 100% !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        padding-top: 0.75rem !important;
+    }
+
     /* Encabezados */
     h1 { color: #1A3A5C; }
     h2, h3 { color: #1565C0; }
