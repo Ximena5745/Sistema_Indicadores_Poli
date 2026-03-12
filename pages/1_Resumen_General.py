@@ -219,7 +219,9 @@ def _cargar_consolidados() -> pd.DataFrame:
         "Id": "Id", "Indicador": "Indicador", "Proceso": "Proceso",
         "Periodicidad": "Periodicidad", "Sentido": "Sentido",
         "Fecha": "fecha", "Mes": "Mes", "Periodo": "Periodo",
-        "Meta": "Meta", "Ejecucion": "Ejecucion", "Cumplimiento": "cumplimiento",
+        "Meta": "Meta",
+        "Ejecucion": "Ejecucion", "Ejecución": "Ejecucion",   # con y sin acento
+        "Cumplimiento": "cumplimiento",
         "Cumplimiento Real": "cumplimiento_real",
         "Tipo_Registro": "Tipo_Registro",
         "Decimales_Meta": "Dec_Meta", "Decimales_Ejecucion": "Dec_Ejec",
@@ -362,17 +364,24 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     df["Nivel de cumplimiento"] = df.apply(_nivel, axis=1)
     _cum_display = "cumplimiento_real" if "cumplimiento_real" in df.columns else "cumplimiento"
 
-    # Cumplimiento: Métrica no tiene → mostrar "—"
+    # Cumplimiento: Métrica no tiene → mostrar "—"; resto como porcentaje
     def _fmt_cum(row):
         if str(row.get("Nivel de cumplimiento", "")) == _METRICA:
             return "—"
-        return _fmt_num(row.get(_cum_display))
+        v = _to_num(row.get(_cum_display))
+        if v is None:
+            return "—"
+        return f"{v * 100:,.2f}%"
+
     df["Cumplimiento"] = df.apply(_fmt_cum, axis=1)
 
     if "cumplimiento_real" in df.columns:
-        df["Cumplimiento Real"] = df.apply(
-            lambda r: "—" if str(r.get("Nivel de cumplimiento","")) == _METRICA
-                      else _fmt_num(r.get("cumplimiento_real")), axis=1)
+        def _fmt_cum_real(row):
+            if str(row.get("Nivel de cumplimiento", "")) == _METRICA:
+                return "—"
+            v = _to_num(row.get("cumplimiento_real"))
+            return f"{v * 100:,.2f}%" if v is not None else "—"
+        df["Cumplimiento Real"] = df.apply(_fmt_cum_real, axis=1)
 
     # Meta y Ejecución formateadas con signo y decimales
     df["Meta_fmt"] = df.apply(
@@ -826,7 +835,7 @@ with tab_con:
     _COLS_CON = [
         "Id", "Indicador", "Nivel de cumplimiento", "Cumplimiento",
         "Meta_fmt", "Ejecucion_fmt", "Fecha reporte",
-        "Vicerrectoria", "Proceso", "Periodicidad", "Sentido", "PDI", "linea",
+        "Vicerrectoria", "Proceso", "Periodicidad", "Sentido", "linea",
     ]
     cols_show = [c for c in _COLS_CON if c in df_filt.columns]
     df_mostrar = df_filt[cols_show].copy()
@@ -843,7 +852,6 @@ with tab_con:
         "Proceso":               st.column_config.TextColumn("Proceso",      width="medium"),
         "Periodicidad":          st.column_config.TextColumn("Periodicidad", width="small"),
         "Sentido":               st.column_config.TextColumn("Sentido",      width="small"),
-        "PDI":                   st.column_config.TextColumn("PDI",          width="small"),
         "linea":                 st.column_config.TextColumn("Línea",        width="medium"),
     }
 
