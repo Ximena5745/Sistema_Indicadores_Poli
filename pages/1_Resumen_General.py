@@ -31,6 +31,7 @@ _DATA_OUTPUT = Path(__file__).parent.parent / "data" / "output"
 _DATA_RAW    = Path(__file__).parent.parent / "data" / "raw"
 _RUTA_CONSOLIDADOS = _DATA_OUTPUT / "Resultados Consolidados.xlsx"
 _RUTA_MAPA         = _DATA_RAW / "Subproceso-Proceso-Area.xlsx"
+_RUTA_CMI          = _DATA_RAW / "Indicadores por CMI.xlsx"
 _RUTA_KAWAK_DIR    = _DATA_RAW / "Kawak"
 
 # Meses en español para selección
@@ -215,6 +216,30 @@ def _cargar_mapa() -> pd.DataFrame:
     df = df[~df["Subproceso"].str.upper().isin(_INVALIDOS_MAPA)]
     df = df[~df["Proceso"].str.upper().isin(_INVALIDOS_MAPA)]
     return df.reset_index(drop=True)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _cargar_cmi() -> pd.DataFrame:
+    """Retorna Id → Subproceso desde Indicadores por CMI.xlsx (fuente autoritativa)."""
+    if not _RUTA_CMI.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(str(_RUTA_CMI), sheet_name="Worksheet", engine="openpyxl")
+    except Exception:
+        return pd.DataFrame()
+    df.columns = [str(c).strip() for c in df.columns]
+    col_id  = next((c for c in df.columns if c.lower() == "id"), None)
+    col_sub = next((c for c in df.columns if c.lower() == "subproceso"), None)
+    if not col_id or not col_sub:
+        return pd.DataFrame()
+    result = df[[col_id, col_sub]].copy()
+    result = result.rename(columns={col_id: "Id", col_sub: "Subproceso_CMI"})
+    result["Id"] = result["Id"].apply(_id_limpio)
+    result["Subproceso_CMI"] = result["Subproceso_CMI"].astype(str).str.strip()
+    _inv = {"", "NAN", "NO APLICA", "N/A", "NONE", "SIN DATO"}
+    result = result[result["Id"] != ""]
+    result = result[~result["Subproceso_CMI"].str.upper().isin(_inv)]
+    return result.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando Resultados Consolidados.xlsx...")
@@ -410,26 +435,35 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—") \
                           if "fecha" in df.columns else "—"
     
-    mapa = _cargar_mapa()   # ya viene filtrado (sin 'No Aplica', sin duplicados inválidos)
-    if not mapa.empty and "Proceso" in df.columns:
-        # Las fuentes (lmi, kawak, consolidado) usan "Proceso" para almacenar el Subproceso.
-        # La llave de cruce es siempre: data["Proceso"] → mapa["Subproceso"].
-        # De ahí se extrae el Proceso real y la Vicerrectoría.
-        df = df.rename(columns={"Proceso": "Subproceso"})
+    import unicodedata as _ud
+    def _norm_key(v):
+        return _ud.normalize("NFD", str(v).strip()).encode("ascii", "ignore").decode().upper()
 
+    # ── Paso 1: Subproceso autoritativo desde Indicadores por CMI (por Id) ───
+    cmi = _cargar_cmi()
+    if not cmi.empty and "Id" in df.columns:
+        df = df.merge(cmi[["Id", "Subproceso_CMI"]], on="Id", how="left")
+        # Subproceso = CMI si existe, si no cae en la columna Proceso del consolidado
+        _inv_mask = (
+            df["Subproceso_CMI"].isna()
+            | (df["Subproceso_CMI"].str.upper().isin(_INVALIDOS_MAPA))
+        )
+        fallback = df["Proceso"] if "Proceso" in df.columns else pd.Series("", index=df.index)
+        df["Subproceso"] = df["Subproceso_CMI"].where(~_inv_mask, other=fallback)
+        df = df.drop(columns=["Subproceso_CMI"], errors="ignore")
+    elif "Proceso" in df.columns:
+        df["Subproceso"] = df["Proceso"]
+
+    # ── Paso 2: Join mapa → Proceso real + Vicerrectoría ────────────────────
+    mapa = _cargar_mapa()
+    if not mapa.empty and "Subproceso" in df.columns:
         has_vic = "Vicerrectoria" in mapa.columns
         lookup_cols = ["Subproceso", "Proceso"] + (["Vicerrectoria"] if has_vic else [])
         lookup = (mapa[lookup_cols]
                   .drop_duplicates(subset=["Subproceso"], keep="first")
                   .copy())
-        import unicodedata as _ud
-        def _norm_key(v):
-            """Sin acentos + mayúsculas para match robusto en Subproceso."""
-            return _ud.normalize("NFD", str(v).strip()).encode("ascii", "ignore").decode().upper()
-
         lookup["_key"] = lookup["Subproceso"].apply(_norm_key)
         lookup = lookup.drop(columns=["Subproceso"])
-
         df["_key"] = df["Subproceso"].apply(_norm_key)
         df = df.merge(lookup, on="_key", how="left")
         df = df.drop(columns=["_key"], errors="ignore")
