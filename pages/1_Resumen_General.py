@@ -402,23 +402,36 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
                           if "fecha" in df.columns else "—"
     
     mapa = _cargar_mapa()
-    if not mapa.empty:
-        if "Proceso" in df.columns:
-            mapa_cols = list(mapa.columns)
-            proc_col = next((c for c in mapa_cols if "proceso" in c.lower()), "Proceso")
-            vic_col = next((c for c in mapa_cols if "icerrector" in c.lower()), None)
-            # Merge al nivel de Proceso (excluir Subproceso: es más granular y rompe unicidad)
-            cols_proc = [c for c in [proc_col, vic_col] if c]
-            if cols_proc and proc_col:
-                mapa_proc = (mapa[cols_proc]
-                             .drop_duplicates(subset=[proc_col])
-                             .reset_index(drop=True))
-                df = df.merge(mapa_proc,
-                             left_on="Proceso",
-                             right_on=proc_col,
-                             how="left")
-                if vic_col and vic_col in df.columns:
-                    df = df.rename(columns={vic_col: "Vicerrectoria"})
+    if not mapa.empty and "Proceso" in df.columns:
+        mapa_cols = list(mapa.columns)
+        sub_col  = next((c for c in mapa_cols if c.lower() == "subproceso"), None)
+        proc_col = next((c for c in mapa_cols if c.lower() == "proceso"),    None)
+        vic_col  = next((c for c in mapa_cols if "icerrector" in c.lower()), None)
+
+        if sub_col:
+            # El "Proceso" del dataset corresponde al Subproceso en la jerarquía del mapa.
+            # Renombrar para separarlo del Proceso real que vendrá del join.
+            df = df.rename(columns={"Proceso": "Subproceso"})
+            cols_m   = [c for c in [sub_col, proc_col, vic_col] if c]
+            rename_m = {sub_col: "Subproceso"}
+            if proc_col: rename_m[proc_col] = "Proceso"
+            if vic_col:  rename_m[vic_col]  = "Vicerrectoria"
+            mapa_join = (mapa[cols_m]
+                         .rename(columns=rename_m)
+                         .drop_duplicates(subset=["Subproceso"])
+                         .reset_index(drop=True))
+            df = df.merge(mapa_join, on="Subproceso", how="left")
+            if "Proceso" not in df.columns:
+                df["Proceso"] = df["Subproceso"]
+        elif proc_col and vic_col:
+            # Fallback: join al nivel de Proceso
+            cols_proc = [proc_col, vic_col]
+            mapa_proc = (mapa[cols_proc]
+                         .drop_duplicates(subset=[proc_col])
+                         .reset_index(drop=True))
+            df = df.merge(mapa_proc, left_on="Proceso", right_on=proc_col, how="left")
+            if vic_col in df.columns:
+                df = df.rename(columns={vic_col: "Vicerrectoria"})
     
     return df
 
@@ -845,7 +858,7 @@ with tab_con:
         "Id", "Indicador", "Nivel de cumplimiento",
         "Meta_fmt", "Ejecucion_fmt", "Cumplimiento",
         "Fecha reporte",
-        "Vicerrectoria", "Proceso", "Periodicidad", "Sentido", "linea",
+        "Vicerrectoria", "Proceso", "Subproceso", "Periodicidad", "Sentido", "linea",
     ]
     cols_show = [c for c in _COLS_CON if c in df_filt.columns]
     df_mostrar = df_filt[cols_show].copy()
@@ -860,6 +873,7 @@ with tab_con:
         "Fecha reporte":         st.column_config.TextColumn("Fecha",        width="small"),
         "Vicerrectoria":         st.column_config.TextColumn("Vicerrectoría", width="medium"),
         "Proceso":               st.column_config.TextColumn("Proceso",      width="medium"),
+        "Subproceso":            st.column_config.TextColumn("Subproceso",   width="medium"),
         "Periodicidad":          st.column_config.TextColumn("Periodicidad", width="small"),
         "Sentido":               st.column_config.TextColumn("Sentido",      width="small"),
         "linea":                 st.column_config.TextColumn("Línea",        width="medium"),

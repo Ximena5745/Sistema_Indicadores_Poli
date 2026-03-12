@@ -2,10 +2,9 @@
 utils/niveles.py — Niveles de cumplimiento centralizados.
 
 Umbrales FIJOS (aplican en todas las vistas):
-  > 105%   → Sobrecumplimiento  (azul oscuro #1A3A5C)
-  100–105% → Cumplimiento       (verde       #43A047)
-   80–99%  → Alerta             (amarillo    #FBAF17)
-    < 80%  → Peligro            (rojo        #D32F2F)
+  ≥ 100%  → Cumplimiento  (verde    #43A047)
+  80–99%  → Alerta        (amarillo #FBAF17)
+   < 80%  → Peligro       (rojo     #D32F2F)
 
 Fuente única de umbrales: config.py
 """
@@ -46,25 +45,25 @@ NIVEL_ORDEN = ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin da
 NIVEL_ICON = {
     "Peligro":           "🔴",
     "Alerta":            "🟡",
-    "Cumplimiento":      "🔵",
-    "Sobrecumplimiento": "🔵",
+    "Cumplimiento":      "🟢",
+    "Sobrecumplimiento": "🟢",  # compatibilidad con datos históricos
     "Sin dato":          "⚪",
 }
 
 
 def nivel_desde_pct(pct) -> str:
-    """Clasifica un valor de cumplimiento en escala porcentual (0-100+)."""
+    """Clasifica un valor de cumplimiento en escala porcentual (0-100+).
+    3 niveles: Peligro (< 80%) | Alerta (80–99.9%) | Cumplimiento (≥ 100%)
+    """
     try:
         c = float(pct)
     except (TypeError, ValueError):
         return "Sin dato"
-    if c < UMBRAL_PELIGRO_PCT:
+    if c < UMBRAL_PELIGRO_PCT:   # < 80%
         return "Peligro"
-    if c < UMBRAL_ALERTA_PCT:
+    if c < UMBRAL_ALERTA_PCT:    # 80% – 99.9%
         return "Alerta"
-    if c <= UMBRAL_SOBRECUMPLIMIENTO_PCT:
-        return "Cumplimiento"
-    return "Sobrecumplimiento"
+    return "Cumplimiento"        # ≥ 100%
 
 
 def nivel_desde_decimal(dec) -> str:
