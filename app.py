@@ -47,12 +47,13 @@ st.markdown(
         background-color: #F4F6F9;
     }
 
-    /* Usar todo el ancho — Streamlit 1.44+ usa stMainBlockContainer */
-    .stMainBlockContainer {
+    /* Ancho completo — override del emotion-cache generado por Streamlit */
+    div[data-testid="stMainBlockContainer"],
+    .stMainBlockContainer.block-container {
         max-width: none !important;
+        padding-top: 1rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
-        padding-top: 0.5rem !important;
     }
 
     /* Encabezados */
