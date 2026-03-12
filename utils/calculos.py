@@ -136,12 +136,12 @@ def generar_recomendaciones(categoria, cum_series):
 
     if tendencia == "Empeorando" and categoria in ("Cumplimiento", "Sobrecumplimiento"):
         recs.append(
-            "Aunque cumple la meta, la tendencia es negativa — identificar causas antes de que impacte el resultado."
+            "Aunque cumple la meta, se observa una tendencia decreciente — identificar causas antes de que impacte el resultado."
         )
     elif tendencia == "Mejorando" and categoria == "Peligro":
-        recs.append("El indicador muestra mejoría — continuar con las acciones implementadas.")
+        recs.append("El indicador muestra una tendencia creciente — continuar con las acciones implementadas.")
     elif tendencia == "Empeorando" and categoria == "Alerta":
-        recs.append("La tendencia es negativa — priorizar medidas preventivas para evitar zona de peligro.")
+        recs.append("Se observa tendencia decreciente — priorizar medidas preventivas para evitar zona de peligro.")
 
     return tendencia, recs
 

@@ -140,6 +140,94 @@ def colorear_tabla_categoria(df: pd.DataFrame, col_categoria: str = "Categoria")
     return df.style.apply(estilo_fila, axis=1)
 
 
+def grafico_detalle_indicador(df_ind: pd.DataFrame) -> go.Figure:
+    """
+    Gráfico combinado para el modal de detalle:
+    - Barras agrupadas: Meta y Ejecución (eje izquierdo)
+    - Línea con marcadores: Cumplimiento% (eje derecho)
+    - X-axis: etiquetas de Periodo (solo períodos con datos, formato legible)
+    """
+    df = df_ind.sort_values("Fecha").copy()
+
+    periodos = df["Periodo"].astype(str).tolist()
+    cum_pct = (df["Cumplimiento_norm"] * 100).round(1)
+    colores_pts = df["Categoria"].map(COLOR_CAT).fillna("#9E9E9E").tolist()
+
+    meta_vals = pd.to_numeric(df.get("Meta", pd.Series(dtype=float)), errors="coerce")
+    ejec_vals = pd.to_numeric(df.get("Ejecucion", pd.Series(dtype=float)), errors="coerce")
+
+    fig = go.Figure()
+
+    # Barras Meta y Ejecución
+    if meta_vals.notna().any():
+        fig.add_trace(go.Bar(
+            x=periodos, y=meta_vals.tolist(),
+            name="Meta", marker_color="#90CAF9", opacity=0.85, yaxis="y1",
+            hovertemplate="<b>%{x}</b><br>Meta: %{y:,.2f}<extra></extra>",
+        ))
+    if ejec_vals.notna().any():
+        fig.add_trace(go.Bar(
+            x=periodos, y=ejec_vals.tolist(),
+            name="Ejecución", marker_color="#1A3A5C", opacity=0.85, yaxis="y1",
+            hovertemplate="<b>%{x}</b><br>Ejecución: %{y:,.2f}<extra></extra>",
+        ))
+
+    # Línea Cumplimiento%
+    fig.add_trace(go.Scatter(
+        x=periodos, y=cum_pct.tolist(),
+        name="Cumplimiento %", mode="lines+markers+text",
+        line=dict(color="#E65100", width=2.5),
+        marker=dict(size=10, color=colores_pts, line=dict(width=2, color="white")),
+        text=(cum_pct.astype(str) + "%").tolist(),
+        textposition="top center",
+        textfont=dict(size=9),
+        yaxis="y2",
+        hovertemplate="<b>%{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>",
+    ))
+
+    # Líneas de referencia en el eje de cumplimiento (y2)
+    y_max_cum = max(130.0, float(cum_pct.max()) + 15) if not cum_pct.dropna().empty else 130.0
+    for y_ref, color_ref, dash_ref, label_ref in [
+        (100, "#2E7D32", "dash", "Meta 100%"),
+        (80,  "#C62828", "dot",  "Alerta 80%"),
+    ]:
+        fig.add_shape(
+            type="line", xref="paper", x0=0, x1=1,
+            yref="y2", y0=y_ref, y1=y_ref,
+            line=dict(color=color_ref, width=1.5, dash=dash_ref),
+        )
+
+    # Colores de fondo por zona en eje de cumplimiento
+    for y0_z, y1_z, fill_z in [
+        (0, 80, "#FFCDD2"), (80, 100, "#FFF9C4"),
+        (100, 105, "#E8F5E9"), (105, y_max_cum, "#D0E4FF"),
+    ]:
+        fig.add_shape(
+            type="rect", xref="paper", x0=0, x1=1,
+            yref="y2", y0=y0_z, y1=min(y1_z, y_max_cum),
+            fillcolor=fill_z, opacity=0.25, line_width=0,
+            layer="below",
+        )
+
+    fig.update_layout(
+        barmode="group",
+        height=440,
+        yaxis=dict(title="Meta / Ejecución", side="left", showgrid=False),
+        yaxis2=dict(
+            title="Cumplimiento (%)", ticksuffix="%",
+            overlaying="y", side="right",
+            range=[0, y_max_cum],
+            showgrid=True, gridcolor="#EEEEEE",
+        ),
+        xaxis=dict(title="Período", type="category", tickangle=-30),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        legend=dict(orientation="h", y=-0.3, x=0),
+        margin=dict(t=30, b=90, l=70, r=70),
+    )
+    return fig
+
+
 def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataFrame):
     """
     Renderiza el panel completo de detalle de un indicador.
@@ -192,28 +280,32 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
 
     st.divider()
 
-    # Tabla histórica
-    df_tabla = tabla_historica_indicador(df_ind_sorted)
-    st.markdown("**Histórico**")
-    st.dataframe(df_tabla, use_container_width=True, hide_index=True)
+    # Contenedor desplazable para tabla + gráfico
+    with st.container(height=600):
+        # Tabla histórica
+        df_tabla = tabla_historica_indicador(df_ind_sorted)
+        st.markdown("**Histórico**")
+        st.dataframe(df_tabla, use_container_width=True, hide_index=True)
 
-    # Gráfico histórico
-    fig = grafico_historico_indicador(df_ind_sorted)
-    st.plotly_chart(fig, use_container_width=True)
+        # Gráfico combinado Meta / Ejecución / Cumplimiento%
+        st.markdown("**Evolución: Meta, Ejecución y Cumplimiento**")
+        fig = grafico_detalle_indicador(df_ind_sorted)
+        st.plotly_chart(fig, use_container_width=True)
 
     # Recomendaciones
     st.divider()
     cum_series = df_ind_sorted["Cumplimiento_norm"].dropna() * 100
     tendencia, recs = generar_recomendaciones(categoria, cum_series)
 
-    tendencia_icons = {
-        "Mejorando":            "✅ Mejorando",
-        "Empeorando":           "⚠️ Empeorando",
-        "Estable":              "➡️ Estable",
-        "Sin datos suficientes":"ℹ️ Sin datos suficientes",
+    tendencia_labels = {
+        "Mejorando":            "📈 Tendencia creciente",
+        "Empeorando":           "📉 Tendencia decreciente",
+        "Estable":              "➡️ Sin variación significativa",
+        "Sin datos suficientes":"ℹ️ Datos insuficientes para análisis",
     }
     st.markdown(
-        f"**Recomendaciones**  |  Tendencia: **{tendencia_icons.get(tendencia, tendencia)}**"
+        f"**Análisis de tendencia:** {tendencia_labels.get(tendencia, tendencia)}"
     )
+    st.markdown("**Recomendaciones:**")
     for rec in recs:
         st.markdown(f"- {rec}")
