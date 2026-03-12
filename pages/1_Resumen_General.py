@@ -184,28 +184,36 @@ def _fmt_valor(v, signo, decimales) -> str:
 # CARGA DE DATOS
 # ══════════════════════════════════════════════════════════════════════════════
 
+_INVALIDOS_MAPA = {"", "NAN", "NO APLICA", "N/A", "NONE", "SIN DATO"}
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def _cargar_mapa() -> pd.DataFrame:
+    """Lee Subproceso-Proceso-Area.xlsx.
+    Retorna todas las filas válidas (Subproceso y Proceso reales, no 'No Aplica').
+    SIN deduplicar: el lookup en _preparar_consolidado maneja prioridades.
+    """
     if not _RUTA_MAPA.exists():
         return pd.DataFrame()
     df = pd.read_excel(str(_RUTA_MAPA), engine="openpyxl")
     df.columns = [str(c).strip() for c in df.columns]
-    col_sub    = next((c for c in df.columns if c.lower() == "subproceso"), None)
+    # Igual lógica que cargar_mapa_procesos() en actualizar_consolidado.py
+    col_sub    = next((c for c in df.columns if "subproceso" in c.lower() and ".1" not in c.lower()), None)
     col_proc   = next((c for c in df.columns if c.lower() == "proceso"), None)
-    col_area   = next((c for c in df.columns
-                       if "rea" in c.lower() and "vicerr" not in c.lower()), None)
     col_vicerr = next((c for c in df.columns if "icerrector" in c.lower()), None)
     if not col_sub or not col_proc:
         return pd.DataFrame()
     rename = {col_sub: "Subproceso", col_proc: "Proceso"}
-    if col_area:   rename[col_area]   = "Area"
     if col_vicerr: rename[col_vicerr] = "Vicerrectoria"
     df = df.rename(columns=rename)
-    cols_k = [c for c in ["Subproceso", "Proceso", "Area", "Vicerrectoria"] if c in df.columns]
-    return (df[cols_k]
-            .dropna(subset=["Subproceso"])
-            .drop_duplicates(subset=["Subproceso"])
-            .reset_index(drop=True))
+    cols_k = [c for c in ["Subproceso", "Proceso", "Vicerrectoria"] if c in df.columns]
+    df = df[cols_k].copy()
+    # Normalizar a string y eliminar filas con Subproceso o Proceso inválidos
+    for c in ["Subproceso", "Proceso"]:
+        df[c] = df[c].astype(str).str.strip()
+    df = df[~df["Subproceso"].str.upper().isin(_INVALIDOS_MAPA)]
+    df = df[~df["Proceso"].str.upper().isin(_INVALIDOS_MAPA)]
+    return df.reset_index(drop=True)
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando Resultados Consolidados.xlsx...")
@@ -401,48 +409,26 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—") \
                           if "fecha" in df.columns else "—"
     
-    mapa = _cargar_mapa()
+    mapa = _cargar_mapa()   # ya viene filtrado (sin 'No Aplica', sin duplicados inválidos)
     if not mapa.empty and "Proceso" in df.columns:
-        mapa_cols = list(mapa.columns)
-        sub_col  = next((c for c in mapa_cols if c.lower() == "subproceso"), None)
-        proc_col = next((c for c in mapa_cols if c.lower() == "proceso"),    None)
-        vic_col  = next((c for c in mapa_cols if "icerrector" in c.lower()), None)
+        # Las fuentes (lmi, kawak, consolidado) usan "Proceso" para almacenar el Subproceso.
+        # La llave de cruce es siempre: data["Proceso"] → mapa["Subproceso"].
+        # De ahí se extrae el Proceso real y la Vicerrectoría.
+        df = df.rename(columns={"Proceso": "Subproceso"})
 
-        if sub_col and proc_col:
-            # El dataset llama "Proceso" a lo que es Subproceso en el mapa, pero algunos
-            # valores coinciden a nivel Subproceso y otros a nivel Proceso.
-            # Estrategia: lookup unificado — Subproceso tiene prioridad sobre Proceso.
-            df = df.rename(columns={"Proceso": "Subproceso"})
+        has_vic = "Vicerrectoria" in mapa.columns
+        lookup_cols = ["Subproceso", "Proceso"] + (["Vicerrectoria"] if has_vic else [])
+        lookup = (mapa[lookup_cols]
+                  .drop_duplicates(subset=["Subproceso"], keep="first")
+                  .copy())
+        lookup["_key"] = lookup["Subproceso"].str.upper()
+        lookup = lookup.drop(columns=["Subproceso"])
 
-            vc = vic_col if vic_col else None
-            cols_use = [c for c in [sub_col, proc_col, vc] if c]
-            m = mapa[cols_use].copy()
-            m[sub_col]  = m[sub_col].astype(str).str.strip()
-            m[proc_col] = m[proc_col].astype(str).str.strip()
-
-            # Entradas con clave = Subproceso (específico)
-            sub_entries = m[[sub_col, proc_col] + ([vc] if vc else [])].copy()
-            sub_entries["_key"] = sub_entries[sub_col].str.upper()
-            sub_entries = sub_entries.rename(columns={proc_col: "Proceso",
-                                                      **({vc: "Vicerrectoria"} if vc else {})})
-
-            # Entradas con clave = Proceso (fallback para valores que no son Subproceso)
-            proc_entries = m[[proc_col] + ([vc] if vc else [])].drop_duplicates(proc_col).copy()
-            proc_entries["_key"] = proc_entries[proc_col].str.upper()
-            proc_entries = proc_entries.rename(columns={proc_col: "Proceso",
-                                                        **({vc: "Vicerrectoria"} if vc else {})})
-
-            # Unir: Subproceso primero → tiene prioridad al deduplicar por _key
-            lookup_cols = ["_key", "Proceso"] + (["Vicerrectoria"] if vc else [])
-            lookup = (pd.concat([sub_entries[lookup_cols], proc_entries[lookup_cols]])
-                        .drop_duplicates(subset=["_key"], keep="first")
-                        .reset_index(drop=True))
-
-            df["_key"] = df["Subproceso"].astype(str).str.strip().str.upper()
-            df = df.merge(lookup, on="_key", how="left")
-            df = df.drop(columns=["_key"], errors="ignore")
-            if "Proceso" not in df.columns:
-                df["Proceso"] = df["Subproceso"]
+        df["_key"] = df["Subproceso"].astype(str).str.strip().str.upper()
+        df = df.merge(lookup, on="_key", how="left")
+        df = df.drop(columns=["_key"], errors="ignore")
+        if "Proceso" not in df.columns:
+            df["Proceso"] = df["Subproceso"]
     
     return df
 
