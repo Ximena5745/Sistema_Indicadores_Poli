@@ -107,21 +107,30 @@ def _to_num(v):
 
 def _nivel(row) -> str:
     """Determina el nivel de cumplimiento del indicador."""
-    # Indicadores tipo Métrica: no tienen meta de cumplimiento
     tipo = str(row.get("Tipo_Registro", "") or "").strip().lower()
     if tipo == "metrica":
         return _METRICA
 
-    # Solo bloquear si la columna existe y tiene un valor explícito de no aplica
     if "Resultado" in row:
         resultado = str(row.get("Resultado", "")).strip().upper()
         if resultado in ("N/A", "NA", "NO APLICA", "NO"):
             return _NO_APLICA
 
+    # Umbral Kawak: comparar Ejecucion (valor absoluto) contra peligro/alerta del año
+    peligro_kwk = _to_num(row.get("peligro_kwk"))
+    alerta_kwk  = _to_num(row.get("alerta_kwk"))
+    ejec        = _to_num(row.get("Ejecucion"))
+    if peligro_kwk is not None and ejec is not None:
+        if ejec < peligro_kwk:
+            return "Peligro"
+        if alerta_kwk is not None and ejec < alerta_kwk:
+            return "Alerta"
+        return "Cumplimiento"
+
+    # Fallback estándar: cumplimiento porcentual
     c = _to_num(row.get("cumplimiento", ""))
     if c is None:
         return _PEND
-
     return nivel_desde_pct(c * 100)
 
 
@@ -328,7 +337,9 @@ def _cargar_consolidados() -> pd.DataFrame:
                       (meta_n / ejec_n).clip(lower=0))
         ratio_cap  = ratio_real.clip(upper=1.3)
 
-        mask_calc = df["cumplimiento"].isna() & valid
+        # Para Sentido=Negativo el Excel calcula ejec/meta (sin invertir),
+        # por eso siempre se recalcula con la fórmula correcta meta/ejec.
+        mask_calc = (df["cumplimiento"].isna() | sentido_neg) & valid
         df.loc[mask_calc, "cumplimiento"]      = ratio_cap[mask_calc]
         df.loc[mask_calc, "cumplimiento_real"] = ratio_real[mask_calc]
 
@@ -349,23 +360,46 @@ def _obtener_anios_disponibles() -> list:
     return [int(a) for a in anios if not pd.isna(a)]
 
 
-@st.cache_data(ttl=600, show_spinner="Cargando IDs de Kawak...")
-def _obtener_ids_kawak() -> set:
-    """Retorna conjunto de IDs únicos de los archivos Kawak."""
+@st.cache_data(ttl=600, show_spinner=False)
+def _cargar_kawak_por_anio(anio: int) -> pd.DataFrame:
+    """Carga IDs y umbrales (peligro/alerta) del archivo Kawak del año indicado.
+    Si no existe el año, une todos los archivos disponibles como fallback.
+    Retorna DataFrame con columnas: Id, peligro_kwk, alerta_kwk.
+    """
     if not _RUTA_KAWAK_DIR.exists():
-        return set()
-    archivos = list(_RUTA_KAWAK_DIR.glob("*.xlsx"))
-    ids_kawak = set()
+        return pd.DataFrame()
+
+    path = _RUTA_KAWAK_DIR / f"{anio}.xlsx"
+    archivos = [path] if path.exists() else list(_RUTA_KAWAK_DIR.glob("*.xlsx"))
+
+    frames = []
     for arch in archivos:
         try:
-            df = pd.read_excel(arch, engine="openpyxl")
+            df = pd.read_excel(str(arch), engine="openpyxl")
+            df.columns = [str(c).strip() for c in df.columns]
             id_col = "ID" if "ID" in df.columns else ("Id" if "Id" in df.columns else None)
-            if id_col:
-                ids = df[id_col].dropna().astype(str).unique()
-                ids_kawak.update(ids)
+            if not id_col:
+                continue
+            cols = {id_col: "Id"}
+            if "peligro" in df.columns: cols["peligro"] = "peligro_kwk"
+            if "alerta"  in df.columns: cols["alerta"]  = "alerta_kwk"
+            sub = df[[c for c in cols]].rename(columns=cols).copy()
+            sub["Id"] = sub["Id"].apply(_id_limpio)
+            sub = sub[sub["Id"] != ""]
+            frames.append(sub)
         except Exception:
             pass
-    return ids_kawak
+
+    if not frames:
+        return pd.DataFrame()
+
+    result = pd.concat(frames, ignore_index=True)
+    for col in ["peligro_kwk", "alerta_kwk"]:
+        if col not in result.columns:
+            result[col] = None
+        else:
+            result[col] = pd.to_numeric(result[col], errors="coerce")
+    return result.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
 
 
 # Dataset_Unificado para el dialog de detalle (histórico completo)
@@ -382,25 +416,57 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     """
     if df_all.empty:
         return df_all
-    
-    ids_kawak = _obtener_ids_kawak()
-    
+
+    # Kawak del año seleccionado: IDs activos + umbrales por indicador
+    kawak_df = _cargar_kawak_por_anio(anio)
+
     mes_num = _MES_NUM.get(mes, 12)
     ultimo_dia_mes = calendar.monthrange(anio, mes_num)[1]
     fecha_corte = pd.Timestamp(anio, mes_num, ultimo_dia_mes, 23, 59, 59)
-    
+
     df_filtrado = df_all[df_all["fecha"].notna() & (df_all["fecha"] <= fecha_corte)].copy()
-    
+
     if df_filtrado.empty:
         df_filtrado = df_all.copy()
-    
-    if ids_kawak:
-        df_filtrado = df_filtrado[df_filtrado["Id"].isin(ids_kawak)]
-    
+
+    if not kawak_df.empty:
+        df_filtrado = df_filtrado[df_filtrado["Id"].isin(kawak_df["Id"].tolist())]
+
     df = (df_filtrado.sort_values("fecha")
           .groupby("Id", as_index=False)
           .last())
-    
+
+    # Agregar umbrales Kawak al dataframe para que _nivel() pueda usarlos
+    if not kawak_df.empty:
+        df = df.merge(kawak_df[["Id", "peligro_kwk", "alerta_kwk"]], on="Id", how="left")
+
+    import unicodedata as _ud
+    def _norm_key(v):
+        return _ud.normalize("NFD", str(v).strip()).encode("ascii", "ignore").decode().upper()
+
+    # ── Paso 1: Subproceso autoritativo desde Indicadores por CMI (por Id) ───
+    cmi = _cargar_cmi()
+    if not cmi.empty and "Id" in df.columns:
+        df = df.merge(cmi[["Id", "Subproceso_CMI"]], on="Id", how="left")
+        _inv_mask = (
+            df["Subproceso_CMI"].isna()
+            | (df["Subproceso_CMI"].str.upper().isin(_INVALIDOS_MAPA))
+        )
+        fallback = df["Proceso"] if "Proceso" in df.columns else pd.Series("", index=df.index)
+        df["Subproceso"] = df["Subproceso_CMI"].where(~_inv_mask, other=fallback)
+        df = df.drop(columns=["Subproceso_CMI"], errors="ignore")
+    elif "Proceso" in df.columns:
+        df["Subproceso"] = df["Proceso"]
+
+    # ── SST: tope de cumplimiento al 100% ────────────────────────────────────
+    # Indicadores de GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO no pueden
+    # superar el 100%. Se recalcula desde cumplimiento_real (valor sin tope).
+    if "Subproceso" in df.columns and "cumplimiento_real" in df.columns:
+        sst_mask = df["Subproceso"].str.upper().str.contains(
+            r"SEGURIDAD.*SALUD|SST", na=False, regex=True)
+        df.loc[sst_mask, "cumplimiento"] = (
+            df.loc[sst_mask, "cumplimiento_real"].clip(upper=1.0))
+
     df["Nivel de cumplimiento"] = df.apply(_nivel, axis=1)
     _cum_display = "cumplimiento_real" if "cumplimiento_real" in df.columns else "cumplimiento"
 
@@ -412,6 +478,11 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
         v = _to_num(row.get(_cum_display))
         if v is None:
             return "—"
+        # SST: mostrar máximo 100%
+        sub = str(row.get("Subproceso", "")).upper()
+        import re
+        if re.search(r"SEGURIDAD.*SALUD|SST", sub):
+            v = min(v, 1.0)
         icon = NIVEL_ICON.get(niv, "")
         pct  = f"{v * 100:,.2f}%"
         return f"{icon} {pct}" if icon else pct
@@ -434,25 +505,6 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
 
     df["Fecha reporte"] = df["fecha"].dt.strftime("%d/%m/%Y").fillna("—") \
                           if "fecha" in df.columns else "—"
-    
-    import unicodedata as _ud
-    def _norm_key(v):
-        return _ud.normalize("NFD", str(v).strip()).encode("ascii", "ignore").decode().upper()
-
-    # ── Paso 1: Subproceso autoritativo desde Indicadores por CMI (por Id) ───
-    cmi = _cargar_cmi()
-    if not cmi.empty and "Id" in df.columns:
-        df = df.merge(cmi[["Id", "Subproceso_CMI"]], on="Id", how="left")
-        # Subproceso = CMI si existe, si no cae en la columna Proceso del consolidado
-        _inv_mask = (
-            df["Subproceso_CMI"].isna()
-            | (df["Subproceso_CMI"].str.upper().isin(_INVALIDOS_MAPA))
-        )
-        fallback = df["Proceso"] if "Proceso" in df.columns else pd.Series("", index=df.index)
-        df["Subproceso"] = df["Subproceso_CMI"].where(~_inv_mask, other=fallback)
-        df = df.drop(columns=["Subproceso_CMI"], errors="ignore")
-    elif "Proceso" in df.columns:
-        df["Subproceso"] = df["Proceso"]
 
     # ── Paso 2: Join mapa → Proceso real + Vicerrectoría ────────────────────
     mapa = _cargar_mapa()
