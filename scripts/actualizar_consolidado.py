@@ -62,6 +62,49 @@ MESES_ES = {
     9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre',
 }
 
+# ── Mapeo de nombres de columna Excel → campo interno ─────────────────────────
+# Soporta variantes de nombres entre las 3 hojas y versiones anteriores del archivo
+_COL_ALIASES = {
+    'Id': 'Id', 'Indicador': 'Indicador',
+    'Proceso': 'Proceso', 'Periodicidad': 'Periodicidad',
+    'Sentido': 'Sentido', 'Fecha': 'Fecha',
+    'Año': 'Anio', 'Anio': 'Anio',
+    'Mes': 'Mes',
+    'Semestre': 'Semestre', 'Periodo': 'Semestre',
+    'Meta': 'Meta',
+    'Ejecucion': 'Ejecucion', 'Ejecución': 'Ejecucion',
+    'Cumplimiento': 'Cumplimiento',
+    'Cumplimiento Real': 'CumplReal',
+    'Meta_Signo': 'MetaS', 'Meta s': 'MetaS', 'Meta Signo': 'MetaS',
+    'Ejecucion_Signo': 'EjecS', 'Ejecucion s': 'EjecS',
+    'Ejecución s': 'EjecS', 'Ejecución Signo': 'EjecS',
+    'Decimales_Meta': 'DecMeta', 'Decimales': 'DecMeta',
+    'Decimales_Ejecucion': 'DecEjec', 'DecimalesEje': 'DecEjec',
+    'PDI': 'PDI', 'linea': 'linea', 'Linea': 'linea',
+    'LLAVE': 'LLAVE', 'Llave': 'LLAVE',
+    'Tipo_Registro': 'TipoRegistro',
+}
+
+
+def _build_col_map(ws):
+    """Lee el encabezado de la hoja y devuelve {campo_interno: col_idx (1-based)}."""
+    cm = {}
+    for cell in next(ws.iter_rows(min_row=1, max_row=1)):
+        if cell.value is not None:
+            campo = _COL_ALIASES.get(str(cell.value).strip())
+            if campo:
+                cm[campo] = cell.column
+    return cm
+
+
+def _ensure_tipo_registro_header(ws):
+    """Agrega header 'Tipo_Registro' tras la última columna con header, si no existe."""
+    header_row = list(next(ws.iter_rows(min_row=1, max_row=1)))
+    existing   = {str(c.value).strip() for c in header_row if c.value is not None}
+    if 'Tipo_Registro' not in existing:
+        last_col = max((c.column for c in header_row if c.value is not None), default=0)
+        ws.cell(1, last_col + 1).value = 'Tipo_Registro'
+
 
 # ─────────────────────────────────────────────────────────────────────
 # UTILIDADES
@@ -717,8 +760,8 @@ def expandir_analisis(df_api):
 
 def obtener_signos(df_hist, df_sem, df_cierres):
     signos = {}
-    col_ejec_candidates = ['Ejecución Signo', 'Ejecucion Signo', 'Ejecución s', 'Ejecucion s']
-    col_ms_candidates   = ['Meta Signo', 'Meta s', 'Meta_Signo']
+    col_ejec_candidates = ['Ejecucion_Signo', 'Ejecución Signo', 'Ejecucion Signo', 'Ejecución s', 'Ejecucion s']
+    col_ms_candidates   = ['Meta_Signo', 'Meta Signo', 'Meta s']
     for df, col_ms_c, col_es_c in [
         (df_hist,    col_ms_candidates, col_ejec_candidates),
         (df_sem,     col_ms_candidates, col_ejec_candidates),
@@ -812,17 +855,22 @@ def deduplicar_sheet(ws, nombre=''):
     """
     Elimina filas con LLAVE duplicada (mismo Id+Fecha), conservando la que
     tenga ejecución más completa (no nula, no cero).
-    Col H (índice 7) = 'Ejecución' (valor real).
+    Usa el mapa de columnas real de la hoja.
     """
+    cm = _build_col_map(ws)
+    idx_fecha = cm.get('Fecha',    6) - 1   # 0-based
+    idx_ejec  = cm.get('Ejecucion', 11) - 1  # 0-based
+
     filas = []
     for row in ws.iter_rows(min_row=2, values_only=False):
         if row[0].value is None:
             continue
         try:
-            llave = make_llave(row[0].value, row[5].value)
+            llave = make_llave(row[0].value, row[idx_fecha].value)
         except Exception:
             llave = None
-        filas.append({'row_idx': row[0].row, 'llave': llave, 'ejec': row[7].value})
+        ejec_val = row[idx_ejec].value if len(row) > idx_ejec else None
+        filas.append({'row_idx': row[0].row, 'llave': llave, 'ejec': ejec_val})
 
     grupos = defaultdict(list)
     for f in filas:
@@ -865,15 +913,18 @@ def get_last_data_row(ws):
 def purgar_filas_invalidas(ws, nombre="hoja"):
     """
     Elimina filas donde la fecha es futura (año > AÑO_CIERRE_ACTUAL)
-    o donde el campo Año/Mes contiene texto inválido como 'Avance'.
-    Col F(6)=Fecha, Col M(13)=Año.
+    o donde el campo Año contiene texto inválido como 'Avance'.
+    Usa el mapa de columnas real de la hoja.
     """
+    cm = _build_col_map(ws)
+    idx_fecha = cm.get('Fecha', 6) - 1   # 0-based; Fecha=col6 por defecto
+    idx_anio  = cm.get('Anio',  7) - 1   # 0-based; Año=col7 por defecto
+
     filas_a_borrar = []
     for row in ws.iter_rows(min_row=2, values_only=False):
         if row[0].value is None:
             continue
-        # Revisar fecha (col F = índice 5)
-        fecha_raw = row[5].value
+        fecha_raw = row[idx_fecha].value if len(row) > idx_fecha else None
         try:
             fecha = pd.to_datetime(fecha_raw)
             if fecha.year > AÑO_CIERRE_ACTUAL:
@@ -881,8 +932,7 @@ def purgar_filas_invalidas(ws, nombre="hoja"):
                 continue
         except Exception:
             pass
-        # Revisar campo Año (col M = índice 12): si es texto no numérico → inválido
-        anio_val = row[12].value if len(row) > 12 else None
+        anio_val = row[idx_anio].value if len(row) > idx_anio else None
         if anio_val is not None:
             try:
                 float(anio_val)
@@ -956,19 +1006,25 @@ def limpiar_cierres_existentes(ws):
 
 def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
     """
-    Escribe filas nuevas con valores directos calculados en Python.
-    NO usa fórmulas Excel (openpyxl no las evalúa, quedan como cadenas).
+    Escribe filas nuevas usando el mapa de columnas real de la hoja (no índices fijos).
 
-    Esquema del archivo real (21 + 1 cols):
-      A(1)  Id            B(2)  Indicador     C(3)  Proceso
-      D(4)  Periodicidad  E(5)  Sentido       F(6)  Fecha
-      G(7)  Meta          H(8)  Ejecución     I(9)  Cumplimiento (capped)
-      J(10) Cumpl. Real   K(11) Meta s        L(12) Ejecución s
-      M(13) Año           N(14) Mes           O(15) Semestre
-      P(16) Dec_Meta      Q(17) Dec_Ejec      R(18) PDI
-      S(19) linea         T(20) LLAVE         U(21) dd
-      V(22) Tipo_Registro
+    Estructura esperada del INPUT (18 cols):
+      1=Id, 2=Indicador, 3=Proceso, 4=Periodicidad, 5=Sentido, 6=Fecha,
+      7=Año, 8=Mes, 9=Semestre/Periodo, 10=Meta, 11=Ejecucion,
+      12=Cumplimiento, 13=Cumplimiento Real, 14=Meta_Signo, 15=Ejecucion_Signo,
+      16=Decimales_Meta, 17=Decimales_Ejecucion, 18=LLAVE
+      +19=Tipo_Registro (agregado por el script)
     """
+    cm = _build_col_map(ws)
+
+    def _set(r, campo, value, fmt=None):
+        col = cm.get(campo)
+        if col is None:
+            return
+        ws.cell(r, col).value = value
+        if fmt and value is not None:
+            ws.cell(r, col).number_format = fmt
+
     if start_row is None:
         start_row = get_last_data_row(ws) + 1
 
@@ -1003,60 +1059,30 @@ def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
             tipo_registro = ''
 
         cumpl_capped, cumpl_real = _calc_cumpl(meta, ejec, sentido)
+        llave = (fila.get('LLAVE') or make_llave(fila.get('Id'), fecha_val))
 
-        llave = (fila.get('LLAVE') or
-                 make_llave(fila.get('Id'), fecha_val))
+        _set(r, 'Id',          fila.get('Id'))
+        _set(r, 'Indicador',   fila.get('Indicador', ''))
+        _set(r, 'Proceso',     fila.get('Proceso', ''))
+        _set(r, 'Periodicidad', fila.get('Periodicidad', ''))
+        _set(r, 'Sentido',     sentido)
+        _set(r, 'Fecha',       fecha_val, 'YYYY-MM-DD')
 
-        # A–F: datos base
-        ws.cell(r, 1).value = fila.get('Id')
-        ws.cell(r, 2).value = fila.get('Indicador', '')
-        ws.cell(r, 3).value = fila.get('Proceso', '')
-        ws.cell(r, 4).value = fila.get('Periodicidad', '')
-        ws.cell(r, 5).value = sentido
-        ws.cell(r, 6).value = fecha_val
-        ws.cell(r, 6).number_format = 'YYYY-MM-DD'
-
-        # G: Meta, H: Ejecución
-        ws.cell(r, 7).value = meta
-        ws.cell(r, 8).value = ejec
-
-        # I: Cumplimiento (capped), J: Cumplimiento Real
-        ws.cell(r, 9).value  = cumpl_capped
-        ws.cell(r, 10).value = cumpl_real
-        if cumpl_capped is not None:
-            ws.cell(r, 9).number_format  = '0.00%'
-        if cumpl_real is not None:
-            ws.cell(r, 10).number_format = '0.00%'
-
-        # K: Meta s, L: Ejecución s
-        ws.cell(r, 11).value = sg['meta_signo']
-        ws.cell(r, 12).value = ejec_signo
-
-        # M: Año, N: Mes, O: Semestre
         if fecha_dt is not None:
-            ws.cell(r, 13).value = fecha_dt.year
-            ws.cell(r, 14).value = MESES_ES.get(fecha_dt.month, '')
-            ws.cell(r, 15).value = f"{fecha_dt.year}-{1 if fecha_dt.month <= 6 else 2}"
-            ws.cell(r, 21).value = fecha_dt.day    # U: dd
-        else:
-            ws.cell(r, 13).value = None
-            ws.cell(r, 14).value = ''
-            ws.cell(r, 15).value = ''
-            ws.cell(r, 21).value = None
+            _set(r, 'Anio',    fecha_dt.year)
+            _set(r, 'Mes',     MESES_ES.get(fecha_dt.month, ''))
+            _set(r, 'Semestre', f"{fecha_dt.year}-{1 if fecha_dt.month <= 6 else 2}")
 
-        # P: Decimales_Meta, Q: Decimales_Ejecucion
-        ws.cell(r, 16).value = sg.get('dec_meta', 0)
-        ws.cell(r, 17).value = sg.get('dec_ejec', 0)
-
-        # R: PDI (0 para filas nuevas de API), S: linea (vacío)
-        ws.cell(r, 18).value = 0
-        ws.cell(r, 19).value = ''
-
-        # T: LLAVE
-        ws.cell(r, 20).value = llave
-
-        # V: Tipo_Registro
-        ws.cell(r, 22).value = tipo_registro
+        _set(r, 'Meta',        meta)
+        _set(r, 'Ejecucion',   ejec)
+        _set(r, 'Cumplimiento', cumpl_capped, '0.00%')
+        _set(r, 'CumplReal',   cumpl_real,   '0.00%')
+        _set(r, 'MetaS',       sg['meta_signo'])
+        _set(r, 'EjecS',       ejec_signo)
+        _set(r, 'DecMeta',     sg.get('dec_meta', 0))
+        _set(r, 'DecEjec',     sg.get('dec_ejec', 0))
+        _set(r, 'LLAVE',       llave)
+        _set(r, 'TipoRegistro', tipo_registro)
 
         r += 1
 
@@ -1275,18 +1301,16 @@ def main():
     ids_metrica = cargar_lmi_reporte()
     if ids_metrica:
         print(f"  Indicadores tipo Metrica: {len(ids_metrica)} IDs -> "
-              f"col V (Tipo_Registro)='Metrica'; signos sin cambio")
+              f"col Tipo_Registro='Metrica'; signos sin cambio")
 
     # ── 6. Abrir workbook ─────────────────────────────────────────
     print("\n[6] Copiando base a outputs...")
     shutil.copy(INPUT_FILE, OUTPUT_FILE)
     wb = openpyxl.load_workbook(OUTPUT_FILE)
 
-    # Asegurar header Tipo_Registro en col V(22) — NO renombrar col S "linea"
+    # Asegurar header Tipo_Registro al final de cada hoja (después de la última col con header)
     for nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
-        ws_h = wb[nombre_hoja]
-        if ws_h.cell(1, 22).value != 'Tipo_Registro':
-            ws_h.cell(1, 22).value = 'Tipo_Registro'
+        _ensure_tipo_registro_header(wb[nombre_hoja])
 
     # Purgar filas con fechas futuras o campos inválidos ("Avance") de todas las hojas
     print("\n[6b] Purgando filas inválidas/futuras...")
