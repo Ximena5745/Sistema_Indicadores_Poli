@@ -117,8 +117,13 @@ def cargar_dataset() -> pd.DataFrame:
         df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
 
     # ── Año como Int64 ────────────────────────────────────────────────────────
+    # La columna Año puede contener fórmulas Excel (ej. "=YEAR(F2)") que
+    # to_numeric convierte a NaN. En ese caso se deriva desde Fecha.
     if "Anio" in df.columns:
-        df["Anio"] = pd.to_numeric(df["Anio"], errors="coerce").astype("Int64")
+        df["Anio"] = pd.to_numeric(df["Anio"], errors="coerce")
+        if "Fecha" in df.columns and df["Anio"].isna().any():
+            df["Anio"] = df["Anio"].fillna(df["Fecha"].dt.year)
+        df["Anio"] = df["Anio"].astype("Int64")
 
     return df
 

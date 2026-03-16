@@ -97,6 +97,31 @@ def _build_col_map(ws):
     return cm
 
 
+def _materializar_formula_año(ws):
+    """
+    Reemplaza celdas con fórmula '=YEAR(...)' en la columna Año por el valor
+    numérico derivado de la columna Fecha.
+    openpyxl en modo escritura lee fórmulas como strings; pandas no puede
+    convertirlas a número, lo que rompe filtros por año.
+    """
+    cm = _build_col_map(ws)
+    idx_fecha = cm.get('Fecha')
+    idx_anio  = cm.get('Anio')
+    if not idx_fecha or not idx_anio:
+        return
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        celda_anio = row[idx_anio - 1]
+        if isinstance(celda_anio.value, str) and celda_anio.value.startswith('='):
+            celda_fecha = row[idx_fecha - 1]
+            try:
+                fecha = pd.to_datetime(celda_fecha.value)
+                celda_anio.value = fecha.year
+            except Exception:
+                pass
+
+
 def _ensure_tipo_registro_header(ws):
     """Agrega header 'Tipo_Registro' tras la última columna con header, si no existe."""
     header_row = list(next(ws.iter_rows(min_row=1, max_row=1)))
@@ -1081,10 +1106,14 @@ def purgar_filas_invalidas(ws, nombre="hoja"):
             pass
         anio_val = row[idx_anio].value if len(row) > idx_anio else None
         if anio_val is not None:
-            try:
-                float(anio_val)
-            except (TypeError, ValueError):
-                filas_a_borrar.append(row[0].row)
+            # Celdas con fórmula Excel (ej. =YEAR(F2)) son válidas — no borrar
+            if isinstance(anio_val, str) and anio_val.startswith('='):
+                pass
+            else:
+                try:
+                    float(anio_val)
+                except (TypeError, ValueError):
+                    filas_a_borrar.append(row[0].row)
 
     for r_idx in sorted(set(filas_a_borrar), reverse=True):
         ws.delete_rows(r_idx)
@@ -1528,6 +1557,11 @@ def main():
     print("\n[6] Copiando base a outputs...")
     shutil.copy(INPUT_FILE, OUTPUT_FILE)
     wb = openpyxl.load_workbook(OUTPUT_FILE)
+
+    # Reemplazar fórmulas "=YEAR(Fx)" en columna Año con el valor numérico real
+    # (openpyxl lee fórmulas como strings; pandas no puede convertirlas a número)
+    for nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
+        _materializar_formula_año(wb[nombre_hoja])
 
     # Asegurar header Tipo_Registro al final de cada hoja (después de la última col con header)
     for nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
