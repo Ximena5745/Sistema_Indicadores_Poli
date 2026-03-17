@@ -233,6 +233,14 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
     """
     from core.calculos import generar_recomendaciones
 
+    # Disable backdrop click closing the dialog
+    st.markdown("""
+        <style>
+        [data-testid="stDialog"] > div:first-child { pointer-events: none !important; }
+        [data-testid="stDialogScrollableContent"]   { pointer-events: auto !important; }
+        </style>
+    """, unsafe_allow_html=True)
+
     if df_ind.empty:
         st.warning("Sin datos para este indicador.")
         return
@@ -278,7 +286,7 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
 
     st.divider()
 
-    with st.container(height=600):
+    with st.container(height=700):
         df_tabla = tabla_historica_indicador(df_ind_sorted)
         st.markdown("**Histórico**")
         st.dataframe(df_tabla, use_container_width=True, hide_index=True)

@@ -86,7 +86,7 @@ def _estilo_cat(row):
     return [f"background-color:{bg}" if bg else "" for _ in row]
 
 
-def _render_proceso(df_proc: pd.DataFrame, nombre: str, prefix: str, anio: int, df_raw: pd.DataFrame):
+def _render_proceso(df_proc: pd.DataFrame, nombre: str, prefix: str, anio: int):
     if df_proc.empty:
         st.info(f"Sin indicadores para **{nombre}**.")
         return
@@ -133,20 +133,15 @@ def _render_proceso(df_proc: pd.DataFrame, nombre: str, prefix: str, anio: int, 
         column_config=col_cfg,
     )
 
-    # Ficha histórica al seleccionar fila
-    if event and event.selection and event.selection.get("rows"):
-        idx    = event.selection["rows"][0]
-        id_sel = str(df_ult.iloc[idx]["Id"])
-        nom    = str(df_ult.iloc[idx].get("Indicador", ""))
-        df_hist = df_raw[df_raw["Id"] == id_sel].copy() if not df_raw.empty else pd.DataFrame()
-        if df_hist.empty:
-            df_hist = df_proc[df_proc["Id"] == id_sel].copy()
-
-        @st.dialog(f"📊 {id_sel} — {nom[:65]}", width="large")
-        def _ficha():
-            panel_detalle_indicador(df_hist, id_sel, df_raw)
-
-        _ficha()
+    # Detect new selection: update session state only when selection changes
+    curr_rows = event.selection.get("rows", []) if (event and event.selection) else []
+    prev_key  = f"_dir_prev_{prefix}"
+    if curr_rows != st.session_state.get(prev_key, []):
+        st.session_state[prev_key] = curr_rows
+        if curr_rows:
+            idx = curr_rows[0]
+            st.session_state["_dir_ficha_id"]  = str(df_ult.iloc[idx]["Id"])
+            st.session_state["_dir_ficha_nom"] = str(df_ult.iloc[idx].get("Indicador", ""))
 
     st.download_button(
         "📥 Exportar",
@@ -191,6 +186,11 @@ df_gest   = df_dir[df_dir["Proceso"] == "Gestión de Proyectos"].copy()
 
 st.markdown("# 🏛️ Direccionamiento Estratégico")
 
+# Inicializar estado del diálogo (solo una vez)
+if "_dir_ficha_id" not in st.session_state:
+    st.session_state["_dir_ficha_id"]  = None
+    st.session_state["_dir_ficha_nom"] = ""
+
 # Filtro de año (único)
 anios_disp = sorted([int(a) for a in df_dir["Anio"].dropna().unique()]) if "Anio" in df_dir.columns else [2025]
 anio_def   = 2025 if 2025 in anios_disp else anios_disp[-1]
@@ -205,10 +205,25 @@ tab_plan, tab_desemp, tab_gest = st.tabs([
 ])
 
 with tab_plan:
-    _render_proceso(df_plan, "Planeación Estratégica", "plan", anio_sel, df_raw)
+    _render_proceso(df_plan, "Planeación Estratégica", "plan", anio_sel)
 
 with tab_desemp:
-    _render_proceso(df_desemp, "Desempeño Institucional", "desemp", anio_sel, df_raw)
+    _render_proceso(df_desemp, "Desempeño Institucional", "desemp", anio_sel)
 
 with tab_gest:
-    _render_proceso(df_gest, "Gestión de Proyectos", "gest", anio_sel, df_raw)
+    _render_proceso(df_gest, "Gestión de Proyectos", "gest", anio_sel)
+
+# ── Diálogo de ficha histórica (único, fuera de tabs) ────────────────────────
+id_ficha = st.session_state.get("_dir_ficha_id")
+if id_ficha:
+    nom_ficha = st.session_state.get("_dir_ficha_nom", "")
+    df_hist   = df_raw[df_raw["Id"].astype(str) == id_ficha].copy()
+
+    @st.dialog(f"📊 {id_ficha} — {nom_ficha[:65]}", width="large")
+    def _ficha():
+        if st.button("✖ Cerrar"):
+            st.session_state["_dir_ficha_id"] = None
+            st.rerun()
+        panel_detalle_indicador(df_hist, id_ficha, df_raw)
+
+    _ficha()
