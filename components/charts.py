@@ -238,11 +238,11 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
     """
     from core.calculos import generar_recomendaciones
 
-    # Disable backdrop click closing the dialog
+    # Disable backdrop click (clicking outside dialog should not close it)
     st.markdown("""
         <style>
-        [data-testid="stDialog"] > div:first-child { pointer-events: none !important; }
-        [data-testid="stDialogScrollableContent"]   { pointer-events: auto !important; }
+        [data-baseweb="modal"] > div:first-child        { pointer-events: none !important; }
+        [data-baseweb="modal"] [data-baseweb="dialog"]  { pointer-events: auto !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -253,13 +253,13 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
     df_ind_sorted = df_ind.sort_values("Fecha")
     ultimo = df_ind_sorted.iloc[-1]
 
-    nombre       = ultimo.get("Indicador", "—")
-    proceso      = ultimo.get("Proceso", "—")
-    subproceso   = ultimo.get("Subproceso", "—")
-    periodicidad = ultimo.get("Periodicidad", "—")
+    nombre        = ultimo.get("Indicador", "—")
+    proceso       = ultimo.get("Proceso", "—")
+    subproceso    = ultimo.get("Subproceso", "—")
+    periodicidad  = ultimo.get("Periodicidad", "—")
     clasificacion = ultimo.get("Clasificacion", "—")
-    cum_norm     = ultimo.get("Cumplimiento_norm", None)
-    categoria    = ultimo.get("Categoria", "Sin dato")
+    cum_norm      = ultimo.get("Cumplimiento_norm", None)
+    categoria     = ultimo.get("Categoria", "Sin dato")
 
     cum_pct_str = f"{round(float(cum_norm)*100, 1)}%" if pd.notna(cum_norm) else "—"
 
@@ -272,44 +272,46 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
     }
     badge_col = BADGE_COLOR.get(categoria, "#9E9E9E")
 
-    st.markdown(f"### {id_ind} — {nombre}")
+    # Contenedor con scroll que cubre toda la ficha
+    with st.container(height=620, border=False):
+        st.markdown(f"### {id_ind} — {nombre}")
 
-    c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
-    with c1:
-        st.markdown(f"**Proceso:** {proceso}")
-    with c2:
-        st.markdown(f"**Subproceso:** {subproceso}")
-    with c3:
-        st.markdown(f"**Periodicidad:** {periodicidad} · {clasificacion}")
-    with c4:
-        st.markdown(
-            f"<div style='font-size:1.5rem; font-weight:bold;'>{cum_pct_str}</div>"
-            f"<span style='background:{badge_col};color:white;padding:2px 10px;"
-            f"border-radius:12px;font-size:0.85rem'>{categoria}</span>",
-            unsafe_allow_html=True,
-        )
+        c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+        with c1:
+            st.markdown(f"**Proceso:** {proceso}")
+        with c2:
+            st.markdown(f"**Subproceso:** {subproceso}")
+        with c3:
+            st.markdown(f"**Periodicidad:** {periodicidad} · {clasificacion}")
+        with c4:
+            st.markdown(
+                f"<div style='font-size:1.5rem; font-weight:bold;'>{cum_pct_str}</div>"
+                f"<span style='background:{badge_col};color:white;padding:2px 10px;"
+                f"border-radius:12px;font-size:0.85rem'>{categoria}</span>",
+                unsafe_allow_html=True,
+            )
 
-    st.divider()
+        st.divider()
 
-    df_tabla = tabla_historica_indicador(df_ind_sorted)
-    st.markdown("**Histórico**")
-    st.dataframe(df_tabla, use_container_width=True, hide_index=True)
+        df_tabla = tabla_historica_indicador(df_ind_sorted)
+        st.markdown("**Histórico**")
+        st.dataframe(df_tabla, use_container_width=True, hide_index=True)
 
-    st.markdown("**Evolución: Meta, Ejecución y Cumplimiento**")
-    fig = grafico_detalle_indicador(df_ind_sorted)
-    st.plotly_chart(fig, use_container_width=True)
+        st.markdown("**Evolución: Meta, Ejecución y Cumplimiento**")
+        fig = grafico_detalle_indicador(df_ind_sorted)
+        st.plotly_chart(fig, use_container_width=True)
 
-    st.divider()
-    cum_series = df_ind_sorted["Cumplimiento_norm"].dropna() * 100
-    tendencia, recs = generar_recomendaciones(categoria, cum_series)
+        st.divider()
+        cum_series = df_ind_sorted["Cumplimiento_norm"].dropna() * 100
+        tendencia, recs = generar_recomendaciones(categoria, cum_series)
 
-    tendencia_labels = {
-        "Mejorando":            "📈 Tendencia creciente",
-        "Empeorando":           "📉 Tendencia decreciente",
-        "Estable":              "➡️ Sin variación significativa",
-        "Sin datos suficientes":"ℹ️ Datos insuficientes para análisis",
-    }
-    st.markdown(f"**Análisis de tendencia:** {tendencia_labels.get(tendencia, tendencia)}")
-    st.markdown("**Recomendaciones:**")
-    for rec in recs:
-        st.markdown(f"- {rec}")
+        tendencia_labels = {
+            "Mejorando":            "📈 Tendencia creciente",
+            "Empeorando":           "📉 Tendencia decreciente",
+            "Estable":              "➡️ Sin variación significativa",
+            "Sin datos suficientes":"ℹ️ Datos insuficientes para análisis",
+        }
+        st.markdown(f"**Análisis de tendencia:** {tendencia_labels.get(tendencia, tendencia)}")
+        st.markdown("**Recomendaciones:**")
+        for rec in recs:
+            st.markdown(f"- {rec}")
