@@ -8,6 +8,7 @@ import streamlit as st
 from openpyxl.styles import PatternFill, Font
 
 from core.config import COLOR_CATEGORIA, COLOR_CATEGORIA_CLARO
+from services.data_loader import cargar_analisis_usuarios
 
 # Alias para compatibilidad interna — fuente única en core/config.py
 COLOR_CAT = COLOR_CATEGORIA
@@ -336,3 +337,23 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
         st.markdown("**Recomendaciones:**")
         for rec in recs:
             st.markdown(f"- {rec}")
+
+        # ── Análisis del usuario (último corte registrado) ────────────────────
+        df_analisis = cargar_analisis_usuarios()
+        if not df_analisis.empty:
+            df_ind_an = df_analisis[df_analisis["Id"] == str(id_ind)]
+            if not df_ind_an.empty:
+                ultimo_an = df_ind_an.sort_values("analisis_fecha").iloc[-1]
+                texto     = str(ultimo_an.get("analisis_texto", "")).strip()
+                autor     = str(ultimo_an.get("analisis_autor", "")).strip()
+                fecha_an  = ultimo_an.get("analisis_fecha")
+                fecha_str = fecha_an.strftime("%d/%m/%Y") if pd.notna(fecha_an) else ""
+
+                if texto and texto.lower() not in ("nan", "none", ""):
+                    st.divider()
+                    st.markdown(
+                        f"**Análisis del responsable**"
+                        + (f" · {autor}" if autor and autor not in ("nan", "None") else "")
+                        + (f" · {fecha_str}" if fecha_str else ""),
+                    )
+                    st.info(texto)

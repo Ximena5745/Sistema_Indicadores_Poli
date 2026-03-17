@@ -269,6 +269,28 @@ def cargar_plan_accion() -> pd.DataFrame:
     return df_all
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def cargar_analisis_usuarios() -> pd.DataFrame:
+    """
+    Carga la hoja 'Desglose Analisis' de Resultados Consolidados.xlsx.
+    Retorna columnas: Id (str), fecha, analisis_fecha, analisis_autor, analisis_texto.
+    """
+    path = DATA_OUTPUT / "Resultados Consolidados.xlsx"
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(path, sheet_name="Desglose Analisis", engine="openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        if "Id" in df.columns:
+            df["Id"] = df["Id"].apply(_id_a_str)
+        for col in ("analisis_fecha", "fecha"):
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
 def df_indicadores_unicos(df: pd.DataFrame) -> pd.DataFrame:
     """Retorna un registro único por Id (el más reciente por Fecha)."""
     if df.empty or "Id" not in df.columns:
