@@ -110,6 +110,11 @@ def tabla_historica_indicador(df_ind: pd.DataFrame) -> pd.DataFrame:
     cols = ["Periodo", "Anio", "Meta", "Ejecucion", "Cumplimiento_norm", "Categoria"]
     cols_disp = [c for c in cols if c in df_ind.columns]
     df_t = df_ind[cols_disp].copy().sort_values("Anio") if "Anio" in df_ind.columns else df_ind[cols_disp].copy()
+    for col in ("Meta", "Ejecucion"):
+        if col in df_t.columns:
+            df_t[col] = pd.to_numeric(df_t[col], errors="coerce").map(
+                lambda v: "" if pd.isna(v) else (f"{v:,.0f}" if v == int(v) else f"{v:,.2f}")
+            )
     if "Cumplimiento_norm" in df_t.columns:
         def _fmt_cumpl(v):
             try:
