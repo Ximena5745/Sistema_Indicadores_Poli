@@ -295,7 +295,23 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
 
         df_tabla = tabla_historica_indicador(df_ind_sorted)
         st.markdown("**Histórico**")
-        st.dataframe(df_tabla, use_container_width=True, hide_index=True)
+
+        def _color_cumpl(row):
+            cat = row.get("Categoria", "")
+            bg  = COLOR_CATEGORIA_CLARO.get(cat, "")
+            fg  = COLOR_CATEGORIA.get(cat, "")
+            styles = [""] * len(row)
+            if "Cumplimiento%" in row.index:
+                i = row.index.get_loc("Cumplimiento%")
+                if bg:
+                    styles[i] = f"background-color:{bg};color:{fg};font-weight:bold"
+            return styles
+
+        st.dataframe(
+            df_tabla.style.apply(_color_cumpl, axis=1),
+            use_container_width=True,
+            hide_index=True,
+        )
 
         st.markdown("**Evolución: Meta, Ejecución y Cumplimiento**")
         fig = grafico_detalle_indicador(df_ind_sorted)
