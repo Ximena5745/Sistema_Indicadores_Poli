@@ -60,11 +60,9 @@ df_pa    = cargar_plan_accion()
 # ── Session state ──────────────────────────────────────────────────────────────
 _SS = {
     # Tab 1
-    "gom_cat_activa":       "Peligro",
-    "gom_sel_proceso":      None,
-    "gom_sel_heatmap_proc": None,
-    "gom_sel_heatmap_per":  None,
-    "gom_modal_id":         None,   # Id del indicador cuyo modal está abierto
+    "gom_cat_activa":  "Peligro",
+    "gom_sel_proceso": None,
+    "gom_modal_id":    None,   # Id del indicador cuyo modal está abierto
     # Tab 2
     "gom_filtro_proc_tab2": None,
     # Registro OM
@@ -380,10 +378,8 @@ with tab1:
                 unsafe_allow_html=True,
             )
             if st.button(f"Ver {cat}", key=f"gom_sem_{cat}", use_container_width=True):
-                st.session_state.gom_cat_activa      = cat
-                st.session_state.gom_sel_proceso     = None
-                st.session_state.gom_sel_heatmap_proc = None
-                st.session_state.gom_sel_heatmap_per  = None
+                st.session_state.gom_cat_activa  = cat
+                st.session_state.gom_sel_proceso = None
                 st.rerun()
 
     st.markdown("---")
@@ -398,7 +394,8 @@ with tab1:
                 continue
             prev, curr = grupo.iloc[-2], grupo.iloc[-1]
             cat_prev, cat_curr = str(prev.get("Categoria", "Sin dato")), str(curr.get("Categoria", "Sin dato"))
-            if _ORDEN_CAT.get(cat_curr, -1) < _ORDEN_CAT.get(cat_prev, -1):
+            if (_ORDEN_CAT.get(cat_curr, -1) < _ORDEN_CAT.get(cat_prev, -1)
+                    and cat_curr in ("Peligro", "Alerta")):
                 delta = round((curr["Cumplimiento_norm"] - prev["Cumplimiento_norm"]) * 100, 1) \
                         if pd.notna(curr["Cumplimiento_norm"]) and pd.notna(prev["Cumplimiento_norm"]) else None
                 rows_det.append({
@@ -445,8 +442,6 @@ with tab1:
     col_g1, col_g2 = st.columns(2)
 
     sel_proceso = st.session_state.get("gom_sel_proceso")
-    sel_hm_proc = st.session_state.get("gom_sel_heatmap_proc")
-    sel_hm_per  = st.session_state.get("gom_sel_heatmap_per")
 
     with col_g1:
         st.markdown("**Top 10 — Cumplimiento**")
@@ -516,63 +511,28 @@ with tab1:
         else:
             st.info("Sin datos.")
 
-    # Mapa de calor
-    if not df_cat.empty and "Proceso" in df_cat.columns and "Periodo" in df_cat.columns:
-        st.markdown("**Mapa de Calor — Proceso × Periodo**")
-        st.caption("Clic en una celda para filtrar la tabla.")
-        df_heat_src = df[df["Categoria"] == cat_act].copy() if not df.empty else df_cat
-        pivot = (df_heat_src.groupby(["Proceso", "Periodo"])["Cumplimiento_norm"]
-                 .mean().unstack(fill_value=None) * 100)
-        fig_heat = go.Figure(go.Heatmap(
-            z=pivot.values.tolist(), x=pivot.columns.tolist(), y=pivot.index.tolist(),
-            colorscale="RdYlGn", zmid=90, zmin=0, zmax=130,
-            hovertemplate="<b>Proceso:</b> %{y}<br><b>Periodo:</b> %{x}<br><b>Cum.:</b> %{z:.1f}%<extra></extra>",
-            colorbar=dict(ticksuffix="%"),
-        ))
-        fig_heat.update_layout(height=360, margin=dict(t=20, b=40))
-        ev_heat = st.plotly_chart(fig_heat, use_container_width=True,
-                                  on_select="rerun", key="gom_heatmap")
-        if ev_heat and ev_heat.selection and ev_heat.selection.get("points"):
-            pt_h = ev_heat.selection["points"][0]
-            st.session_state.gom_sel_heatmap_proc = pt_h.get("y")
-            st.session_state.gom_sel_heatmap_per  = pt_h.get("x")
-            st.session_state.gom_sel_proceso       = None
-            st.rerun()
-
     st.markdown("---")
 
-    # ── Filtros activos sobre tabla ────────────────────────────────────────────
-    filtros_activos = [v for v in (
-        sel_proceso,
-        f"Mapa: {sel_hm_proc} / {sel_hm_per}" if sel_hm_proc else None,
-    ) if v]
-    if filtros_activos:
+    # ── Filtro activo sobre tabla ──────────────────────────────────────────────
+    if sel_proceso:
         fc1, fc2 = st.columns([7, 1])
         with fc1:
-            st.info("Filtro gráfico: " + " · ".join(f"**{v}**" for v in filtros_activos))
+            st.info(f"Filtro gráfico: **{sel_proceso}**")
         with fc2:
             if st.button("✖ Limpiar", key="gom_clear_graf"):
-                st.session_state.gom_sel_proceso      = None
-                st.session_state.gom_sel_heatmap_proc = None
-                st.session_state.gom_sel_heatmap_per  = None
+                st.session_state.gom_sel_proceso = None
                 st.rerun()
 
     # ── Tabla detallada ────────────────────────────────────────────────────────
     titulo_tabla = f"### Tabla — {cat_act}"
     if sel_proceso:
         titulo_tabla += f" · Proceso: *{sel_proceso}*"
-    elif sel_hm_proc:
-        titulo_tabla += f" · Proceso: *{sel_hm_proc}* · Periodo: *{sel_hm_per}*"
     st.markdown(titulo_tabla)
     st.caption("Selecciona una fila para registrar o actualizar la OM asociada.")
 
     df_tabla = df_cat.copy()
     if sel_proceso and "Proceso" in df_tabla.columns:
         df_tabla = df_tabla[df_tabla["Proceso"] == sel_proceso]
-    elif sel_hm_proc and "Proceso" in df_tabla.columns:
-        df_tabla = df_tabla[df_tabla["Proceso"] == sel_hm_proc]
-        if sel_hm_per and "Periodo" in df_tabla.columns:
-            df_tabla = df_tabla[df_tabla["Periodo"] == sel_hm_per]
 
     df_tabla["Cumplimiento%"] = df_tabla["Cumplimiento_norm"].apply(
         lambda x: f"{round(x*100,1)}%" if pd.notna(x) else "—"
@@ -711,7 +671,11 @@ with tab2:
                                    key="gom2_tipo_a", format_func=lambda x: "— Todos —" if x == "" else x)
         f_proc   = fc[2].selectbox("Proceso",        _opts(df_om_xl, _COL_PROC),
                                    key="gom2_proc",   format_func=lambda x: "— Todos —" if x == "" else x)
-        f_fuente = fc[3].selectbox("Fuente",         _opts(df_om_xl, _COL_FUENTE),
+        # Fuente: predeterminada "Indicadores"
+        _opts_fuente = _opts(df_om_xl, _COL_FUENTE)
+        _idx_fuente  = _opts_fuente.index("Indicadores") if "Indicadores" in _opts_fuente else 0
+        f_fuente = fc[3].selectbox("Fuente",         _opts_fuente,
+                                   index=_idx_fuente,
                                    key="gom2_fuente", format_func=lambda x: "— Todos —" if x == "" else x)
 
     df_f = df_om_xl.copy()
