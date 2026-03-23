@@ -825,15 +825,48 @@ with tab_res:
 
     st.markdown("---")
     st.markdown("#### Por Proceso")
-    _col_proc_chart = "ProcesoPadre" if "ProcesoPadre" in df_raw.columns else "Proceso"
-    if _col_proc_chart in df_raw.columns:
-        n_proc = df_raw[_col_proc_chart].nunique()
-        st.plotly_chart(_fig_barras_nivel(df_raw, _col_proc_chart, max_items=25),
-                        use_container_width=True, key="res_proceso")
+    _SK_RES_PROC = "res_sel_proceso"
+    if _SK_RES_PROC not in st.session_state:
+        st.session_state[_SK_RES_PROC] = ""
+
+    _col_padre = "ProcesoPadre" if "ProcesoPadre" in df_raw.columns else "Proceso"
+    _col_sub   = "Proceso"   # original = subproceso
+
+    if _col_padre in df_raw.columns:
+        n_proc = df_raw[_col_padre].nunique()
+        st.caption("Haz clic en una barra para ver el desglose por Subproceso.")
+        ev_res_proc = st.plotly_chart(
+            _fig_barras_nivel(df_raw, _col_padre, max_items=25),
+            use_container_width=True, key="res_proceso",
+            on_select="rerun", selection_mode="points",
+        )
         if n_proc > 25:
             with st.expander(f"Ver los {n_proc} procesos completos"):
-                st.plotly_chart(_fig_barras_nivel(df_raw, _col_proc_chart),
+                st.plotly_chart(_fig_barras_nivel(df_raw, _col_padre),
                                 use_container_width=True, key="res_proceso_all")
+
+        # Leer selección del gráfico
+        _pts_res = (ev_res_proc.selection or {}).get("points", [])
+        if _pts_res:
+            _clicked = str(_pts_res[0].get("y", "")).strip()
+            if _clicked and _clicked != st.session_state[_SK_RES_PROC]:
+                st.session_state[_SK_RES_PROC] = _clicked
+                st.rerun()
+        else:
+            if st.session_state[_SK_RES_PROC]:
+                st.session_state[_SK_RES_PROC] = ""
+                st.rerun()
+
+        # Nivel 2: Subprocesos del proceso seleccionado
+        if st.session_state[_SK_RES_PROC]:
+            _proc_sel = st.session_state[_SK_RES_PROC]
+            df_sub = df_raw[df_raw[_col_padre] == _proc_sel]
+            if not df_sub.empty and _col_sub in df_sub.columns:
+                st.markdown(f"**Subprocesos de: {_proc_sel}**")
+                st.plotly_chart(
+                    _fig_barras_nivel(df_sub, _col_sub),
+                    use_container_width=True, key="res_subproceso",
+                )
 
     st.markdown("---")
     st.markdown("#### Por Clasificación")

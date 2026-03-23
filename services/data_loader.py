@@ -51,6 +51,48 @@ def _id_a_str(x) -> str:
         return str(x)
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cargar_mapa_proceso_padre() -> dict:
+    """
+    Retorna {ascii_lower(subproceso): proceso_canonical} desde Subproceso-Proceso-Area.xlsx.
+    Excluye filas donde Proceso='No Aplica'.  Primera ocurrencia de cada clave gana.
+    """
+    _FALLBACK = {
+        _ascii_lower("Investigacion, desarrollo tecnologico e innovacion"):
+            "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
+        _ascii_lower("Operaciones Academica pregrado y posgrado presencial."):
+            "DOCENCIA",
+        _ascii_lower("Operaciones Academica pregrado y posgrado virtual"):
+            "DOCENCIA",
+        _ascii_lower("Operacion de nuevos negocios y CI"):
+            "DOCENCIA",
+    }
+    mapa: dict[str, str] = dict(_FALLBACK)
+    path = DATA_RAW / "Subproceso-Proceso-Area.xlsx"
+    if not path.exists():
+        return mapa
+    try:
+        df = pd.read_excel(str(path), engine="openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        col_sub = next((c for c in df.columns if "ubpro" in c), None)
+        col_pro = next((c for c in df.columns
+                        if "roceso" in c and "ubpro" not in c), None)
+        if col_sub and col_pro:
+            for _, r in df.iterrows():
+                if pd.isna(r[col_sub]) or pd.isna(r[col_pro]):
+                    continue
+                pro = str(r[col_pro]).strip()
+                sub = str(r[col_sub]).strip()
+                if _ascii_lower(pro) in ("no aplica", ""):
+                    continue
+                key = _ascii_lower(sub)
+                if key not in mapa:          # primera ocurrencia gana
+                    mapa[key] = pro
+    except Exception as exc:
+        print(f"[data_loader] _cargar_mapa_proceso_padre: {exc}")
+    return mapa
+
+
 @st.cache_data(ttl=300, show_spinner="Cargando datos principales...")
 def cargar_dataset() -> pd.DataFrame:
     """
@@ -98,57 +140,11 @@ def cargar_dataset() -> pd.DataFrame:
         pass
 
     # ── Enriquecer con Proceso padre desde Subproceso-Proceso-Area.xlsx ─────
-    try:
-        import unicodedata
-
-        def _norm(s: str) -> str:
-            """Lowercase + remove accents para comparación robusta."""
-            return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
-
-        df_spa = pd.read_excel(
-            DATA_RAW / "Subproceso-Proceso-Area.xlsx", engine="openpyxl"
+    if "Proceso" in df.columns:
+        _mapa_proc = _cargar_mapa_proceso_padre()
+        df["ProcesoPadre"] = df["Proceso"].apply(
+            lambda x: _mapa_proc.get(_ascii_lower(str(x)), str(x).strip())
         )
-        df_spa.columns = [str(c).strip() for c in df_spa.columns]
-        col_sub = next((c for c in df_spa.columns if "ubpro" in c), None)
-        col_pro = next((c for c in df_spa.columns
-                        if "roceso" in c and "ubpro" not in c), None)
-        if col_sub and col_pro:
-            # Construir mapa {norm(subproceso): proceso_canonical}
-            # Excluir filas donde el Proceso padre es "No Aplica"
-            # La primera ocurrencia de una clave gana (evita sobrescritura tardía)
-            mapa: dict[str, str] = {}
-            for _, r in df_spa.iterrows():
-                if pd.isna(r[col_sub]) or pd.isna(r[col_pro]):
-                    continue
-                pro = str(r[col_pro]).strip()
-                sub = str(r[col_sub]).strip()
-                if _norm(pro) in ("no aplica", ""):
-                    continue
-                key = _norm(sub)
-                if key not in mapa:
-                    mapa[key] = pro
-
-            # Fallback manual para subprocesos con nombre ligeramente diferente
-            _fallback = {
-                _norm("Investigacion, desarrollo tecnologico e innovacion"):
-                    "INVESTIGACIÓN, INNOVACIÓN Y CREACIÓN",
-                _norm("Operaciones Academica pregrado y posgrado presencial."):
-                    "DOCENCIA",
-                _norm("Operaciones Academica pregrado y posgrado virtual"):
-                    "DOCENCIA",
-                _norm("Operacion de nuevos negocios y CI"):
-                    "DOCENCIA",
-            }
-
-            if "Proceso" in df.columns:
-                def _mapear_proceso(x: str) -> str:
-                    key = _norm(str(x))
-                    mapped = mapa.get(key) or _fallback.get(key)
-                    return mapped if mapped else str(x).strip()
-
-                df["ProcesoPadre"] = df["Proceso"].apply(_mapear_proceso)
-    except Exception:
-        pass
 
     # ── Normalizar cumplimiento ───────────────────────────────────────────────
     if "Cumplimiento" in df.columns:
