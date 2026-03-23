@@ -365,16 +365,17 @@ with tab1:
         n_cat  = int((df_con_datos["Categoria"] == cat).sum())
         pct    = round(n_cat / total * 100, 1) if total > 0 else 0
         activa = st.session_state.gom_cat_activa == cat
-        borde  = f"3px solid {color}" if activa else f"1px solid {color}"
-        bg     = f"{color}22" if activa else "white"
+        borde  = f"3px solid {color}" if activa else f"2px solid {color}55"
+        bg     = f"#0F2640" if activa else "#1A3A5C"
         with col_sems[i]:
             st.markdown(
                 f"""<div style="border:{borde};border-radius:10px;padding:14px;
-                    text-align:center;background:{bg};cursor:pointer;">
+                    text-align:center;background:{bg};cursor:pointer;
+                    box-shadow:0 3px 10px rgba(0,0,0,0.3);">
                     <span style="font-size:2rem">{icon}</span><br>
                     <strong style="font-size:1.4rem;color:{color}">{n_cat}</strong><br>
-                    <span style="font-size:0.85rem;color:#555">{cat}</span><br>
-                    <span style="font-size:0.8rem;color:#888">{pct}%</span>
+                    <span style="font-size:0.85rem;color:#B3D9FF">{cat}</span><br>
+                    <span style="font-size:0.8rem;color:#7FB3D3">{pct}%</span>
                 </div>""",
                 unsafe_allow_html=True,
             )

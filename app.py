@@ -34,24 +34,29 @@ st.markdown(
     }
 
     /* Tarjetas de métricas — fondo oscuro, texto claro (contraste visual) */
-    [data-testid="metric-container"] {
+    [data-testid="metric-container"],
+    [data-testid="stMetric"] {
         background: #1A3A5C !important;
-        border-radius: 10px;
-        padding: 16px 20px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-        border-left: 4px solid #4FC3F7;
+        border-radius: 10px !important;
+        padding: 16px 20px !important;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.25) !important;
+        border-left: 4px solid #4FC3F7 !important;
     }
     [data-testid="metric-container"] [data-testid="stMetricLabel"] p,
-    [data-testid="metric-container"] label {
+    [data-testid="metric-container"] label,
+    [data-testid="stMetric"] [data-testid="stMetricLabel"] p,
+    [data-testid="stMetric"] label {
         color: #B3D9FF !important;
         font-weight: 500;
     }
-    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+    [data-testid="metric-container"] [data-testid="stMetricValue"],
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {
         color: #E3F2FD !important;
         font-size: 1.6rem !important;
         font-weight: 700 !important;
     }
-    [data-testid="metric-container"] [data-testid="stMetricDelta"] {
+    [data-testid="metric-container"] [data-testid="stMetricDelta"],
+    [data-testid="stMetric"] [data-testid="stMetricDelta"] {
         color: #80DEEA !important;
     }
 
