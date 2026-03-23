@@ -415,7 +415,9 @@ def grafico_3d_riesgo(df_cat: pd.DataFrame) -> go.Figure:
     proc_map = {p: i for i, p in enumerate(procesos)}
     df["proc_idx"] = df["Proceso"].map(proc_map).fillna(0)
     df["cum_pct"]  = (df["Cumplimiento_norm"] * 100).round(1)
-    df["per_riesgo"] = df.get("Períodos en riesgo", pd.Series([0] * len(df))).fillna(0).astype(int)
+    df["per_riesgo"] = (df["Períodos en riesgo"].fillna(0).astype(int)
+                        if "Períodos en riesgo" in df.columns
+                        else pd.Series(0, index=df.index))
 
     colores_cat = df["Categoria"].map(COLOR_CAT).fillna("#9E9E9E").tolist()
 
