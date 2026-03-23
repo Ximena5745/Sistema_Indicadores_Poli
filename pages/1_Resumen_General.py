@@ -825,13 +825,14 @@ with tab_res:
 
     st.markdown("---")
     st.markdown("#### Por Proceso")
-    if "Proceso" in df_raw.columns:
-        n_proc = df_raw["Proceso"].nunique()
-        st.plotly_chart(_fig_barras_nivel(df_raw, "Proceso", max_items=25),
+    _col_proc_chart = "ProcesoPadre" if "ProcesoPadre" in df_raw.columns else "Proceso"
+    if _col_proc_chart in df_raw.columns:
+        n_proc = df_raw[_col_proc_chart].nunique()
+        st.plotly_chart(_fig_barras_nivel(df_raw, _col_proc_chart, max_items=25),
                         use_container_width=True, key="res_proceso")
         if n_proc > 25:
             with st.expander(f"Ver los {n_proc} procesos completos"):
-                st.plotly_chart(_fig_barras_nivel(df_raw, "Proceso"),
+                st.plotly_chart(_fig_barras_nivel(df_raw, _col_proc_chart),
                                 use_container_width=True, key="res_proceso_all")
 
     st.markdown("---")
@@ -898,9 +899,10 @@ with tab_con:
 
     with col_pr:
         st.markdown("#### Por Proceso")
-        if "Proceso" in df_para_proc.columns:
-            _n_proc_con = df_para_proc["Proceso"].nunique()
-            fig_pr = _fig_barras_nivel(df_para_proc, "Proceso", max_items=25)
+        _col_pr_chart = "ProcesoPadre" if "ProcesoPadre" in df_para_proc.columns else "Proceso"
+        if _col_pr_chart in df_para_proc.columns:
+            _n_proc_con = df_para_proc[_col_pr_chart].nunique()
+            fig_pr = _fig_barras_nivel(df_para_proc, _col_pr_chart, max_items=25)
             ev_pr = st.plotly_chart(
                 fig_pr, use_container_width=True, key="con_chart_proc",
                 on_select="rerun", selection_mode="points",
@@ -954,8 +956,10 @@ with tab_con:
     df_filt = df_con.copy()
     if st.session_state[_SK_VC] and "Vicerrectoria" in df_filt.columns:
         df_filt = df_filt[df_filt["Vicerrectoria"] == st.session_state[_SK_VC]]
-    if st.session_state[_SK_PR] and "Proceso" in df_filt.columns:
-        df_filt = df_filt[df_filt["Proceso"] == st.session_state[_SK_PR]]
+    if st.session_state[_SK_PR]:
+        _col_filt_pr = "ProcesoPadre" if "ProcesoPadre" in df_filt.columns else "Proceso"
+        if _col_filt_pr in df_filt.columns:
+            df_filt = df_filt[df_filt[_col_filt_pr] == st.session_state[_SK_PR]]
     if txt_id.strip():
         df_filt = df_filt[df_filt["Id"].astype(str).str.contains(txt_id.strip(), case=False, na=False)]
     if txt_nom.strip() and "Indicador" in df_filt.columns:

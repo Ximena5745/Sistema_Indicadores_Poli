@@ -97,6 +97,29 @@ def cargar_dataset() -> pd.DataFrame:
     except Exception:
         pass
 
+    # ── Enriquecer con Proceso padre desde Subproceso-Proceso-Area.xlsx ─────
+    try:
+        df_spa = pd.read_excel(
+            DATA_RAW / "Subproceso-Proceso-Area.xlsx", engine="openpyxl"
+        )
+        df_spa.columns = [str(c).strip() for c in df_spa.columns]
+        col_sub = next((c for c in df_spa.columns if "ubpro" in c), None)
+        col_pro = next((c for c in df_spa.columns
+                        if "roceso" in c and "ubpro" not in c), None)
+        if col_sub and col_pro:
+            mapa = {
+                str(r[col_sub]).strip().lower(): str(r[col_pro]).strip()
+                for _, r in df_spa.iterrows()
+                if pd.notna(r[col_sub]) and pd.notna(r[col_pro])
+            }
+            # ProcesoPadre: el Proceso del mapa; si no coincide, conserva el original
+            if "Proceso" in df.columns:
+                df["ProcesoPadre"] = df["Proceso"].apply(
+                    lambda x: mapa.get(str(x).strip().lower(), str(x).strip())
+                )
+    except Exception:
+        pass
+
     # ── Normalizar cumplimiento ───────────────────────────────────────────────
     if "Cumplimiento" in df.columns:
         df["Cumplimiento_norm"] = df["Cumplimiento"].apply(normalizar_cumplimiento)
