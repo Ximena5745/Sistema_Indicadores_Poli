@@ -51,23 +51,95 @@ def _id_a_str(x) -> str:
         return str(x)
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+# ── Mapa subproceso → proceso padre (basado en Subproceso-Proceso-Area.xlsx) ─
+# Hardcodeado como constante para evitar dependencias de lectura de archivos
+# dentro de funciones cacheadas anidadas.
+# Clave: _ascii_lower(subproceso)  Valor: proceso canonical (MAYÚSCULAS)
+_MAPA_PROCESO_PADRE: dict[str, str] = {
+    # DIRECCIONAMIENTO ESTRATÉGICO
+    _ascii_lower("Gestion de Proyectos"):             "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
+    _ascii_lower("Planeacion Estrategica"):            "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
+    _ascii_lower("Desempeno Institucional"):           "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
+    _ascii_lower("Gerencia de Estrategia"):            "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
+    # PLANIFICACIÓN Y MEJORA DEL SISTEMA INTEGRADO
+    _ascii_lower("Gestion de calidad"):                "PLANIFICACI\u00d3N Y MEJORA DEL SISTEMA INTEGRADO",
+    _ascii_lower("Gestion de Calidad"):                "PLANIFICACI\u00d3N Y MEJORA DEL SISTEMA INTEGRADO",
+    _ascii_lower("Planificacion POLISIGS"):            "PLANIFICACI\u00d3N Y MEJORA DEL SISTEMA INTEGRADO",
+    # COMUNICACIÓN Y POSICIONAMIENTO ESTRATÉGICO
+    _ascii_lower("Comunicaciones Externas"):           "COMUNICACI\u00d3N Y POSICIONAMIENTO ESTRAT\u00c9GICO",
+    _ascii_lower("Comunicaciones Internas"):           "COMUNICACI\u00d3N Y POSICIONAMIENTO ESTRAT\u00c9GICO",
+    _ascii_lower("Gestion de campanas integradas de marketing"):
+                                                       "COMUNICACI\u00d3N Y POSICIONAMIENTO ESTRAT\u00c9GICO",
+    # AUTOEVALUACIÓN Y AUTOREGULACIÓN
+    _ascii_lower("Autoevaluacion de programas academicos"):
+                                                       "AUTOEVALUACI\u00d3N Y AUTOREGULACI\u00d3N",
+    _ascii_lower("Autoevaluacion institucional"):      "AUTOEVALUACI\u00d3N Y AUTOREGULACI\u00d3N",
+    # GESTIÓN DE PORTAFOLIO INSTITUCIONAL
+    _ascii_lower("Gestion, Evaluacion e Innovacion Curricular"):
+                                                       "GESTI\u00d3N DE PORTAFOLIO INSTITUCIONAL",
+    _ascii_lower("Creacion, modificacion y cierre de programas academicos"):
+                                                       "GESTI\u00d3N DE PORTAFOLIO INSTITUCIONAL",
+    _ascii_lower("Diseno de Contenido Virtual"):       "GESTI\u00d3N DE PORTAFOLIO INSTITUCIONAL",
+    # DOCENCIA
+    _ascii_lower("Gestion Docente"):                   "DOCENCIA",
+    _ascii_lower("Gestion de Unidades Academicas"):    "DOCENCIA",
+    _ascii_lower("Operaciones Academicas"):            "DOCENCIA",
+    _ascii_lower("Operacion de Educacion no Formal"):  "DOCENCIA",
+    _ascii_lower("Operaciones Academica pregrado y posgrado presencial."):
+                                                       "DOCENCIA",
+    _ascii_lower("Operaciones Academica pregrado y posgrado virtual"):
+                                                       "DOCENCIA",
+    _ascii_lower("Operacion de nuevos negocios y CI"): "DOCENCIA",
+    # EXTENSIÓN
+    _ascii_lower("Gestion de Graduados"):              "EXTENSI\u00d3N",
+    _ascii_lower("Practicas"):                         "EXTENSI\u00d3N",
+    _ascii_lower("Emprendimiento"):                    "EXTENSI\u00d3N",
+    _ascii_lower("Gestion de la Responsabilidad Social"):
+                                                       "EXTENSI\u00d3N",
+    # INVESTIGACIÓN, INNOVACIÓN Y CREACIÓN
+    _ascii_lower("Investigacion, desarrollo tecnologico, innovacion y creacion"):
+                                                       "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
+    _ascii_lower("Investigacion, desarrollo tecnologico e innovacion"):
+                                                       "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
+    _ascii_lower("Formacion para la investigacion, creacion e innovacion"):
+                                                       "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
+    # RECURSOS ACADÉMICOS Y DE INVESTIGACIÓN
+    _ascii_lower("Biblioteca Institucional"):          "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
+    _ascii_lower("Editorial y Publicaciones"):         "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
+    _ascii_lower("Centro de Medios Audiovisuales"):    "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
+    _ascii_lower("LEI"):                               "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
+    # MERCADEO, ADMISIONES Y MATRÍCULA
+    _ascii_lower("Inscripcion, admision y matricula de estudiantes nuevos"):
+                                                       "MERCADEO, ADMISIONES Y MATR\u00cdCULA",
+    _ascii_lower("Mercadeo de programas academicos"):  "MERCADEO, ADMISIONES Y MATR\u00cdCULA",
+    _ascii_lower("Mercadeo y venta de educacion para la vida"):
+                                                       "MERCADEO, ADMISIONES Y MATR\u00cdCULA",
+    # BIENESTAR INSTITUCIONAL
+    _ascii_lower("Cultura y Deporte"):                 "BIENESTAR INSTITUCIONAL",
+    _ascii_lower("Servicio de Salud"):                 "BIENESTAR INSTITUCIONAL",
+    # SERVICIO Y PERMANENCIA
+    _ascii_lower("Servicio"):                          "SERVICIO Y PERMANENCIA",
+    _ascii_lower("Permanencia"):                       "SERVICIO Y PERMANENCIA",
+    _ascii_lower("Registro y Control"):                "SERVICIO Y PERMANENCIA",
+    _ascii_lower("Rematricula"):                       "SERVICIO Y PERMANENCIA",
+    # GESTIÓN FINANCIERA
+    _ascii_lower("Planeacion Financiera"):             "GESTI\u00d3N FINANCIERA",
+    _ascii_lower("Contabilidad"):                      "GESTI\u00d3N FINANCIERA",
+    _ascii_lower("Tesoreria"):                         "GESTI\u00d3N FINANCIERA",
+    # INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS
+    _ascii_lower("Gestion Infraestructura Fisica"):    "INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS",
+    _ascii_lower("Administracion de Servicios Generales"):
+                                                       "INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS",
+}
+
+
 def _cargar_mapa_proceso_padre() -> dict:
     """
-    Retorna {ascii_lower(subproceso): proceso_canonical} desde Subproceso-Proceso-Area.xlsx.
-    Excluye filas donde Proceso='No Aplica'.  Primera ocurrencia de cada clave gana.
+    Retorna {ascii_lower(subproceso): proceso_canonical}.
+    Usa el mapa hardcodeado como base y lo enriquece leyendo
+    Subproceso-Proceso-Area.xlsx si está disponible.
     """
-    _FALLBACK = {
-        _ascii_lower("Investigacion, desarrollo tecnologico e innovacion"):
-            "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
-        _ascii_lower("Operaciones Academica pregrado y posgrado presencial."):
-            "DOCENCIA",
-        _ascii_lower("Operaciones Academica pregrado y posgrado virtual"):
-            "DOCENCIA",
-        _ascii_lower("Operacion de nuevos negocios y CI"):
-            "DOCENCIA",
-    }
-    mapa: dict[str, str] = dict(_FALLBACK)
+    mapa: dict[str, str] = dict(_MAPA_PROCESO_PADRE)
     path = DATA_RAW / "Subproceso-Proceso-Area.xlsx"
     if not path.exists():
         return mapa
@@ -86,7 +158,7 @@ def _cargar_mapa_proceso_padre() -> dict:
                 if _ascii_lower(pro) in ("no aplica", ""):
                     continue
                 key = _ascii_lower(sub)
-                if key not in mapa:          # primera ocurrencia gana
+                if key not in mapa:
                     mapa[key] = pro
     except Exception as exc:
         print(f"[data_loader] _cargar_mapa_proceso_padre: {exc}")
