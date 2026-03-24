@@ -158,12 +158,21 @@ def tabla_historica_indicador(df_ind: pd.DataFrame) -> pd.DataFrame:
     if "Año" in df_t.columns:
         df_t = df_t.sort_values("Año")
 
+    # Signos que NO deben concatenarse al valor (son descriptores, no unidades)
+    _SIGNOS_NO_CONCAT = {"ENT", "DEC", "N", "METRICA", "MÉTRICA", "NO APLICA",
+                         "SIN REPORTE", "NA", ""}
     for col, signo in (("Meta", _signo_meta), ("Ejecucion", _signo_ejec)):
         if col in df_t.columns:
             def _fmt_val(v, s=signo):
                 if pd.isna(v): return ""
                 num = f"{v:,.0f}" if float(v) == int(float(v)) else f"{v:,.2f}"
-                return f"{num}{s}" if s else num
+                s_clean = str(s).strip()
+                if s_clean.upper() in _SIGNOS_NO_CONCAT:
+                    return num
+                if s_clean == "$":
+                    formatted = num.replace(",", "X").replace(".", ",").replace("X", ".")
+                    return f"${formatted}"
+                return f"{num}{s_clean}" if s_clean else num
             df_t[col] = pd.to_numeric(df_t[col], errors="coerce").apply(_fmt_val)
 
     if "Cumplimiento_norm" in df_t.columns:

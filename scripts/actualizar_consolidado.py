@@ -1521,6 +1521,61 @@ def limpiar_cierres_existentes(ws):
     return len(filas_a_borrar)
 
 
+def _dedup_cierres_por_año(ws):
+    """
+    Garantiza UN solo registro por Id+Año en Consolidado Cierres.
+    Conserva el registro con la fecha más reciente; elimina los demás.
+    """
+    cm = _build_col_map(ws)
+    idx_fecha = cm.get('Fecha', 6) - 1   # 0-based
+    idx_ejec  = cm.get('Ejecucion', 11) - 1
+
+    filas = []
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        fecha_raw = row[idx_fecha].value
+        try:
+            fecha = pd.to_datetime(fecha_raw)
+        except Exception:
+            fecha = None
+        ejec_val = row[idx_ejec].value if len(row) > idx_ejec else None
+        filas.append({
+            'row_idx': row[0].row,
+            'Id':      _id_str(row[0].value),
+            'fecha':   fecha,
+            'año':     fecha.year if fecha else None,
+            'ejec':    ejec_val,
+        })
+
+    if not filas:
+        print("  _dedup_cierres_por_año: sin filas.")
+        return 0
+
+    grupos = defaultdict(list)
+    for f in filas:
+        if f['año'] is None:
+            continue
+        grupos[(f['Id'], f['año'])].append(f)
+
+    filas_a_borrar = []
+    for (id_val, año), grupo in grupos.items():
+        if len(grupo) <= 1:
+            continue
+        # Conservar el más reciente; si empatan, el que tenga mejor ejecución
+        mejor = max(grupo, key=lambda f: (f['fecha'] or pd.Timestamp.min,
+                                          _ejec_score(f['ejec'])))
+        filas_a_borrar.extend(
+            f['row_idx'] for f in grupo if f['row_idx'] != mejor['row_idx'])
+
+    for r_idx in sorted(filas_a_borrar, reverse=True):
+        ws.delete_rows(r_idx)
+
+    print(f"  _dedup_cierres_por_año: {len(filas_a_borrar)} duplicados eliminados "
+          f"({len(grupos)} grupos Id+Año).")
+    return len(filas_a_borrar)
+
+
 # ─────────────────────────────────────────────────────────────────────
 # ESCRITURA DE FILAS
 # ─────────────────────────────────────────────────────────────────────
@@ -1856,10 +1911,11 @@ def construir_registros_cierres(df_fuente, hist_escalas,
                 continue
 
         if año > AÑO_CIERRE_ACTUAL:
-            candidatos = grupo
+            # Solo el registro más reciente del año
+            candidatos = grupo.sort_values('fecha').tail(1)
         else:
             dic = grupo[grupo['mes'] == 12]
-            candidatos = dic if len(dic) > 0 else grupo.sort_values('fecha').tail(1)
+            candidatos = dic.sort_values('fecha').tail(1) if len(dic) > 0 else grupo.sort_values('fecha').tail(1)
 
         for _, row in candidatos.iterrows():
             meta, ejec, fuente, es_na = _extraer_registro(
@@ -2150,6 +2206,10 @@ def main():
     deduplicar_sheet(wb['Consolidado Historico'], 'Historico')
     deduplicar_sheet(wb['Consolidado Semestral'], 'Semestral')
     deduplicar_sheet(wb['Consolidado Cierres'],   'Cierres')
+
+    # ── 11b. Cierres: solo 1 registro por Id+Año (el más reciente) ──
+    print("\n[11b] Cierres: dejando solo el registro más reciente por Id+Año...")
+    _dedup_cierres_por_año(wb['Consolidado Cierres'])
 
     # ── 12. Reescribir fórmulas (CRÍTICO) ─────────────────────────
     # openpyxl NO ajusta las referencias de fórmulas cuando se eliminan filas.
