@@ -4,29 +4,50 @@ import sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 """
-generar_reporte.py
-==================
-Procesa 'lmi_reporte.xlsx' (descargado de plataforma externa) y genera
-'Seguimiento_Reporte.xlsx' con:
+generar_reporte.py  (versión dinámica 2026)
+==========================================
+Procesa fuentes LMI + Kawak y genera 'Seguimiento_Reporte.xlsx' con:
 
-  1. Hoja "Seguimiento"  -> copia completa + columna "Revisar"
-  2. Hojas por periodicidad (Mensual, Bimestral, Trimestral, Semestral, Anual)
-     - Columnas Periodo X renombradas a fechas reales (dd/mm/aaaa)
-     - Columna "Reportado"          (período más reciente con/sin dato)
-     - Columna "Estado del indicador" (últimos 2 períodos)
+  1. Hoja "Seguimiento"       → copia completa del LMI + columna "Revisar"
+  2. Hojas por periodicidad   → columnas Periodo X renombradas a fechas reales
+                                + columnas "Reportado" / "Estado del indicador"
+  3. Hoja "Resumen"           → tabla resumen por periodicidad
+  4. Hoja "Tracking Mensual"  → matriz Id × mes/año  (Reportado/Pendiente/No aplica)
+                                Calendario dinámico desde FECHA_INICIO hasta hoy
+
+FUENTES DE DATOS
+────────────────
+  Fuente operativa (LMI):
+    data/raw/lmi_reporte.xlsx
+    → Columnas: Id, Periodicidad, Periodo 1 … Periodo N
+
+  Fuente histórica de RESULTADOS (API Kawak):
+    data/raw/Fuentes Consolidadas/Consolidado_API_Kawak.xlsx
+    → Generado por scripts/consolidar_api.py (PARTE 2: data/raw/API/*.xlsx)
+    → Columnas clave: ID, fecha, resultado
+    → Fuente primaria para determinar si un indicador fue reportado
+
+  Catálogo de indicadores (Kawak):
+    data/raw/Fuentes Consolidadas/Indicadores Kawak.xlsx
+    → Generado por scripts/consolidar_api.py (PARTE 1: data/raw/Kawak/*.xlsx)
+    → Columnas: Año, Id, Periodicidad, Indicador, ...
+    → Se usa para enriquecer la periodicidad de indicadores no presentes en LMI
 
 CONFIGURACIÓN
 ─────────────
-  RUTA_ORIGEN      : ruta al archivo fuente .xlsx
-  RUTA_SALIDA      : ruta de salida .xlsx
-  COLUMNA_REVISAR  : columna usada para detectar inicio de nuevo indicador
-  FECHA_REFERENCIA : fecha de corte; el Periodo 1 se asigna al período más
-                     reciente ≤ esta fecha según cada periodicidad.
+  RUTA_ORIGEN            : archivo fuente LMI (.xlsx)
+  RUTA_SALIDA            : archivo de salida (.xlsx)
+  RUTA_KAWAK_API         : Consolidado_API_Kawak.xlsx  (resultados históricos)
+  RUTA_KAWAK_CATALOGO    : Indicadores Kawak.xlsx      (catálogo de periodicidad)
+  FECHA_INICIO           : primer mes del calendario histórico (Tracking Mensual)
+  FECHA_REFERENCIA_MANUAL: None = auto (último día del mes anterior al actual)
+                           O fijar manualmente, ej: date(2025, 12, 31)
+  COLUMNA_REVISAR        : columna usada para detectar inicio de nuevo indicador
 """
 
 import os
 from datetime import date, timedelta
-from typing import Optional  # Compatible con Python < 3.10
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import openpyxl
@@ -39,19 +60,56 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RUTA_ORIGEN = os.path.join(BASE_DIR, "data", "raw", "lmi_reporte.xlsx")
 RUTA_SALIDA = os.path.join(BASE_DIR, "data", "output", "Seguimiento_Reporte.xlsx")
 
-# Archivo de respaldo Kawak (puede no existir; se omite sin error si falta).
-RUTA_KAWAK  = os.path.join(BASE_DIR, "data", "raw", "Fuentes Consolidadas", "Consolidado_API_Kawak.xlsx")
+# Fuente de resultados históricos (generada por consolidar_api.py PARTE 2)
+# Columnas: ID | fecha | resultado | ... (minúsculas, de la API)
+RUTA_KAWAK_API = os.path.join(
+    BASE_DIR, "data", "raw", "Fuentes Consolidadas", "Consolidado_API_Kawak.xlsx"
+)
 
-# Nombres de columnas en indicadores_kawak.xlsx
-KAWAK_COL_ID     = "Id"
-KAWAK_COL_FECHA  = "Fecha"
-KAWAK_COL_RESULT = "Resultado"
+# Catálogo de indicadores Kawak (generado por consolidar_api.py PARTE 1)
+# Columnas: Año | Id | Indicador | Clasificacion | Periodicidad | Sentido | ...
+# NO tiene Fecha ni Resultado — solo metadata
+RUTA_KAWAK_CATALOGO = os.path.join(
+    BASE_DIR, "data", "raw", "Fuentes Consolidadas", "Indicadores Kawak.xlsx"
+)
 
-# Columna cuyo cambio entre filas consecutivas marca un nuevo indicador único.
+# Columna cuyo cambio entre filas marca un nuevo indicador
 COLUMNA_REVISAR = "Id"
 
-# Fecha de corte del reporte.
-FECHA_REFERENCIA = date(2025, 12, 31)
+# ── Configuración dinámica de fechas ──────────────────────────────────────────
+# None = automático: último día del mes anterior al mes actual.
+# Fijarlo manualmente si se necesita un corte específico.
+FECHA_REFERENCIA_MANUAL: Optional[date] = None
+
+# Inicio del calendario histórico para el "Tracking Mensual"
+FECHA_INICIO = date(2025, 1, 1)
+
+# ── Reglas de negocio especiales ──────────────────────────────────────────────
+
+# Indicadores que reportan en "año vencido":
+# Su dato del año N (en Kawak) cuenta como "Reportado" para el año N+1.
+# Ej: dato 2024 en Kawak → Reportado en dic-2025 del tracking.
+IDS_AÑO_VENCIDO: set = {"226", "227", "228"}
+
+# Indicadores con vigencia parcial: solo aplican desde la fecha indicada.
+# Meses anteriores a esa fecha se omiten del tracking (no generan fila).
+IDS_VIGENCIA_DESDE: Dict[str, date] = {
+    "515": date(2025, 7, 1),
+    "516": date(2025, 7, 1),
+    "526": date(2025, 7, 1),
+    "530": date(2025, 7, 1),
+    "531": date(2025, 7, 1),
+    "538": date(2025, 7, 1),
+    "539": date(2025, 7, 1),
+    "554": date(2025, 7, 1),
+    "555": date(2025, 7, 1),
+}
+
+# Procesos cuyos indicadores muestran "No aplica" cuando no tienen reporte
+# (en lugar de "Pendiente").  Comparación case-insensitive, coincidencia parcial.
+PROCESOS_NO_APLICA_SIN_REPORTE: List[str] = [
+    "Gestión de Unidades Académicas",
+]
 
 # ── Paleta de colores ──────────────────────────────────────────────────────────
 C_HEADER    = "1F4E79"
@@ -59,8 +117,27 @@ C_SI        = "C6EFCE"
 C_NO        = "FFCCCC"
 C_PENDIENTE = "FFEB9C"
 C_REVISAR1  = "DDEEFF"
+C_NO_APLICA = "EEEEEE"
 
-# ── Fechas de fin de período ───────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  FECHA DE REFERENCIA DINÁMICA
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _calcular_fecha_ref() -> date:
+    """Retorna el último día del mes anterior al mes actual."""
+    hoy = date.today()
+    return hoy.replace(day=1) - timedelta(days=1)
+
+
+def get_fecha_referencia() -> date:
+    """Punto de acceso único para la fecha de referencia."""
+    return FECHA_REFERENCIA_MANUAL or _calcular_fecha_ref()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  UTILIDADES BÁSICAS
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _ultimo_dia(year: int, month: int) -> date:
     if month == 12:
@@ -75,8 +152,64 @@ def _retroceder(year: int, mes_actual: int, meses_ciclo: list) -> tuple:
     return year, meses_ciclo[idx - 1]
 
 
-def get_period_dates(periodicidad: str, n: int = 13) -> list:
-    ref = FECHA_REFERENCIA
+def _tiene_dato(v) -> bool:
+    if v is None:
+        return False
+    s = str(v).strip()
+    return s not in ("", "-", "nan", "NaN", "None")
+
+
+def _tiene_dato_kawak(v) -> bool:
+    try:
+        if pd.isna(v):
+            return False
+    except (TypeError, ValueError):
+        pass
+    s = str(v).strip()
+    return s not in ("", "-", "nan", "NaN", "None")
+
+
+def _id_normalizar(x) -> str:
+    if x is None:
+        return ""
+    try:
+        if pd.isna(x):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    try:
+        f = float(x)
+        return str(int(f)) if f == int(f) else str(f)
+    except (ValueError, TypeError):
+        return str(x).strip()
+
+
+def _detectar_col(df: pd.DataFrame, candidatos: list) -> Optional[str]:
+    """Detección dinámica de columna: busca por nombre exacto, luego case-insensitive."""
+    # Búsqueda exacta primero
+    for cand in candidatos:
+        if cand in df.columns:
+            return cand
+    # Fallback case-insensitive
+    col_lower = {c.lower(): c for c in df.columns}
+    for cand in candidatos:
+        found = col_lower.get(cand.lower())
+        if found:
+            return found
+    return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  FECHAS DE PERÍODO (hojas por periodicidad — retroactivo desde fecha_ref)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_period_dates(periodicidad: str, n: int = 13,
+                     fecha_ref: Optional[date] = None) -> list:
+    """
+    Retorna n fechas (último día de cada período) hacia atrás desde fecha_ref.
+    Periodo 1 = período más reciente <= fecha_ref.
+    """
+    ref = fecha_ref or get_fecha_referencia()
     dates = []
 
     if periodicidad == "Mensual":
@@ -121,7 +254,10 @@ def get_period_dates(periodicidad: str, n: int = 13) -> list:
             y, cur = _retroceder(y, cur, ciclo)
 
     elif periodicidad == "Anual":
-        y = ref.year
+        # Período anual = diciembre de cada año.
+        # Si ref.month < 12, el diciembre de ref.year aún no ha ocurrido
+        # → el período más reciente es diciembre del año anterior.
+        y = ref.year if ref.month == 12 else ref.year - 1
         for i in range(n):
             dates.append(date(y - i, 12, 31))
 
@@ -131,113 +267,58 @@ def get_period_dates(periodicidad: str, n: int = 13) -> list:
     return dates
 
 
-# ── Leer archivo fuente ────────────────────────────────────────────────────────
-# CAMBIO: se reemplazó leer_xls (basada en xlrd, solo para .xls legacy)
-# por leer_xlsx usando pandas + openpyxl, compatible con archivos .xlsx actuales.
+# ══════════════════════════════════════════════════════════════════════════════
+#  LECTURA DE ARCHIVOS
+# ══════════════════════════════════════════════════════════════════════════════
 
 def leer_xlsx(ruta: str) -> pd.DataFrame:
-    """
-    Lee lmi_reporte.xlsx usando pandas con motor openpyxl.
-    - keep_default_na=False evita que textos como 'N/A' se conviertan en NaN.
-    - na_values=[""] trata celdas vacías como NaN.
-    - dtype=str carga todo como texto para evitar conversiones automáticas
-      no deseadas (p.ej. Ids numéricos leídos como float).
-    """
+    """Lee LMI .xlsx con openpyxl; celdas vacías → None; todo como texto."""
     df = pd.read_excel(
         ruta,
         engine="openpyxl",
         keep_default_na=False,
         na_values=[""],
-        dtype=str,          # Leer todo como texto; se limpian tipos después
+        dtype=str,
     )
-    # Limpiar nombres de columna con espacios extra
     df.columns = [str(c).strip() for c in df.columns]
-    # Reemplazar 'nan' (string) producido por dtype=str en celdas vacías
     df = df.where(df != "nan", other=None)
     df = df.where(df != "NaN", other=None)
     return df
 
 
-# ── Lógica de columnas "Revisar", "Reportado", "Estado" ───────────────────────
+def leer_kawak_api(ruta: str) -> Dict:
+    """
+    Lee Consolidado_API_Kawak.xlsx y retorna {(id_str, year, month): resultado}.
 
-def agregar_revisar(df: pd.DataFrame, col: str) -> pd.DataFrame:
-    df = df.copy()
-    valores = df[col].tolist()
-    revisar = [1] + [
-        0 if valores[i] == valores[i - 1] else 1
-        for i in range(1, len(valores))
-    ]
-    df["Revisar"] = revisar
-    return df
-
-
-def _tiene_dato(v) -> bool:
-    if v is None:
-        return False
-    s = str(v).strip()
-    return s not in ("", "-", "nan", "NaN", "None")
-
-
-def _id_normalizar(x) -> str:
-    if x is None:
-        return ""
-    try:
-        if pd.isna(x):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    try:
-        f = float(x)
-        return str(int(f)) if f == int(f) else str(f)
-    except (ValueError, TypeError):
-        return str(x).strip()
-
-
-def _tiene_dato_kawak(v) -> bool:
-    try:
-        if pd.isna(v):
-            return False
-    except (TypeError, ValueError):
-        pass
-    s = str(v).strip()
-    return s not in ("", "-", "nan", "NaN", "None")
-
-
-def _detectar_col(df: pd.DataFrame, candidatos: list) -> Optional[str]:
-    # CAMBIO: tipo de retorno usa Optional[str] en vez de str | None
-    # para compatibilidad con Python 3.9 y anteriores.
-    col_lower = {c.lower(): c for c in df.columns}
-    for cand in candidatos:
-        found = col_lower.get(cand.lower())
-        if found:
-            return found
-    return None
-
-
-def leer_kawak(ruta: str) -> dict:
+    Estructura esperada (generada por consolidar_api.py PARTE 2):
+      Columnas: ID | fecha | resultado | ... (minúsculas, origen API)
+    Si el mismo (id, year, month) aparece varias veces conserva el último
+    registro no vacío (el archivo ya está ordenado por ID + fecha).
+    """
     if not os.path.exists(ruta):
-        print(f"    INFO: {ruta} no encontrado — se omite cruce Kawak.")
+        print(f"    INFO: {ruta} no encontrado — se omite lookup Kawak.")
         return {}
 
     try:
         df = pd.read_excel(ruta, engine="openpyxl",
                            keep_default_na=False, na_values=[""])
     except Exception as exc:
-        print(f"    ADVERTENCIA kawak: no se pudo leer el archivo: {exc}")
+        print(f"    ADVERTENCIA Kawak API: no se pudo leer: {exc}")
         return {}
 
     df.columns = [str(c).strip() for c in df.columns]
 
-    col_id  = _detectar_col(df, [KAWAK_COL_ID,     "Id", "ID", "Codigo", "Código", "codigo"])
-    col_fec = _detectar_col(df, [KAWAK_COL_FECHA,  "Fecha", "Periodo", "Period", "FechaPeriodo", "Mes"])
-    col_res = _detectar_col(df, [KAWAK_COL_RESULT, "Resultado", "Valor", "Value", "Result", "Dato"])
+    # Columnas del Consolidado_API_Kawak: "ID" (mayús.), "fecha", "resultado"
+    col_id  = _detectar_col(df, ["ID", "Id", "id", "Codigo", "Código"])
+    col_fec = _detectar_col(df, ["fecha", "Fecha", "FechaPeriodo", "Periodo", "Mes"])
+    col_res = _detectar_col(df, ["resultado", "Resultado", "Valor", "valor", "Result"])
 
     if not col_id or not col_fec or not col_res:
-        print(f"    ADVERTENCIA kawak: columnas requeridas no encontradas.\n"
+        print(f"    ADVERTENCIA Kawak API: columnas no encontradas.\n"
               f"    Disponibles: {df.columns.tolist()}")
         return {}
 
-    lookup = {}
+    lookup: Dict = {}
     omitidas = 0
     for _, row in df.iterrows():
         kid = _id_normalizar(row[col_id])
@@ -254,21 +335,102 @@ def leer_kawak(ruta: str) -> dict:
                 ts = pd.Timestamp("1899-12-30") + pd.Timedelta(days=int(fecha_raw))
             else:
                 ts = pd.Timestamp(str(fecha_raw).strip())
+
             if pd.isna(resultado):
                 continue
+            # El archivo está ordenado por fecha → el último registro gana
             lookup[(kid, ts.year, ts.month)] = resultado
         except Exception:
             omitidas += 1
 
     if omitidas:
-        print(f"    INFO kawak: {omitidas} filas con fecha no parseable fueron omitidas.")
+        print(f"    INFO Kawak API: {omitidas} filas con fecha no parseable omitidas.")
 
-    print(f"    Kawak cargado: {len(lookup)} registros (Id × período).")
+    print(f"    Kawak API cargado: {len(lookup)} registros (Id × período).")
     return lookup
 
 
-def enriquecer_desde_kawak(df_p: pd.DataFrame, kawak: dict,
-                            col_p1: str, col_p2: Optional[str],  # CAMBIO: Optional[str]
+def leer_catalogo_kawak(ruta: str) -> Dict[str, str]:
+    """
+    Lee Indicadores Kawak.xlsx (catálogo de metadata) y retorna
+    {id_str: periodicidad} usando el año más reciente disponible.
+
+    Estructura (generada por consolidar_api.py PARTE 1):
+      Columnas: Año | Id | Indicador | Clasificacion | Proceso | Tipo | Periodicidad | Sentido
+    NO contiene Fecha ni Resultado — es solo metadata de los indicadores.
+    """
+    if not os.path.exists(ruta):
+        print(f"    INFO: {ruta} no encontrado — catálogo Kawak omitido.")
+        return {}
+
+    try:
+        df = pd.read_excel(ruta, engine="openpyxl",
+                           keep_default_na=False, na_values=[""])
+    except Exception as exc:
+        print(f"    ADVERTENCIA catálogo Kawak: no se pudo leer: {exc}")
+        return {}
+
+    df.columns = [str(c).strip() for c in df.columns]
+
+    col_id   = _detectar_col(df, ["Id", "ID", "id"])
+    col_per  = _detectar_col(df, ["Periodicidad", "periodicidad", "frecuencia"])
+    col_anio = _detectar_col(df, ["Año", "Anio", "anio", "año", "Year"])
+
+    if not col_id or not col_per:
+        print(f"    ADVERTENCIA catálogo Kawak: columnas Id/Periodicidad no encontradas.\n"
+              f"    Disponibles: {df.columns.tolist()}")
+        return {}
+
+    # Si hay columna de año, ordenar para que el más reciente quede último
+    if col_anio:
+        try:
+            df[col_anio] = pd.to_numeric(df[col_anio], errors="coerce")
+            df = df.sort_values(col_anio, na_position="first")
+        except Exception:
+            pass
+
+    catalogo: Dict[str, str] = {}
+    for _, row in df.iterrows():
+        kid = _id_normalizar(row[col_id])
+        if not kid:
+            continue
+        perio = str(row.get(col_per, "")).strip()
+        if perio and perio not in ("nan", "NaN", "None", ""):
+            catalogo[kid] = perio  # El más reciente sobrescribe
+
+    print(f"    Catálogo Kawak cargado: {len(catalogo)} indicadores con periodicidad.")
+    return catalogo
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  LÓGICA DE SEGUIMIENTO TRADICIONAL (hojas por periodicidad)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def agregar_revisar(df: pd.DataFrame, col: str) -> pd.DataFrame:
+    df = df.copy()
+    valores = df[col].tolist()
+    revisar = [1] + [
+        0 if valores[i] == valores[i - 1] else 1
+        for i in range(1, len(valores))
+    ]
+    df["Revisar"] = revisar
+    return df
+
+
+def agregar_columnas_seguimiento(df: pd.DataFrame, col_p1: str,
+                                  col_p2: Optional[str] = None) -> pd.DataFrame:
+    df = df.copy()
+    df["Reportado"] = df[col_p1].apply(
+        lambda v: "Sí" if _tiene_dato(v) else "No"
+    )
+    df["Estado del indicador"] = df[col_p1].apply(
+        lambda v: "Reportado" if _tiene_dato(v) else "Pendiente de reporte"
+    )
+    return df
+
+
+def enriquecer_desde_kawak(df_p: pd.DataFrame, kawak: Dict,
+                            col_p1: str, col_p2: Optional[str],
                             fecha_p1, fecha_p2) -> tuple:
     if not kawak:
         return df_p, 0
@@ -307,21 +469,308 @@ def enriquecer_desde_kawak(df_p: pd.DataFrame, kawak: dict,
     return df_p, n_act
 
 
-def agregar_columnas_seguimiento(df: pd.DataFrame, col_p1: str,
-                                  col_p2: Optional[str] = None) -> pd.DataFrame:  # CAMBIO
-    df = df.copy()
+# ══════════════════════════════════════════════════════════════════════════════
+#  TRACKING MENSUAL — lógica principal
+# ══════════════════════════════════════════════════════════════════════════════
 
-    df["Reportado"] = df[col_p1].apply(
-        lambda v: "Sí" if _tiene_dato(v) else "No"
-    )
+def _mes_cierre_periodo(month: int, periodicidad: str) -> int:
+    """
+    Dado un mes calendario cualquiera, retorna el mes de CIERRE del período
+    al que pertenece según la periodicidad del indicador.
 
-    df["Estado del indicador"] = df[col_p1].apply(
-        lambda v: "Reportado" if _tiene_dato(v) else "Pendiente de reporte"
-    )
-    return df
+    Ejemplos:
+      Trimestral: Feb (2) → 3  |  May (5) → 6  |  Oct (10) → 12
+      Bimestral:  Mar (3) → 4  |  Nov (11) → 12
+      Semestral:  Abr (4) → 6  |  Sep (9)  → 12
+      Anual:      cualquier mes → 12
+      Mensual:    mes → mismo mes
+    """
+    perio = str(periodicidad).strip()
+    if perio == "Mensual":
+        return month
+    if perio == "Bimestral":
+        return month if month % 2 == 0 else month + 1
+    if perio == "Trimestral":
+        if month <= 3:  return 3
+        if month <= 6:  return 6
+        if month <= 9:  return 9
+        return 12
+    if perio == "Semestral":
+        return 6 if month <= 6 else 12
+    if perio == "Anual":
+        return 12
+    return month  # periodicidad desconocida → sin normalizar
 
 
-# ── Escritura con openpyxl ─────────────────────────────────────────────────────
+def normalizar_kawak_lookup(kawak_raw: Dict,
+                             catalogo: Dict[str, str]) -> Dict:
+    """
+    Re-mapea las claves del lookup Kawak al mes de CIERRE del período
+    correspondiente según la periodicidad de cada indicador.
+
+    Problema que resuelve:
+      La API Kawak almacena el dato con la fecha real del reporte
+      (ej: 2025-02-10 para un Trimestral de Q1).
+      El tracking busca por el mes de cierre del período (2025-03 para Q1).
+      Sin normalizar, la búsqueda falla y el indicador aparece como Pendiente.
+
+    Regla de precedencia:
+      Si dos fechas distintas del mismo indicador cierran al mismo período,
+      se conserva el último valor encontrado (el más reciente en el archivo).
+    """
+    normalizado: Dict = {}
+    for (kid, year, month), valor in kawak_raw.items():
+        perio = catalogo.get(kid, "Mensual")
+        mes_norm = _mes_cierre_periodo(month, perio)
+        normalizado[(kid, year, mes_norm)] = valor  # último gana
+    return normalizado
+
+
+def aplica_periodicidad(periodicidad: str, mes: int) -> bool:
+    """
+    Determina si un mes calendario aplica según la periodicidad del indicador.
+      Mensual    → todos los meses
+      Bimestral  → meses pares (2, 4, 6, 8, 10, 12)
+      Trimestral → 3, 6, 9, 12
+      Semestral  → 6, 12
+      Anual      → 12
+    Periodicidad desconocida → False (conservador: no marcar como Pendiente).
+    """
+    perio = str(periodicidad).strip()
+    if perio == "Mensual":
+        return True
+    if perio == "Bimestral":
+        return mes % 2 == 0
+    if perio == "Trimestral":
+        return mes in (3, 6, 9, 12)
+    if perio == "Semestral":
+        return mes in (6, 12)
+    if perio == "Anual":
+        return mes == 12
+    return False
+
+
+def generar_calendario(fecha_inicio: date, fecha_fin: date) -> List[Tuple[int, int]]:
+    """Genera lista ordenada de (año, mes) desde fecha_inicio hasta fecha_fin inclusive."""
+    calendario: List[Tuple[int, int]] = []
+    y, m = fecha_inicio.year, fecha_inicio.month
+    fin_y, fin_m = fecha_fin.year, fecha_fin.month
+    while (y < fin_y) or (y == fin_y and m <= fin_m):
+        calendario.append((y, m))
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+    return calendario
+
+
+def construir_lmi_lookup(df: pd.DataFrame, fecha_ref: date) -> Dict:
+    """
+    Construye {(id_str, year, month): True} desde el DataFrame LMI.
+    Marca presencia cuando la celda del período tiene un dato válido.
+    Usa la periodicidad de cada fila para mapear Periodo X → (year, month).
+    """
+    lookup: Dict = {}
+    periodo_cols = [c for c in df.columns if str(c).startswith("Periodo ")]
+    if not periodo_cols:
+        return lookup
+
+    n = len(periodo_cols)
+    for _, row in df.iterrows():
+        kid = _id_normalizar(row.get("Id", ""))
+        if not kid:
+            continue
+        perio = str(row.get("Periodicidad", "")).strip()
+        fechas = get_period_dates(perio, n, fecha_ref)
+
+        for col, fecha in zip(periodo_cols, fechas):
+            if fecha is None:
+                continue
+            if _tiene_dato(row.get(col)):
+                lookup[(kid, fecha.year, fecha.month)] = True
+
+    return lookup
+
+
+def construir_catalogo(df_lmi: pd.DataFrame,
+                        catalogo_kawak: Dict[str, str]) -> Dict[str, str]:
+    """
+    Construye {id_str: periodicidad} usando LMI como fuente autoritativa de IDs.
+
+    Regla: solo se incluyen indicadores presentes en el LMI (activos actualmente).
+    El catálogo Kawak únicamente se usa para completar la periodicidad de un
+    indicador LMI que no tenga ese dato — NUNCA para agregar IDs nuevos.
+
+    Esto evita que indicadores históricos descontinuados (presentes en Kawak
+    2022-2024 pero no en el LMI actual) aparezcan vacíos en el tracking.
+    """
+    catalogo: Dict[str, str] = {}
+
+    # 1) Construir desde LMI — fuente autoritativa de indicadores activos
+    for _, row in df_lmi.iterrows():
+        kid = _id_normalizar(row.get("Id", ""))
+        if not kid:
+            continue
+        perio = str(row.get("Periodicidad", "")).strip()
+        if perio and perio not in ("nan", "NaN", "None", ""):
+            catalogo[kid] = perio
+        elif kid not in catalogo:
+            catalogo[kid] = ""  # ID presente pero sin periodicidad aún
+
+    # 2) Kawak completa periodicidad faltante — sin agregar IDs nuevos
+    for kid, perio in catalogo_kawak.items():
+        if kid in catalogo and not catalogo[kid] and perio:
+            catalogo[kid] = perio
+
+    # 3) Remover los que quedaron sin periodicidad resoluble
+    catalogo = {k: v for k, v in catalogo.items() if v}
+
+    return catalogo
+
+
+def _extraer_meta_indicadores(df: pd.DataFrame) -> Dict[str, dict]:
+    """
+    Extrae metadata descriptiva de cada indicador desde el LMI.
+    Toma la primera aparición de cada Id (fila donde Revisar == 1).
+    Excluye columnas de control y columnas de período.
+    """
+    excluir = {"Revisar", "Id", "Periodicidad"}
+    periodo_cols = {c for c in df.columns if str(c).startswith("Periodo ")}
+    meta_cols = [c for c in df.columns if c not in excluir and c not in periodo_cols]
+
+    meta: Dict[str, dict] = {}
+    for _, row in df.iterrows():
+        kid = _id_normalizar(row.get("Id", ""))
+        if not kid or kid in meta:
+            continue
+        meta[kid] = {col: row.get(col) for col in meta_cols}
+    return meta
+
+
+# Nombres de meses en español para la columna Mes_Nombre
+_MESES_ES = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+}
+
+
+def _proceso_es_no_aplica(proceso: str) -> bool:
+    """Retorna True si el proceso del indicador usa 'No aplica' en lugar de 'Pendiente'."""
+    proceso_norm = str(proceso or "").strip().lower()
+    for p in PROCESOS_NO_APLICA_SIN_REPORTE:
+        if p.lower() in proceso_norm:
+            return True
+    return False
+
+
+def construir_tracking_largo(
+    catalogo: Dict[str, str],
+    kawak_lookup: Dict,
+    lmi_lookup: Dict,
+    calendario: List[Tuple[int, int]],
+    meta_indicadores: Optional[Dict[str, dict]] = None,
+) -> pd.DataFrame:
+    """
+    Genera DataFrame en FORMATO LARGO (long) filtrable mes a mes.
+    Una fila por (Id × período que APLICA según periodicidad).
+
+    Columnas: Id | <meta LMI> | Periodicidad | Año | Mes | Mes_Nombre | Periodo | Estado | Fuente
+
+    Reglas de negocio aplicadas:
+      1. IDS_AÑO_VENCIDO     → busca también en año anterior de Kawak.
+      2. IDS_VIGENCIA_DESDE  → omite meses anteriores a la fecha de inicio.
+      3. PROCESOS_NO_APLICA  → sin dato = "No aplica" en vez de "Pendiente".
+
+    Jerarquía de fuentes (por prioridad):
+      Kawak (año corriente o anterior si aplica) → LMI → Pendiente / No aplica
+    """
+    if not catalogo:
+        return pd.DataFrame()
+
+    meta_indicadores = meta_indicadores or {}
+
+    def _sort_key(kid: str) -> tuple:
+        try:
+            return (0, int(kid), kid)
+        except (ValueError, TypeError):
+            return (1, 0, kid)
+
+    ids_ordenados = sorted(catalogo.keys(), key=_sort_key)
+
+    # Orden de columnas de metadata (priorizar las más descriptivas)
+    meta_cols_order: List[str] = []
+    if meta_indicadores:
+        prioridad = ["Indicador", "Nombre", "Proceso", "Subproceso", "Linea",
+                     "Clasificacion", "Tipo", "Sentido", "Área", "Area"]
+        primer_meta = next(iter(meta_indicadores.values()), {})
+        todas = list(primer_meta.keys())
+        meta_cols_order = [c for c in prioridad if c in todas]
+        meta_cols_order += [c for c in todas if c not in meta_cols_order]
+
+    rows = []
+    for kid in ids_ordenados:
+        perio = catalogo[kid]
+        meta  = meta_indicadores.get(kid, {})
+        proceso = str(meta.get("Proceso", "") or "").strip()
+
+        for (year, month) in calendario:
+            # ── Regla base: mes debe aplicar según periodicidad ──────────
+            if not aplica_periodicidad(perio, month):
+                continue
+
+            # ── Regla 2: vigencia parcial ────────────────────────────────
+            # Si el indicador tiene fecha de inicio, omitir meses anteriores.
+            if kid in IDS_VIGENCIA_DESDE:
+                inicio = IDS_VIGENCIA_DESDE[kid]
+                if date(year, month, 1) < inicio:
+                    continue  # Antes de la vigencia → no generar fila
+
+            # ── Regla 1: año vencido ─────────────────────────────────────
+            # Para estos indicadores, el dato del año N-1 en Kawak
+            # cuenta como "Reportado" en el año N del tracking.
+            if kid in IDS_AÑO_VENCIDO:
+                en_kawak = (
+                    (kid, year,     month) in kawak_lookup or
+                    (kid, year - 1, month) in kawak_lookup
+                )
+            else:
+                en_kawak = (kid, year, month) in kawak_lookup
+
+            en_lmi = (kid, year, month) in lmi_lookup
+
+            # ── Determinar estado y fuente ───────────────────────────────
+            if en_kawak:
+                estado = "Reportado"
+                fuente = "Kawak"
+            elif en_lmi:
+                estado = "Reportado"
+                fuente = "LMI"
+            else:
+                # ── Regla 3: proceso sin reporte = No aplica ─────────────
+                if _proceso_es_no_aplica(proceso):
+                    estado = "No aplica"
+                else:
+                    estado = "Pendiente"
+                fuente = "—"
+
+            row_data: Dict = {"Id": kid}
+            for col in meta_cols_order:
+                row_data[col] = meta.get(col)
+            row_data["Periodicidad"] = perio
+            row_data["Año"]          = year
+            row_data["Mes"]          = month
+            row_data["Mes_Nombre"]   = _MESES_ES.get(month, str(month))
+            row_data["Periodo"]      = f"{month}/{year}"
+            row_data["Estado"]       = estado
+            row_data["Fuente"]       = fuente
+            rows.append(row_data)
+
+    return pd.DataFrame(rows)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  ESCRITURA CON OPENPYXL
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _estilo_header(cell):
     cell.font = Font(bold=True, color="FFFFFF", size=10)
@@ -332,6 +781,7 @@ def _estilo_header(cell):
 
 
 def escribir_hoja(ws, df: pd.DataFrame, mapa_fechas: dict = None):
+    """Escribe el DataFrame en ws con formato institucional."""
     mapa_fechas = mapa_fechas or {}
 
     for ci, col in enumerate(df.columns, 1):
@@ -346,8 +796,6 @@ def escribir_hoja(ws, df: pd.DataFrame, mapa_fechas: dict = None):
         for ci, raw_val in enumerate(row, 1):
             col_name = df.columns[ci - 1]
 
-            # CAMBIO: con dtype=str en la lectura, los Ids ya vienen como string;
-            # se normaliza igual por si acaso quedó algún float residual.
             if col_name == "Id":
                 val = _id_normalizar(raw_val) if raw_val is not None else None
             elif raw_val is not None and str(raw_val).strip() == "-":
@@ -371,7 +819,6 @@ def escribir_hoja(ws, df: pd.DataFrame, mapa_fechas: dict = None):
                     cell.fill = PatternFill("solid", fgColor=C_PENDIENTE)
 
             elif col_name == "Revisar":
-                # CAMBIO: Revisar es int (0/1); comparar con 1 directamente
                 try:
                     if int(val) == 1:
                         cell.fill = PatternFill("solid", fgColor=C_REVISAR1)
@@ -388,7 +835,66 @@ def escribir_hoja(ws, df: pd.DataFrame, mapa_fechas: dict = None):
     ws.auto_filter.ref = ws.dimensions
 
 
-# ── Resumen por periodicidad ───────────────────────────────────────────────────
+def escribir_tracking_mensual(ws, df: pd.DataFrame):
+    """
+    Escribe la hoja "Tracking Mensual" en FORMATO LARGO con código de colores:
+      Verde    → Reportado
+      Amarillo → Pendiente
+    Todas las columnas tienen filtro automático.
+    Congela hasta la columna "Periodicidad" inclusive.
+    """
+    if df.empty:
+        ws.cell(row=1, column=1, value="Sin datos — verifica las fuentes.")
+        return
+
+    fill_reportado = PatternFill("solid", fgColor=C_SI)
+    fill_pendiente = PatternFill("solid", fgColor=C_PENDIENTE)
+
+    # Anchos sugeridos por tipo de columna
+    ANCHOS = {
+        "Id": 8, "Periodicidad": 14, "Año": 7, "Mes": 6,
+        "Mes_Nombre": 13, "Periodo": 10, "Estado": 13, "Fuente": 10,
+    }
+
+    # Encabezados
+    for ci, col in enumerate(df.columns, 1):
+        cell = ws.cell(row=1, column=ci, value=col)
+        _estilo_header(cell)
+        ws.column_dimensions[get_column_letter(ci)].width = ANCHOS.get(
+            col, min(max(len(str(col)) + 4, 14), 40)
+        )
+
+    # Identificar índice de columna "Periodicidad" para congelar hasta ahí
+    cols_list = list(df.columns)
+    try:
+        col_freeze = cols_list.index("Periodicidad") + 2  # columna siguiente a Periodicidad
+    except ValueError:
+        col_freeze = 2
+    ws.freeze_panes = f"{get_column_letter(col_freeze)}2"
+
+    # Datos
+    for ri, row in enumerate(df.itertuples(index=False), 2):
+        estado_val = None
+        for ci, val in enumerate(row, 1):
+            col_name = cols_list[ci - 1]
+            cell = ws.cell(row=ri, column=ci, value=val)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            if col_name == "Estado":
+                estado_val = val
+
+        # Colorear fila completa según Estado
+        if estado_val in ("Reportado", "Pendiente"):
+            fill = fill_reportado if estado_val == "Reportado" else fill_pendiente
+            col_estado = cols_list.index("Estado") + 1
+            ws.cell(row=ri, column=col_estado).fill = fill
+
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(df.columns))}1"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  HOJA RESUMEN
+# ══════════════════════════════════════════════════════════════════════════════
 
 def crear_hoja_resumen(wb, resumen_data: list):
     ws = wb.create_sheet(title="Resumen", index=0)
@@ -414,22 +920,30 @@ def crear_hoja_resumen(wb, resumen_data: list):
             pct_cell.fill = PatternFill("solid", fgColor=C_NO)
 
 
-# ── Flujo principal ────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  FLUJO PRINCIPAL
+# ══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    sep = "=" * 62
-    print(sep)
-    print("  generar_reporte.py -> Seguimiento_Reporte.xlsx")
-    print(sep)
+    sep = "=" * 66
+    fecha_ref = get_fecha_referencia()
+    hoy = date.today()
 
-    # ── 1. Leer fuente ────────────────────────────────────────────────────────
-    print(f"\n[1] Leyendo fuente: {RUTA_ORIGEN}")
+    print(sep)
+    print("  generar_reporte.py (dinámico 2026) → Seguimiento_Reporte.xlsx")
+    print(sep)
+    print(f"  Fecha de ejecución : {hoy.strftime('%d/%m/%Y')}")
+    print(f"  Fecha de referencia: {fecha_ref.strftime('%d/%m/%Y')}  "
+          f"({'manual' if FECHA_REFERENCIA_MANUAL else 'automática — mes anterior'})")
+    print(f"  Inicio calendario  : {FECHA_INICIO.strftime('%m/%Y')}")
+
+    # ── 1. Leer fuente LMI ───────────────────────────────────────────────────
+    print(f"\n[1] Leyendo fuente LMI: {RUTA_ORIGEN}")
     if not os.path.exists(RUTA_ORIGEN):
         sys.exit(f"    ERROR: No se encontró {RUTA_ORIGEN}")
 
-    # CAMBIO: se llama leer_xlsx (openpyxl) en vez de leer_xls (xlrd)
     df = leer_xlsx(RUTA_ORIGEN)
-    print(f"    OK -> {len(df)} filas  |  {len(df.columns)} columnas")
+    print(f"    OK → {len(df)} filas  |  {len(df.columns)} columnas")
 
     # ── 2. Columna Revisar ───────────────────────────────────────────────────
     if COLUMNA_REVISAR not in df.columns:
@@ -452,22 +966,22 @@ def main():
     wb.remove(wb.active)
 
     # ── 5. Hoja "Seguimiento" ────────────────────────────────────────────────
-    print(f"\n[4] Hoja 'Seguimiento' -> {len(df)} filas...")
+    print(f"\n[4] Hoja 'Seguimiento' → {len(df)} filas...")
     ws_seg = wb.create_sheet(title="Seguimiento")
     escribir_hoja(ws_seg, df)
     print("    OK")
 
-    # ── 6. Cargar Kawak (opcional) ───────────────────────────────────────────
-    print(f"\n[5] Cargando respaldo Kawak: {RUTA_KAWAK}")
-    kawak_lookup = leer_kawak(RUTA_KAWAK)
+    # ── 6. Cargar Kawak — resultados históricos (API) ────────────────────────
+    print(f"\n[5] Cargando Kawak API (resultados históricos)...")
+    print(f"    {RUTA_KAWAK_API}")
+    kawak_lookup = leer_kawak_api(RUTA_KAWAK_API)
 
     # ── 7. Hojas por periodicidad ────────────────────────────────────────────
-    # CAMBIO: se filtra None y strings vacíos/nan en la lista de periodicidades
     periodicidades = [
         p for p in df["Periodicidad"].dropna().unique()
         if p and str(p).strip() not in ("", "nan", "NaN", "None")
     ]
-    print(f"\n[6] Periodicidades: {periodicidades}")
+    print(f"\n[6] Periodicidades detectadas: {periodicidades}")
     resumen_data = []
 
     for perio in periodicidades:
@@ -475,11 +989,12 @@ def main():
         total = len(df_p)
         print(f"\n    ── {perio} ({total} filas)")
 
-        fechas = get_period_dates(perio, n_periodos)
+        fechas = get_period_dates(perio, n_periodos, fecha_ref)
         mapa = {col: f for col, f in zip(periodo_cols, fechas)}
         if fechas[0]:
-            print(f"       Periodo 1 -> {fechas[0].strftime('%d/%m/%Y')}  "
-                  f"| Periodo {n_periodos} -> {fechas[-1].strftime('%d/%m/%Y')}")
+            ultimo = fechas[-1].strftime('%d/%m/%Y') if fechas[-1] else "N/A"
+            print(f"       Periodo 1 → {fechas[0].strftime('%d/%m/%Y')}  "
+                  f"| Periodo {n_periodos} → {ultimo}")
 
         col_p1 = periodo_cols[0]
         col_p2 = periodo_cols[1] if n_periodos >= 2 else None
@@ -493,11 +1008,11 @@ def main():
 
         reportados = (df_p["Reportado"] == "Sí").sum()
         pendientes = (df_p["Estado del indicador"] == "Pendiente de reporte").sum()
-        print(f"       Reportados (LMI)            : {reportados - n_kawak}/{total}")
+        print(f"       Reportados (LMI)          : {reportados - n_kawak}/{total}")
         if kawak_lookup:
-            print(f"       Actualizados desde Kawak   : {n_kawak}")
-        print(f"       Reportados total           : {reportados}/{total}")
-        print(f"       Pendientes de reporte      : {pendientes}/{total}")
+            print(f"       Actualizados desde Kawak : {n_kawak}")
+        print(f"       Reportados total          : {reportados}/{total}")
+        print(f"       Pendientes de reporte     : {pendientes}/{total}")
 
         ws = wb.create_sheet(title=perio[:31])
         escribir_hoja(ws, df_p, mapa)
@@ -509,19 +1024,67 @@ def main():
             "Pendientes": int(pendientes),
         })
 
-    # ── 8. Hoja Resumen ──────────────────────────────────────────────────────
+    # ── 8. Hoja "Resumen" ────────────────────────────────────────────────────
     print("\n[7] Hoja 'Resumen'...")
     crear_hoja_resumen(wb, resumen_data)
     print("    OK")
 
-    # ── 9. Guardar ───────────────────────────────────────────────────────────
+    # ── 9. Tracking Mensual ──────────────────────────────────────────────────
+    print(f"\n[8] Hoja 'Tracking Mensual' (formato largo, filtrable por mes)...")
+
+    # Catálogo de indicadores: LMI (primario) + Kawak catálogo (enriquecimiento histórico)
+    print(f"    Cargando catálogo Kawak: {RUTA_KAWAK_CATALOGO}")
+    catalogo_kawak = leer_catalogo_kawak(RUTA_KAWAK_CATALOGO)
+    catalogo = construir_catalogo(df, catalogo_kawak)
+    print(f"    Indicadores en catálogo: {len(catalogo)}")
+
+    # Normalizar Kawak lookup: re-mapear fechas al mes de CIERRE del período
+    # según la periodicidad de cada indicador.
+    # Ejemplo: Trimestral con fecha Kawak = Feb 2025 → (id, 2025, 3) no (id, 2025, 2)
+    kawak_lookup_norm = normalizar_kawak_lookup(kawak_lookup, catalogo)
+    print(f"    Kawak normalizado: {len(kawak_lookup_norm)} registros "
+          f"(raw: {len(kawak_lookup)}  →  por período de cierre)")
+
+    # Metadata descriptiva por indicador (Indicador, Proceso, etc. desde LMI)
+    meta_indicadores = _extraer_meta_indicadores(df)
+
+    # Lookup LMI: (id, year, month) → True  (ya usa meses de cierre de período)
+    lmi_lookup = construir_lmi_lookup(df, fecha_ref)
+    print(f"    Registros LMI con dato: {len(lmi_lookup)}")
+
+    # Calendario dinámico: FECHA_INICIO → fecha_ref
+    calendario = generar_calendario(FECHA_INICIO, fecha_ref)
+    print(f"    Calendario: {calendario[0][1]}/{calendario[0][0]} → "
+          f"{calendario[-1][1]}/{calendario[-1][0]}  ({len(calendario)} meses)")
+
+    # Construir tabla larga usando el lookup Kawak normalizado
+    tracking_df = construir_tracking_largo(
+        catalogo, kawak_lookup_norm, lmi_lookup, calendario, meta_indicadores
+    )
+
+    if not tracking_df.empty:
+        reportados_t = (tracking_df["Estado"] == "Reportado").sum()
+        pendientes_t = (tracking_df["Estado"] == "Pendiente").sum()
+        kawak_t      = (tracking_df["Fuente"]  == "Kawak").sum()
+        lmi_t        = (tracking_df["Fuente"]  == "LMI").sum()
+        print(f"    Filas generadas : {len(tracking_df):,}  "
+              f"({len(catalogo)} indicadores × períodos que aplican)")
+        print(f"    Reportado: {reportados_t:,}  "
+              f"(Kawak: {kawak_t:,} | LMI: {lmi_t:,})  |  "
+              f"Pendiente: {pendientes_t:,}")
+
+    ws_track = wb.create_sheet(title="Tracking Mensual")
+    escribir_tracking_mensual(ws_track, tracking_df)
+    print("    OK")
+
+    # ── 10. Guardar ──────────────────────────────────────────────────────────
     os.makedirs(os.path.dirname(RUTA_SALIDA), exist_ok=True)
-    print(f"\n[8] Guardando en {RUTA_SALIDA}...")
+    print(f"\n[9] Guardando en {RUTA_SALIDA}...")
     wb.save(RUTA_SALIDA)
-    print(f"    OK -> archivo guardado.")
+    print("    OK → archivo guardado.")
 
     print(f"\n{sep}")
-    print(f"  Proceso completado exitosamente.")
+    print("  Proceso completado exitosamente.")
     print(f"  Archivo: {RUTA_SALIDA}")
     print(sep)
 

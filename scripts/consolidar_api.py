@@ -29,7 +29,7 @@ _OUT_DIR.mkdir(parents=True, exist_ok=True)
 _OUT_KAWAK_CAT = _OUT_DIR / "Indicadores Kawak.xlsx"
 _OUT_API       = _OUT_DIR / "Consolidado_API_Kawak.xlsx"
 
-YEARS = [2022, 2023, 2024, 2025]
+YEARS = [2022, 2023, 2024, 2025, 2026]
 
 # Columnas del catálogo Kawak
 COLS_KAWAK = ["Año", "Id", "Indicador", "Clasificacion", "Proceso",
