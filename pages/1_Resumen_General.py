@@ -445,11 +445,26 @@ def _cargar_historico_detalle() -> pd.DataFrame:
     return cargar_dataset()
 
 
+def _mes_cierre_periodo(month: int, periodicidad: str) -> int:
+    """Retorna el mes de CIERRE del período al que pertenece el mes dado."""
+    perio = str(periodicidad or "").strip()
+    if perio == "Mensual":    return month
+    if perio == "Bimestral":  return month if month % 2 == 0 else month + 1
+    if perio == "Trimestral":
+        return 3 if month <= 3 else 6 if month <= 6 else 9 if month <= 9 else 12
+    if perio == "Semestral":  return 6 if month <= 6 else 12
+    if perio == "Anual":      return 12
+    return month  # periodicidad desconocida → sin normalizar
+
+
 def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.DataFrame:
     """
     Selecciona indicadores que tienen un registro en el mes+año indicados.
-    Para cada indicador toma el último registro dentro de ese período.
-    Solo incluye indicadores que existen en los archivos de Kawak.
+    Usa el mes de CIERRE del período (según Periodicidad) para el filtro,
+    no el mes exacto de la fecha — así un Anual que reportó en octubre aparece
+    como "Reportado" en diciembre, no como "Pendiente".
+    Los IDs de Kawak sin ningún registro en el período se agregan como
+    "Pendiente de reporte".
     """
     if df_all.empty:
         return df_all
@@ -459,25 +474,34 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
 
     mes_num = _MES_NUM.get(mes, 12)
 
-    # Filtrar SOLO registros del mes+año seleccionado
-    df_filtrado = df_all[
-        df_all["fecha"].notna()
-        & (df_all["fecha"].dt.year == anio)
-        & (df_all["fecha"].dt.month == mes_num)
+    # Filtrar año y calcular mes de cierre de cada registro según su Periodicidad
+    df_anio = df_all[
+        df_all["fecha"].notna() & (df_all["fecha"].dt.year == anio)
     ].copy()
 
-    if df_filtrado.empty:
-        # Fallback: tomar el semestre correspondiente (para indicadores semestrales)
-        semestre = 1 if mes_num <= 6 else 2
-        meses_sem = list(range(1, 7)) if semestre == 1 else list(range(7, 13))
-        df_filtrado = df_all[
-            df_all["fecha"].notna()
-            & (df_all["fecha"].dt.year == anio)
-            & (df_all["fecha"].dt.month.isin(meses_sem))
-        ].copy()
+    if df_anio.empty:
+        return df_all.head(0)
+
+    df_anio["_mes_cierre"] = df_anio.apply(
+        lambda r: _mes_cierre_periodo(
+            r["fecha"].month,
+            r.get("Periodicidad", "") if "Periodicidad" in df_anio.columns else ""
+        ),
+        axis=1,
+    )
+
+    df_filtrado = df_anio[df_anio["_mes_cierre"] == mes_num].drop(columns=["_mes_cierre"])
 
     if df_filtrado.empty:
-        return df_all.head(0)  # DataFrame vacío con mismas columnas
+        # Fallback: semestre completo (no hay datos con mes de cierre exacto)
+        semestre = 1 if mes_num <= 6 else 2
+        meses_sem = list(range(1, 7)) if semestre == 1 else list(range(7, 13))
+        df_filtrado = df_anio[
+            df_anio["fecha"].dt.month.isin(meses_sem)
+        ].drop(columns=["_mes_cierre"])
+
+    if df_filtrado.empty:
+        return df_all.head(0)
 
     if not kawak_df.empty:
         df_filtrado = df_filtrado[df_filtrado["Id"].isin(kawak_df["Id"].tolist())]
@@ -485,6 +509,24 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     df = (df_filtrado.sort_values("fecha")
           .groupby("Id", as_index=False)
           .last())
+
+    # ── IDs de Kawak sin registro en el período → "Pendiente de reporte" ────────
+    if not kawak_df.empty:
+        ids_con_dato = set(df["Id"].tolist())
+        ids_sin_dato = [kid for kid in kawak_df["Id"].tolist() if kid not in ids_con_dato]
+        if ids_sin_dato:
+            df_meta = (
+                df_all[df_all["Id"].isin(ids_sin_dato)]
+                .sort_values("fecha", na_position="last")
+                .groupby("Id", as_index=False)
+                .last()
+            )
+            if df_meta.empty:
+                df_meta = pd.DataFrame({"Id": ids_sin_dato})
+            df_meta["cumplimiento"]      = None
+            df_meta["cumplimiento_real"] = None
+            df_meta["fecha"]             = None
+            df = pd.concat([df, df_meta], ignore_index=True)
 
     # Agregar umbrales Kawak al dataframe para que _nivel() pueda usarlos
     if not kawak_df.empty:
