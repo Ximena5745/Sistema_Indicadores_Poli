@@ -400,6 +400,15 @@ def _filtrar_cols_periodo(cols_p):
         out.append(c)
     return out
 
+def _reporte_desde_periodos(df, cols_filtradas):
+    """True/False por fila: ¿reportó (Si/Sí) en alguna columna de período filtrada?"""
+    cols_exist = [c for c in cols_filtradas if c in df.columns]
+    if not cols_exist:
+        return pd.Series(False, index=df.index)
+    return df[cols_exist].apply(
+        lambda row: any(str(v).strip() in ("Si", "Sí") for v in row), axis=1
+    )
+
 # Filtrar df_con y perios por Vicerrectoría
 if _f_vic_seg and "Vicerrectoria" in df_con.columns:
     df_con = df_con[df_con["Vicerrectoria"] == _f_vic_seg].reset_index(drop=True)
@@ -408,6 +417,21 @@ if _f_vic_seg and "Vicerrectoria" in df_con.columns:
             _p["df"] = _p["df"][_p["df"]["Vicerrectoria"] == _f_vic_seg].reset_index(drop=True)
 
 st.markdown("---")
+
+# ── Pre-cálculo de reporte por período (dinámico según Año/Mes) ─────────────
+_stats_por_perio = []  # [{nombre, total, reportados, pendientes}]
+for _p in perios:
+    _df_tmp = _p["df"]
+    _cols_filt = _filtrar_cols_periodo(_p["cols_periodo"]) or _p["cols_periodo"]
+    _mask_rep = _reporte_desde_periodos(_df_tmp, _cols_filt)
+    _n_rep = int(_mask_rep.sum())
+    _stats_por_perio.append({
+        "nombre": _p["nombre"], "total": len(_df_tmp),
+        "reportados": _n_rep, "pendientes": len(_df_tmp) - _n_rep,
+    })
+_total_global = sum(s["total"] for s in _stats_por_perio)
+_rep_global   = sum(s["reportados"] for s in _stats_por_perio)
+_pen_global   = sum(s["pendientes"] for s in _stats_por_perio)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
@@ -420,23 +444,21 @@ tabs = st.tabs(nombres_tabs)
 # ─────────────────────────────────────────────────────────────────────────────
 with tabs[0]:
 
-    total        = len(df_con)
-    n_reportados = int((df_con[COL_ESTADO] == "Reportado").sum())            if COL_ESTADO in df_con.columns else 0
-    n_pendientes = int((df_con[COL_ESTADO] == "Pendiente de reporte").sum()) if COL_ESTADO in df_con.columns else 0
-    n_rep_hoy    = int((df_con[COL_REP].isin(["Sí", "Si"])).sum())           if COL_REP    in df_con.columns else 0
-    pct_rep      = round(n_rep_hoy / total * 100, 1) if total else 0
+    total        = _total_global
+    n_reportados = _rep_global
+    n_pendientes = _pen_global
+    pct_rep      = round(n_reportados / total * 100, 1) if total else 0
 
     # ── KPIs ──────────────────────────────────────────────────────────────────
     st.markdown("### Vista Resumen")
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
     with c1: st.metric("Total indicadores", total)
-    with c2: st.metric("✅ Reportados (estado)", n_reportados,
-                       delta=f"{round(n_reportados/total*100,1)}%" if total else None)
-    with c3: st.metric("⏳ Pendientes (estado)", n_pendientes,
+    with c2: st.metric("✅ Reportados", n_reportados,
+                       delta=f"{pct_rep}%" if total else None)
+    with c3: st.metric("⏳ Pendientes", n_pendientes,
                        delta=f"{round(n_pendientes/total*100,1)}%" if total else None,
                        delta_color="inverse")
-    with c4: st.metric("📤 Reportados período actual", n_rep_hoy)
-    with c5: st.metric("% Reporte período actual", f"{pct_rep}%",
+    with c4: st.metric("% Reporte", f"{pct_rep}%",
                        delta_color="normal" if pct_rep >= 80 else "inverse")
 
     st.markdown("---")
@@ -466,34 +488,24 @@ with tabs[0]:
 
     with gc2:
         st.markdown("#### Por Periodicidad")
-        if "Periodicidad" in df_con.columns:
-            # Calcular desde df_con (deduplicado, Revisar==1) — sin usar hoja Resumen
-            agg_dict: dict = {"Total indicadores": ("Id", "count")}
-            if COL_REP    in df_con.columns:
-                agg_dict["Reportados"] = (COL_REP, lambda x: x.isin(["Sí","Si"]).sum())
-            if COL_ESTADO in df_con.columns:
-                agg_dict["Pendientes"] = (COL_ESTADO, lambda x: (x=="Pendiente de reporte").sum())
-
-            per_agg = df_con.groupby("Periodicidad").agg(**agg_dict).reset_index()
-            if "Reportados" in per_agg.columns:
-                per_agg["% Reporte"] = (per_agg["Reportados"] / per_agg["Total indicadores"] * 100).round(1).astype(str) + "%"
-
-            col_r = "Reportados" if "Reportados" in per_agg.columns else None
-            col_p = "Pendientes" if "Pendientes" in per_agg.columns else None
+        if _stats_por_perio:
+            per_agg = pd.DataFrame(_stats_por_perio).rename(columns={
+                "nombre": "Periodicidad", "total": "Total indicadores",
+                "reportados": "Reportados", "pendientes": "Pendientes",
+            })
+            per_agg["% Reporte"] = (per_agg["Reportados"] / per_agg["Total indicadores"] * 100).round(1).astype(str) + "%"
 
             fig_per = go.Figure()
-            if col_r:
-                fig_per.add_trace(go.Bar(
-                    x=per_agg["Periodicidad"], y=per_agg[col_r],
-                    name="Reportados", marker_color=CORP["reportado"],
-                    text=per_agg[col_r], textposition="outside",
-                ))
-            if col_p:
-                fig_per.add_trace(go.Bar(
-                    x=per_agg["Periodicidad"], y=per_agg[col_p],
-                    name="Pendientes", marker_color=CORP["pendiente"],
-                    text=per_agg[col_p], textposition="outside",
-                ))
+            fig_per.add_trace(go.Bar(
+                x=per_agg["Periodicidad"], y=per_agg["Reportados"],
+                name="Reportados", marker_color=CORP["reportado"],
+                text=per_agg["Reportados"], textposition="outside",
+            ))
+            fig_per.add_trace(go.Bar(
+                x=per_agg["Periodicidad"], y=per_agg["Pendientes"],
+                name="Pendientes", marker_color=CORP["pendiente"],
+                text=per_agg["Pendientes"], textposition="outside",
+            ))
             fig_per.update_layout(
                 barmode="group", height=280,
                 xaxis_title="Periodicidad", yaxis_title="Indicadores",
@@ -783,9 +795,11 @@ for tab_idx, perio in enumerate(perios, 2):
 
         COL_E = "Estado del indicador"
         COL_R = "Reportado"
-        total_p   = len(df_p)
-        n_rep_p   = int((df_p[COL_E] == "Reportado").sum())             if COL_E in df_p.columns else 0
-        n_pen_p   = int((df_p[COL_E] == "Pendiente de reporte").sum())  if COL_E in df_p.columns else 0
+        # KPIs dinámicos: calculados desde columnas de período filtradas
+        _sp = _stats_por_perio[tab_idx - 2]
+        total_p   = _sp["total"]
+        n_rep_p   = _sp["reportados"]
+        n_pen_p   = _sp["pendientes"]
         pct_rep_p = round(n_rep_p / total_p * 100, 1) if total_p else 0
 
         kc1, kc2, kc3, kc4 = st.columns(4)
