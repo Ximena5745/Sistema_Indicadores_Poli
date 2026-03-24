@@ -1350,145 +1350,229 @@ with tab_con:
 with tab_calor:
     _df_cierres = _cargar_consolidado_cierres()
 
-    # IDs activos del año seleccionado
-    _ids_activos_c = set(_cargar_kawak_por_anio(anio_seleccionado)["Id"].tolist()) \
-                     if not _cargar_kawak_por_anio(anio_seleccionado).empty else set()
-
-    _dfc = _df_cierres[_df_cierres["Id"].isin(_ids_activos_c)].copy() \
-           if _ids_activos_c else _df_cierres.copy()
-
-    # Filtros opcionales dentro del tab
-    _hc1, _hc2 = st.columns(2)
-    with _hc1:
-        _perios_c = ["Todas"] + sorted(_dfc["Periodicidad"].dropna().unique().tolist()) \
-                    if "Periodicidad" in _dfc.columns else ["Todas"]
-        _perio_c = st.selectbox("Periodicidad", _perios_c, key="cal_perio")
-    with _hc2:
-        _procs_c = ["Todos"] + sorted(_dfc["Proceso"].dropna().unique().tolist()) \
-                   if "Proceso" in _dfc.columns else ["Todos"]
-        _proc_c = st.selectbox("Proceso", _procs_c, key="cal_proc")
-
-    if _perio_c != "Todas" and "Periodicidad" in _dfc.columns:
-        _dfc = _dfc[_dfc["Periodicidad"] == _perio_c]
-    if _proc_c != "Todos" and "Proceso" in _dfc.columns:
-        _dfc = _dfc[_dfc["Proceso"] == _proc_c]
-
-    if _dfc.empty or "Periodo" not in _dfc.columns:
-        st.info("Sin datos de cierres para el año seleccionado.")
+    if _df_cierres.empty:
+        st.info("Sin datos de cierres históricos.")
     else:
-        # Pivot Id × Periodo → último valor de Cumplimiento
-        _pivot = (
-            _dfc.sort_values("Fecha")
-            .groupby(["Id", "Periodo"])["Cumplimiento"]
-            .last()
-            .unstack()
-        )
-        _pivot = _pivot.reindex(sorted(_pivot.columns), axis=1)
+        # Enriquecer con Subproceso desde CMI
+        _cmi_c = _cargar_cmi()
+        _dfc_all = _df_cierres.copy()
+        if not _cmi_c.empty and "Id" in _dfc_all.columns:
+            _dfc_all = _dfc_all.merge(_cmi_c[["Id", "Subproceso_CMI"]], on="Id", how="left")
+            _dfc_all["Subproceso"] = _dfc_all["Subproceso_CMI"].where(
+                _dfc_all["Subproceso_CMI"].notna()
+                & ~_dfc_all["Subproceso_CMI"].str.upper().isin(_INVALIDOS_MAPA),
+                other=_dfc_all["Proceso"] if "Proceso" in _dfc_all.columns else "",
+            )
+            _dfc_all = _dfc_all.drop(columns=["Subproceso_CMI"], errors="ignore")
 
-        # Etiquetas fila: "ID — Nombre"
-        _meta_c = _dfc.drop_duplicates(subset=["Id"], keep="last").set_index("Id")
-        _y_labels = []
-        for _kid in _pivot.index:
-            _ind = str(_meta_c.loc[_kid, "Indicador"])[:45] \
-                   if _kid in _meta_c.index and "Indicador" in _meta_c.columns else _kid
-            _y_labels.append(f"{_kid} — {_ind}")
+        # Año de cada cierre
+        if "Fecha" in _dfc_all.columns:
+            _dfc_all["_año"] = _dfc_all["Fecha"].dt.year
+            _anios_disp_c = sorted(_dfc_all["_año"].dropna().astype(int).unique().tolist())
+        else:
+            _anios_disp_c = []
 
-        _z_text = _pivot.applymap(
-            lambda v: f"{v*100:.1f}%" if pd.notna(v) else ""
-        )
+        # Filtros: Año + Proceso + Subproceso
+        _hc1, _hc2, _hc3 = st.columns(3)
+        with _hc1:
+            _sel_anios = st.multiselect(
+                "Año",
+                options=_anios_disp_c,
+                default=[anio_seleccionado] if anio_seleccionado in _anios_disp_c else _anios_disp_c[-1:],
+                key="cal_anios",
+            )
+        with _hc2:
+            _procs_c = ["Todos"] + sorted(_dfc_all["Proceso"].dropna().unique().tolist()) \
+                       if "Proceso" in _dfc_all.columns else ["Todos"]
+            _proc_c = st.selectbox("Proceso", _procs_c, key="cal_proc")
+        with _hc3:
+            if _proc_c != "Todos" and "Proceso" in _dfc_all.columns and "Subproceso" in _dfc_all.columns:
+                _sub_pool_c = _dfc_all.loc[_dfc_all["Proceso"] == _proc_c,
+                                           "Subproceso"].dropna().unique().tolist()
+            else:
+                _sub_pool_c = _dfc_all["Subproceso"].dropna().unique().tolist() \
+                              if "Subproceso" in _dfc_all.columns else []
+            _subs_c = ["Todos"] + sorted(_sub_pool_c)
+            _sub_c = st.selectbox("Subproceso", _subs_c, key="cal_sub")
 
-        _fig_calor = go.Figure(go.Heatmap(
-            z=_pivot.values.tolist(),
-            x=_pivot.columns.tolist(),
-            y=_y_labels,
-            text=_z_text.values.tolist(),
-            texttemplate="%{text}",
-            textfont=dict(size=10),
-            colorscale=_COLORSCALE_C,
-            zmin=0, zmax=1.35,
-            showscale=True,
-            colorbar=dict(
-                title="Cumpl.",
-                tickvals=[0, 0.80, 1.00, 1.05, 1.30],
-                ticktext=["0%", "80%<br>Peligro", "100%<br>Cumpl.", "105%<br>Sobre", "130%+"],
-                len=0.7,
-            ),
-            hovertemplate=(
-                "<b>%{y}</b><br>Período: <b>%{x}</b><br>"
-                "Cumplimiento: <b>%{text}</b><extra></extra>"
-            ),
-        ))
-        _fig_calor.update_layout(
-            height=max(420, len(_pivot) * 26 + 80),
-            xaxis=dict(title="Período de cierre", side="top", tickangle=0),
-            yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
-            plot_bgcolor="white", paper_bgcolor="white",
-            margin=dict(t=60, b=20, l=10, r=130),
-        )
-        st.plotly_chart(_fig_calor, use_container_width=True)
+        _dfc = _dfc_all.copy()
+        if _sel_anios and "_año" in _dfc.columns:
+            _dfc = _dfc[_dfc["_año"].isin(_sel_anios)]
+        if _proc_c != "Todos" and "Proceso" in _dfc.columns:
+            _dfc = _dfc[_dfc["Proceso"] == _proc_c]
+        if _sub_c != "Todos" and "Subproceso" in _dfc.columns:
+            _dfc = _dfc[_dfc["Subproceso"] == _sub_c]
 
-        # Leyenda
-        _lc = st.columns(4)
-        for _col_l, (_lbl, _bg) in zip(_lc, [
-            ("Peligro < 80%",            _NIVEL_BG_C["Peligro"]),
-            ("Alerta 80–99%",            _NIVEL_BG_C["Alerta"]),
-            ("Cumplimiento ≥ 100%",      _NIVEL_BG_C["Cumplimiento"]),
-            ("Sobrecumplimiento ≥ 105%", _NIVEL_BG_C["Sobrecumplimiento"]),
-        ]):
-            _col_l.markdown(
-                f"<div style='background:{_bg};padding:5px 8px;border-radius:6px;"
-                f"text-align:center;font-size:12px'>{_lbl}</div>",
-                unsafe_allow_html=True,
+        if _dfc.empty or "Fecha" not in _dfc.columns:
+            st.info("Sin datos de cierres para los filtros seleccionados.")
+        else:
+            # Etiqueta mes-año para columnas (Ene 2025, Feb 2025, ...)
+            _MESES_ABREV_C = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                               "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+            _dfc = _dfc.copy()
+            _dfc["_col_label"] = _dfc["Fecha"].apply(
+                lambda d: f"{_MESES_ABREV_C[d.month - 1]} {int(d.year)}" if pd.notna(d) else None
             )
 
-        st.download_button(
-            "📥 Exportar matriz",
-            data=exportar_excel(_pivot.reset_index(), "Matriz Calor"),
-            file_name="matriz_calor.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="exp_matriz_c",
-        )
+            # Pivot Id × mes-año → último valor de Cumplimiento
+            _pivot = (
+                _dfc.dropna(subset=["_col_label"])
+                .sort_values("Fecha")
+                .groupby(["Id", "_col_label"])["Cumplimiento"]
+                .last()
+                .unstack()
+            )
+
+            # Ordenar columnas cronológicamente
+            def _sort_mes_anio(lbl):
+                parts = str(lbl).split()
+                if len(parts) == 2:
+                    try:
+                        return int(parts[1]) * 100 + _MESES_ABREV_C.index(parts[0]) + 1
+                    except Exception:
+                        pass
+                return 0
+
+            _pivot = _pivot.reindex(sorted(_pivot.columns, key=_sort_mes_anio), axis=1)
+
+            # Etiquetas fila: "ID — Nombre"
+            _meta_c = _dfc.drop_duplicates(subset=["Id"], keep="last").set_index("Id")
+            _y_labels = []
+            for _kid in _pivot.index:
+                _ind = str(_meta_c.loc[_kid, "Indicador"])[:45] \
+                       if _kid in _meta_c.index and "Indicador" in _meta_c.columns else _kid
+                _y_labels.append(f"{_kid} — {_ind}")
+
+            _z_text = _pivot.applymap(
+                lambda v: f"{v * 100:.1f}%" if pd.notna(v) else ""
+            )
+
+            _fig_calor = go.Figure(go.Heatmap(
+                z=_pivot.values.tolist(),
+                x=_pivot.columns.tolist(),
+                y=_y_labels,
+                text=_z_text.values.tolist(),
+                texttemplate="%{text}",
+                textfont=dict(size=10),
+                colorscale=_COLORSCALE_C,
+                zmin=0, zmax=1.35,
+                showscale=True,
+                colorbar=dict(
+                    title="Cumpl.",
+                    tickvals=[0, 0.80, 1.00, 1.05, 1.30],
+                    ticktext=["0%", "80%<br>Peligro", "100%<br>Cumpl.", "105%<br>Sobre", "130%+"],
+                    len=0.7,
+                ),
+                hovertemplate=(
+                    "<b>%{y}</b><br>Mes: <b>%{x}</b><br>"
+                    "Cumplimiento: <b>%{text}</b><extra></extra>"
+                ),
+            ))
+            _fig_calor.update_layout(
+                height=max(420, len(_pivot) * 26 + 80),
+                xaxis=dict(title="Mes de cierre", side="top", tickangle=0),
+                yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
+                plot_bgcolor="white", paper_bgcolor="white",
+                margin=dict(t=60, b=20, l=10, r=130),
+            )
+            st.plotly_chart(_fig_calor, use_container_width=True)
+
+            # Leyenda
+            _lc = st.columns(4)
+            for _col_l, (_lbl, _bg) in zip(_lc, [
+                ("Peligro < 80%",            _NIVEL_BG_C["Peligro"]),
+                ("Alerta 80–99%",            _NIVEL_BG_C["Alerta"]),
+                ("Cumplimiento ≥ 100%",      _NIVEL_BG_C["Cumplimiento"]),
+                ("Sobrecumplimiento ≥ 105%", _NIVEL_BG_C["Sobrecumplimiento"]),
+            ]):
+                _col_l.markdown(
+                    f"<div style='background:{_bg};padding:5px 8px;border-radius:6px;"
+                    f"text-align:center;font-size:12px'>{_lbl}</div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.download_button(
+                "📥 Exportar matriz",
+                data=exportar_excel(_pivot.reset_index(), "Matriz Calor"),
+                file_name="matriz_calor.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="exp_matriz_c",
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB CONSOLIDADO CIERRES
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_cierres:
-    if "_dfc" not in dir() or _df_cierres.empty:
-        _df_cierres = _cargar_consolidado_cierres()
-        _ids_activos_c = set(_cargar_kawak_por_anio(anio_seleccionado)["Id"].tolist()) \
-                         if not _cargar_kawak_por_anio(anio_seleccionado).empty else set()
-        _dfc2 = _df_cierres[_df_cierres["Id"].isin(_ids_activos_c)].copy() \
-                if _ids_activos_c else _df_cierres.copy()
-    else:
-        _dfc2 = _df_cierres[_df_cierres["Id"].isin(_ids_activos_c)].copy() \
-                if _ids_activos_c else _df_cierres.copy()
+    _df_cierres_t = _cargar_consolidado_cierres()
 
-    if _dfc2.empty:
-        st.info("Sin datos de cierres para el año seleccionado.")
+    if _df_cierres_t.empty:
+        st.info("Sin datos de cierres históricos.")
     else:
-        # Filtros
-        _cc1, _cc2, _cc3 = st.columns(3)
+        # Enriquecer con signo/decimales desde dataset principal (por Id)
+        _sign_cols_t = [c for c in ["Id", "Meta_Signo", "Ejec_Signo", "Dec_Meta", "Dec_Ejec", "Tipo_Registro"]
+                        if c in _raw.columns]
+        if len(_sign_cols_t) > 1:
+            _sign_src = _raw[_sign_cols_t].drop_duplicates("Id")
+            _df_cierres_t = _df_cierres_t.merge(_sign_src, on="Id", how="left")
+
+        # Enriquecer con Subproceso desde CMI
+        _cmi_t = _cargar_cmi()
+        if not _cmi_t.empty and "Id" in _df_cierres_t.columns:
+            _df_cierres_t = _df_cierres_t.merge(_cmi_t[["Id", "Subproceso_CMI"]], on="Id", how="left")
+            _df_cierres_t["Subproceso"] = _df_cierres_t["Subproceso_CMI"].where(
+                _df_cierres_t["Subproceso_CMI"].notna()
+                & ~_df_cierres_t["Subproceso_CMI"].str.upper().isin(_INVALIDOS_MAPA),
+                other=_df_cierres_t["Proceso"] if "Proceso" in _df_cierres_t.columns else "",
+            )
+            _df_cierres_t = _df_cierres_t.drop(columns=["Subproceso_CMI"], errors="ignore")
+
+        # Formatear Meta y Ejecución con signo y decimales
+        def _signo_fmt_t(r, col_signo):
+            if str(r.get("Tipo_Registro", "")).strip().lower() == "metrica":
+                return "ENT"
+            return r.get(col_signo)
+
+        if "Meta" in _df_cierres_t.columns:
+            _df_cierres_t["Meta_fmt"] = _df_cierres_t.apply(
+                lambda r: _fmt_valor(r.get("Meta"), _signo_fmt_t(r, "Meta_Signo"), r.get("Dec_Meta")), axis=1)
+        if "Ejecucion" in _df_cierres_t.columns:
+            _df_cierres_t["Ejecucion_fmt"] = _df_cierres_t.apply(
+                lambda r: _fmt_valor(r.get("Ejecucion"), _signo_fmt_t(r, "Ejec_Signo"), r.get("Dec_Ejec")), axis=1)
+
+        _df_cierres_t["Nivel"]          = _df_cierres_t["Cumplimiento"].apply(_nivel_c)
+        _df_cierres_t["Cumplimiento %"] = _df_cierres_t["Cumplimiento"].apply(
+            lambda v: f"{float(v) * 100:.1f}%" if pd.notna(v) else "—"
+        )
+
+        # Filtros: Proceso → Subproceso → ID → Nivel
+        _cc1, _cc2, _cc3, _cc4 = st.columns(4)
         with _cc1:
-            _periodos_cc = ["Todos"] + sorted(_dfc2["Periodo"].dropna().unique().tolist()) \
-                           if "Periodo" in _dfc2.columns else ["Todos"]
-            _periodo_cc = st.selectbox("Período", _periodos_cc,
-                                       index=len(_periodos_cc) - 1, key="cc_periodo")
+            _procs_cc = ["Todos"] + sorted(_df_cierres_t["Proceso"].dropna().unique().tolist()) \
+                        if "Proceso" in _df_cierres_t.columns else ["Todos"]
+            _proc_cc = st.selectbox("Proceso", _procs_cc, key="cc_proc")
         with _cc2:
-            _txt_id_cc = st.text_input("ID", key="cc_id", placeholder="Buscar ID…")
+            if _proc_cc != "Todos" and "Subproceso" in _df_cierres_t.columns:
+                _sub_pool_cc = _df_cierres_t.loc[
+                    _df_cierres_t["Proceso"] == _proc_cc, "Subproceso"
+                ].dropna().unique().tolist()
+            else:
+                _sub_pool_cc = _df_cierres_t["Subproceso"].dropna().unique().tolist() \
+                               if "Subproceso" in _df_cierres_t.columns else []
+            _subs_cc = ["Todos"] + sorted(_sub_pool_cc)
+            _sub_cc = st.selectbox("Subproceso", _subs_cc, key="cc_sub")
         with _cc3:
+            _txt_id_cc = st.text_input("ID", key="cc_id", placeholder="Buscar ID…")
+        with _cc4:
             _niv_opts_cc = [""] + ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin dato"]
             _sel_niv_cc  = st.selectbox("Nivel", _niv_opts_cc, key="cc_niv",
                                         format_func=lambda x: "— Todos —" if x == "" else x)
 
-        _dfc2 = _dfc2.copy()
-        _dfc2["Nivel"]          = _dfc2["Cumplimiento"].apply(_nivel_c)
-        _dfc2["Cumplimiento %"] = _dfc2["Cumplimiento"].apply(
-            lambda v: f"{float(v)*100:.1f}%" if pd.notna(v) else "—"
-        )
-
-        if _periodo_cc != "Todos" and "Periodo" in _dfc2.columns:
-            _dfc2 = _dfc2[_dfc2["Periodo"] == _periodo_cc]
+        _dfc2 = _df_cierres_t.copy()
+        if _proc_cc != "Todos" and "Proceso" in _dfc2.columns:
+            _dfc2 = _dfc2[_dfc2["Proceso"] == _proc_cc]
+        if _sub_cc != "Todos" and "Subproceso" in _dfc2.columns:
+            _dfc2 = _dfc2[_dfc2["Subproceso"] == _sub_cc]
         if _txt_id_cc.strip():
             _dfc2 = _dfc2[_dfc2["Id"].astype(str).str.contains(_txt_id_cc.strip(), case=False, na=False)]
         if _sel_niv_cc:
@@ -1496,17 +1580,17 @@ with tab_cierres:
 
         # KPIs
         _cnts_cc = _dfc2["Nivel"].value_counts()
-        _kc = st.columns(5)
-        _kc[0].metric("Total",              len(_dfc2))
-        _kc[1].metric("🔴 Peligro",          int(_cnts_cc.get("Peligro",           0)))
-        _kc[2].metric("🟡 Alerta",            int(_cnts_cc.get("Alerta",             0)))
-        _kc[3].metric("🟢 Cumplimiento",      int(_cnts_cc.get("Cumplimiento",       0)))
-        _kc[4].metric("🔵 Sobrecumplimiento", int(_cnts_cc.get("Sobrecumplimiento",  0)))
+        _kc2 = st.columns(5)
+        _kc2[0].metric("Total",              len(_dfc2))
+        _kc2[1].metric("🔴 Peligro",          int(_cnts_cc.get("Peligro",           0)))
+        _kc2[2].metric("🟡 Alerta",            int(_cnts_cc.get("Alerta",             0)))
+        _kc2[3].metric("🟢 Cumplimiento",      int(_cnts_cc.get("Cumplimiento",       0)))
+        _kc2[4].metric("🔵 Sobrecumplimiento", int(_cnts_cc.get("Sobrecumplimiento",  0)))
 
         st.caption(f"**{len(_dfc2):,}** registros · {_dfc2['Id'].nunique()} indicadores")
 
-        _COLS_CC = ["Id", "Indicador", "Proceso", "Periodicidad", "Sentido",
-                    "Fecha", "Periodo", "Meta", "Ejecucion", "Cumplimiento %", "Nivel"]
+        _COLS_CC = ["Id", "Indicador", "Proceso", "Subproceso", "Periodicidad", "Sentido",
+                    "Fecha", "Periodo", "Meta_fmt", "Ejecucion_fmt", "Cumplimiento %", "Nivel"]
         _cols_cc = [c for c in _COLS_CC if c in _dfc2.columns]
         _df_cc_show = _dfc2[_cols_cc].copy()
         if "Fecha" in _df_cc_show.columns:
@@ -1516,8 +1600,11 @@ with tab_cierres:
             _df_cc_show.style.apply(_estilo_cierres, axis=1),
             use_container_width=True, hide_index=True,
             column_config={
-                "Indicador": st.column_config.TextColumn("Indicador", width="large"),
-                "Nivel":     st.column_config.TextColumn("Nivel",     width="medium"),
+                "Indicador":     st.column_config.TextColumn("Indicador",  width="large"),
+                "Subproceso":    st.column_config.TextColumn("Subproceso", width="medium"),
+                "Meta_fmt":      st.column_config.TextColumn("Meta",       width="small"),
+                "Ejecucion_fmt": st.column_config.TextColumn("Ejecución",  width="small"),
+                "Nivel":         st.column_config.TextColumn("Nivel",      width="medium"),
             },
         )
         st.download_button(
