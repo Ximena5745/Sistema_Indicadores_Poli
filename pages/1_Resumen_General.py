@@ -444,8 +444,8 @@ def _cargar_historico_detalle() -> pd.DataFrame:
 
 def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.DataFrame:
     """
-    Selecciona los datos según el año y mes seleccionados.
-    Para cada indicador, toma el último registro disponible hasta esa fecha.
+    Selecciona indicadores que tienen un registro en el mes+año indicados.
+    Para cada indicador toma el último registro dentro de ese período.
     Solo incluye indicadores que existen en los archivos de Kawak.
     """
     if df_all.empty:
@@ -455,13 +455,26 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     kawak_df = _cargar_kawak_por_anio(anio)
 
     mes_num = _MES_NUM.get(mes, 12)
-    ultimo_dia_mes = calendar.monthrange(anio, mes_num)[1]
-    fecha_corte = pd.Timestamp(anio, mes_num, ultimo_dia_mes, 23, 59, 59)
 
-    df_filtrado = df_all[df_all["fecha"].notna() & (df_all["fecha"] <= fecha_corte)].copy()
+    # Filtrar SOLO registros del mes+año seleccionado
+    df_filtrado = df_all[
+        df_all["fecha"].notna()
+        & (df_all["fecha"].dt.year == anio)
+        & (df_all["fecha"].dt.month == mes_num)
+    ].copy()
 
     if df_filtrado.empty:
-        df_filtrado = df_all.copy()
+        # Fallback: tomar el semestre correspondiente (para indicadores semestrales)
+        semestre = 1 if mes_num <= 6 else 2
+        meses_sem = list(range(1, 7)) if semestre == 1 else list(range(7, 13))
+        df_filtrado = df_all[
+            df_all["fecha"].notna()
+            & (df_all["fecha"].dt.year == anio)
+            & (df_all["fecha"].dt.month.isin(meses_sem))
+        ].copy()
+
+    if df_filtrado.empty:
+        return df_all.head(0)  # DataFrame vacío con mismas columnas
 
     if not kawak_df.empty:
         df_filtrado = df_filtrado[df_filtrado["Id"].isin(kawak_df["Id"].tolist())]
@@ -894,24 +907,25 @@ metricas = [
 kc = st.columns(len(metricas))
 for i, (label, val, val_prev) in enumerate(metricas):
     border_c, bg_c = _CARD_COLORS.get(label, ("#9E9E9E", "#F5F5F5"))
-    pct_str = f"{round(val/total*100,1)}%" if total and label != "Total" else ""
-    delta_html = ""
+    _lines = [
+        f'<span style="font-size:0.8rem;color:{border_c};font-weight:600">{label}</span>',
+        f'<span style="font-size:1.8rem;font-weight:700;color:{border_c}">{val}</span>',
+    ]
+    if total and label != "Total":
+        _lines.append(f'<span style="font-size:0.75rem;color:#666">{round(val/total*100,1)}%</span>')
     if val_prev is not None and label != "Total":
         delta = val - val_prev
         d_color = "#43A047" if delta <= 0 and label in ("Peligro",) else (
                   "#D32F2F" if delta > 0 and label in ("Peligro",) else (
                   "#43A047" if delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento") else (
                   "#D32F2F" if delta < 0 and label in ("Cumplimiento", "Sobrecumplimiento") else "#666")))
-        delta_html = f'<span style="font-size:0.75rem;color:{d_color}">{delta:+d} vs ant.</span>'
+        _lines.append(f'<span style="font-size:0.75rem;color:{d_color}">{delta:+d} vs ant.</span>')
+    _body = "<br>".join(_lines)
     with kc[i]:
         st.markdown(
-            f"""<div style="border-left:4px solid {border_c};background:{bg_c};
-                border-radius:8px;padding:12px;text-align:center;">
-                <span style="font-size:0.8rem;color:{border_c};font-weight:600">{label}</span><br>
-                <span style="font-size:1.8rem;font-weight:700;color:{border_c}">{val}</span><br>
-                <span style="font-size:0.75rem;color:#666">{pct_str}</span><br>
-                {delta_html}
-            </div>""",
+            f'<div style="border-left:4px solid {border_c};background:{bg_c};'
+            f'border-radius:8px;padding:12px;text-align:center;">'
+            f'{_body}</div>',
             unsafe_allow_html=True,
         )
 
