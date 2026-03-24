@@ -23,7 +23,8 @@ import streamlit as st
 
 from components.charts import exportar_excel, panel_detalle_indicador
 from services.data_loader import cargar_dataset, _cargar_mapa_proceso_padre, _ascii_lower
-from core.niveles import NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, nivel_desde_pct
+from core.niveles import (NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, nivel_desde_pct,
+                          UMBRAL_SOBRECUMPLIMIENTO_DEC)
 
 # ── Rutas ─────────────────────────────────────────────────────────────────────
 from pathlib import Path
@@ -128,12 +129,18 @@ def _nivel(row) -> str:
             return "Peligro"
         if alerta_kwk is not None and ejec < alerta_kwk:
             return "Alerta"
+        # Verificar sobrecumplimiento por porcentaje
+        c_kwk = _to_num(row.get("cumplimiento", ""))
+        if c_kwk is not None and c_kwk >= UMBRAL_SOBRECUMPLIMIENTO_DEC:
+            return "Sobrecumplimiento"
         return "Cumplimiento"
 
     # Fallback estándar: cumplimiento porcentual
     c = _to_num(row.get("cumplimiento", ""))
     if c is None:
         return _PEND
+    if c >= UMBRAL_SOBRECUMPLIMIENTO_DEC:
+        return "Sobrecumplimiento"
     return nivel_desde_pct(c * 100)
 
 
@@ -1010,8 +1017,8 @@ _CARD_COLORS = {
     "Peligro":            ("#D32F2F", "#FFCDD2"),
     "Alerta":             ("#F57F17", "#FFF8E1"),
     "Cumplimiento":       ("#43A047", "#E8F5E9"),
-    "Sobrecumplimiento":  ("#1565C0", "#E3F2FD"),
-    "No aplica":          ("#78909C", "#ECEFF1"),
+    "Sobrecumplimiento":  ("#6699FF", "#EEF2FF"),
+    "No aplica":          ("#BDBDBD", "#F9F9F9"),
     "Pendiente":          ("#9E9E9E", "#F5F5F5"),
 }
 metricas = [
