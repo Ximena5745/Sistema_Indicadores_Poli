@@ -1,6 +1,10 @@
 """
 Script para actualizar Resultados Consolidados.xlsx
-Versión 5 - Manejo correcto de registros "No Aplica"
+Versión 7 - Lee desde Fuentes Consolidadas (consolidar_api.py)
+
+REQUISITO: ejecutar primero  python scripts/consolidar_api.py
+  → genera data/raw/Fuentes Consolidadas/Indicadores Kawak.xlsx
+  → genera data/raw/Fuentes Consolidadas/Consolidado_API_Kawak.xlsx
 
 ═══════════════════════════════════════════════════════════════════════
 QUÉ ES "No Aplica":
@@ -97,6 +101,59 @@ def _build_col_map(ws):
             if campo:
                 cm[campo] = cell.column
     return cm
+
+
+def _materializar_cumplimiento(ws):
+    """
+    Recalcula Cumplimiento y Cumplimiento Real para TODAS las filas usando los
+    valores reales de Meta, Ejecucion y Sentido de la misma fila.
+
+    Por qué recalcular todas (no solo las fórmulas):
+      - El archivo fuente tiene fórmulas como =IFERROR(IF(OR(J1372=0,K1372=""),...))
+      - Tras inserciones/borrados, J1372 puede apuntar a una fila DISTINTA al indicador
+        de esa celda → porcentajes incorrectos entre hojas para el mismo dato.
+      - La única forma confiable es calcular en Python usando los valores de la misma fila.
+    """
+    cm = _build_col_map(ws)
+    idx_meta    = cm.get('Meta')
+    idx_ejec    = cm.get('Ejecucion')
+    idx_sentido = cm.get('Sentido')
+    idx_cumpl   = cm.get('Cumplimiento')
+    idx_cumplr  = cm.get('CumplReal')
+    if not (idx_meta and idx_ejec and idx_sentido and idx_cumpl):
+        return
+    n_ok = n_vacio = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        meta    = row[idx_meta    - 1].value
+        ejec    = row[idx_ejec    - 1].value
+        sentido = row[idx_sentido - 1].value or 'Positivo'
+
+        # Si Meta o Ejecucion son fórmulas sin evaluar, no podemos computar
+        if (isinstance(meta, str) and meta.startswith('=')) or \
+           (isinstance(ejec, str) and ejec.startswith('=')):
+            continue
+
+        cumpl_capped, cumpl_real = _calc_cumpl(meta, ejec, str(sentido))
+
+        c_cumpl = row[idx_cumpl - 1]
+        c_cumpl.value = cumpl_capped   # None cuando no aplica (ejec vacío, meta=0, etc.)
+        if cumpl_capped is not None:
+            c_cumpl.number_format = '0.00%'
+
+        if idx_cumplr:
+            c_cumplr = row[idx_cumplr - 1]
+            c_cumplr.value = cumpl_real
+            if cumpl_real is not None:
+                c_cumplr.number_format = '0.00%'
+
+        if cumpl_capped is not None:
+            n_ok += 1
+        else:
+            n_vacio += 1
+
+    print(f"    [{ws.title}] Cumplimiento recalculado: {n_ok} con valor, {n_vacio} vacíos (No Aplica / sin dato).")
 
 
 def _materializar_formula_año(ws):
@@ -595,21 +652,22 @@ def determinar_meta_ejec(row_api, hist_meta_escala, patron_cfg=None):
 # CARGA DE FUENTES
 # ─────────────────────────────────────────────────────────────────────
 
-def cargar_api(years=(2022, 2023, 2024, 2025)):
-    frames = []
-    for y in years:
-        path = BASE_PATH / "API" / f"{y}.xlsx"
-        if not path.exists():
-            continue
-        df = pd.read_excel(path)
-        df['año_archivo'] = y
-        frames.append(df)
-    if not frames:
+def cargar_fuente_consolidada():
+    """
+    Lee Consolidado_API_Kawak.xlsx (generado por consolidar_api.py) como fuente
+    principal de datos.  Reemplaza la lectura directa de data/raw/API/*.xlsx.
+
+    Requisito: ejecutar primero  python scripts/consolidar_api.py
+    """
+    if not CONSOLIDADO_API_KW.exists():
+        print(f"  [ERROR] No se encontró {CONSOLIDADO_API_KW}.\n"
+              f"          Ejecutar primero: python scripts/consolidar_api.py")
         return pd.DataFrame()
-    df = pd.concat(frames, ignore_index=True)
+    df = pd.read_excel(CONSOLIDADO_API_KW)
     df = df.dropna(subset=['fecha'])
     df['fecha'] = pd.to_datetime(df['fecha'])
-    df['clasificacion'] = df['clasificacion'].apply(limpiar_clasificacion)
+    if 'clasificacion' in df.columns:
+        df['clasificacion'] = df['clasificacion'].apply(limpiar_clasificacion)
     df = df.rename(columns={
         'ID': 'Id', 'nombre': 'Indicador', 'proceso': 'Proceso',
         'frecuencia': 'Periodicidad', 'sentido': 'Sentido',
@@ -832,48 +890,64 @@ def cargar_kawak_2025():
 # ─────────────────────────────────────────────────────────────────────
 
 def cargar_metadatos_kawak():
+    """
+    Lee metadatos desde Indicadores Kawak.xlsx (Fuentes Consolidadas,
+    generado por consolidar_api.py) + Kawak/2025.xlsx para TipoCalculo.
+    """
     meta = {}
-    for y in [2021, 2022, 2023, 2024]:
-        path = BASE_PATH / "Kawak" / f"{y}.xlsx"
-        if not path.exists():
-            continue
-        df      = pd.read_excel(path)
-        id_col  = 'ID' if 'ID' in df.columns else 'Id'
-        per_col = ('frecuencia' if 'frecuencia' in df.columns else
-                   'Periodicidad' if 'Periodicidad' in df.columns else None)
-        for _, row in df.drop_duplicates(id_col).iterrows():
-            id_val = row.get(id_col)
-            if pd.isna(id_val):
-                continue
-            ids = _id_str(id_val)
-            meta[ids] = {
-                'nombre':        limpiar_html(str(row.get('nombre', row.get('Indicador', '')))),
-                'clasificacion': limpiar_clasificacion(
-                                     str(row.get('clasificacion', row.get('Clasificacion', '')))),
-                'proceso':       limpiar_html(str(row.get('proceso', row.get('Proceso', '')))),
-                'periodicidad':  str(row.get(per_col, '')) if per_col else '',
-                'sentido':       str(row.get('sentido', row.get('Sentido', ''))),
-                'tipo_calculo':  '',
-            }
+
+    # Fuente principal: Indicadores Kawak.xlsx (Fuentes Consolidadas)
+    if KAWAK_CAT_FILE.exists():
+        try:
+            df = pd.read_excel(KAWAK_CAT_FILE)
+            df.columns = [str(c).strip() for c in df.columns]
+            col_id   = next((c for c in df.columns if c.lower() == 'id'), None)
+            col_ind  = next((c for c in df.columns if c.lower() == 'indicador'), None)
+            col_clas = next((c for c in df.columns if 'clasificaci' in c.lower()), None)
+            col_proc = next((c for c in df.columns if c.lower() == 'proceso'), None)
+            col_per  = next((c for c in df.columns if c.lower() == 'periodicidad'), None)
+            col_sent = next((c for c in df.columns if c.lower() == 'sentido'), None)
+            for _, row in df.iterrows():
+                id_val = row.get(col_id) if col_id else None
+                if pd.isna(id_val):
+                    continue
+                ids = _id_str(id_val)
+                meta[ids] = {
+                    'nombre':        limpiar_html(str(row.get(col_ind, '')))  if col_ind  else '',
+                    'clasificacion': limpiar_clasificacion(
+                                         str(row.get(col_clas, ''))) if col_clas else '',
+                    'proceso':       limpiar_html(str(row.get(col_proc, ''))) if col_proc else '',
+                    'periodicidad':  str(row.get(col_per, ''))  if col_per  else '',
+                    'sentido':       str(row.get(col_sent, '')) if col_sent else '',
+                    'tipo_calculo':  '',
+                }
+        except Exception as e:
+            print(f"  [AVISO] Error leyendo {KAWAK_CAT_FILE.name}: {e}")
+
+    # Complementar con Kawak/2025.xlsx para TipoCalculo (no disponible en catálogo)
     path25 = BASE_PATH / "Kawak" / "2025.xlsx"
     if path25.exists():
-        df25     = pd.read_excel(path25)
-        clas_col = next((c for c in df25.columns if 'Clasificaci' in c), None)
-        tc_col   = next((c for c in df25.columns if 'Tipo de calculo' in c), None)
-        for _, row in df25.drop_duplicates('Id').iterrows():
-            id_val = row.get('Id')
-            if pd.isna(id_val):
-                continue
-            ids = _id_str(id_val)
-            meta[ids] = {
-                'nombre':        limpiar_html(str(row.get('Indicador', ''))),
-                'clasificacion': limpiar_clasificacion(
-                                     str(row.get(clas_col, '')) if clas_col else ''),
-                'proceso':       limpiar_html(str(row.get('Proceso', ''))),
-                'periodicidad':  str(row.get('Periodicidad', '')),
-                'sentido':       str(row.get('Sentido', '')),
-                'tipo_calculo':  str(row.get(tc_col, '')) if tc_col else '',
-            }
+        try:
+            df25     = pd.read_excel(path25)
+            clas_col = next((c for c in df25.columns if 'Clasificaci' in c), None)
+            tc_col   = next((c for c in df25.columns if 'Tipo de calculo' in c), None)
+            for _, row in df25.drop_duplicates('Id').iterrows():
+                id_val = row.get('Id')
+                if pd.isna(id_val):
+                    continue
+                ids = _id_str(id_val)
+                meta[ids] = {
+                    'nombre':        limpiar_html(str(row.get('Indicador', ''))),
+                    'clasificacion': limpiar_clasificacion(
+                                         str(row.get(clas_col, '')) if clas_col else ''),
+                    'proceso':       limpiar_html(str(row.get('Proceso', ''))),
+                    'periodicidad':  str(row.get('Periodicidad', '')),
+                    'sentido':       str(row.get('Sentido', '')),
+                    'tipo_calculo':  str(row.get(tc_col, '')) if tc_col else '',
+                }
+        except Exception as e:
+            print(f"  [AVISO] Error leyendo Kawak/2025.xlsx: {e}")
+
     return meta
 
 
@@ -1156,6 +1230,12 @@ def obtener_signos(df_hist, df_sem, df_cierres):
 #   Cuando K (Ejecución) es None/vacío, =IFERROR(...,"") devuelve ""
 #   porque la división K/J falla → IFERROR captura el error → ""
 #   Esto es correcto: no se muestra 0% sino celda vacía.
+#
+# IMPORTANTE: openpyxl NO ajusta referencias de fórmulas al eliminar filas.
+#   Si se borra la fila 50, la celda que estaba en fila 100 pasa a fila 99,
+#   pero su fórmula sigue diciendo =YEAR(F100) → apunta a datos de OTRA fila.
+#   Por eso _reescribir_formulas() debe ejecutarse DESPUÉS de toda
+#   eliminación/inserción de filas.
 
 def formula_G(r): return f"=YEAR(F{r})"
 def formula_H(r): return f'=PROPER(TEXT(F{r},"mmmm"))'
@@ -1180,6 +1260,49 @@ def formula_R(r):
     return (f'=A{r}&"-"&YEAR(F{r})&"-"'
             f'&IF(LEN(MONTH(F{r}))=1,"0"&MONTH(F{r}),MONTH(F{r}))'
             f'&"-"&IF(LEN(DAY(F{r}))=1,"0"&DAY(F{r}),DAY(F{r}))')
+
+
+def _reescribir_formulas(ws):
+    """
+    Reescribe las fórmulas de las 6 columnas derivadas (Año, Mes, Periodo,
+    Cumplimiento, Cumplimiento Real, LLAVE) usando el número de fila ACTUAL.
+
+    OBLIGATORIO ejecutar después de TODA eliminación/inserción de filas,
+    porque openpyxl NO ajusta las referencias de fórmulas al borrar filas.
+    """
+    cm = _build_col_map(ws)
+    idx_anio   = cm.get('Anio')
+    idx_mes    = cm.get('Mes')
+    idx_sem    = cm.get('Semestre')
+    idx_cumpl  = cm.get('Cumplimiento')
+    idx_cumplr = cm.get('CumplReal')
+    idx_llave  = cm.get('LLAVE')
+
+    n = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        r = row[0].row
+
+        if idx_anio:
+            ws.cell(r, idx_anio).value = formula_G(r)
+        if idx_mes:
+            ws.cell(r, idx_mes).value = formula_H(r)
+        if idx_sem:
+            ws.cell(r, idx_sem).value = formula_I(r)
+        if idx_cumpl:
+            c = ws.cell(r, idx_cumpl)
+            c.value = formula_L(r)
+            c.number_format = '0.00%'
+        if idx_cumplr:
+            c = ws.cell(r, idx_cumplr)
+            c.value = formula_M(r)
+            c.number_format = '0.00%'
+        if idx_llave:
+            ws.cell(r, idx_llave).value = formula_R(r)
+        n += 1
+
+    print(f"    [{ws.title}] Fórmulas reescritas en {n:,} filas.")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1383,6 +1506,31 @@ def limpiar_cierres_existentes(ws):
 # ESCRITURA DE FILAS
 # ─────────────────────────────────────────────────────────────────────
 
+def _validar_col_formulas(cm, nombre_hoja=''):
+    """
+    Verifica que las columnas usadas por las fórmulas Excel coincidan
+    con las posiciones hardcodeadas (A=Id, E=Sentido, F=Fecha, G=Año,
+    H=Mes, I=Semestre, J=Meta, K=Ejecucion, R=LLAVE).
+    Lanza error si hay desalineación para evitar fórmulas corruptas.
+    """
+    esperado = {
+        'Id': 1, 'Sentido': 5, 'Fecha': 6, 'Anio': 7, 'Mes': 8,
+        'Semestre': 9, 'Meta': 10, 'Ejecucion': 11, 'Cumplimiento': 12,
+        'CumplReal': 13, 'LLAVE': 18,
+    }
+    errores = []
+    for campo, col_esperada in esperado.items():
+        col_real = cm.get(campo)
+        if col_real is not None and col_real != col_esperada:
+            errores.append(f"    {campo}: esperada col {col_esperada}, "
+                           f"encontrada col {col_real}")
+    if errores:
+        msg = (f"  [ERROR] Columnas desalineadas en [{nombre_hoja}] — "
+               f"las fórmulas Excel usan letras fijas (A,E,F,G,H,I,J,K,R):\n"
+               + '\n'.join(errores))
+        raise ValueError(msg)
+
+
 def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
     """
     Escribe filas nuevas usando el mapa de columnas real de la hoja (no índices fijos).
@@ -1395,6 +1543,7 @@ def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
       +19=Tipo_Registro (agregado por el script)
     """
     cm = _build_col_map(ws)
+    _validar_col_formulas(cm, ws.title)
 
     def _set(r, campo, value, fmt=None):
         col = cm.get(campo)
@@ -1447,20 +1596,22 @@ def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
         _set(r, 'Sentido',     sentido)
         _set(r, 'Fecha',       fecha_val, 'YYYY-MM-DD')
 
-        if fecha_dt is not None:
-            _set(r, 'Anio',    fecha_dt.year)
-            _set(r, 'Mes',     MESES_ES.get(fecha_dt.month, ''))
-            _set(r, 'Semestre', f"{fecha_dt.year}-{1 if fecha_dt.month <= 6 else 2}")
+        # Columnas derivadas: se escriben como fórmulas Excel (igual que las filas existentes)
+        # para mantener consistencia visual al abrir el archivo en Excel.
+        # data_loader.py las recalcula en Python cuando las lee como NaN.
+        _set(r, 'Anio',    formula_G(r))
+        _set(r, 'Mes',     formula_H(r))
+        _set(r, 'Semestre', formula_I(r))
 
         _set(r, 'Meta',        meta)
         _set(r, 'Ejecucion',   ejec)
-        _set(r, 'Cumplimiento', cumpl_capped, '0.00%')
-        _set(r, 'CumplReal',   cumpl_real,   '0.00%')
+        _set(r, 'Cumplimiento', formula_L(r), '0.00%')
+        _set(r, 'CumplReal',   formula_M(r), '0.00%')
         _set(r, 'MetaS',       sg['meta_signo'])
         _set(r, 'EjecS',       ejec_signo)
         _set(r, 'DecMeta',     sg.get('dec_meta', 0))
         _set(r, 'DecEjec',     sg.get('dec_ejec', 0))
-        _set(r, 'LLAVE',       llave)
+        _set(r, 'LLAVE',       formula_R(r))
         _set(r, 'TipoRegistro', tipo_registro)
 
         r += 1
@@ -1716,29 +1867,24 @@ def construir_registros_cierres(df_fuente, hist_escalas,
 
 def main():
     print("=" * 65)
-    print("ACTUALIZANDO RESULTADOS CONSOLIDADOS - v6")
+    print("ACTUALIZANDO RESULTADOS CONSOLIDADOS - v7 (Fuentes Consolidadas)")
     print("=" * 65)
 
-    # ── 1. Cargar fuentes ──────────────────────────────────────────
-    print("\n[1] Cargando fuentes de datos...")
-    df_api = cargar_api()
-    print(f"  API (2022-2025):  {len(df_api):,} registros")
-    df_kawak21 = cargar_kawak_old((2021,))
-    print(f"  Kawak 2021:       {len(df_kawak21):,} registros")
+    # ── 1. Cargar fuentes (desde Fuentes Consolidadas) ─────────────
+    # Requisito: ejecutar primero  python scripts/consolidar_api.py
+    print("\n[1] Cargando fuentes de datos (Fuentes Consolidadas)...")
+    df_api = cargar_fuente_consolidada()
+    print(f"  Consolidado API:  {len(df_api):,} registros")
     df_kawak25 = cargar_kawak_2025()
     print(f"  Kawak 2025:       {len(df_kawak25):,} registros")
 
     cols_base = ['Id', 'Indicador', 'Proceso', 'Periodicidad', 'Sentido',
                  'resultado', 'meta', 'fecha', 'LLAVE', 'variables', 'series', 'analisis']
     for c in cols_base:
-        for df_ in [df_api, df_kawak21]:
-            if c not in df_.columns:
-                df_[c] = np.nan
+        if c not in df_api.columns:
+            df_api[c] = np.nan
 
-    partes = [df_api[cols_base]]
-    if len(df_kawak21) > 0:
-        partes.append(df_kawak21[cols_base])
-    df_fuente_api = (pd.concat(partes, ignore_index=True)
+    df_fuente_api = (df_api[cols_base].copy()
                        .drop_duplicates('LLAVE', keep='first')
                        .dropna(subset=['LLAVE']))
     print(f"  Fuente unificada: {len(df_fuente_api):,} registros")
@@ -1845,10 +1991,10 @@ def main():
     shutil.copy(INPUT_FILE, OUTPUT_FILE)
     wb = openpyxl.load_workbook(OUTPUT_FILE)
 
-    # Reemplazar fórmulas "=YEAR(Fx)" en columna Año con el valor numérico real
-    # (openpyxl lee fórmulas como strings; pandas no puede convertirlas a número)
-    for nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
-        _materializar_formula_año(wb[nombre_hoja])
+    # NOTA: Las columnas Año, Mes, Periodo, Cumplimiento, Cumplimiento Real y LLAVE
+    # conservan sus fórmulas Excel (no se convierten a valores estáticos).
+    # data_loader.py recalcula esas columnas en Python a partir de Meta/Ejecucion/Sentido/Fecha
+    # cuando pandas las lee como NaN (openpyxl no evalúa fórmulas al guardar).
 
     # Asegurar header Tipo_Registro al final de cada hoja (después de la última col con header)
     for nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
@@ -1984,7 +2130,16 @@ def main():
     deduplicar_sheet(wb['Consolidado Semestral'], 'Semestral')
     deduplicar_sheet(wb['Consolidado Cierres'],   'Cierres')
 
-    # ── 12. Guardar ───────────────────────────────────────────────
+    # ── 12. Reescribir fórmulas (CRÍTICO) ─────────────────────────
+    # openpyxl NO ajusta las referencias de fórmulas cuando se eliminan filas.
+    # Tras las purgas (paso 6b/6c) y deduplicación (paso 11), las fórmulas
+    # existentes apuntan a filas incorrectas.  Se reescriben TODAS con el
+    # número de fila actual para garantizar consistencia.
+    print("\n[12] Reescribiendo fórmulas con referencias correctas...")
+    for _nombre_hoja in ('Consolidado Historico', 'Consolidado Semestral', 'Consolidado Cierres'):
+        _reescribir_formulas(wb[_nombre_hoja])
+
+    # ── 13. Guardar ───────────────────────────────────────────────
     print(f"\nGuardando: {OUTPUT_FILE}")
     wb.save(OUTPUT_FILE)
     print("[OK] Guardado exitosamente.")

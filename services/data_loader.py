@@ -218,6 +218,45 @@ def cargar_dataset() -> pd.DataFrame:
             lambda x: _mapa_proc.get(_ascii_lower(str(x)), str(x).strip())
         )
 
+    # ── Reconstruir columnas derivadas de fórmulas Excel ─────────────────────
+    # El xlsx tiene fórmulas (=YEAR(F), =IFERROR(...), etc.) que openpyxl guarda
+    # sin evaluar → pandas las lee como NaN. Se recalculan aquí desde columnas base.
+
+    # Año, Mes, Periodo desde Fecha
+    if "Fecha" in df.columns:
+        _fecha = pd.to_datetime(df["Fecha"], errors="coerce")
+        _MESES_ES = {1:"Enero",2:"Febrero",3:"Marzo",4:"Abril",5:"Mayo",6:"Junio",
+                     7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"}
+        if "Año" in df.columns:
+            df["Año"] = df["Año"].fillna(_fecha.dt.year)
+        if "Mes" in df.columns:
+            df["Mes"] = df["Mes"].where(df["Mes"].notna() & (df["Mes"] != ""),
+                                        _fecha.dt.month.map(_MESES_ES))
+        if "Periodo" in df.columns:
+            _periodo_calc = _fecha.dt.year.astype("Int64").astype(str) + "-" + \
+                            _fecha.dt.month.apply(lambda m: "1" if m <= 6 else "2")
+            df["Periodo"] = df["Periodo"].where(
+                df["Periodo"].notna() & (df["Periodo"] != ""), _periodo_calc)
+
+    # Cumplimiento desde Meta / Ejecucion / Sentido
+    if "Cumplimiento" in df.columns and "Meta" in df.columns and "Ejecucion" in df.columns:
+        mask_nan = df["Cumplimiento"].isna()
+        if mask_nan.any():
+            def _recalc_cumpl(row):
+                try:
+                    m = float(row["Meta"])
+                    e = float(row["Ejecucion"])
+                except (TypeError, ValueError):
+                    return float("nan")
+                if m == 0 or pd.isna(m) or pd.isna(e):
+                    return float("nan")
+                sentido = str(row.get("Sentido", "Positivo"))
+                raw = (e / m) if sentido == "Positivo" else (m / e if e != 0 else float("nan"))
+                if pd.isna(raw):
+                    return float("nan")
+                return min(max(raw, 0.0), 1.3)
+            df.loc[mask_nan, "Cumplimiento"] = df[mask_nan].apply(_recalc_cumpl, axis=1)
+
     # ── Normalizar cumplimiento ───────────────────────────────────────────────
     if "Cumplimiento" in df.columns:
         df["Cumplimiento_norm"] = df["Cumplimiento"].apply(normalizar_cumplimiento)

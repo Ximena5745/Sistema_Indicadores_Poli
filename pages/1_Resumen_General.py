@@ -309,9 +309,16 @@ def _cargar_consolidados() -> pd.DataFrame:
     
     if "fecha" in df.columns:
         df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-        # Derivar Anio desde Fecha para evitar dependencia de fórmulas Excel cacheadas
-        df["Anio"] = df["fecha"].dt.year
-    
+        # Derivar Anio/Mes/Periodo desde Fecha — las fórmulas Excel no tienen caché al guardar
+        _fecha_s = df["fecha"]
+        df["Anio"] = _fecha_s.dt.year
+        _MESES_ES_P1 = {1:"Enero",2:"Febrero",3:"Marzo",4:"Abril",5:"Mayo",6:"Junio",
+                        7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",
+                        11:"Noviembre",12:"Diciembre"}
+        df["Mes"] = _fecha_s.dt.month.map(_MESES_ES_P1)
+        df["Periodo"] = (_fecha_s.dt.year.astype("Int64").astype(str) + "-" +
+                         _fecha_s.dt.month.apply(lambda m: "1" if pd.notna(m) and m <= 6 else "2"))
+
     # Normalizar columnas de cumplimiento (pueden venir vacías si son fórmulas Excel sin caché)
     if "cumplimiento" in df.columns:
         df["cumplimiento"] = pd.to_numeric(df["cumplimiento"], errors="coerce")
