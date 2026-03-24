@@ -419,19 +419,32 @@ if _f_vic_seg and "Vicerrectoria" in df_con.columns:
 st.markdown("---")
 
 # ── Pre-cálculo de reporte por período (dinámico según Año/Mes) ─────────────
-_stats_por_perio = []  # [{nombre, total, reportados, pendientes}]
+# Solo se cuentan indicadores cuya periodicidad tiene columnas en el rango
+# seleccionado. Si una periodicidad no tiene columnas para el mes elegido,
+# sus indicadores NO deben reportar ese mes → se excluyen del conteo.
+_stats_por_perio = []  # [{nombre, total, reportados, pendientes, aplica}]
 for _p in perios:
     _df_tmp = _p["df"]
-    _cols_filt = _filtrar_cols_periodo(_p["cols_periodo"]) or _p["cols_periodo"]
-    _mask_rep = _reporte_desde_periodos(_df_tmp, _cols_filt)
-    _n_rep = int(_mask_rep.sum())
-    _stats_por_perio.append({
-        "nombre": _p["nombre"], "total": len(_df_tmp),
-        "reportados": _n_rep, "pendientes": len(_df_tmp) - _n_rep,
-    })
-_total_global = sum(s["total"] for s in _stats_por_perio)
-_rep_global   = sum(s["reportados"] for s in _stats_por_perio)
-_pen_global   = sum(s["pendientes"] for s in _stats_por_perio)
+    _cols_filt = _filtrar_cols_periodo(_p["cols_periodo"])
+    _aplica = len(_cols_filt) > 0  # ¿esta periodicidad tiene período en el rango?
+    if _aplica:
+        _mask_rep = _reporte_desde_periodos(_df_tmp, _cols_filt)
+        _n_rep = int(_mask_rep.sum())
+        _stats_por_perio.append({
+            "nombre": _p["nombre"], "total": len(_df_tmp),
+            "reportados": _n_rep, "pendientes": len(_df_tmp) - _n_rep,
+            "aplica": True,
+        })
+    else:
+        # No aplica para el período seleccionado → no contar
+        _stats_por_perio.append({
+            "nombre": _p["nombre"], "total": len(_df_tmp),
+            "reportados": 0, "pendientes": 0, "aplica": False,
+        })
+_stats_aplica = [s for s in _stats_por_perio if s["aplica"]]
+_total_global = sum(s["total"] for s in _stats_aplica)
+_rep_global   = sum(s["reportados"] for s in _stats_aplica)
+_pen_global   = sum(s["pendientes"] for s in _stats_aplica)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
@@ -493,19 +506,27 @@ with tabs[0]:
                 "nombre": "Periodicidad", "total": "Total indicadores",
                 "reportados": "Reportados", "pendientes": "Pendientes",
             })
-            per_agg["% Reporte"] = (per_agg["Reportados"] / per_agg["Total indicadores"] * 100).round(1).astype(str) + "%"
+            # Solo mostrar % reporte donde aplica; las demás → "N/A"
+            per_agg["% Reporte"] = per_agg.apply(
+                lambda r: f"{round(r['Reportados'] / r['Total indicadores'] * 100, 1)}%"
+                if r["aplica"] and r["Total indicadores"] > 0
+                else "No aplica", axis=1
+            )
 
+            # Gráfico solo con periodicidades que aplican
+            _per_chart = per_agg[per_agg["aplica"]].copy()
             fig_per = go.Figure()
-            fig_per.add_trace(go.Bar(
-                x=per_agg["Periodicidad"], y=per_agg["Reportados"],
-                name="Reportados", marker_color=CORP["reportado"],
-                text=per_agg["Reportados"], textposition="outside",
-            ))
-            fig_per.add_trace(go.Bar(
-                x=per_agg["Periodicidad"], y=per_agg["Pendientes"],
-                name="Pendientes", marker_color=CORP["pendiente"],
-                text=per_agg["Pendientes"], textposition="outside",
-            ))
+            if not _per_chart.empty:
+                fig_per.add_trace(go.Bar(
+                    x=_per_chart["Periodicidad"], y=_per_chart["Reportados"],
+                    name="Reportados", marker_color=CORP["reportado"],
+                    text=_per_chart["Reportados"], textposition="outside",
+                ))
+                fig_per.add_trace(go.Bar(
+                    x=_per_chart["Periodicidad"], y=_per_chart["Pendientes"],
+                    name="Pendientes", marker_color=CORP["pendiente"],
+                    text=_per_chart["Pendientes"], textposition="outside",
+                ))
             fig_per.update_layout(
                 barmode="group", height=280,
                 xaxis_title="Periodicidad", yaxis_title="Indicadores",
@@ -514,7 +535,8 @@ with tabs[0]:
                 margin=dict(t=15, b=80),
             )
             st.plotly_chart(fig_per, use_container_width=True)
-            st.dataframe(per_agg, use_container_width=True, hide_index=True)
+            _cols_tabla_per = [c for c in per_agg.columns if c != "aplica"]
+            st.dataframe(per_agg[_cols_tabla_per], use_container_width=True, hide_index=True)
 
     st.markdown("---")
 
@@ -797,6 +819,11 @@ for tab_idx, perio in enumerate(perios, 2):
         COL_R = "Reportado"
         # KPIs dinámicos: calculados desde columnas de período filtradas
         _sp = _stats_por_perio[tab_idx - 2]
+
+        if not _sp["aplica"]:
+            _periodo_txt = f"{_meses_es.get(_mes_sel_num, '')} {_año_sel}" if _mes_sel_num else str(_año_sel)
+            st.info(f"Los indicadores **{nombre_p}** no tienen período de reporte en **{_periodo_txt}**.")
+
         total_p   = _sp["total"]
         n_rep_p   = _sp["reportados"]
         n_pen_p   = _sp["pendientes"]
