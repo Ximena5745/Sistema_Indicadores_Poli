@@ -198,15 +198,18 @@ def _modal_registro_om(id_indicador: str):
         anio_sel = st.selectbox("Año *", options=anios_f, index=anio_idx,
                                 key=f"gom_anio_{recarga}")
 
-        # Periodo
+        # Mes del registro
+        _MESES_ORDEN = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                        "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
         df_per = df_raw[df_raw["Anio"] == anio_sel] if "Anio" in df_raw.columns else df_raw
-        periodos = sorted(df_per["Periodo"].dropna().unique().tolist()) \
-                   if "Periodo" in df_per.columns else []
+        meses_disp_modal = [m for m in _MESES_ORDEN
+                            if m in df_per["Mes"].dropna().unique().tolist()] \
+                           if "Mes" in df_per.columns else _MESES_ORDEN
         edit_data      = reg_existente or {}
         periodo_presel = edit_data.get("periodo", "")
-        per_opts       = ["— Selecciona —"] + periodos
+        per_opts       = ["— Selecciona —"] + meses_disp_modal
         per_idx        = per_opts.index(periodo_presel) if periodo_presel in per_opts else 0
-        periodo_sel    = st.selectbox("Periodo *", options=per_opts, index=per_idx,
+        periodo_sel    = st.selectbox("Mes *", options=per_opts, index=per_idx,
                                       key=f"gom_periodo_{recarga}")
         periodo_val    = periodo_sel if periodo_sel != "— Selecciona —" else None
 
@@ -257,7 +260,7 @@ def _modal_registro_om(id_indicador: str):
         # Validación
         errores = []
         if periodo_val is None:
-            errores.append("Selecciona un periodo.")
+            errores.append("Selecciona un mes.")
         if tiene_om_radio == "SI" and (numero_om is None or numero_om < 1):
             errores.append("Ingresa un número de OM válido.")
         if tiene_om_radio == "NO" and len(comentario) < 20:
@@ -551,7 +554,7 @@ with tab1:
         bg = NIVEL_BG.get(str(row.get("Categoria", "")), "")
         return [f"background-color:{bg}" if c == "Categoria" else "" for c in row.index]
 
-    cols_show = ["Id", "Indicador", "Proceso", "Periodicidad", "Periodo",
+    cols_show = ["Id", "Indicador", "Proceso", "Periodicidad", "Mes",
                  "Cumplimiento%", "Categoria", "Períodos en riesgo", "Estado OM", "N° OM"]
     cols_disp = [c for c in cols_show if c in df_tabla.columns]
 
@@ -580,8 +583,12 @@ with tab1:
     if ev_tabla and ev_tabla.selection and ev_tabla.selection.get("rows"):
         idx = ev_tabla.selection["rows"][0]
         if "Id" in df_tabla.columns:
-            st.session_state.gom_modal_id = df_tabla["Id"].iloc[idx]
-            st.rerun()
+            selected_id = df_tabla["Id"].iloc[idx]
+            # Solo rerun si cambió la selección; evita loop infinito porque
+            # la selección del widget persiste entre reruns.
+            if st.session_state.gom_modal_id != selected_id:
+                st.session_state.gom_modal_id = selected_id
+                st.rerun()
 
     # ── Abrir modal si hay indicador seleccionado ──────────────────────────────
     if st.session_state.gom_modal_id:
