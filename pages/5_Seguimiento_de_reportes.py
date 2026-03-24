@@ -82,18 +82,21 @@ def _col_nombre(df):
 def _estilo_estado(row):
     estilos = []
     for col in row.index:
+        val = str(row[col]).strip()
         if col == "Estado del indicador":
-            bg = COLOR_ESTADO.get(str(row[col]), "")
+            bg = COLOR_ESTADO.get(val, "")
         elif col == "Reportado":
-            bg = COLOR_REPORTADO.get(str(row[col]), "")
+            bg = COLOR_REPORTADO.get(val, "")
         else:
-            bg = ""
+            # Columnas de período (fechas) con Si/No
+            bg = COLOR_REPORTADO.get(val, "")
         estilos.append(f"background-color: {bg}" if bg else "")
     return estilos
 
 
 def _aplicar_filtros_tabla(df: pd.DataFrame, txt_id: str, txt_nombre: str,
-                           sel_proc: str, sel_sub: str, sel_estado: str) -> pd.DataFrame:
+                           sel_vic: str, sel_proc: str, sel_sub: str,
+                           sel_estado: str) -> pd.DataFrame:
     mask = pd.Series(True, index=df.index)
     if txt_id.strip() and "Id" in df.columns:
         mask &= df["Id"].astype(str).str.contains(txt_id.strip(), case=False, na=False)
@@ -101,6 +104,8 @@ def _aplicar_filtros_tabla(df: pd.DataFrame, txt_id: str, txt_nombre: str,
         col_nom = next((c for c in ["Indicador", "Nombre"] if c in df.columns), None)
         if col_nom:
             mask &= df[col_nom].astype(str).str.contains(txt_nombre.strip(), case=False, na=False)
+    if sel_vic and "Vicerrectoria" in df.columns:
+        mask &= df["Vicerrectoria"] == sel_vic
     if sel_proc and "Proceso" in df.columns:
         mask &= df["Proceso"] == sel_proc
     if sel_sub and "Subproceso" in df.columns:
@@ -111,45 +116,54 @@ def _aplicar_filtros_tabla(df: pd.DataFrame, txt_id: str, txt_nombre: str,
 
 
 def _filtros_cascada(df: pd.DataFrame, prefix: str):
-    """Filtros: ID, Nombre, Proceso (dropdown), Subproceso (dinámico), Estado.
-    Subproceso es dependiente de Proceso: al cambiar Proceso se resetea automáticamente.
-    """
-    # Cascada: si Proceso cambió desde el último render, resetear Subproceso
-    _prev_key = f"{prefix}_prev_proc"
+    """Filtros: Unidad → Proceso → Subproceso (cascada) + ID, Nombre, Estado."""
+    # Cascada: resetear dependientes al cambiar padre
+    _prev_vic  = f"{prefix}_prev_vic"
+    _prev_proc = f"{prefix}_prev_proc"
+    _curr_vic  = st.session_state.get(f"{prefix}_vic", "")
     _curr_proc = st.session_state.get(f"{prefix}_proc", "")
-    if _curr_proc != st.session_state.get(_prev_key, "___unset___"):
+    if _curr_vic != st.session_state.get(_prev_vic, "___unset___"):
+        st.session_state[f"{prefix}_proc"] = ""
+        st.session_state[f"{prefix}_sub"]  = ""
+        st.session_state[_prev_vic] = _curr_vic
+    if _curr_proc != st.session_state.get(_prev_proc, "___unset___"):
         st.session_state[f"{prefix}_sub"] = ""
-        st.session_state[_prev_key] = _curr_proc
+        st.session_state[_prev_proc] = _curr_proc
 
-    with st.expander("🔍 Filtros adicionales", expanded=True):
-        r1c1, r1c2 = st.columns(2)
+    with st.expander("🔍 Filtros", expanded=True):
+        # Fila 1: Unidad → Proceso → Subproceso
+        r1c1, r1c2, r1c3 = st.columns(3)
         with r1c1:
-            txt_id = st.text_input("ID", key=f"{prefix}_id", placeholder="Buscar ID...")
+            opts_vic = [""] + (sorted(df["Vicerrectoria"].dropna().unique().tolist())
+                               if "Vicerrectoria" in df.columns else [])
+            sel_vic = st.selectbox("Unidad / Vicerrectoría", opts_vic, key=f"{prefix}_vic",
+                                   format_func=lambda x: "— Todas —" if x == "" else x)
         with r1c2:
-            txt_nom = st.text_input("Nombre del indicador", key=f"{prefix}_nom",
-                                    placeholder="Buscar nombre...")
-        r2c1, r2c2, r2c3 = st.columns(3)
-        with r2c1:
-            opts_proc = [""] + sorted(df["Proceso"].dropna().unique().tolist()) \
-                        if "Proceso" in df.columns else [""]
+            _df_proc = df[df["Vicerrectoria"] == sel_vic] if sel_vic and "Vicerrectoria" in df.columns else df
+            opts_proc = [""] + (sorted(_df_proc["Proceso"].dropna().unique().tolist())
+                                if "Proceso" in _df_proc.columns else [])
             sel_proc = st.selectbox("Proceso", opts_proc, key=f"{prefix}_proc",
                                     format_func=lambda x: "— Todos —" if x == "" else x)
-        with r2c2:
-            if sel_proc and "Proceso" in df.columns and "Subproceso" in df.columns:
-                sub_opts = [""] + sorted(
-                    df.loc[df["Proceso"] == sel_proc, "Subproceso"].dropna().unique().tolist()
-                )
-            else:
-                sub_opts = [""] + (sorted(df["Subproceso"].dropna().unique().tolist())
-                                   if "Subproceso" in df.columns else [])
+        with r1c3:
+            _df_sub = _df_proc[_df_proc["Proceso"] == sel_proc] if sel_proc and "Proceso" in _df_proc.columns else _df_proc
+            sub_opts = [""] + (sorted(_df_sub["Subproceso"].dropna().unique().tolist())
+                               if "Subproceso" in _df_sub.columns else [])
             sel_sub = st.selectbox("Subproceso", sub_opts, key=f"{prefix}_sub",
                                    format_func=lambda x: "— Todos —" if x == "" else x)
+
+        # Fila 2: ID, Nombre, Estado
+        r2c1, r2c2, r2c3 = st.columns(3)
+        with r2c1:
+            txt_id = st.text_input("ID", key=f"{prefix}_id", placeholder="Buscar ID...")
+        with r2c2:
+            txt_nom = st.text_input("Indicador", key=f"{prefix}_nom",
+                                    placeholder="Buscar nombre...")
         with r2c3:
-            opts_est = [""] + sorted(df["Estado del indicador"].dropna().unique().tolist()) \
-                       if "Estado del indicador" in df.columns else [""]
+            opts_est = [""] + (sorted(df["Estado del indicador"].dropna().unique().tolist())
+                               if "Estado del indicador" in df.columns else [])
             sel_estado = st.selectbox("Estado del indicador", opts_est, key=f"{prefix}_est",
                                       format_func=lambda x: "— Todos —" if x == "" else x)
-    return txt_id, txt_nom, sel_proc, sel_sub, sel_estado
+    return txt_id, txt_nom, sel_vic, sel_proc, sel_sub, sel_estado
 
 
 def _bar_h(df_stats, col_cat, height=None):
@@ -333,7 +347,66 @@ COL_REP    = "Reportado"
 # TÍTULO
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("# 📊 Seguimiento de Reporte de Indicadores")
-st.caption("Solo indicadores con **Revisar = 1** · Períodos desde **2024-01-01** · Corte: **Diciembre 2025**")
+st.caption("Solo indicadores con **Revisar = 1** · Períodos desde **2024-01-01**")
+
+# ── Filtros de Año y Mes (aplican a columnas de período) ─────────────────────
+# Extraer años y meses disponibles desde las columnas de período del consolidado
+_all_period_cols = set()
+for _p in perios:
+    _all_period_cols.update(_p["cols_periodo"])
+_all_dates = []
+for _pc in _all_period_cols:
+    try:
+        _all_dates.append(datetime.strptime(str(_pc), "%d/%m/%Y"))
+    except ValueError:
+        pass
+_all_dates.sort()
+
+_años_disp = sorted(set(d.year for d in _all_dates)) if _all_dates else [2024, 2025]
+_meses_es = {1:"Enero",2:"Febrero",3:"Marzo",4:"Abril",5:"Mayo",6:"Junio",
+             7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"}
+
+_fc1, _fc2, _fc3 = st.columns(3)
+with _fc1:
+    _año_sel = st.selectbox("Año", _años_disp,
+                            index=len(_años_disp)-1 if _años_disp else 0,
+                            key="seg_año")
+with _fc2:
+    _meses_del_año = sorted(set(d.month for d in _all_dates if d.year == _año_sel))
+    _mes_opts = [""] + [_meses_es[m] for m in _meses_del_año]
+    _mes_sel_txt = st.selectbox("Mes", _mes_opts, key="seg_mes",
+                                format_func=lambda x: "— Todos —" if x == "" else x)
+    _mes_sel_num = {v: k for k, v in _meses_es.items()}.get(_mes_sel_txt)
+with _fc3:
+    _vic_all_seg = sorted(df_con["Vicerrectoria"].dropna().unique().tolist()) \
+                   if "Vicerrectoria" in df_con.columns else []
+    _vic_opts_seg = [""] + _vic_all_seg
+    _f_vic_seg = st.selectbox("Unidad / Vicerrectoría", _vic_opts_seg, key="seg_vic",
+                              format_func=lambda x: "— Todas —" if x == "" else x)
+
+# Filtrar columnas de período visibles según año/mes seleccionado
+def _filtrar_cols_periodo(cols_p):
+    """Retorna solo las columnas de período que coincidan con año/mes seleccionado."""
+    out = []
+    for c in cols_p:
+        try:
+            d = datetime.strptime(str(c), "%d/%m/%Y")
+        except ValueError:
+            continue
+        if d.year != _año_sel:
+            continue
+        if _mes_sel_num is not None and d.month != _mes_sel_num:
+            continue
+        out.append(c)
+    return out
+
+# Filtrar df_con y perios por Vicerrectoría
+if _f_vic_seg and "Vicerrectoria" in df_con.columns:
+    df_con = df_con[df_con["Vicerrectoria"] == _f_vic_seg].reset_index(drop=True)
+    for _p in perios:
+        if "Vicerrectoria" in _p["df"].columns:
+            _p["df"] = _p["df"][_p["df"]["Vicerrectoria"] == _f_vic_seg].reset_index(drop=True)
+
 st.markdown("---")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -673,9 +746,9 @@ with tabs[1]:
     if _sel_e_con and COL_ESTADO in df_con_base.columns:
         df_con_base = df_con_base[df_con_base[COL_ESTADO] == _sel_e_con]
 
-    f_id_con, f_nom_con, f_proc_con, f_sub_con, f_est_con = _filtros_cascada(df_con_base, "con")
+    f_id_con, f_nom_con, f_vic_con, f_proc_con, f_sub_con, f_est_con = _filtros_cascada(df_con_base, "con")
     df_filtrado = _aplicar_filtros_tabla(df_con_base, f_id_con, f_nom_con,
-                                         f_proc_con, f_sub_con, f_est_con)
+                                         f_vic_con, f_proc_con, f_sub_con, f_est_con)
     st.caption(f"Mostrando **{len(df_filtrado)}** de **{len(df_con)}** indicadores")
 
     cols_mostrar = _cols_pres(df_filtrado, COLS_DESC_CON) or list(df_filtrado.columns)[:10]
@@ -698,7 +771,8 @@ with tabs[1]:
 for tab_idx, perio in enumerate(perios, 2):
     nombre_p = perio["nombre"]
     df_p     = perio["df"]
-    cols_p   = perio["cols_periodo"]
+    cols_p_all = perio["cols_periodo"]
+    cols_p     = _filtrar_cols_periodo(cols_p_all) or cols_p_all  # fallback si filtro vacío
 
     with tabs[tab_idx]:
         st.markdown(f"### {nombre_p}")
@@ -775,8 +849,8 @@ for tab_idx, perio in enumerate(perios, 2):
         if chart_estado and COL_E in df_p_base.columns:
             df_p_base = df_p_base[df_p_base[COL_E] == chart_estado]
 
-        f_id_p, f_nom_p, f_proc_p, f_sub_p, f_est_p = _filtros_cascada(df_p_base, f"p_{nombre_p}")
-        df_p_fil = _aplicar_filtros_tabla(df_p_base, f_id_p, f_nom_p, f_proc_p, f_sub_p, f_est_p)
+        f_id_p, f_nom_p, f_vic_p, f_proc_p, f_sub_p, f_est_p = _filtros_cascada(df_p_base, f"p_{nombre_p}")
+        df_p_fil = _aplicar_filtros_tabla(df_p_base, f_id_p, f_nom_p, f_vic_p, f_proc_p, f_sub_p, f_est_p)
         st.caption(f"Mostrando **{len(df_p_fil)}** de **{len(df_p)}** indicadores")
 
         # Columna "Estado del indicador" en posición 4: Id, Indicador, Proceso, Estado, ...
