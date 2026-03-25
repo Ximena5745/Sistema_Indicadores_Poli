@@ -1596,124 +1596,95 @@ with tab_calor:
                                 unsafe_allow_html=True)
                         st.markdown("")
 
-                        # Heatmap de esta periodicidad
-                        _pivot_z_p = _pivot_p.applymap(_nivel_code_c)
-                        _z_text_p  = _pivot_p.applymap(
-                            lambda v: f"{v * 100:.1f}%" if pd.notna(v) else "—"
-                        )
+                        _meta_p   = _dfc_p.drop_duplicates("Id", keep="last").set_index("Id")
+                        _row_h    = 28 if len(_pivot_p) > 30 else 32
+                        _n_cols_p = len(_pivot_p.columns)
 
-                        _meta_p = _dfc_p.drop_duplicates("Id", keep="last").set_index("Id")
-
-                        _row_h    = 28 if len(_pivot_z_p) > 30 else 32
-                        _n_cols_p = len(_pivot_z_p.columns)
-
-                        # Datos para la tabla izquierda
-                        _ids_tbl = list(_pivot_z_p.index)
-                        def _t(s, n):
-                            s = str(s)
-                            return s[:n - 1] + "…" if len(s) > n else s
-
+                        # ── Filas de datos ────────────────────────────────────
+                        _ids_tbl = list(_pivot_p.index)
                         _ind_tbl = [
-                            _t(_meta_p.loc[k, "Indicador"], 38)
+                            str(_meta_p.loc[k, "Indicador"])
                             if k in _meta_p.index and "Indicador" in _meta_p.columns
                             else str(k)
                             for k in _ids_tbl
                         ]
                         _sub_tbl = [
-                            _t(_meta_p.loc[k, "Subproceso"], 24)
+                            str(_meta_p.loc[k, "Subproceso"])
                             if k in _meta_p.index and "Subproceso" in _meta_p.columns
                             else ""
                             for k in _ids_tbl
                         ]
+                        _n_rows  = len(_ids_tbl)
                         _row_fill = [
                             "#F4F6F9" if i % 2 == 0 else "white"
-                            for i in range(len(_ids_tbl))
+                            for i in range(_n_rows)
                         ]
 
-                        # Anchos en px: tabla fija + columnas de datos
-                        _id_w, _ind_w, _sub_w = 55, 230, 150
-                        _tbl_w  = _id_w + _ind_w + _sub_w          # 435
-                        _col_w  = 90
-                        _heat_w = _n_cols_p * _col_w
-                        _total_w = _tbl_w + _heat_w + 30
-                        _tbl_frac  = _tbl_w  / (_tbl_w + _heat_w)
-                        _heat_frac = _heat_w / (_tbl_w + _heat_w)
-                        _fig_h = max(320, len(_pivot_z_p) * _row_h + 80)
+                        # ── Colores de celdas de cumplimiento ─────────────────
+                        _C_FILL = {
+                            0: "#E0E0E0",  # Sin dato
+                            1: "#D32F2F",  # Peligro
+                            2: "#FBAF17",  # Alerta
+                            3: "#43A047",  # Cumplimiento
+                            4: "#6699FF",  # Sobrecumplimiento
+                        }
+                        _month_vals, _month_fill, _month_font = [], [], []
+                        for _mc in _pivot_p.columns:
+                            _vs = _pivot_p[_mc].tolist()
+                            _month_vals.append([
+                                f"{v * 100:.1f}%" if pd.notna(v) else "—" for v in _vs
+                            ])
+                            _codes = [_nivel_code_c(v) for v in _vs]
+                            _month_fill.append([_C_FILL[c] for c in _codes])
+                            _month_font.append([
+                                "white" if c > 0 else "#888" for c in _codes
+                            ])
 
-                        _fig_p = make_subplots(
-                            rows=1, cols=2,
-                            column_widths=[_tbl_frac, _heat_frac],
-                            horizontal_spacing=0.004,
-                            specs=[[{"type": "table"}, {"type": "heatmap"}]],
+                        # ── Anchos de columna ─────────────────────────────────
+                        _id_w, _ind_w, _sub_w, _mes_w = 50, 280, 180, 80
+                        _total_w = _id_w + _ind_w + _sub_w + _n_cols_p * _mes_w + 20
+
+                        # ── Tabla única: info + datos con mismo encabezado ────
+                        _hdr_vals = (
+                            ["<b>ID</b>", "<b>Indicador</b>", "<b>Subproceso</b>"]
+                            + [f"<b>{c}</b>" for c in _pivot_p.columns.tolist()]
                         )
+                        _hdr_align = ["center", "left", "left"] + ["center"] * _n_cols_p
+                        _cell_vals  = [_ids_tbl, _ind_tbl, _sub_tbl] + _month_vals
+                        _cell_fill  = [_row_fill, _row_fill, _row_fill] + _month_fill
+                        _cell_font_color = (
+                            [["#1A3A5C"] * _n_rows,
+                             ["#222"]    * _n_rows,
+                             ["#555"]    * _n_rows]
+                            + _month_font
+                        )
+                        _cell_align = ["center", "left", "left"] + ["center"] * _n_cols_p
+                        _col_widths = [_id_w, _ind_w, _sub_w] + [_mes_w] * _n_cols_p
 
-                        # ── Tabla Id / Indicador / Subproceso ─────────────────
-                        _fig_p.add_trace(go.Table(
+                        _fig_p = go.Figure(go.Table(
                             header=dict(
-                                values=["<b>ID</b>", "<b>Indicador</b>", "<b>Subproceso</b>"],
+                                values=_hdr_vals,
                                 fill_color="#1A3A5C",
                                 font=dict(color="white", size=11),
                                 height=35,
-                                align=["center", "left", "left"],
-                                line=dict(color="white", width=1),
+                                align=_hdr_align,
+                                line=dict(color="#1A3A5C", width=1),
                             ),
                             cells=dict(
-                                values=[_ids_tbl, _ind_tbl, _sub_tbl],
-                                fill_color=[_row_fill, _row_fill, _row_fill],
-                                font=dict(size=10,
-                                          color=["#1A3A5C", "#222", "#555"]),
+                                values=_cell_vals,
+                                fill_color=_cell_fill,
+                                font=dict(size=10, color=_cell_font_color),
                                 height=_row_h,
-                                align=["center", "left", "left"],
+                                align=_cell_align,
                                 line=dict(color="#E8ECF0", width=0.5),
                             ),
-                            columnwidth=[_id_w, _ind_w, _sub_w],
-                        ), row=1, col=1)
-
-                        # ── Heatmap ───────────────────────────────────────────
-                        _fig_p.add_trace(go.Heatmap(
-                            z=_pivot_z_p.values.tolist(),
-                            x=_pivot_z_p.columns.tolist(),
-                            y=list(range(len(_pivot_z_p))),
-                            customdata=[[_ids_tbl[i], _ind_tbl[i]]
-                                        for i in range(len(_ids_tbl))],
-                            text=_z_text_p.values.tolist(),
-                            texttemplate="%{text}",
-                            textfont=dict(size=10),
-                            colorscale=_DISC_CS,
-                            zmin=0, zmax=4,
-                            showscale=False,
-                            xgap=2, ygap=1,
-                            hovertemplate=(
-                                "<b>%{customdata[0]}</b> — %{customdata[1]}<br>"
-                                "Cierre: <b>%{x}</b><br>"
-                                "Cumplimiento: <b>%{text}</b><extra></extra>"
-                            ),
-                        ), row=1, col=2)
-
-                        # El header de go.Table ocupa ~35px; desplazar el dominio Y
-                        # del heatmap para que las filas de datos queden alineadas
-                        _hdr_h    = 35
-                        _margin_v = 20  # t=10 + b=10
-                        _paper_h  = max(_fig_h - _margin_v, 1)
-                        _hdr_frac = _hdr_h / _paper_h   # fracción del header en paper
-
+                            columnwidth=_col_widths,
+                        ))
                         _fig_p.update_layout(
                             width=_total_w,
-                            height=_fig_h,
-                            plot_bgcolor="white",
+                            height=max(320, _n_rows * _row_h + 60),
+                            margin=dict(t=5, b=5, l=5, r=5),
                             paper_bgcolor="white",
-                            margin=dict(t=10, b=10, l=5, r=10),
-                        )
-                        _fig_p.update_xaxes(
-                            side="top", tickangle=0,
-                            tickfont=dict(size=11, color="#1A3A5C"),
-                            row=1, col=2,
-                        )
-                        _fig_p.update_yaxes(
-                            domain=[0, 1 - _hdr_frac],
-                            autorange="reversed",
-                            showticklabels=False,
-                            row=1, col=2,
                         )
                         st.plotly_chart(_fig_p, use_container_width=False,
                                         key=f"calor_{_perio}")
