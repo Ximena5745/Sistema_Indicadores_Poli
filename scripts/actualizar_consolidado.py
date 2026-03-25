@@ -60,9 +60,10 @@ AÑO_CIERRE_ACTUAL = 2025
 
 # Importar IDs Plan Anual desde config (tope cumplimiento = 1.0)
 try:
-    from core.config import IDS_PLAN_ANUAL
+    from core.config import IDS_PLAN_ANUAL, IDS_TOPE_100
 except ImportError:
     IDS_PLAN_ANUAL = {"373", "390", "414", "415", "416", "417", "418", "420", "469", "470", "471"}
+    IDS_TOPE_100   = {"208", "218"}
 
 KW_EJEC = ['real', 'ejecutado', 'recaudado', 'ahorrado', 'consumo', 'generado',
            'actual', 'logrado', 'obtenido', 'reportado', 'hoy']
@@ -82,6 +83,11 @@ _EXT_SERIES_TIPOS = frozenset([_EXT_SER_SUM_VAR, _EXT_SER_AVG_RES,
 # Multiserie Tipo 2 simple: agrega serie['resultado'] y serie['meta'] directamente
 # (sin aplicar fórmulas a variables internas). TipoCalculo determina SUM/AVG/LAST.
 _EXT_DESGLOSE_SERIES = 'Desglose Series'
+
+# Indicadores con Extraccion='Desglose Variables' que deben usar el resultado API
+# directamente (resultado ya es la fórmula pre-calculada; las variables son componentes
+# intermedios, no el ejec/meta finales para comparar con la meta objetivo).
+_IDS_DESGLOSE_VAR_DIRECTO = frozenset({'122'})
 
 MESES_ES = {
     1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
@@ -818,6 +824,38 @@ def cargar_tipo_calculo_map():
         return result
     except Exception as e:
         print(f"  [AVISO] Error leyendo TipoCalculo del catalogo: {e}")
+        return {}
+
+
+def cargar_tipo_indicador_map():
+    """
+    Lee la columna 'Tipo de indicador' del Catalogo Indicadores de INPUT_FILE.
+    Retorna dict {id_str: 'Tipo 1'|'Tipo 2'|'Metrica'|...}.
+
+    Uso principal en _extraer_registro para Extraccion='Desglose Variables':
+      'Tipo 1' → usar resultado API directamente (Consolidado_API_Kawak lookup)
+      'Tipo 2' → extraer desde variables (hoja Variables)
+    """
+    if not INPUT_FILE.exists():
+        return {}
+    try:
+        df = pd.read_excel(INPUT_FILE, sheet_name='Catalogo Indicadores')
+        df.columns = [str(c).strip() for c in df.columns]
+        col = next((c for c in df.columns if c.strip() == 'Tipo de indicador'), None)
+        if not col:
+            return {}
+        result = {}
+        for _, row in df.iterrows():
+            id_s = _id_str(row.get('Id', ''))
+            val  = row.get(col)
+            if id_s and not pd.isna(val) and str(val).strip():
+                result[id_s] = str(val).strip()
+        n1 = sum(1 for v in result.values() if v == 'Tipo 1')
+        n2 = sum(1 for v in result.values() if v == 'Tipo 2')
+        print(f"  Tipo de indicador: {len(result)} IDs (Tipo 1={n1} | Tipo 2={n2})")
+        return result
+    except Exception as e:
+        print(f"  [AVISO] Error leyendo Tipo de indicador del catalogo: {e}")
         return {}
 
 
@@ -1605,7 +1643,7 @@ def _reescribir_formulas(ws):
 
         # Determinar tope según Id del indicador
         id_val = _id_str(row[idx_id - 1].value) if idx_id else None
-        tope = 1.0 if id_val in IDS_PLAN_ANUAL else 1.3
+        tope = 1.0 if id_val in IDS_PLAN_ANUAL or id_val in IDS_TOPE_100 else 1.3
 
         if idx_anio:
             ws.cell(r, idx_anio).value = formula_G(r)
@@ -2201,8 +2239,9 @@ def escribir_filas(ws, filas, signos, start_row=None, ids_metrica=None):
 
         _set(r, 'Meta',        meta)
         _set(r, 'Ejecucion',   ejec)
-        # Plan Anual: tope=1.0;  resto: tope=1.3
-        _tope = 1.0 if _id_str(fila.get('Id')) in IDS_PLAN_ANUAL else 1.3
+        # Plan Anual / Tope_100: tope=1.0;  resto: tope=1.3
+        _id_fila = _id_str(fila.get('Id'))
+        _tope = 1.0 if _id_fila in IDS_PLAN_ANUAL or _id_fila in IDS_TOPE_100 else 1.3
         _set(r, 'Cumplimiento', formula_L(r, tope=_tope), '0.00%')
         _set(r, 'CumplReal',   formula_M(r), '0.00%')
         _set(r, 'MetaS',       sg['meta_signo'])
@@ -2239,7 +2278,7 @@ def escribir_hoja_nueva(wb, nombre, df):
 
 def _extraer_registro(row, hist_escalas, config_patrones=None,
                       extraccion_map=None, api_kawak_lookup=None,
-                      variables_campo_map=None):
+                      variables_campo_map=None, tipo_indicador_map=None):
     """
     Extrae (meta, ejec, fuente, es_na) para una fila de fuente.
 
@@ -2345,6 +2384,37 @@ def _extraer_registro(row, hist_escalas, config_patrones=None,
     # ── Caso: Desglose Variables ───────────────────────────────────
     row_dict = row.to_dict() if hasattr(row, 'to_dict') else row
 
+    # Determinar si este indicador debe usar resultado API directamente:
+    #   a) Tipo de indicador = 'Tipo 1' (resultado ya pre-calculado en API)
+    #   b) ID en override manual (_IDS_DESGLOSE_VAR_DIRECTO: variables son
+    #      componentes de fórmula, no ejec/meta finales)
+    _tipo_ind = (tipo_indicador_map or {}).get(id_s, '')
+    _usar_api_directo = (_tipo_ind == 'Tipo 1') or (id_s in _IDS_DESGLOSE_VAR_DIRECTO)
+
+    if _usar_api_directo:
+        fecha_raw = row_dict.get('fecha')
+        try:
+            fecha_key = pd.to_datetime(fecha_raw).normalize()
+        except Exception:
+            fecha_key = None
+        if api_kawak_lookup and fecha_key is not None:
+            vals = api_kawak_lookup.get((id_s, fecha_key))
+            if vals is not None:
+                meta_v, res_v = vals
+                if is_na_record(row_dict):
+                    return meta_v, None, 'na_record', True
+                return meta_v, res_v, 'api_kawak_directo', res_v is None
+        # Fallback: campos directos del API (sin lookup)
+        meta_v = nan2none(pd.to_numeric(row_dict.get('meta'), errors='coerce')
+                          if not _es_vacio(row_dict.get('meta')) else None)
+        res_v  = nan2none(pd.to_numeric(row_dict.get('resultado'), errors='coerce')
+                          if not _es_vacio(row_dict.get('resultado')) else None)
+        if res_v is None:
+            return meta_v, None, 'sin_resultado', False
+        if is_na_record(row_dict):
+            return meta_v, None, 'na_record', True
+        return meta_v, res_v, 'api_kawak_directo', False
+
     # 1) Config_Patrones (override manual, máxima prioridad)
     patron_cfg = config_patrones.get(id_s) if config_patrones else None
     if patron_cfg and patron_cfg.get('simbolo_ejec'):
@@ -2380,7 +2450,8 @@ def _extraer_registro(row, hist_escalas, config_patrones=None,
 def construir_registros_historico(df_fuente, llaves_existentes, hist_escalas,
                                   config_patrones=None, mapa_procesos=None,
                                   kawak_validos=None, extraccion_map=None,
-                                  api_kawak_lookup=None, variables_campo_map=None):
+                                  api_kawak_lookup=None, variables_campo_map=None,
+                                  tipo_indicador_map=None):
     registros = []
     skipped   = 0
     conteo_na = 0
@@ -2400,7 +2471,8 @@ def construir_registros_historico(df_fuente, llaves_existentes, hist_escalas,
         meta, ejec, fuente, es_na = _extraer_registro(
             row, hist_escalas, config_patrones=config_patrones,
             extraccion_map=extraccion_map, api_kawak_lookup=api_kawak_lookup,
-            variables_campo_map=variables_campo_map)
+            variables_campo_map=variables_campo_map,
+            tipo_indicador_map=tipo_indicador_map)
         if fuente == 'skip' or fuente == 'sin_resultado':
             skipped += 1
             continue
@@ -2480,7 +2552,7 @@ def construir_registros_semestral(df_fuente, llaves_existentes, hist_escalas,
                                   config_patrones=None, mapa_procesos=None,
                                   kawak_validos=None, extraccion_map=None,
                                   api_kawak_lookup=None, tipo_calculo_map=None,
-                                  variables_campo_map=None):
+                                  variables_campo_map=None, tipo_indicador_map=None):
     """
     Genera registros para Consolidado Semestral.
 
@@ -2595,6 +2667,7 @@ def construir_registros_semestral(df_fuente, llaves_existentes, hist_escalas,
         config_patrones=config_patrones, mapa_procesos=mapa_procesos,
         kawak_validos=kawak_validos, extraccion_map=extraccion_map,
         api_kawak_lookup=api_kawak_lookup, variables_campo_map=variables_campo_map,
+        tipo_indicador_map=tipo_indicador_map,
     )
     return regs_std + registros_agg, skip_std, na_std
 
@@ -2603,7 +2676,7 @@ def construir_registros_cierres(df_fuente, hist_escalas,
                                 config_patrones=None, mapa_procesos=None,
                                 kawak_validos=None, extraccion_map=None,
                                 api_kawak_lookup=None, tipo_calculo_map=None,
-                                variables_campo_map=None):
+                                variables_campo_map=None, tipo_indicador_map=None):
     """
     Genera registros para Consolidado Cierres.
 
@@ -2696,7 +2769,8 @@ def construir_registros_cierres(df_fuente, hist_escalas,
             meta, ejec, fuente, es_na = _extraer_registro(
                 row, hist_escalas, config_patrones=config_patrones,
                 extraccion_map=extraccion_map, api_kawak_lookup=api_kawak_lookup,
-                variables_campo_map=variables_campo_map)
+                variables_campo_map=variables_campo_map,
+                tipo_indicador_map=tipo_indicador_map)
             if fuente == 'skip' or fuente == 'sin_resultado':
                 skipped += 1
                 continue
@@ -2808,6 +2882,7 @@ def main():
     print("\n[4b] Cargando mapa de Extraccion y lookup Consolidado_API_Kawak...")
     extraccion_map      = cargar_extraccion_map()
     tipo_calculo_map    = cargar_tipo_calculo_map()
+    tipo_indicador_map  = cargar_tipo_indicador_map()
     variables_campo_map = cargar_variables_campo_map()
     api_kawak_lookup    = cargar_consolidado_api_kawak_lookup(extraccion_map=extraccion_map)
     n_dv  = sum(1 for v in extraccion_map.values() if v == 'Desglose Variables')
@@ -2893,7 +2968,8 @@ def main():
         df_fuente_api, llave_hist, hist_escalas,
         config_patrones=config_patrones, mapa_procesos=mapa_procesos,
         kawak_validos=kawak_validos, extraccion_map=extraccion_map,
-        api_kawak_lookup=api_kawak_lookup, variables_campo_map=variables_campo_map)
+        api_kawak_lookup=api_kawak_lookup, variables_campo_map=variables_campo_map,
+        tipo_indicador_map=tipo_indicador_map)
     print(f"  Nuevos: {len(regs_hist):,} | N/A: {na_hist:,} | Omitidos: {skip_hist:,}")
     if len(df_kawak25) > 0:
         llaves_usadas = llave_hist | {r['LLAVE'] for r in regs_hist}
@@ -2901,7 +2977,8 @@ def main():
             df_kawak25, llaves_usadas, hist_escalas,
             config_patrones=config_patrones, mapa_procesos=mapa_procesos,
             kawak_validos=kawak_validos, extraccion_map=extraccion_map,
-            api_kawak_lookup=api_kawak_lookup, variables_campo_map=variables_campo_map)
+            api_kawak_lookup=api_kawak_lookup, variables_campo_map=variables_campo_map,
+            tipo_indicador_map=tipo_indicador_map)
         regs_hist += regs_k25
         print(f"  + Kawak 2025: {len(regs_k25):,} adicionales (N/A: {na_k25}, omitidos: {sk25})")
     regs_hist.sort(key=lambda x: (str(x['Id']), x['fecha']))
@@ -2919,7 +2996,8 @@ def main():
         config_patrones=config_patrones, mapa_procesos=mapa_procesos,
         kawak_validos=kawak_validos, extraccion_map=extraccion_map,
         api_kawak_lookup=api_kawak_lookup, tipo_calculo_map=tipo_calculo_map,
-        variables_campo_map=variables_campo_map)
+        variables_campo_map=variables_campo_map,
+        tipo_indicador_map=tipo_indicador_map)
     print(f"  Nuevos: {len(regs_sem):,} | N/A: {na_sem:,} | Omitidos: {skip_sem:,}")
     regs_sem.sort(key=lambda x: (str(x['Id']), x['fecha']))
     ws_sem = wb['Consolidado Semestral']
@@ -2936,14 +3014,16 @@ def main():
         config_patrones=config_patrones, mapa_procesos=mapa_procesos,
         kawak_validos=kawak_validos, extraccion_map=extraccion_map,
         api_kawak_lookup=api_kawak_lookup, tipo_calculo_map=tipo_calculo_map,
-        variables_campo_map=variables_campo_map)
+        variables_campo_map=variables_campo_map,
+        tipo_indicador_map=tipo_indicador_map)
     if len(df_kawak25) > 0:
         regs_k25_c, sk25_c, na_k25_c = construir_registros_cierres(
             df_kawak25, hist_escalas,
             config_patrones=config_patrones, mapa_procesos=mapa_procesos,
             kawak_validos=kawak_validos, extraccion_map=extraccion_map,
             api_kawak_lookup=api_kawak_lookup, tipo_calculo_map=tipo_calculo_map,
-            variables_campo_map=variables_campo_map)
+            variables_campo_map=variables_campo_map,
+            tipo_indicador_map=tipo_indicador_map)
         llaves_c = {r['LLAVE'] for r in regs_cierres}
         regs_k25_c = [r for r in regs_k25_c if r['LLAVE'] not in llaves_c]
         regs_cierres += regs_k25_c

@@ -351,13 +351,13 @@ def _cargar_consolidados() -> pd.DataFrame:
         valid  = meta_n.notna() & ejec_n.notna() & (meta_n != 0)
         sentido_neg = df["Sentido"].str.strip().str.lower() == "negativo"
 
-        from core.config import IDS_PLAN_ANUAL
+        from core.config import IDS_PLAN_ANUAL, IDS_TOPE_100
         ratio_real = (ejec_n / meta_n).clip(lower=0).where(~sentido_neg,
                       (meta_n / ejec_n).clip(lower=0))
-        # Plan Anual: tope 1.0;  resto: tope 1.3
-        es_pa = df["Id"].astype(str).str.strip().isin(IDS_PLAN_ANUAL)
+        # Plan Anual y Tope_100: tope 1.0;  resto: tope 1.3
+        ids_str = df["Id"].astype(str).str.strip()
         tope = pd.Series(1.3, index=df.index)
-        tope[es_pa] = 1.0
+        tope[ids_str.isin(IDS_PLAN_ANUAL | IDS_TOPE_100)] = 1.0
         ratio_cap  = ratio_real.clip(upper=tope)
 
         # Para Sentido=Negativo el Excel calcula ejec/meta (sin invertir),

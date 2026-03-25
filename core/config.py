@@ -58,6 +58,10 @@ IDS_PLAN_ANUAL = {"373", "390", "414", "415", "416", "417", "418", "420", "469",
 UMBRAL_ALERTA_PA            = 0.95   # PA cumple desde 95%
 UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00   # tope 100%
 
+# ── Indicadores con tope de cumplimiento 100% (no sobrecumplimiento) ──────────
+# Indicadores de sentido Negativo cuyo cumplimiento no debe superar el 100%.
+IDS_TOPE_100 = {"208", "218"}
+
 # ── Orden y visualización de categorías ───────────────────────────────────────
 ORDEN_CATEGORIAS = ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin dato"]
 
