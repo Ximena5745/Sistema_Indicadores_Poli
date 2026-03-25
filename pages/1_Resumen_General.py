@@ -1661,17 +1661,17 @@ with tab_calor:
                         _cell_align = ["center", "left", "left"] + ["center"] * _n_cols_p
                         _col_widths = [_id_w, _ind_w, _sub_w] + [_mes_w] * _n_cols_p
 
-                        # Altura real por fila: estimar wrap según ancho de columna
+                        # Estimar altura de fila según el texto más largo (wrap)
+                        # cells.height solo acepta escalar → usamos el máximo
                         import math as _math
                         _fw, _lh = 5.5, 15  # px/char, px/línea a font_size=10
-                        _row_heights_est = []
+                        _max_lines = 1
                         for _si, _ss in zip(_ind_tbl, _sub_tbl):
                             nl_i = _math.ceil(len(str(_si)) / max(1, int(_ind_w / _fw)))
                             nl_s = _math.ceil(len(str(_ss)) / max(1, int(_sub_w / _fw)))
-                            _row_heights_est.append(
-                                max(_row_h, max(nl_i, nl_s, 1) * _lh + 6)
-                            )
-                        _fig_h_full = 35 + sum(_row_heights_est) + 15
+                            _max_lines = max(_max_lines, nl_i, nl_s)
+                        _row_h_unif = max(_row_h, _max_lines * _lh + 6)
+                        _fig_h_full = 35 + _n_rows * _row_h_unif + 15
 
                         _fig_p = go.Figure(go.Table(
                             header=dict(
@@ -1686,7 +1686,7 @@ with tab_calor:
                                 values=_cell_vals,
                                 fill_color=_cell_fill,
                                 font=dict(size=10, color=_cell_font_color),
-                                height=_row_heights_est,  # altura variable por fila
+                                height=_row_h_unif,
                                 align=_cell_align,
                                 line=dict(color="#E8ECF0", width=0.5),
                             ),
