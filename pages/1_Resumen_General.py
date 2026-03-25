@@ -1661,6 +1661,18 @@ with tab_calor:
                         _cell_align = ["center", "left", "left"] + ["center"] * _n_cols_p
                         _col_widths = [_id_w, _ind_w, _sub_w] + [_mes_w] * _n_cols_p
 
+                        # Altura real por fila: estimar wrap según ancho de columna
+                        import math as _math
+                        _fw, _lh = 5.5, 15  # px/char, px/línea a font_size=10
+                        _row_heights_est = []
+                        for _si, _ss in zip(_ind_tbl, _sub_tbl):
+                            nl_i = _math.ceil(len(str(_si)) / max(1, int(_ind_w / _fw)))
+                            nl_s = _math.ceil(len(str(_ss)) / max(1, int(_sub_w / _fw)))
+                            _row_heights_est.append(
+                                max(_row_h, max(nl_i, nl_s, 1) * _lh + 6)
+                            )
+                        _fig_h_full = 35 + sum(_row_heights_est) + 15
+
                         _fig_p = go.Figure(go.Table(
                             header=dict(
                                 values=_hdr_vals,
@@ -1674,7 +1686,7 @@ with tab_calor:
                                 values=_cell_vals,
                                 fill_color=_cell_fill,
                                 font=dict(size=10, color=_cell_font_color),
-                                height=_row_h,
+                                height=_row_heights_est,  # altura variable por fila
                                 align=_cell_align,
                                 line=dict(color="#E8ECF0", width=0.5),
                             ),
@@ -1682,12 +1694,15 @@ with tab_calor:
                         ))
                         _fig_p.update_layout(
                             width=_total_w,
-                            height=max(320, _n_rows * _row_h + 60),
+                            height=_fig_h_full,
                             margin=dict(t=5, b=5, l=5, r=5),
                             paper_bgcolor="white",
                         )
-                        st.plotly_chart(_fig_p, use_container_width=False,
-                                        key=f"calor_{_perio}")
+                        # Contenedor con barra de desplazamiento si la tabla es alta
+                        _scroll_h = min(_fig_h_full + 20, 700)
+                        with st.container(height=_scroll_h):
+                            st.plotly_chart(_fig_p, use_container_width=False,
+                                            key=f"calor_{_perio}")
 
                 # Exportar datos completos
                 st.download_button(
