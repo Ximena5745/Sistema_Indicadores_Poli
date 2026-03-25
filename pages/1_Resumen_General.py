@@ -1522,6 +1522,8 @@ with tab_calor:
 
             # Etiqueta mes-año para cada registro
             _dfc = _dfc.copy()
+            if "Periodicidad" in _dfc.columns:
+                _dfc["Periodicidad"] = _dfc["Periodicidad"].astype(str).str.strip().str.title()
             _dfc["_col_label"] = _dfc["Fecha"].apply(
                 lambda d: f"{_MESES_ABREV_C[d.month - 1]} {int(d.year)}" if pd.notna(d) else None
             )
@@ -1560,14 +1562,21 @@ with tab_calor:
                         ]
 
                         # Pivot y reindex a columnas canónicas
-                        _pivot_p = (
-                            _dfc_p.dropna(subset=["_col_label"])
-                            .sort_values("Fecha")
-                            .groupby(["Id", "_col_label"])["Cumplimiento"]
-                            .last()
-                            .unstack()
-                            .reindex(columns=_cols_p)
-                        )
+                        _all_ids_p = _dfc_p["Id"].unique().tolist()
+                        _pivot_p_data = _dfc_p.dropna(subset=["_col_label"])
+                        if not _pivot_p_data.empty:
+                            _pivot_p = (
+                                _pivot_p_data
+                                .sort_values("Fecha")
+                                .groupby(["Id", "_col_label"])["Cumplimiento"]
+                                .last()
+                                .unstack()
+                                .reindex(columns=_cols_p)
+                            )
+                        else:
+                            _pivot_p = pd.DataFrame(index=pd.Index([], name="Id"), columns=_cols_p)
+                        # Incluir todos los IDs de la periodicidad aunque no tengan cierres en el período
+                        _pivot_p = _pivot_p.reindex(index=_all_ids_p)
                         if _pivot_p.empty:
                             st.info(f"Sin registros de cierre para {_perio}.")
                             continue
