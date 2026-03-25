@@ -369,12 +369,11 @@ def _tiene_datos_utiles(row):
     series_list = parse_json_safe(row.get('series'))
 
     if vars_list:
-        # Tiene variables con al menos un valor numérico no-cero
+        # Tiene variables con al menos un valor numérico (0 es dato válido)
         for v in vars_list:
             val = v.get('valor')
             if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                if val != 0:
-                    return True
+                return True
 
     if series_list:
         for s in series_list:
@@ -591,13 +590,20 @@ def determinar_meta_ejec(row_api, hist_meta_escala, patron_cfg=None):
                                        if not _es_vacio(meta_api) else None))
                     return meta_v, ejec_v, 'variables_simbolo', False
             # Fallback: keyword matching
+            _meta_api_num = nan2none(pd.to_numeric(meta_api, errors='coerce')
+                                     if not _es_vacio(meta_api) else None)
             if vars_list:
                 meta_v, ejec_v = extraer_meta_ejec_variables(vars_list)
                 if ejec_v is not None:
+                    # Si las variables no tienen meta, usar el campo meta directo de la API
+                    if meta_v is None:
+                        meta_v = _meta_api_num
                     return meta_v, ejec_v, 'variables', False
             if series_list:
                 sum_m, sum_r = extraer_meta_ejec_series(series_list)
                 if sum_r is not None:
+                    if sum_m is None:
+                        sum_m = _meta_api_num
                     return sum_m, sum_r, 'series_sum', False
             return None, None, 'skip', False
 
@@ -1157,8 +1163,9 @@ def expandir_series(df_api):
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
-def expandir_variables(df_api):
+def expandir_variables(df_api, df_kawak25=None):
     rows = []
+    # ── Fuente API: expandir el JSON de variables ──────────────────
     for _, r in df_api.iterrows():
         parsed = parse_json_safe(r.get('variables'))
         if not parsed:
@@ -1176,6 +1183,30 @@ def expandir_variables(df_api):
                 'var_nombre':  limpiar_html(str(v.get('nombre', ''))),
                 'var_valor':   v.get('valor'),
             })
+
+    # ── Fuente Kawak2025: usar resultado como var_valor ────────────
+    if df_kawak25 is not None and len(df_kawak25) > 0:
+        llaves_api = {r['LLAVE'] for r in rows}
+        for _, r in df_kawak25.iterrows():
+            llave = r.get('LLAVE')
+            if llave in llaves_api:          # ya tiene desglose de la API
+                continue
+            resultado = nan2none(r.get('resultado'))
+            if resultado is None:
+                continue
+            rows.append({
+                'Id':          r['Id'],
+                'Indicador':   limpiar_html(str(r.get('Indicador', ''))),
+                'Proceso':     r.get('Proceso', ''),
+                'Periodicidad':r.get('Periodicidad', ''),
+                'Sentido':     r.get('Sentido', ''),
+                'fecha':       r['fecha'],
+                'LLAVE':       llave,
+                'var_simbolo': '',
+                'var_nombre':  limpiar_html(str(r.get('Indicador', ''))),
+                'var_valor':   resultado,
+            })
+
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
@@ -2093,7 +2124,7 @@ def main():
 
     # ── 4. Series / Análisis ──────────────────────────────────────
     print("\n[4] Expandiendo variables, series y análisis...")
-    df_variables = expandir_variables(df_api)
+    df_variables = expandir_variables(df_api, df_kawak25 if len(df_kawak25) > 0 else None)
     df_series    = expandir_series(df_api)
     df_analisis  = expandir_analisis(df_api)
     print(f"  Variables: {len(df_variables):,} | Series: {len(df_series):,} | Analisis: {len(df_analisis):,}")
