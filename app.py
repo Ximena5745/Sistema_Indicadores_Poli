@@ -1,17 +1,47 @@
 """
 app.py — Entrada principal del Dashboard de Desempeño Institucional.
 """
+import os
+
 import streamlit as st
+
+
+EMBEDDED_MODE = os.getenv("POWER_APPS_EMBEDDED", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 # Configuración global (debe ser la primera llamada a Streamlit)
 st.set_page_config(
     page_title="Dashboard de Desempeño Institucional",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed" if EMBEDDED_MODE else "expanded",
 )
 
 # ── CSS personalizado ─────────────────────────────────────────────────────────
+embedded_css = ""
+if EMBEDDED_MODE:
+    embedded_css = """
+    /* Modo embebido: reducir chrome y ocupar mejor el iframe */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    header,
+    footer {
+        visibility: hidden;
+        height: 0;
+    }
+    div[data-testid="stMainBlockContainer"],
+    .stMainBlockContainer.block-container {
+        padding-top: 0.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    """
+
 st.markdown(
     """
     <style>
@@ -113,6 +143,10 @@ st.markdown(
     [data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
         background-color: #0D47A1;
     }
+
+    """
+    + embedded_css
+    + """
 
     </style>
     """,
