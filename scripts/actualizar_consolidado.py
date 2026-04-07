@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 import shutil
 import sys
+import tempfile
 import warnings
 from pathlib import Path
 
@@ -82,6 +83,7 @@ from etl.builders import (                         # noqa: E402
     construir_registros_semestral,
     construir_registros_cierres,
 )
+from etl.workbook_io import workbook_local_copy   # noqa: E402
 
 # ── Logging ───────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -134,17 +136,24 @@ def main() -> None:
 
     # ── 5. Abrir workbook ─────────────────────────────────────────
     logger.info("5. Abriendo workbook %s…", OUTPUT_FILE.name)
-    wb = openpyxl.load_workbook(OUTPUT_FILE)
+    with workbook_local_copy(OUTPUT_FILE) as (local_output_file, source_workbook):
+        if source_workbook != OUTPUT_FILE:
+            logger.warning(
+                "   Usando %s como fuente de lectura por acceso inestable a %s",
+                source_workbook.name,
+                OUTPUT_FILE.name,
+            )
+        wb = openpyxl.load_workbook(local_output_file)
 
-    ws_hist     = wb["Consolidado Historico"]
-    ws_sem      = wb["Consolidado Semestral"]
-    ws_cierres  = wb["Consolidado Cierres"]
+        ws_hist     = wb["Consolidado Historico"]
+        ws_sem      = wb["Consolidado Semestral"]
+        ws_cierres  = wb["Consolidado Cierres"]
 
-    # ── 6. Leer históricos existentes para signos ─────────────────
-    logger.info("6. Leyendo hojas existentes…")
-    df_hist_ex    = pd.read_excel(OUTPUT_FILE, sheet_name="Consolidado Historico")
-    df_sem_ex     = pd.read_excel(OUTPUT_FILE, sheet_name="Consolidado Semestral")
-    df_cierres_ex = pd.read_excel(OUTPUT_FILE, sheet_name="Consolidado Cierres")
+        # ── 6. Leer históricos existentes para signos ─────────────────
+        logger.info("6. Leyendo hojas existentes…")
+        df_hist_ex    = pd.read_excel(local_output_file, sheet_name="Consolidado Historico")
+        df_sem_ex     = pd.read_excel(local_output_file, sheet_name="Consolidado Semestral")
+        df_cierres_ex = pd.read_excel(local_output_file, sheet_name="Consolidado Cierres")
     signos = obtener_signos(df_hist_ex, df_sem_ex, df_cierres_ex)
     logger.info("   %d indicadores con signo", len(signos))
 
@@ -265,22 +274,34 @@ def main() -> None:
     # Backup antes de sobreescribir
     backup = OUTPUT_FILE.with_suffix(".bak.xlsx")
     try:
-        shutil.copy2(OUTPUT_FILE, backup)
+        respaldo_origen = source_workbook if source_workbook.exists() else OUTPUT_FILE
+        shutil.copy2(respaldo_origen, backup)
     except Exception as exc:
         logger.warning("   No se pudo crear backup: %s", exc)
 
-    wb.save(OUTPUT_FILE)
-    logger.info("   Guardado correctamente.")
+    with tempfile.TemporaryDirectory(prefix="sip_excel_save_", ignore_cleanup_errors=True) as temp_dir:
+        temp_root = Path(temp_dir)
+        local_output_saved = temp_root / OUTPUT_FILE.name
+        wb.save(local_output_saved)
+        if hasattr(wb, "close"):
+            wb.close()
+        shutil.copy2(local_output_saved, OUTPUT_FILE)
 
-    # ── Generar copia solo valores ───────────────────────────────
-    valores_file = OUTPUT_FILE.with_name(OUTPUT_FILE.stem + " VALORES.xlsx")
-    wb_val = openpyxl.load_workbook(OUTPUT_FILE)
-    for ws in wb_val.worksheets:
-        try:
-            _materializar_cumplimiento(ws)
-        except Exception as e:
-            logger.warning(f"No se pudo materializar cumplimiento en hoja {ws.title}: {e}")
-    wb_val.save(valores_file)
+        # ── Generar copia solo valores ────────────────────────────
+        valores_file = OUTPUT_FILE.with_name(OUTPUT_FILE.stem + " VALORES.xlsx")
+        wb_val = openpyxl.load_workbook(local_output_saved)
+        for ws in wb_val.worksheets:
+            try:
+                _materializar_cumplimiento(ws)
+            except Exception as e:
+                logger.warning(f"No se pudo materializar cumplimiento en hoja {ws.title}: {e}")
+        local_valores_saved = temp_root / valores_file.name
+        wb_val.save(local_valores_saved)
+        if hasattr(wb_val, "close"):
+            wb_val.close()
+        shutil.copy2(local_valores_saved, valores_file)
+
+    logger.info("   Guardado correctamente.")
     logger.info(f"   Copia solo valores guardada en: {valores_file}")
 
     # ── Resumen final ─────────────────────────────────────────────

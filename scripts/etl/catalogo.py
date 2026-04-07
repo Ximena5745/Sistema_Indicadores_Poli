@@ -19,6 +19,7 @@ from .config import INPUT_FILE, OUTPUT_FILE
 from .normalizacion import (
     _fmt_val_raw, _id_str, limpiar_clasificacion, limpiar_html,
 )
+from .workbook_io import workbook_local_copy
 
 logger = logging.getLogger(__name__)
 
@@ -47,64 +48,65 @@ def cargar_catalogo_completo(src: Optional[Path] = None) -> Dict:
     if not source.exists():
         return result
     try:
-        xl = pd.ExcelFile(source)
-        # ── Hoja Catalogo Indicadores ──────────────────────────
-        if "Catalogo Indicadores" in xl.sheet_names:
-            df = xl.parse("Catalogo Indicadores")
-            df.columns = [str(c).strip() for c in df.columns]
-            col_tipo_ind = next(
-                (c for c in df.columns if c.strip() == "Tipo de indicador"), None
-            )
-            for _, row in df.iterrows():
-                id_s = _id_str(row.get("Id", ""))
-                if not id_s:
-                    continue
-                # extraccion_map
-                val = row.get("Extraccion")
-                result["extraccion_map"][id_s] = (
-                    None if pd.isna(val) else str(val).strip()
-                )
-                # tipo_calculo_map
-                tc = row.get("TipoCalculo")
-                if not pd.isna(tc) and str(tc).strip():
-                    result["tipo_calculo_map"][id_s] = str(tc).strip()
-                # tipo_indicador_map
-                if col_tipo_ind:
-                    ti = row.get(col_tipo_ind)
-                    if not pd.isna(ti) and str(ti).strip():
-                        result["tipo_indicador_map"][id_s] = str(ti).strip()
-                # user_data
-                result["user_data"][id_s] = {
-                    "TipoCalculo":     str(row.get("TipoCalculo", "") or "").strip(),
-                    "Asociacion":      str(row.get("Asociacion", "") or "").strip(),
-                    "Formato_Valores": _fmt_val_raw(row.get("Formato_Valores")),
-                }
+        with workbook_local_copy(source) as (local_source, _):
+            with pd.ExcelFile(local_source) as xl:
+                # ── Hoja Catalogo Indicadores ──────────────────────────
+                if "Catalogo Indicadores" in xl.sheet_names:
+                    df = xl.parse("Catalogo Indicadores")
+                    df.columns = [str(c).strip() for c in df.columns]
+                    col_tipo_ind = next(
+                        (c for c in df.columns if c.strip() == "Tipo de indicador"), None
+                    )
+                    for _, row in df.iterrows():
+                        id_s = _id_str(row.get("Id", ""))
+                        if not id_s:
+                            continue
+                        # extraccion_map
+                        val = row.get("Extraccion")
+                        result["extraccion_map"][id_s] = (
+                            None if pd.isna(val) else str(val).strip()
+                        )
+                        # tipo_calculo_map
+                        tc = row.get("TipoCalculo")
+                        if not pd.isna(tc) and str(tc).strip():
+                            result["tipo_calculo_map"][id_s] = str(tc).strip()
+                        # tipo_indicador_map
+                        if col_tipo_ind:
+                            ti = row.get(col_tipo_ind)
+                            if not pd.isna(ti) and str(ti).strip():
+                                result["tipo_indicador_map"][id_s] = str(ti).strip()
+                        # user_data
+                        result["user_data"][id_s] = {
+                            "TipoCalculo":     str(row.get("TipoCalculo", "") or "").strip(),
+                            "Asociacion":      str(row.get("Asociacion", "") or "").strip(),
+                            "Formato_Valores": _fmt_val_raw(row.get("Formato_Valores")),
+                        }
 
-        # ── Hoja Variables ─────────────────────────────────────
-        if "Variables" in xl.sheet_names:
-            dfv = xl.parse("Variables")
-            dfv.columns = [str(c).strip() for c in dfv.columns]
-            col_id   = next((c for c in dfv.columns if c.lower() == "id"), None)
-            col_simb = next(
-                (c for c in dfv.columns
-                 if "simb" in c.lower() or c.lower() == "var_simbolo"),
-                None,
-            )
-            col_camp = next((c for c in dfv.columns if "campo" in c.lower()), None)
-            if all([col_id, col_simb, col_camp]):
-                for _, row in dfv.iterrows():
-                    id_s = _id_str(row.get(col_id, ""))
-                    simb = str(row.get(col_simb, "") or "").strip()
-                    camp = str(row.get(col_camp, "") or "").strip()
-                    if not id_s or not simb or simb == "None":
-                        continue
-                    if id_s not in result["variables_campo_map"]:
-                        result["variables_campo_map"][id_s] = {"ejec": [], "meta": []}
-                    camp_low = camp.lower()
-                    if "jecuci" in camp_low:
-                        result["variables_campo_map"][id_s]["ejec"].append(simb)
-                    elif camp_low == "meta":
-                        result["variables_campo_map"][id_s]["meta"].append(simb)
+                # ── Hoja Variables ─────────────────────────────────────
+                if "Variables" in xl.sheet_names:
+                    dfv = xl.parse("Variables")
+                    dfv.columns = [str(c).strip() for c in dfv.columns]
+                    col_id   = next((c for c in dfv.columns if c.lower() == "id"), None)
+                    col_simb = next(
+                        (c for c in dfv.columns
+                         if "simb" in c.lower() or c.lower() == "var_simbolo"),
+                        None,
+                    )
+                    col_camp = next((c for c in dfv.columns if "campo" in c.lower()), None)
+                    if all([col_id, col_simb, col_camp]):
+                        for _, row in dfv.iterrows():
+                            id_s = _id_str(row.get(col_id, ""))
+                            simb = str(row.get(col_simb, "") or "").strip()
+                            camp = str(row.get(col_camp, "") or "").strip()
+                            if not id_s or not simb or simb == "None":
+                                continue
+                            if id_s not in result["variables_campo_map"]:
+                                result["variables_campo_map"][id_s] = {"ejec": [], "meta": []}
+                            camp_low = camp.lower()
+                            if "jecuci" in camp_low:
+                                result["variables_campo_map"][id_s]["ejec"].append(simb)
+                            elif camp_low == "meta":
+                                result["variables_campo_map"][id_s]["meta"].append(simb)
     except Exception as e:
         logger.warning(f"  Error leyendo Catálogo de {source.name}: {e}")
 
@@ -245,19 +247,20 @@ def cargar_config_patrones() -> Dict:
     if not OUTPUT_FILE.exists():
         return {}
     try:
-        xl = pd.ExcelFile(OUTPUT_FILE)
-        if "Config_Patrones" not in xl.sheet_names:
-            return {}
-        df = xl.parse("Config_Patrones")
-        config: Dict = {}
-        for _, row in df.iterrows():
-            ids = _id_str(row["Id"])
-            config[ids] = {
-                "patron":       str(row.get("Patron_Ejecucion", "LAST")).strip().upper(),
-                "simbolo_ejec": str(row.get("Simbolo_Ejec", "") or "").strip(),
-                "simbolo_meta": str(row.get("Simbolo_Meta", "") or "").strip(),
-            }
-        return config
+        with workbook_local_copy(OUTPUT_FILE) as (local_output, _):
+            with pd.ExcelFile(local_output) as xl:
+                if "Config_Patrones" not in xl.sheet_names:
+                    return {}
+                df = xl.parse("Config_Patrones")
+                config: Dict = {}
+                for _, row in df.iterrows():
+                    ids = _id_str(row["Id"])
+                    config[ids] = {
+                        "patron":       str(row.get("Patron_Ejecucion", "LAST")).strip().upper(),
+                        "simbolo_ejec": str(row.get("Simbolo_Ejec", "") or "").strip(),
+                        "simbolo_meta": str(row.get("Simbolo_Meta", "") or "").strip(),
+                    }
+                return config
     except Exception as e:
         logger.warning(f"  Error leyendo Config_Patrones: {e}")
         return {}
