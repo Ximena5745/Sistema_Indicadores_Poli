@@ -6,7 +6,7 @@ import base64
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from plot_templates import kanban_counts, scorecard_kpis, sparkline_series, treemap_hierarchical, heatmap_matrix, stacked_bars, bubble_chart, sankey_chart, waterfall_chart, radar_chart, funnel_chart
+from scripts.plot_templates import kanban_counts, scorecard_kpis, sparkline_series, treemap_hierarchical, heatmap_matrix, stacked_bars, bubble_chart, sankey_chart, waterfall_chart, radar_chart, funnel_chart
 import numpy as np
 import plotly.graph_objects as go
 
@@ -17,7 +17,8 @@ try:
 except Exception:
     PPTX_AVAILABLE = False
 
-import pandas as pd
+# ROOT del proyecto (padre de /scripts)
+ROOT = Path(__file__).resolve().parents[1]
 
 # Ruta archivo de consolidados
 CONSOLIDADO_XLSX = ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
