@@ -201,6 +201,8 @@ def reparar_meta_vacia(ws, api_kawak_lookup: Dict, nombre: str = "") -> int:
     idx_fecha = cm.get("Fecha")
     idx_meta  = cm.get("Meta")
     idx_ejec  = cm.get("Ejecucion")
+    idx_tiporeg = cm.get("Tipo_Registro") or cm.get("TipoRegistro")
+    idx_ejecs   = cm.get("Ejecucion_Signo") or cm.get("EjecS")
     if not all([idx_id, idx_fecha, idx_meta, idx_ejec]):
         return 0
 
@@ -260,6 +262,8 @@ def reparar_multiserie(
     idx_fecha = cm.get("Fecha")
     idx_meta  = cm.get("Meta")
     idx_ejec  = cm.get("Ejecucion")
+    idx_tiporeg = cm.get("Tipo_Registro") or cm.get("TipoRegistro")
+    idx_ejecs   = cm.get("Ejecucion_Signo") or cm.get("EjecS")
     if not all([idx_id, idx_fecha, idx_meta, idx_ejec]):
         return 0
 
@@ -267,6 +271,14 @@ def reparar_multiserie(
     for row in ws.iter_rows(min_row=2, values_only=False):
         if row[0].value is None:
             continue
+
+        # Mantener intactas las filas sin reporte explícito
+        tipo_reg = row[idx_tiporeg - 1].value if idx_tiporeg else None
+        ejec_sgn = row[idx_ejecs - 1].value if idx_ejecs else None
+        if str(tipo_reg or "").strip().lower() == "no aplica" \
+                or str(ejec_sgn or "").strip().lower() == "no aplica":
+            continue
+
         id_s = _id_str(row[idx_id - 1].value)
         if id_s not in tipo_calculo_map:
             continue
@@ -335,6 +347,8 @@ def reparar_semestral_agregados(
     idx_fecha = cm.get("Fecha")
     idx_meta  = cm.get("Meta")
     idx_ejec  = cm.get("Ejecucion")
+    idx_tiporeg = cm.get("Tipo_Registro") or cm.get("TipoRegistro")
+    idx_ejecs   = cm.get("Ejecucion_Signo") or cm.get("EjecS")
     if not all([idx_id, idx_fecha, idx_meta, idx_ejec]):
         return 0
 
@@ -344,6 +358,14 @@ def reparar_semestral_agregados(
     for row in ws.iter_rows(min_row=2, values_only=False):
         if row[0].value is None:
             continue
+
+        # Si el periodo está marcado como No Aplica, no recalcular agregados
+        tipo_reg = row[idx_tiporeg - 1].value if idx_tiporeg else None
+        ejec_sgn = row[idx_ejecs - 1].value if idx_ejecs else None
+        if str(tipo_reg or "").strip().lower() == "no aplica" \
+                or str(ejec_sgn or "").strip().lower() == "no aplica":
+            continue
+
         id_s = _id_str(row[idx_id - 1].value)
         if id_s not in ids_agg:
             continue

@@ -497,6 +497,8 @@ def _ejec_corrected_from_row(
 ) -> Optional[float]:
     """Ejecución correcta para una fila del df_fuente (para agregados)."""
     row_d = row.to_dict() if hasattr(row, "to_dict") else row
+    if is_na_record(row_d):
+        return None
     id_s  = _id_str(row_d.get("Id") or row_d.get("ID", ""))
     ext   = (extraccion_map or {}).get(id_s)
 
@@ -524,6 +526,8 @@ def _meta_corrected_from_row(
 ) -> Optional[float]:
     """Meta correcta para una fila del df_fuente (para agregados)."""
     row_d = row.to_dict() if hasattr(row, "to_dict") else row
+    if is_na_record(row_d):
+        return None
     id_s  = _id_str(row_d.get("Id") or row_d.get("ID", ""))
     ext   = (extraccion_map or {}).get(id_s)
 
