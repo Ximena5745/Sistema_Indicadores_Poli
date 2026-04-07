@@ -549,6 +549,12 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     if df_all.empty:
         return df_all
 
+    # Asegurar que la columna 'fecha' sea de tipo datetime antes de usar el accesor .dt
+    if "fecha" in df_all.columns:
+        # trabajar sobre copia para evitar SettingWithCopyWarning en filtros posteriores
+        df_all = df_all.copy()
+        df_all["fecha"] = pd.to_datetime(df_all["fecha"], errors="coerce")
+
     # Kawak del año seleccionado: IDs activos + umbrales por indicador
     kawak_df = _cargar_kawak_por_anio(anio)
 
