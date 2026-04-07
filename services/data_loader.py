@@ -238,10 +238,18 @@ def cargar_dataset() -> pd.DataFrame:
             df["Periodo"] = df["Periodo"].where(
                 df["Periodo"].notna() & (df["Periodo"] != ""), _periodo_calc)
 
-    # Cumplimiento desde Meta / Ejecucion / Sentido
+    # ── Detectar métricas (sin meta exigible → no se categoriza) ─────────────
+    if "TipoRegistro" in df.columns:
+        _mask_metrica = df["TipoRegistro"].astype(str).str.strip().str.lower() == "metrica"
+    elif "Indicador" in df.columns:
+        _mask_metrica = df["Indicador"].astype(str).str.lower().str.contains(r"\bmetrica\b", na=False)
+    else:
+        _mask_metrica = pd.Series(False, index=df.index)
+
+    # ── Cumplimiento desde Meta / Ejecucion / Sentido ────────────────────────
     if "Cumplimiento" in df.columns and "Meta" in df.columns and "Ejecucion" in df.columns:
         from core.config import IDS_PLAN_ANUAL
-        mask_nan = df["Cumplimiento"].isna()
+        mask_nan = df["Cumplimiento"].isna() & ~_mask_metrica
         if mask_nan.any():
             def _recalc_cumpl(row):
                 try:
@@ -265,6 +273,9 @@ def cargar_dataset() -> pd.DataFrame:
         df["Cumplimiento_norm"] = df["Cumplimiento"].apply(normalizar_cumplimiento)
     else:
         df["Cumplimiento_norm"] = float("nan")
+
+    # ── Métricas: forzar Cumplimiento_norm = NaN → Categoria = "Sin dato" ────
+    df.loc[_mask_metrica, "Cumplimiento_norm"] = float("nan")
 
     # ── Categorizar ───────────────────────────────────────────────────────────
     df["Categoria"] = df.apply(
