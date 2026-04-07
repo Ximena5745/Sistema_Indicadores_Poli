@@ -147,6 +147,9 @@ def main():
         procesos = sorted(consol['Proceso'].dropna().unique().astype(str).tolist())
     proceso_sel = st.sidebar.multiselect('Proceso', options=procesos, default=procesos)
 
+    # Inicializar df a partir del mapping para evitar UnboundLocalError
+    df = map_df.copy()
+
     # Summary metrics
     col1, col2, col3 = st.columns(3)
     resumen = ingesta.get("resumen", {})
@@ -155,12 +158,11 @@ def main():
     col3.metric("Archivos exitosos", resumen.get("exitosos", "-"))
 
     # Scorecard KPIs (dummy: % actualizados, % alerta, TMO OM)
-    total = len(df)
-    pct_actualizados = 100 * (df["Status"] == "Actualizado").sum() / total if total else 0
-    pct_alerta = 100 * (df["Status"] == "Alerta").sum() / total if total else 0
+    # Estos se recalculan más abajo después de aplicar filtros y merges con consol
     tmo_om = 3.5  # valor simulado
+    # Mostrar placeholder de KPIs; se actualizan luego si procede
     st.plotly_chart(scorecard_kpis(
-        pd.DataFrame({"Actualizados %": [pct_actualizados], "Alerta %": [pct_alerta], "TMO OM": [tmo_om]}),
+        pd.DataFrame({"Actualizados %": [0], "Alerta %": [0], "TMO OM": [tmo_om]}),
         ["Actualizados %", "Alerta %", "TMO OM"]
     ), use_container_width=True)
 
