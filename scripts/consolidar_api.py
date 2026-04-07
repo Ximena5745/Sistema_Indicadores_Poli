@@ -84,7 +84,9 @@ def _diagnosticar(df: pd.DataFrame, etiqueta: str) -> None:
 # -----------------------------------------------------------------------------
 
 def _procesar_kawak_año(path: Path, year: int) -> pd.DataFrame:
-    df = pd.read_excel(path)
+    ext = path.suffix.lower()
+    engine = "openpyxl" if ext == ".xlsx" else "xlrd"
+    df = pd.read_excel(path, engine=engine)
     df.columns = [str(c).strip() for c in df.columns]
 
 
@@ -136,16 +138,28 @@ def consolidar_kawak() -> None:
 
     frames = []
     for year in YEARS:
-        path = _KW_PATH / f"{year}.xlsx"
-        if not path.exists():
-            print(f"  [OMITIDO] {path.name} no encontrado")
+        candidatos = [
+            _KW_PATH / f"{year}.xlsx",
+            _KW_PATH / f"{year}.xls",
+        ]
+        existentes = [p for p in candidatos if p.exists()]
+        if not existentes:
+            print(f"  [OMITIDO] {year}.xlsx/.xls no encontrado")
             continue
-        try:
-            df = _procesar_kawak_año(path, year)
-            print(f"  {year}.xlsx: {len(df):,} indicadores únicos")
-            frames.append(df)
-        except Exception as e:
-            print(f"  [ERROR] {year}.xlsx: {e}")
+
+        procesado = False
+        for path in existentes:
+            try:
+                df = _procesar_kawak_año(path, year)
+                print(f"  {path.name}: {len(df):,} indicadores")
+                frames.append(df)
+                procesado = True
+                break
+            except Exception as e:
+                print(f"  [WARN] {path.name}: {e}")
+
+        if not procesado:
+            print(f"  [ERROR] {year}: no se pudo leer ningún archivo anual")
 
     if not frames:
         print("  [WARN] No se encontraron archivos en", _KW_PATH)

@@ -239,17 +239,42 @@ def cargar_dataset() -> pd.DataFrame:
                 df["Periodo"].notna() & (df["Periodo"] != ""), _periodo_calc)
 
     # ── Detectar métricas (sin meta exigible → no se categoriza) ─────────────
-    if "TipoRegistro" in df.columns:
-        _mask_metrica = df["TipoRegistro"].astype(str).str.strip().str.lower() == "metrica"
+    _col_tipo_reg = next(
+        (c for c in ["TipoRegistro", "Tipo_Registro"] if c in df.columns),
+        None,
+    )
+    _col_ejec_signo = next(
+        (c for c in ["EjecS", "Ejecucion_Signo"] if c in df.columns),
+        None,
+    )
+
+    if _col_tipo_reg:
+        _mask_metrica = df[_col_tipo_reg].astype(str).str.strip().str.lower() == "metrica"
     elif "Indicador" in df.columns:
         _mask_metrica = df["Indicador"].astype(str).str.lower().str.contains(r"\bmetrica\b", na=False)
     else:
         _mask_metrica = pd.Series(False, index=df.index)
 
+    # ── Detectar filas sin reporte / sin meta exigible ───────────────────────
+    if "Meta" in df.columns:
+        _meta_num = pd.to_numeric(df["Meta"], errors="coerce")
+        _mask_sin_meta = _meta_num.isna() | (_meta_num == 0)
+    else:
+        _mask_sin_meta = pd.Series(False, index=df.index)
+
+    if _col_tipo_reg:
+        _mask_no_aplica = df[_col_tipo_reg].astype(str).str.strip().str.lower().eq("no aplica")
+    elif _col_ejec_signo:
+        _mask_no_aplica = df[_col_ejec_signo].astype(str).str.strip().str.lower().eq("no aplica")
+    else:
+        _mask_no_aplica = pd.Series(False, index=df.index)
+
+    _mask_sin_reporte = (~_mask_metrica) & (_mask_sin_meta | _mask_no_aplica)
+
     # ── Cumplimiento desde Meta / Ejecucion / Sentido ────────────────────────
     if "Cumplimiento" in df.columns and "Meta" in df.columns and "Ejecucion" in df.columns:
         from core.config import IDS_PLAN_ANUAL
-        mask_nan = df["Cumplimiento"].isna() & ~_mask_metrica
+        mask_nan = df["Cumplimiento"].isna() & ~_mask_metrica & ~_mask_sin_reporte
         if mask_nan.any():
             def _recalc_cumpl(row):
                 try:
@@ -276,6 +301,7 @@ def cargar_dataset() -> pd.DataFrame:
 
     # ── Métricas: forzar Cumplimiento_norm = NaN → Categoria = "Sin dato" ────
     df.loc[_mask_metrica, "Cumplimiento_norm"] = float("nan")
+    df.loc[_mask_sin_reporte, "Cumplimiento_norm"] = float("nan")
 
     # ── Categorizar ───────────────────────────────────────────────────────────
     df["Categoria"] = df.apply(
