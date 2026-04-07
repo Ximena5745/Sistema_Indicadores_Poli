@@ -1,0 +1,102 @@
+"""Plantillas Plotly minimal para prototipos de Fase 3.
+Incluye paleta y estilos consistentes para el dashboard."""
+from typing import List
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+# Paleta institucional/sencilla
+DEFAULT_PALETTE = ["#28a745", "#ffc107", "#dc3545", "#17a2b8", "#6c757d"]
+DEFAULT_TEMPLATE = "plotly_white"
+
+
+def scorecard_kpis(df: pd.DataFrame, kpis: List[str]) -> go.Figure:
+    # Devuelve un gráfico tipo 'cards' horizontal con valores de KPIs simples
+    values = []
+    for k in kpis:
+        if k in df.columns:
+            try:
+                values.append(df[k].dropna().astype(float).mean())
+            except Exception:
+                values.append(None)
+        else:
+            values.append(None)
+
+    fig = go.Figure()
+    for i, (k, v) in enumerate(zip(kpis, values)):
+        fig.add_trace(go.Indicator(mode="number+delta", value=v or 0, title={'text': k}, domain={'x': [i/len(kpis), (i+1)/len(kpis)], 'y': [0,1]}))
+    fig.update_layout(height=120, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def treemap_hierarchical(df: pd.DataFrame, path: List[str], values_col: str = None) -> go.Figure:
+    # path: lista de columnas que definen la jerarquía (ej. ['Linea','Subproceso','Indicador'])
+    fig = px.treemap(df, path=path, values=values_col, color_discrete_sequence=DEFAULT_PALETTE)
+    fig.update_layout(margin=dict(t=25, l=0, r=0, b=0), template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def sparkline_series(series: pd.Series) -> go.Figure:
+    fig = go.Figure(go.Scatter(y=series.values, mode='lines', line=dict(width=1)))
+    fig.update_layout(height=50, margin=dict(t=0,b=0,l=0,r=0), template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def kanban_counts(df: pd.DataFrame, status_col: str = 'Status') -> go.Figure:
+    counts = df[status_col].value_counts().reindex(['Actualizado','Pendiente','Alerta']).fillna(0)
+    fig = px.bar(x=counts.index, y=counts.values, labels={'x':'Estado','y':'Conteo'}, text=counts.values, color_discrete_sequence=DEFAULT_PALETTE)
+    fig.update_layout(height=240, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def heatmap_matrix(df: pd.DataFrame, index: str, columns: str, values: str) -> go.Figure:
+    pivot = df.pivot_table(index=index, columns=columns, values=values, aggfunc='mean')
+    fig = go.Figure(data=go.Heatmap(z=pivot.values, x=list(pivot.columns), y=list(pivot.index), colorscale='RdYlGn'))
+    fig.update_layout(height=400, xaxis_nticks=20, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def stacked_bars(df: pd.DataFrame, x: str, y: str, color: str) -> go.Figure:
+    fig = px.bar(df, x=x, y=y, color=color, color_discrete_sequence=DEFAULT_PALETTE)
+    fig.update_layout(barmode='stack', height=400, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def bubble_chart(df: pd.DataFrame, x: str, y: str, size: str, color: str = None) -> go.Figure:
+    fig = px.scatter(df, x=x, y=y, size=size, color=color, hover_name=df.columns[0], color_discrete_sequence=DEFAULT_PALETTE)
+    fig.update_layout(height=400, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def sankey_chart(df: pd.DataFrame, source_col: str, target_col: str, value_col: str) -> go.Figure:
+    # build categorical mapping
+    sources = list(df[source_col].astype(str))
+    targets = list(df[target_col].astype(str))
+    labels = list(pd.unique(sources + targets))
+    source_idx = [labels.index(s) for s in sources]
+    target_idx = [labels.index(t) for t in targets]
+    values = list(df[value_col].astype(float).fillna(1))
+    link = dict(source=source_idx, target=target_idx, value=values)
+    fig = go.Figure(data=[go.Sankey(node=dict(label=labels, pad=15), link=link)])
+    fig.update_layout(height=400, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def waterfall_chart(df: pd.DataFrame, x: str, y: str) -> go.Figure:
+    fig = go.Figure(go.Waterfall(x=df[x], y=df[y]))
+    fig.update_layout(height=400, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def radar_chart(df: pd.DataFrame, categories: List[str], values: List[float], title: str = '') -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(r=values, theta=categories, fill='toself', name=title))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True)), showlegend=False, height=400, template=DEFAULT_TEMPLATE)
+    return fig
+
+
+def funnel_chart(df: pd.DataFrame, x: str, y: str) -> go.Figure:
+    fig = px.funnel(df, x=x, y=y, color_discrete_sequence=DEFAULT_PALETTE)
+    fig.update_layout(height=400, template=DEFAULT_TEMPLATE)
+    return fig

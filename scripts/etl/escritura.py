@@ -1,8 +1,103 @@
+## (Eliminada línea duplicada 'from __future__ import annotations')
+# ── Utilidad de limpieza y orden ───────────────────────────────
+def limpiar_ordenar_hoja(ws, nombre: str = "", ordenar_por: list = None, validar: bool = True, log_inconsistencias: bool = True):
+    """
+    Deduplica, ordena (por año, mes, fecha, etc.), reescribe fórmulas y reporta inconsistencias.
+    ordenar_por: lista de campos (ej: ["Anio", "Mes"]).
+    """
+    deduplicar_sheet(ws, nombre)
+    # Ordenar por ID, Año, Mes si no se especifica otro orden
+    cm = _build_col_map(ws)
+    if not ordenar_por:
+        ordenar_por = ["Id", "Anio", "Mes"]
+    idxs = [cm.get(campo) for campo in ordenar_por if cm.get(campo)]
+    # Columnas que deben ser fórmulas
+    col_formula = set([cm.get("Anio"), cm.get("Mes"), cm.get("Semestre"), cm.get("LLAVE")])
+    if idxs:
+        datos = []
+        for row in ws.iter_rows(min_row=2, values_only=False):
+            if row[0].value is None:
+                continue
+            fila = []
+            for idx, cell in enumerate(row, start=1):
+                if idx in col_formula:
+                    fila.append(None)  # Dejar en blanco para que la fórmula se reescriba
+                else:
+                    fila.append(cell.value)
+            datos.append(fila)
+        from datetime import datetime, date
+        def normaliza_valor(val):
+            if isinstance(val, datetime):
+                return val.date()
+            return val
+        datos.sort(key=lambda x: tuple((normaliza_valor(x[i-1]) if x[i-1] is not None else 0) for i in idxs))
+        for i, row_vals in enumerate(datos, start=2):
+            for j, val in enumerate(row_vals, start=1):
+                ws.cell(row=i, column=j).value = val
+        # Reescribir fórmulas explícitamente en columnas de fórmula
+        from etl.formulas_excel import formula_G, formula_H, formula_I, formula_R
+        cm = _build_col_map(ws)
+        idx_anio = cm.get("Anio")
+        idx_mes = cm.get("Mes")
+        idx_sem = cm.get("Semestre")
+        idx_llave = cm.get("LLAVE")
+        for i in range(2, 2 + len(datos)):
+            if idx_anio:
+                ws.cell(i, idx_anio).value = formula_G(i)
+            if idx_mes:
+                ws.cell(i, idx_mes).value = formula_H(i)
+            if idx_sem:
+                ws.cell(i, idx_sem).value = formula_I(i)
+            if idx_llave:
+                ws.cell(i, idx_llave).value = formula_R(i)
+    # Reescribir SIEMPRE las fórmulas de Cumplimiento y CumplReal
+    _reescribir_formulas(ws)
+    _materializar_formula_año(ws)
+    # Formato de fecha dd/mm/yyyy
+    idx_fecha = cm.get("Fecha")
+    if idx_fecha:
+        for row in ws.iter_rows(min_row=2, values_only=False):
+            c = row[idx_fecha-1]
+            if c.value:
+                c.number_format = "DD/MM/YYYY"
+    if validar and log_inconsistencias:
+        cm = _build_col_map(ws)
+        idx_meta = cm.get("Meta")
+        idx_ejec = cm.get("Ejecucion")
+        idx_cumpl = cm.get("Cumplimiento")
+        inconsistencias = []
+        for row in ws.iter_rows(min_row=2, values_only=False):
+            if row[0].value is None:
+                continue
+            meta = row[idx_meta-1].value if idx_meta else None
+            ejec = row[idx_ejec-1].value if idx_ejec else None
+            cumpl = row[idx_cumpl-1].value if idx_cumpl else None
+            if meta is not None and ejec is not None and (cumpl is None or str(cumpl).strip() == ""):
+                inconsistencias.append(row[0].row)
+        if inconsistencias:
+            logger.warning(f"[{ws.title}] Filas con Meta y Ejecución pero Cumplimiento vacío: {inconsistencias}")
+## (Eliminada línea duplicada 'from __future__ import annotations')
+def ordenar_por_anio(ws, campo_anio: str = "Anio"):
+    """Ordena las filas de la hoja por la columna de año (Anio) de forma ascendente."""
+    cm = _build_col_map(ws)
+    idx_anio = cm.get(campo_anio)
+    if not idx_anio:
+        return
+    datos = []
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        datos.append([cell.value for cell in row])
+    # Ordenar por año (columna idx_anio-1)
+    datos.sort(key=lambda x: (x[idx_anio-1] if x[idx_anio-1] is not None else 0))
+    # Escribir de nuevo los datos ordenados
+    for i, row_vals in enumerate(datos, start=2):
+        for j, val in enumerate(row_vals, start=1):
+            ws.cell(row=i, column=j).value = val
 """
 scripts/etl/escritura.py
 Escritura de filas al workbook Excel y utilidades de deduplicación.
 """
-from __future__ import annotations
 
 import logging
 from collections import defaultdict
@@ -16,6 +111,7 @@ from .cumplimiento import _calc_cumpl
 from .formulas_excel import (
     _build_col_map, _validar_col_formulas,
     formula_G, formula_H, formula_I, formula_L, formula_M, formula_R,
+    _reescribir_formulas, _materializar_formula_año
 )
 from .normalizacion import _id_str, make_llave, nan2none
 from .no_aplica import SIGNO_NA

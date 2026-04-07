@@ -39,16 +39,17 @@ def _build_col_map(ws) -> Dict[str, int]:
 # ── Generadores de fórmulas ───────────────────────────────────────
 
 def formula_G(r: int) -> str: return f"=YEAR(F{r})"
-def formula_H(r: int) -> str: return f'=PROPER(TEXT(F{r},"mmmm"))'
+def formula_H(r: int) -> str:
+    # =NOMPROPIO(TEXTO(F2;"mmmm"))
+    return f'=NOMPROPIO(TEXTO(F{r};"mmmm"))'
 
 def formula_I(r: int) -> str:
+    # =SI(O(H2="Enero";H2="Febrero";H2="Marzo";H2="Abril";H2="Mayo";H2="Junio");G2&"-1";SI(O(H2="Julio";H2="Agosto";H2="Septiembre";H2="Octubre";H2="Noviembre";H2="Diciembre");G2&"-2"))
     return (
-        f'=IF(OR(H{r}="Enero",H{r}="Febrero",H{r}="Marzo",'
-        f'H{r}="Abril",H{r}="Mayo",H{r}="Junio"),'
-        f'G{r}&"-1",'
-        f'IF(OR(H{r}="Julio",H{r}="Agosto",H{r}="Septiembre",'
-        f'H{r}="Octubre",H{r}="Noviembre",H{r}="Diciembre"),'
-        f'G{r}&"-2"))'
+        f'=SI(O(H{r}="Enero";H{r}="Febrero";H{r}="Marzo";'
+        f'H{r}="Abril";H{r}="Mayo";H{r}="Junio");G{r}&"-1";'
+        f'SI(O(H{r}="Julio";H{r}="Agosto";H{r}="Septiembre";'
+        f'H{r}="Octubre";H{r}="Noviembre";H{r}="Diciembre");G{r}&"-2"))'
     )
 
 def formula_L(r: int, tope: float = 1.3) -> str:
@@ -64,12 +65,12 @@ def formula_M(r: int, tope: Optional[float] = None) -> str:
         f'MAX(K{r}/J{r},0),'
         f'MAX(J{r}/K{r},0))),"") '
     )
-
 def formula_R(r: int) -> str:
+    # =A2&"-"&AÑO(F2)&"-"&SI(LARGO(MES(F2))=1;"0"&MES(F2);MES(F2))&"-"&DIA(F2)
     return (
-        f'=A{r}&"-"&YEAR(F{r})&"-"'
-        f'&IF(LEN(MONTH(F{r}))=1,"0"&MONTH(F{r}),MONTH(F{r}))'
-        f'&"-"&IF(LEN(DAY(F{r}))=1,"0"&DAY(F{r}),DAY(F{r}))'
+        f'=A{r}&"-"&AÑO(F{r})&"-"'
+        f'&SI(LARGO(MES(F{r}))=1;"0"&MES(F{r});MES(F{r}))'
+        f'&"-"&DIA(F{r})'
     )
 
 
@@ -223,6 +224,9 @@ def _reescribir_formulas(ws) -> None:
         tipo_reg_val  = row[idx_tiporeg - 1].value if idx_tiporeg else None
         es_metrica = str(tipo_reg_val or "").strip().lower() == "metrica"
 
+        meta_val = row[cm.get("Meta")-1].value if cm.get("Meta") else None
+        ejec_val = row[cm.get("Ejecucion")-1].value if cm.get("Ejecucion") else None
+
         if idx_anio:
             ws.cell(r, idx_anio).value = formula_G(r)
         if idx_mes:
@@ -233,16 +237,20 @@ def _reescribir_formulas(ws) -> None:
             c = ws.cell(r, idx_cumpl)
             if es_metrica:
                 c.value = None
-            else:
+            elif meta_val is not None and ejec_val is not None:
                 c.value = formula_L(r, tope=tope)
                 c.number_format = "0.00%"
+            else:
+                c.value = None
         if idx_cumplr:
             c = ws.cell(r, idx_cumplr)
             if es_metrica:
                 c.value = None
-            else:
+            elif meta_val is not None and ejec_val is not None:
                 c.value = formula_M(r)
                 c.number_format = "0.00%"
+            else:
+                c.value = None
         if idx_llave:
             ws.cell(r, idx_llave).value = formula_R(r)
         n += 1

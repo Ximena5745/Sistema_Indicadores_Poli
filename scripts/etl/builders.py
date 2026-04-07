@@ -75,7 +75,7 @@ def construir_registros_historico(
                 fecha_ts = None
             periodicidad = str(row.get("Periodicidad", ""))
             if periodicidad and fecha_ts is not None:
-                    if not _fecha_es_periodo_valido(fecha_ts, periodicidad):
+                if not _fecha_es_periodo_valido(fecha_ts, periodicidad):
                     skipped += 1
                     continue
             conteo_na += 1

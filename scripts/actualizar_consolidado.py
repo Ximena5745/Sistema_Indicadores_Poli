@@ -246,17 +246,12 @@ def main() -> None:
 
     # ── 13. Deduplicar y reescribir fórmulas ─────────────────────
     logger.info("13. Deduplicando y reescribiendo fórmulas…")
-    for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral")]:
-        deduplicar_sheet(ws, nom)
-        _reescribir_formulas(ws)
-        _materializar_formula_año(ws)
-        _materializar_cumplimiento(ws)
+    from etl.escritura import limpiar_ordenar_hoja
 
-    # Cierres: dedup especial
-    _dedup_cierres_por_año(ws_cierres)
-    _reescribir_formulas(ws_cierres)
-    _materializar_formula_año(ws_cierres)
-    _materializar_cumplimiento(ws_cierres)
+    # Ordenar siempre por ID y Fecha en todos los consolidados
+    limpiar_ordenar_hoja(ws_hist, "Historico", ordenar_por=["Id", "Fecha"])
+    limpiar_ordenar_hoja(ws_sem, "Semestral", ordenar_por=["Id", "Fecha"])
+    limpiar_ordenar_hoja(ws_cierres, "Cierres", ordenar_por=["Id", "Fecha"])
 
     # ── 14. Actualizar Catálogo Indicadores ───────────────────────
     logger.info("14. Actualizando Catálogo Indicadores…")
@@ -276,6 +271,17 @@ def main() -> None:
 
     wb.save(OUTPUT_FILE)
     logger.info("   Guardado correctamente.")
+
+    # ── Generar copia solo valores ───────────────────────────────
+    valores_file = OUTPUT_FILE.with_name(OUTPUT_FILE.stem + " VALORES.xlsx")
+    wb_val = openpyxl.load_workbook(OUTPUT_FILE)
+    for ws in wb_val.worksheets:
+        try:
+            _materializar_cumplimiento(ws)
+        except Exception as e:
+            logger.warning(f"No se pudo materializar cumplimiento en hoja {ws.title}: {e}")
+    wb_val.save(valores_file)
+    logger.info(f"   Copia solo valores guardada en: {valores_file}")
 
     # ── Resumen final ─────────────────────────────────────────────
     total_nuevos = len(regs_hist) + len(regs_sem) + len(regs_cierres)
