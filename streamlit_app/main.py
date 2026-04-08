@@ -4,14 +4,14 @@ from streamlit_option_menu import option_menu
 from streamlit_app.components import Topbar, Banner, KPIRow, Charts
 from streamlit_app.services.data_service import DataService
 
-from streamlit_app.pages import (
-    cmi_estrategico,
-    pdi_acreditacion,
-    plan_mejoramiento,
-    resumen_por_proceso,
-    _5_Seguimiento_de_reportes,
-    _2_Gestion_OM,
-)
+    from streamlit_app.pages import (
+        cmi_estrategico,
+        pdi_acreditacion,
+        plan_mejoramiento,
+        resumen_por_proceso,
+        seguimiento_reportes,
+        gestion_om,
+    )
 
 st.set_page_config(page_title="Sistema de Indicadores", layout="wide")
 
@@ -67,9 +67,9 @@ def main():
         # Agrupar vistas operativas en pestañas internas
         tab_a, tab_b = st.tabs(["Seguimiento reportes", "Gestión de OM"])
         with tab_a:
-            _5_Seguimiento_de_reportes.render()
+            seguimiento_reportes.render()
         with tab_b:
-            _2_Gestion_OM.render()
+            gestion_om.render()
 
 
 if __name__ == "__main__":
