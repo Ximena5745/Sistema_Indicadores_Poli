@@ -6,18 +6,17 @@ class Topbar:
         self.subtitle = subtitle
 
     def render(self):
-        cols = st.columns([3, 1, 1, 1, 1])
+        cols = st.columns([4, 1, 1, 1, 1])
         with cols[0]:
-            st.markdown(f"# {self.title}")
-            st.markdown(self.subtitle)
+            st.markdown(f"<div class='topbar'><div class='title'>{self.title}</div><div class='muted'>{self.subtitle}</div></div>", unsafe_allow_html=True)
         with cols[1]:
-            year = st.selectbox("Año", [2026, 2025, 2024], index=0)
+            year = st.selectbox("Año", [2026, 2025, 2024], index=0, key='topbar_year')
         with cols[2]:
-            month = st.selectbox("Mes", ["Todos", "Ene", "Feb", "Mar", "Abr"], index=0)
+            month = st.selectbox("Mes", ["Todos", "Ene", "Feb", "Mar", "Abr"], index=0, key='topbar_month')
         with cols[3]:
-            area = st.selectbox("Área", ["Todas las áreas", "Académica", "Administrativa"], index=0)
+            area = st.selectbox("Área", ["Todas las áreas", "Académica", "Administrativa"], index=0, key='topbar_area')
         with cols[4]:
-            if st.button("Actualizar datos"):
+            if st.button("Actualizar datos", key='topbar_refresh'):
                 st.experimental_rerun()
         return dict(year=year, month=month, area=area)
 

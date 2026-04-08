@@ -13,9 +13,7 @@ class KPIRow:
         cols = st.columns(len(self.kpis))
         for col, (title, value, sub, color) in zip(cols, self.kpis):
             with col:
-                st.markdown(f"**{title}**")
-                st.markdown(f"<div class='kpi-value' style='color:{color}'>{value}</div>", unsafe_allow_html=True)
-                st.caption(sub)
+                st.markdown(f"<div class='kpi-card'><div class='label'>{title}</div><div class='value' style='color:{color}'>{value}</div><div class='sub'>{sub}</div></div>", unsafe_allow_html=True)
 
 def render_kpi_row(kpis=None):
     return KPIRow(kpis).render()
