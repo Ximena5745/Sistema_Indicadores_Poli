@@ -10,7 +10,7 @@ def main():
         st.markdown("Politécnico Grancolombiano · v2.0 Estratégico")
         st.markdown("---")
 
-        # Menú principal
+        # Menú principal actualizado con solo 3 opciones
         menu = option_menu(
             menu_title="Navegación",
             options=["Inicio estratégico", "Resumen por procesos", "Seguimiento operativo"],
@@ -19,39 +19,14 @@ def main():
             default_index=0,
         )
 
-    # Lógica de navegación
+    # Lógica de navegación actualizada
     if menu == "Inicio estratégico":
         st.title("Inicio estratégico")
-        tab1, tab2, tab3 = st.tabs(["CMI Estratégico", "PDI / Acreditación", "Plan de Mejoramiento"])
-        with tab1:
-            st.write("Contenido de CMI Estratégico")
-        with tab2:
-            st.write("Contenido de PDI / Acreditación")
-        with tab3:
-            st.write("Contenido de Plan de Mejoramiento")
+        st.write("Esta sección proporciona un resumen estratégico del sistema.")
 
     elif menu == "Resumen por procesos":
         st.title("Resumen por procesos")
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "📊 Indicadores",
-            "📋 Reporte de indicadores",
-            "✅ Calidad de información",
-            "🔍 Resultados de auditoría",
-            "💡 Propuestos",
-            "🤖 Análisis IA",
-        ])
-        with tab1:
-            st.write("Contenido de Indicadores")
-        with tab2:
-            st.write("Contenido de Reporte de indicadores")
-        with tab3:
-            st.write("Contenido de Calidad de información")
-        with tab4:
-            st.write("Contenido de Resultados de auditoría")
-        with tab5:
-            st.write("Contenido de Propuestos")
-        with tab6:
-            st.write("Contenido de Análisis IA")
+        st.write("Esta sección proporciona un resumen por procesos.")
 
     elif menu == "Seguimiento operativo":
         st.title("Seguimiento operativo")
