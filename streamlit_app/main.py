@@ -46,12 +46,10 @@ def main():
 
     # Configuración del sidebar
     with st.sidebar:
-        # Encabezado personalizado con logo y versión
         commit = _get_git_commit_short()
         header_html = f"""
 <div class='sidebar-header'>
   <div class='sidebar-logo'>
-    <!-- Inline SVG genérico del Poli -->
     <svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <rect width='24' height='24' rx='4' fill='#ffffff22'/>
       <text x='12' y='16' font-size='10' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'>PG</text>
@@ -62,25 +60,27 @@ def main():
     <div class='sidebar-subtitle'>Politécnico Grancolombiano · v2.0 Estratégico</div>
   </div>
 </div>
-<div class='version-box'>Commit activo: {commit}</div>
-<div class='sidebar-status-card'>
-  <div class='sidebar-status-title'>Pipeline</div>
-  <div class='sidebar-status-value'>QA 89% · 87 indicadores</div>
-  <div class='sidebar-status-meta'>Últ. ejec: hoy 06:00</div>
-</div>
-<hr style='border:none;margin:18px 0;border-top:1px solid rgba(255,255,255,0.10)' />
 """
         st.markdown(header_html, unsafe_allow_html=True)
         st.markdown("<div class='sidebar-section-title'>Navegación</div>", unsafe_allow_html=True)
 
-        # Menú principal — solo se muestran las secciones principales.
         menu = option_menu(
             menu_title=None,
-            options=["Inicio estratégico", "Resumen general", "Resumen por procesos", "Seguimiento operativo"],
-            icons=["house", "file-text", "layers", "clipboard-check"],
+            options=["Resumen general", "Inicio estratégico", "Resumen por procesos", "Seguimiento operativo"],
+            icons=["file-text", "house", "layers", "clipboard-check"],
             menu_icon="cast",
             default_index=0,
         )
+
+        footer_html = f"""
+<div class='sidebar-status-card' style='margin-top:24px;'>
+  <div class='sidebar-status-title'>Pipeline</div>
+  <div class='sidebar-status-value'>QA 89% · 87 indicadores</div>
+  <div class='sidebar-status-meta'>Últ. ejec: hoy 06:00</div>
+  <div class='version-box' style='margin-top:12px;'>Commit: {commit}</div>
+</div>
+"""
+        st.markdown(footer_html, unsafe_allow_html=True)
 
     # Routing simple a páginas
     if menu == "Inicio estratégico":
