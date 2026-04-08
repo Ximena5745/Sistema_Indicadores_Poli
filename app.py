@@ -13,6 +13,19 @@ EMBEDDED_MODE = os.getenv("POWER_APPS_EMBEDDED", "").strip().lower() in {
     "on",
 }
 
+# Delegar siempre a la nueva UI (streamlit_app/main.py) — este `app.py` es el
+# único entrypoint. Migramos la navegación y páginas internas a la carpeta
+# `streamlit_app` y mantenemos aquí la importación única.
+try:
+    from streamlit_app.main import main as _new_main
+
+    _new_main()
+    raise SystemExit(0)
+except Exception as _err:
+    # En caso de error mostramos la app original como fallback y el error.
+    st.error(f"No se pudo iniciar la nueva interfaz: {_err}")
+
+
 # Configuración global (debe ser la primera llamada a Streamlit)
 st.set_page_config(
     page_title="Dashboard de Desempeño Institucional",
@@ -167,7 +180,7 @@ pages = {
         st.Page("pages/5_Seguimiento_de_reportes.py",      title="Seguimiento de reportes",       icon="📊"),
         st.Page("pages/1_Resumen_General.py",              title="Reporte de Cumplimiento",       icon="🏠"),
         st.Page("pages/2_Gestion_OM.py",                   title="Gestión de Oportunidades (OM)", icon="⚠️"),
-        st.Page("pages/3_Tablero_Estrategico_Operativo.py", title="Tablero Estratégico Operativo (Nivel 3)", icon="🧩"),
+        # Nivel 3 page removed: Tablero Estratégico Operativo
     ],
     "Informes especiales": [
         st.Page("pages/6_Direccionamiento_Estrategico.py", title="Direccionamiento Estratégico",  icon="🏛️"),
