@@ -30,75 +30,33 @@ def main():
 
     import streamlit as st
     from streamlit_option_menu import option_menu
-    import pandas as pd
-    import plotly.express as px
-    import numpy as np
+    from streamlit_app.components import Topbar, Banner, KPIRow, Charts
+    from streamlit_app.services.data_service import DataService
 
 
     st.set_page_config(page_title="Sistema de Indicadores", layout="wide")
 
 
-    def _topbar():
-        cols = st.columns([3, 1, 1, 1, 1])
-        with cols[0]:
-            st.markdown("# Inicio estratégico")
-            st.markdown("Dic 2025 · 387 indicadores · Generado 07/04/2026")
-        with cols[1]:
-            year = st.selectbox("Año", [2026, 2025, 2024], index=0)
-        with cols[2]:
-            month = st.selectbox("Mes", ["Todos", "Ene", "Feb", "Mar", "Abr"], index=0)
-        with cols[3]:
-            area = st.selectbox("Área", ["Todas las áreas", "Académica", "Administrativa"], index=0)
-        with cols[4]:
-            if st.button("Actualizar datos"):
-                st.experimental_rerun()
+    def _topbar(service=None):
+        tb = Topbar()
+        return tb.render()
 
 
     def _banner_ia():
-        container = st.container()
-        with container:
-            c1, c2 = st.columns([8, 1])
-            with c1:
-                st.markdown(
-                    "**IA detectó:** 9 indicadores con riesgo alto (IRIP >70%) · 3 anomalías (z-score>3) · 7 metas fuera de rango"
-                )
-            with c2:
-                if st.button("Ver detalle IA ↗"):
-                    st.session_state.show_ia = True
+        b = Banner()
+        return b.render()
 
 
-    def _kpi_row():
-        kpis = [
-            ("Total indicadores", 387, "Kawak + API", "#04122e"),
-            ("En peligro", 20, "+19 vs ant. · 5.2%", "#ff3b30"),
-            ("En alerta", 24, "+21 vs ant. · 6.2%", "#ffab00"),
-            ("Cumplimiento", 85, "+70 vs ant. · 22%", "#00c853"),
-            ("Sobrecumplimiento", 115, "+108 vs ant. · 29.7%", "#00b8d4"),
-        ]
-        cols = st.columns(5)
-        for col, (title, value, sub, color) in zip(cols, kpis):
-            with col:
-                st.markdown(f"**{title}**")
-                st.markdown(f"<div style='font-size:24px;color:{color};font-weight:700'>{value}</div>", unsafe_allow_html=True)
-                st.caption(sub)
-
-
-    def _mock_timeseries():
-        dates = pd.date_range(end=pd.Timestamp("2026-04-07"), periods=12, freq="M")
-        df = pd.DataFrame({"date": dates, "value": np.random.randint(60, 100, size=len(dates))})
-        return df
+    def _kpi_row(service=None):
+        kpi = KPIRow()
+        return kpi.render()
 
 
     def _draw_charts():
-        df = _mock_timeseries()
-        fig = px.bar(df, x="date", y="value", labels={"value": "Desempeño"}, title="Curva de desempeño institucional")
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Semáforo
-        st.markdown("### Semáforo global")
-        sem = pd.DataFrame({"estado": ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento"], "valor": [20, 24, 85, 115]})
-        fig2 = px.pie(sem, names="estado", values="valor", color_discrete_map={"Peligro": "#ff3b30", "Alerta": "#ffab00", "Cumplimiento": "#00c853", "Sobrecumplimiento": "#00b8d4"})
-        st.plotly_chart(fig2, use_container_width=True)
+        charts = Charts(service=DataService())
+        charts.draw_performance_chart()
+        st.markdown("### ")
+        charts.draw_semaforo()
 
 
     def _indicator_modal(ind_name="Indicador ejemplo"):
@@ -157,4 +115,11 @@ def main():
         # initialize session flags
         if "show_ia" not in st.session_state:
             st.session_state.show_ia = False
+        # inject styles
+        try:
+            with open("streamlit_app/styles/styles.css", "r", encoding="utf-8") as f:
+                css = f.read()
+                st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+        except Exception:
+            pass
         main()
