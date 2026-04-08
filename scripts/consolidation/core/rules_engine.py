@@ -95,7 +95,7 @@ class Alerta:
     mensaje: str
     resultado_regla: ResultadoRegla
     accionable: bool = True
-   acknowledged: bool = False
+    acknowledged: bool = False
 
 
 # =============================================================================

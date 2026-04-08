@@ -4,14 +4,14 @@ from streamlit_option_menu import option_menu
 from streamlit_app.components import Topbar, Banner, KPIRow, Charts
 from streamlit_app.services.data_service import DataService
 
-    from streamlit_app.pages import (
-        cmi_estrategico,
-        pdi_acreditacion,
-        plan_mejoramiento,
-        resumen_por_proceso,
-        seguimiento_reportes,
-        gestion_om,
-    )
+from streamlit_app.pages import (
+    cmi_estrategico,
+    pdi_acreditacion,
+    plan_mejoramiento,
+    resumen_por_proceso,
+    seguimiento_reportes,
+    gestion_om,
+)
 
 st.set_page_config(page_title="Sistema de Indicadores", layout="wide")
 
