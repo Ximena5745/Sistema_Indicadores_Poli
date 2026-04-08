@@ -8,6 +8,7 @@ from streamlit_app.pages import (
     cmi_estrategico,
     pdi_acreditacion,
     plan_mejoramiento,
+    resumen_general,
     resumen_por_proceso,
     seguimiento_reportes,
     gestion_om,
@@ -61,16 +62,22 @@ def main():
     <div class='sidebar-subtitle'>Politécnico Grancolombiano · v2.0 Estratégico</div>
   </div>
 </div>
-<div class='version-box'>Versión: {commit}</div>
-<hr style='border:none;margin:12px 0;border-top:1px solid rgba(255,255,255,0.06)' />
+<div class='version-box'>Commit activo: {commit}</div>
+<div class='sidebar-status-card'>
+  <div class='sidebar-status-title'>Pipeline</div>
+  <div class='sidebar-status-value'>QA 89% · 87 indicadores</div>
+  <div class='sidebar-status-meta'>Últ. ejec: hoy 06:00</div>
+</div>
+<hr style='border:none;margin:18px 0;border-top:1px solid rgba(255,255,255,0.10)' />
 """
         st.markdown(header_html, unsafe_allow_html=True)
+        st.markdown("<div class='sidebar-section-title'>Navegación</div>", unsafe_allow_html=True)
 
         # Menú principal — solo se muestran las secciones principales.
         menu = option_menu(
-            menu_title="Navegación",
-            options=["Inicio estratégico", "Resumen por procesos", "Seguimiento operativo"],
-            icons=["house", "layers", "clipboard-check"],
+            menu_title=None,
+            options=["Inicio estratégico", "Resumen general", "Resumen por procesos", "Seguimiento operativo"],
+            icons=["house", "file-text", "layers", "clipboard-check"],
             menu_icon="cast",
             default_index=0,
         )
@@ -91,7 +98,11 @@ def main():
         with tab_plan:
             plan_mejoramiento.render()
         st.markdown("---")
-        Charts(service=DataService()).draw_performance_chart()
+        cols = st.columns([2, 1])
+        with cols[0]:
+            Charts(service=DataService()).draw_performance_chart()
+        with cols[1]:
+            Charts(service=DataService()).draw_semaforo()
 
     elif menu == "CMI Estratégico":
         cmi_estrategico.render()
@@ -101,6 +112,9 @@ def main():
 
     elif menu == "Plan de Mejoramiento":
         plan_mejoramiento.render()
+
+    elif menu == "Resumen general":
+        resumen_general.render()
 
     elif menu == "Resumen por procesos":
         # Resumen por procesos se renderiza como una vista con sus propias pestañas (ya implementado en el módulo)
