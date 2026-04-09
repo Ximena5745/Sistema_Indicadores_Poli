@@ -22,13 +22,13 @@ def load_css(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
-def main():
-    """Función principal de la aplicación Streamlit."""
-    # Carga de estilos
-    styles = load_css("streamlit_app/styles/main.css")
-    st.markdown(f"<style>{styles}</style>", unsafe_allow_html=True)
-    
-    data_service = DataService()
+def _inject_styles():
+    """Inyecta estilos locales sin romper la app si el archivo no existe."""
+    try:
+        styles = load_css("streamlit_app/styles/main.css")
+        st.markdown(f"<style>{styles}</style>", unsafe_allow_html=True)
+    except Exception:
+        pass
 
 
 def _load_sidebar_logo_html():
