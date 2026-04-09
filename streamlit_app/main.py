@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 
@@ -6,7 +8,6 @@ from streamlit_app.services.data_service import DataService
 
 from streamlit_app.pages import (
     cmi_estrategico,
-    pdi_acreditacion,
     plan_mejoramiento,
     resumen_general,
     resumen_por_proceso,
@@ -23,12 +24,13 @@ def load_css(file_path):
         return f.read()
 
 def _inject_styles():
-    """Inyecta estilos locales sin romper la app si el archivo no existe."""
-    try:
-        styles = load_css("streamlit_app/styles/main.css")
+    """Inyecta estilos locales con ruta robusta para local y cloud."""
+    css_path = Path(__file__).resolve().parent / "styles" / "main.css"
+    if not css_path.exists():
+        css_path = Path("streamlit_app/styles/main.css")
+    if css_path.exists():
+        styles = load_css(str(css_path))
         st.markdown(f"<style>{styles}</style>", unsafe_allow_html=True)
-    except Exception:
-        pass
 
 
 def _load_sidebar_logo_html():
@@ -106,17 +108,15 @@ def main():
 
     # Routing simple a páginas
     if menu == "Inicio estratégico":
-        # Inicio estratégico: mostrar pestañas internas CMI / PDI / Plan (no como páginas en sidebar)
+        # Inicio estratégico: mostrar pestañas internas CMI / Plan (no como páginas en sidebar)
         Topbar().render()
         Banner().render()
         KPIRow().render()
         st.markdown("---")
         # pestañas internas
-        tab_cmi, tab_pdi, tab_plan = st.tabs(["CMI Estratégico", "PDI / Acreditación", "Plan de Mejoramiento"])
+        tab_cmi, tab_plan = st.tabs(["CMI Estratégico", "Plan de Mejoramiento"])
         with tab_cmi:
             cmi_estrategico.render()
-        with tab_pdi:
-            pdi_acreditacion.render()
         with tab_plan:
             plan_mejoramiento.render()
         st.markdown("---")
@@ -125,15 +125,6 @@ def main():
             Charts(service=DataService()).draw_performance_chart()
         with cols[1]:
             Charts(service=DataService()).draw_semaforo()
-
-    elif menu == "CMI Estratégico":
-        cmi_estrategico.render()
-
-    elif menu == "PDI / Acreditación":
-        pdi_acreditacion.render()
-
-    elif menu == "Plan de Mejoramiento":
-        plan_mejoramiento.render()
 
     elif menu == "Resumen general":
         resumen_general.render()

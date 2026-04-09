@@ -46,7 +46,8 @@ MESES_OPCIONES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
-_MES_NUM = {m: i+1 for i, m in enumerate(MESES_OPCIONES)}
+_MES_NUM = {m: i + 1 for i, m in enumerate(MESES_OPCIONES)}
+_MESES_ES_P1 = {i + 1: m for i, m in enumerate(MESES_OPCIONES)}
 
 # ── Niveles extendidos ─────────────────────────────────────────────────────────
 _NO_APLICA   = "No aplica"
@@ -892,6 +893,25 @@ def render():
         st.stop()
 
     # ── Filtros de Período ─────────────────────────────────────────────────────
+    # Smart month default: Diciembre para años cerrados, último mes cerrado para el año actual
+    _sk_rg_anio  = "resumen_general_periodo_anio"
+    _sk_rg_mes   = "resumen_general_periodo_mes"
+    _sk_rg_prev  = "_rg_last_anio_seen"
+    _hoy_rg      = _date.today()
+    _anio_actual_rg = st.session_state.get(_sk_rg_anio, anios_disponibles[-1])
+
+    # Si el año cambia → reset del mes para que tome el default inteligente
+    if st.session_state.get(_sk_rg_prev) != _anio_actual_rg:
+        if _sk_rg_mes in st.session_state:
+            del st.session_state[_sk_rg_mes]
+        st.session_state[_sk_rg_prev] = _anio_actual_rg
+
+    # Calcular default de mes según año
+    if int(_anio_actual_rg) < _hoy_rg.year:
+        _mes_default_rg = "Diciembre"
+    else:
+        _mes_default_rg = MESES_OPCIONES[max(0, _hoy_rg.month - 2)]
+
     with st.expander("📅 Selección de Período", expanded=True):
         filter_config = {
             "anio": {
@@ -904,14 +924,14 @@ def render():
                 "label": "Mes",
                 "options": MESES_OPCIONES,
                 "include_all": False,
-                "default": "Diciembre",
+                "default": _mes_default_rg,
             },
         }
 
         selections = render_filters(pd.DataFrame(), filter_config, key_prefix="resumen_general_periodo", columns_per_row=2)
 
         anio_seleccionado = selections.get("anio", anios_disponibles[-1] if anios_disponibles else 2024)
-        mes_seleccionado = selections.get("mes", "Diciembre")
+        mes_seleccionado = selections.get("mes", _mes_default_rg)
 
     # Calcular mes anterior para comparativa
     mes_num = _MES_NUM[mes_seleccionado]
