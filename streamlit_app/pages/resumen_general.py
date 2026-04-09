@@ -1085,6 +1085,17 @@ def render():
     st.markdown("---")
 
     st.markdown("<div class='section-panel'>", unsafe_allow_html=True)
+    # ── KPIs: Definiciones de color y Primera fila — Resumen general (corte fijo: Diciembre 2025)
+    _CARD_COLORS = {
+        "Total":              ("#1A3A5C", "#D0E4FF"),
+        "Peligro":            ("#D32F2F", "#FFCDD2"),
+        "Alerta":             ("#F57F17", "#FFF8E1"),
+        "Cumplimiento":       ("#43A047", "#E8F5E9"),
+        "Sobrecumplimiento":  ("#6699FF", "#EEF2FF"),
+        "No aplica":          ("#BDBDBD", "#F9F9F9"),
+        "Pendiente":          ("#9E9E9E", "#F5F5F5"),
+    }
+
     # ── KPIs: Primera fila — Resumen general (corte fijo: Diciembre 2025)
     df_cut = _preparar_datos_por_fecha(_raw, 2025, "Diciembre")
     # Normalizar columna de nivel si falta
@@ -1159,16 +1170,6 @@ def render():
 
     # Previos
     cnts_p = df_prev["Nivel de cumplimiento"].value_counts() if not df_prev.empty else pd.Series(dtype=int)
-
-    _CARD_COLORS = {
-        "Total":              ("#1A3A5C", "#D0E4FF"),
-        "Peligro":            ("#D32F2F", "#FFCDD2"),
-        "Alerta":             ("#F57F17", "#FFF8E1"),
-        "Cumplimiento":       ("#43A047", "#E8F5E9"),
-        "Sobrecumplimiento":  ("#6699FF", "#EEF2FF"),
-        "No aplica":          ("#BDBDBD", "#F9F9F9"),
-        "Pendiente":          ("#9E9E9E", "#F5F5F5"),
-    }
     metricas = [
         ("Reportados",         total_reportados,                        None),
         ("Peligro",            int(cnts.get("Peligro", 0)),           int(cnts_p.get("Peligro", 0))),
