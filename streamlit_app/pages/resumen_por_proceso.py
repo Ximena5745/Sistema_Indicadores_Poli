@@ -438,7 +438,7 @@ def render():
 
     # ---------- Tab 1: Información por proceso (replica Direccionamiento Estratégico)
     with tabs[1]:
-        st.markdown("# 🏛️ Direccionamiento Estratégico — Información por proceso")
+        st.markdown("### Información por proceso")
 
         # Usar el dataset completo como fuente para Direccionamiento
         df_raw = df.copy() if not df.empty else pd.DataFrame()
@@ -457,25 +457,39 @@ def render():
                 st.error("No se encontró la lista de procesos en el archivo de mapeo (hoja 'Proceso').")
                 return
 
-            # Filtrar registros que pertenezcan a procesos listados en el mapeo
-            df_dir = df_raw[df_raw["Proceso"].isin(procesos_map)].copy()
-            if df_dir.empty:
-                st.error("No se encontraron indicadores para los procesos definidos en el mapeo.")
-            else:
-                # Excluir IDs en Planeación Estratégica
-                mask_excl = (df_dir["Proceso"] == "Planeación Estratégica") & df_dir["Id"].astype(str).isin(_IDS_EXCLUIR_PLAN)
+            # Normalizar y mapear: en el archivo de seguimiento a veces el campo `Proceso` contiene
+            # el nombre del "Subproceso" en lugar del proceso padre. Construimos un mapeo
+            # Subproceso -> Proceso y lo aplicamos para obtener una columna `Proceso_final`.
+            sub_map = {}
+            try:
+                for _, r in map_df.dropna(subset=["Subproceso", "Proceso"]).iterrows():
+                    sub_map[_normalize_text(r["Subproceso"]) ] = r["Proceso"]
+            except Exception:
+                sub_map = {}
+
+            def _map_proc(val):
+                if pd.isna(val):
+                    return val
+                key = _normalize_text(val)
+                return sub_map.get(key, val)
+
+            df_dir = df_raw.copy()
+            df_dir["Proceso_final"] = df_dir["Proceso"].apply(_map_proc)
+
+            # Excluir IDs en Planeación Estratégica (usar Proceso_final)
+            mask_excl = (df_dir.get("Proceso_final") == "Planeación Estratégica") & df_dir.get("Id", pd.Series()).astype(str).isin(_IDS_EXCLUIR_PLAN)
+            if not df_dir.empty:
                 df_dir = df_dir[~mask_excl].copy()
 
-                # Selector obligatorio de proceso para esta vista (siempre visible)
-                procesos_disp = sorted(df_dir["Proceso"].dropna().unique().tolist())
-                # Preseleccionar el proceso si viene del filtro global
-                pre_idx = 0
-                if proceso and proceso != "Todos" and proceso in procesos_disp:
-                    pre_idx = procesos_disp.index(proceso)
-                sel_proc = st.selectbox("Selecciona proceso (requerido)", procesos_disp, index=pre_idx, key="info_proceso_sel")
+                # Selector obligatorio de proceso para esta vista (usar todos los procesos del mapeo)
+                procesos_disp = procesos_map
+            pre_idx = 0
+            if proceso and proceso != "Todos" and proceso in procesos_disp:
+                pre_idx = procesos_disp.index(proceso)
+            sel_proc = st.selectbox("Selecciona proceso (requerido)", procesos_disp, index=pre_idx, key="info_proceso_sel")
 
-                # Filtrar data del proceso seleccionado (puede estar vacío)
-                df_proc_sel = df_dir[df_dir["Proceso"] == sel_proc].copy()
+            # Filtrar data del proceso seleccionado (usar Proceso_final)
+            df_proc_sel = df_dir[df_dir.get("Proceso_final") == sel_proc].copy()
 
                 # Recuperar subprocesos desde el mapeo y crear solo pestañas con datos
                 try:
@@ -485,9 +499,16 @@ def render():
 
                 # Filtrar subprocesos que sí tienen indicadores en el dataset del proceso
                 available_subprocs = []
-                if subprocs and not df_proc_sel.empty and "Subproceso" in df_proc_sel.columns:
+                if subprocs and not df_proc_sel.empty:
                     for s in subprocs:
-                        if not df_proc_sel[df_proc_sel.get("Subproceso") == s].empty:
+                        has = False
+                        # Si el dataset de tracking tiene columna `Subproceso`, úsala;
+                        # sino, en muchos casos el tracking guarda el subproceso dentro de `Proceso`.
+                        if "Subproceso" in df_proc_sel.columns and not df_proc_sel[df_proc_sel["Subproceso"] == s].empty:
+                            has = True
+                        elif not df_proc_sel[df_proc_sel.get("Proceso") == s].empty:
+                            has = True
+                        if has:
                             available_subprocs.append(s)
 
                 # Si no hay subprocesos con datos, solo mostrar "Resumen general"; en caso contrario, añadir los que sí tienen datos
@@ -537,10 +558,14 @@ def render():
                         st.info("No hay indicadores reportados para el período seleccionado.")
 
                 # --- Tabs por Subproceso ---
-                for i, sub in enumerate(subprocs, start=1):
+                for i, sub in enumerate(available_subprocs, start=1):
                     with tab_objs[i]:
                         st.header(f"Subproceso: {sub}")
-                        df_sub = df_proc_sel[df_proc_sel.get("Subproceso") == sub].copy()
+                        # Soportar tracking que guarde el subproceso en la columna `Subproceso` o en `Proceso`
+                        if "Subproceso" in df_proc_sel.columns:
+                            df_sub = df_proc_sel[df_proc_sel["Subproceso"] == sub].copy()
+                        else:
+                            df_sub = df_proc_sel[df_proc_sel.get("Proceso") == sub].copy()
                         # Reusar _render_proceso (muestra mensaje si df_sub está vacío)
                         _render_proceso(df_sub, sub, f"sub_{i}", anio_sel)
 
