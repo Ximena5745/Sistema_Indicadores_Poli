@@ -32,6 +32,21 @@ def _inject_styles():
             pass
 
 
+def _load_sidebar_logo_html():
+    from base64 import b64encode
+    from pathlib import Path
+
+    logo_path = Path(r"c:/Users/ximen/Downloads/Wallpaper-POLI.jpg.webp")
+    if not logo_path.exists():
+        return None
+    mime = "image/webp" if logo_path.suffix.lower() == ".webp" else "image/png"
+    try:
+        encoded = b64encode(logo_path.read_bytes()).decode("ascii")
+        return f"<img src='data:{mime};base64,{encoded}' alt='Logo' class='sidebar-logo-img'/>"
+    except Exception:
+        return None
+
+
 def _get_git_commit_short():
     import subprocess, os
     try:
@@ -46,14 +61,22 @@ def main():
 
     # Configuración del sidebar
     with st.sidebar:
-        header_html = """
+        logo_html = _load_sidebar_logo_html()
+        if logo_html:
+            logo_block = f"<div class='sidebar-logo'>{logo_html}</div>"
+        else:
+            logo_block = """
+    <div class='sidebar-logo'>
+      <svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+        <rect width='24' height='24' rx='4' fill='#ffffff22'/>
+        <text x='12' y='16' font-size='10' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'>PG</text>
+      </svg>
+    </div>
+"""
+
+        header_html = f"""
 <div class='sidebar-header'>
-  <div class='sidebar-logo'>
-    <svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <rect width='24' height='24' rx='4' fill='#ffffff22'/>
-      <text x='12' y='16' font-size='10' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'>PG</text>
-    </svg>
-  </div>
+  {logo_block}
   <div>
     <div class='sidebar-title'>Sistema de Indicadores</div>
     <div class='sidebar-subtitle'>Politécnico Grancolombiano · v2.0 Estratégico</div>

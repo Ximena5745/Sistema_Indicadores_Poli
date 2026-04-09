@@ -72,6 +72,13 @@ div[data-testid="stAppViewContainer"] {
     background: rgba(255,255,255,0.12);
     color: #ffffff;
     font-weight: 700;
+    overflow: hidden;
+}
+
+.sidebar-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .sidebar-title {
@@ -140,21 +147,21 @@ div[data-testid="stAppViewContainer"] {
 
 /* Sidebar menu */
 .streamlit-option-menu {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.08);
     border-radius: 22px;
     padding: 14px 10px 14px 10px;
-    border: 1px solid rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.12);
 }
 
 .streamlit-option-menu .nav-link {
     color: #f3f7ff !important;
     border-radius: 14px !important;
-    padding: 12px 16px !important;
+    padding: 14px 18px !important;
     margin-bottom: 8px !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     border: 1px solid transparent !important;
     background: rgba(255,255,255,0.08) !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important;
+    box-shadow: none !important;
 }
 
 .streamlit-option-menu .nav-link:hover {
@@ -175,23 +182,30 @@ div[data-testid="stAppViewContainer"] {
 }
 
 /* Navigation tabs */
+[role="tablist"] {
+    margin-bottom: 18px !important;
+    border-bottom: 1px solid rgba(15,32,64,0.14) !important;
+    padding-bottom: 4px !important;
+}
+
 [role="tablist"] button {
-    border-radius: 32px !important;
-    border: 1px solid rgba(255,255,255,0.14) !important;
-    background: rgba(255,255,255,0.08) !important;
-    color: #ffffff !important;
+    border-radius: 12px 12px 0 0 !important;
+    border: 1px solid rgba(15,32,64,0.08) !important;
+    border-bottom: 2px solid transparent !important;
+    background: rgba(255,255,255,0.92) !important;
+    color: var(--text) !important;
     font-weight: 700 !important;
-    padding: 10px 20px !important;
-    margin-right: 10px !important;
-    min-height: 46px !important;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.12) !important;
+    padding: 10px 18px !important;
+    margin-right: 8px !important;
+    min-height: 44px !important;
+    box-shadow: none !important;
 }
 
 [role="tablist"] button[aria-selected="true"] {
-    background: linear-gradient(90deg, #0f3a6d, #1d4a86) !important;
-    color: #ffffff !important;
-    border-color: transparent !important;
-    box-shadow: 0 22px 40px rgba(0,0,0,0.22) !important;
+    background: #ffffff !important;
+    color: var(--primary) !important;
+    border-color: rgba(15,32,64,0.1) !important;
+    border-bottom-color: var(--primary) !important;
 }
 
 [role="tablist"] button:hover {
@@ -241,7 +255,9 @@ button[kind="secondary"]:hover,
 .stTextInput>div>div>input,
 .stTextInput>div>div>textarea,
 .stSelectbox>div>div>div>div,
-.stMultiSelectbox>div>div>div>div {
+.stMultiSelectbox>div>div>div>div,
+.stNumberInput>div>div>input,
+.stDateInput>div>div>input {
     border-radius: 16px !important;
     border: 1px solid rgba(15,32,64,0.12) !important;
     background: #ffffff !important;
@@ -253,9 +269,38 @@ button[kind="secondary"]:hover,
 .stTextInput>div>div>input:focus,
 .stTextInput>div>div>textarea:focus,
 .stSelectbox>div>div>div>div:focus,
-.stMultiSelectbox>div>div>div>div:focus {
+.stMultiSelectbox>div>div>div>div:focus,
+.stNumberInput>div>div>input:focus,
+.stDateInput>div>div>input:focus {
     border-color: var(--info) !important;
     box-shadow: 0 0 0 4px rgba(0,184,212,0.16) !important;
+}
+
+.stSelectbox>div>div>div>div::placeholder,
+.stTextInput>div>div>input::placeholder,
+.stNumberInput>div>div>input::placeholder,
+.stDateInput>div>div>input::placeholder {
+    color: rgba(15,32,64,0.7) !important;
+}
+
+/* Expander filters */
+[aria-expanded] {
+    border-radius: 22px !important;
+    border: 1px solid rgba(4,18,46,0.08) !important;
+    background: rgba(255,255,255,0.98) !important;
+    box-shadow: 0 18px 40px rgba(4,18,46,0.06) !important;
+    padding: 0 !important;
+}
+
+[aria-expanded] > div:first-child {
+    border-radius: 22px !important;
+    margin-bottom: 0 !important;
+}
+
+[aria-expanded] button {
+    min-height: 54px !important;
+    font-weight: 700 !important;
+    color: var(--primary) !important;
 }
 
 /* Expanders */
