@@ -456,30 +456,75 @@ def render():
                 mask_excl = (df_dir["Proceso"] == "Planeación Estratégica") & df_dir["Id"].astype(str).isin(_IDS_EXCLUIR_PLAN)
                 df_dir = df_dir[~mask_excl].copy()
 
-                df_plan   = df_dir[df_dir["Proceso"] == "Planeación Estratégica"].copy()
-                df_desemp = df_dir[df_dir["Proceso"] == "Desempeño Institucional"].copy()
-                df_gest   = df_dir[df_dir["Proceso"] == "Gestión de Proyectos"].copy()
+                # Selector obligatorio de proceso para esta vista
+                procesos_disp = sorted(df_dir["Proceso"].dropna().unique().tolist())
+                sel_proc = proceso if (proceso and proceso != "Todos") else st.selectbox("Selecciona proceso (requerido)", procesos_disp, key="info_proceso_sel")
 
-                # Selector de año (por defecto 2025 si existe)
-                anios_disp = sorted([int(a) for a in df_dir["Anio"].dropna().unique()]) if "Anio" in df_dir.columns else [2025]
-                anio_def   = 2025 if 2025 in anios_disp else (anios_disp[-1] if anios_disp else 2025)
-                anio_sel   = st.selectbox("Año", anios_disp, index=anios_disp.index(anio_def) if anios_disp else 0, key="dir_anio_proc")
+                # Filtrar data del proceso seleccionado
+                df_proc_sel = df_dir[df_dir["Proceso"] == sel_proc].copy()
+                if df_proc_sel.empty:
+                    st.info(f"No hay indicadores para el proceso seleccionado: {sel_proc}.")
+                else:
+                    # Años disponibles para el proceso
+                    anios_disp = sorted([int(a) for a in df_proc_sel["Anio"].dropna().unique()]) if "Anio" in df_proc_sel.columns else []
+                    anio_def   = anios_disp[-1] if anios_disp else None
+                    anio_sel   = st.selectbox("Año", anios_disp, index=(anios_disp.index(anio_def) if anio_def in anios_disp else 0), key="info_proc_anio") if anios_disp else None
 
-                st.markdown("---")
-                tab_plan, tab_desemp, tab_gest = st.tabs([
-                    "📋 Planeación Estratégica",
-                    "📊 Desempeño Institucional",
-                    "🗂️ Gestión de Proyectos",
-                ])
+                    # Subprocesos asociados
+                    subprocs = []
+                    try:
+                        subprocs = map_df[map_df["Proceso"] == sel_proc]["Subproceso"].dropna().unique().tolist()
+                    except Exception:
+                        subprocs = []
 
-                with tab_plan:
-                    _render_proceso(df_plan, "Planeación Estratégica", "plan", anio_sel)
+                    tabs_sub = ["Resumen general"] + (subprocs if subprocs else [])
+                    tab_objs = st.tabs(tabs_sub)
 
-                with tab_desemp:
-                    _render_proceso(df_desemp, "Desempeño Institucional", "desemp", anio_sel)
+                    # --- Tab Resumen general ---
+                    with tab_objs[0]:
+                        st.header(f"Resumen general — {sel_proc}")
+                        periodo_txt = f"{anio_sel}" if anio_sel else "Período no definido"
+                        st.caption(f"Corte consultado: {periodo_txt}")
 
-                with tab_gest:
-                    _render_proceso(df_gest, "Gestión de Proyectos", "gest", anio_sel)
+                        df_year = df_proc_sel[df_proc_sel["Anio"] == anio_sel] if (anio_sel and "Anio" in df_proc_sel.columns) else df_proc_sel
+                        df_last = _ultimo_por_anio(df_year) if not df_year.empty else pd.DataFrame()
+
+                        total_ind = int(df_proc_sel["Id"].nunique()) if "Id" in df_proc_sel.columns else len(df_proc_sel)
+                        reportados = int((df_year.get("Estado") == "Reportado").sum()) if "Estado" in df_year.columns else 0
+                        pendientes = int((df_year.get("Estado") == "Pendiente").sum()) if "Estado" in df_year.columns else 0
+                        avg_cumpl = None
+                        if "Cumplimiento_norm" in df_last.columns:
+                            vals = pd.to_numeric(df_last["Cumplimiento_norm"], errors="coerce").dropna()
+                            if not vals.empty:
+                                avg_cumpl = round(vals.mean() * 100, 1)
+
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("Total indicadores", total_ind)
+                        c2.metric("Reportados", reportados, delta=(f"{round(reportados/total_ind*100,1)}%" if total_ind else None))
+                        c3.metric("Pendientes", pendientes, delta=(f"{round(pendientes/total_ind*100,1)}%" if total_ind else None))
+                        c4.metric("Promedio Cumpl.", f"{avg_cumpl}%" if avg_cumpl is not None else "-")
+
+                        # Distribución por categoría (último registro por id)
+                        if not df_last.empty and "Categoria" in df_last.columns:
+                            cats = df_last["Categoria"].value_counts().reset_index()
+                            cats.columns = ["Categoria", "count"]
+                            fig_cats = px.pie(cats, names="Categoria", values="count", title="Distribución por categoría")
+                            st.plotly_chart(fig_cats, use_container_width=True)
+
+                        # Tabla resumen de indicadores
+                        if not df_last.empty:
+                            df_tbl = _tabla_display(df_last)
+                            st.dataframe(df_tbl, use_container_width=True, hide_index=True)
+
+                    # --- Tabs por Subproceso ---
+                    for i, sub in enumerate(subprocs, start=1):
+                        with tab_objs[i]:
+                            st.header(f"Subproceso: {sub}")
+                            df_sub = df_proc_sel[df_proc_sel.get("Subproceso") == sub].copy()
+                            if df_sub.empty:
+                                st.info(f"Sin indicadores para el subproceso {sub} en el periodo seleccionado.")
+                            else:
+                                _render_proceso(df_sub, sub, f"sub_{i}", anio_sel)
 
     # ── Diálogo de ficha histórica (único, fuera de tabs) ───────────────────────
     id_ficha = st.session_state.get("_dir_ficha_id")
