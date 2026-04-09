@@ -202,7 +202,7 @@ def render():
 
         if tipo_proceso != "Todos" and "Tipo de proceso" in proc_df.columns:
             proc_df = proc_df[proc_df["Tipo de proceso"] == tipo_proceso]
-        if unidad != "Todas" and "Unidad" in proc_df.columns:
+        if unidad != "Todos" and "Unidad" in proc_df.columns:
             proc_df = proc_df[proc_df["Unidad"] == unidad]
         if proceso != "Todos":
             proc_df = proc_df[proc_df["Proceso"] == proceso]

@@ -3,6 +3,14 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Expandir ancho util del contenido principal */
+.main .block-container {
+    max-width: 100% !important;
+    padding-top: 1rem !important;
+    padding-left: 1.2rem !important;
+    padding-right: 1.2rem !important;
+}
+
 /* Estilo para el sidebar oscuro */
 aside[data-testid="stSidebar"] {
     background-color: #0f172a !important;
@@ -121,4 +129,23 @@ aside[data-testid="stSidebar"] img {
 
 .stTitle {
     margin-bottom: 1rem !important;
+}
+
+/* Fichas KPI */
+div[data-testid="stMetric"] {
+    background: #ffffff;
+    border: 1px solid #d9e2ec;
+    border-radius: 12px;
+    padding: 0.8rem 0.9rem;
+    box-shadow: 0 2px 8px rgba(15, 56, 90, 0.06);
+}
+
+div[data-testid="stMetric"] label {
+    color: #4f5d75 !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #0f385a !important;
+    font-weight: 700 !important;
 }

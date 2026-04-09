@@ -30,8 +30,9 @@ from streamlit_app.components.filters import render_filters
 
 # ── Rutas ─────────────────────────────────────────────────────────────────────
 from pathlib import Path
-_DATA_OUTPUT = Path(__file__).parent.parent / "data" / "output"
-_DATA_RAW    = Path(__file__).parent.parent / "data" / "raw"
+_ROOT = Path(__file__).resolve().parents[2]
+_DATA_OUTPUT = _ROOT / "data" / "output"
+_DATA_RAW    = _ROOT / "data" / "raw"
 _RUTA_CONSOLIDADOS = _DATA_OUTPUT / "Resultados Consolidados.xlsx"
 _RUTA_MAPA         = _DATA_RAW / "Subproceso-Proceso-Area.xlsx"
 _RUTA_CMI          = _DATA_RAW / "Indicadores por CMI.xlsx"

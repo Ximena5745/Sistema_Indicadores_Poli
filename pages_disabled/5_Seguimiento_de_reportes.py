@@ -11,6 +11,7 @@ Valores de Estado: "Reportado" | "Pendiente" | "No aplica"
 Valores de Fuente: "Kawak"     | "LMI"       | "—"
 """
 from pathlib import Path
+from datetime import date as _date
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -46,6 +47,16 @@ _MESES_ES = {
     5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
     9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
 }
+
+
+def _mes_default_por_anio(anio: int) -> int:
+    """Mes por defecto: diciembre para años cerrados, último mes cerrado para año actual."""
+    hoy = _date.today()
+    if anio < hoy.year:
+        return 12
+    if anio == hoy.year:
+        return max(1, hoy.month - 1)
+    return 1
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
@@ -240,17 +251,28 @@ _años_disp = [int(a) for a in _años_disp]
 st.markdown("<div class='section-panel'>", unsafe_allow_html=True)
 _fc1, _fc2 = st.columns(2)
 with _fc1:
+    _hoy = _date.today()
+    _año_def = _hoy.year if _hoy.year in _años_disp else (_años_disp[-1] if _años_disp else _hoy.year)
     _año_sel = st.selectbox("Año", _años_disp,
-                            index=len(_años_disp) - 1 if _años_disp else 0,
+                            index=_años_disp.index(_año_def) if _años_disp else 0,
                             key="seg_año")
 with _fc2:
     _meses_del_año = sorted(
         df_tracking[df_tracking["Año"] == _año_sel]["Mes"].dropna().unique().tolist()
     ) if "Mes" in df_tracking.columns else []
     _meses_del_año = [int(m) for m in _meses_del_año]
-    _mes_opts  = [""] + [_MESES_ES[m] for m in _meses_del_año if m in _MESES_ES]
-    _mes_sel_t = st.selectbox("Mes", _mes_opts, key="seg_mes",
-                              format_func=lambda x: "— Todos —" if x == "" else x)
+    _mes_def = _mes_default_por_anio(_año_sel)
+    if _meses_del_año:
+        if _mes_def in _meses_del_año:
+            _mes_eff = _mes_def
+        else:
+            _menores = [m for m in _meses_del_año if m <= _mes_def]
+            _mes_eff = _menores[-1] if _menores else _meses_del_año[-1]
+    else:
+        _mes_eff = _mes_def
+    _mes_opts  = [_MESES_ES[m] for m in _meses_del_año if m in _MESES_ES]
+    _mes_idx = _meses_del_año.index(_mes_eff) if _meses_del_año and _mes_eff in _meses_del_año else 0
+    _mes_sel_t = st.selectbox("Mes", _mes_opts, index=_mes_idx, key=f"seg_mes_{_año_sel}")
     _mes_sel_n = {v: k for k, v in _MESES_ES.items()}.get(_mes_sel_t)
 
 st.markdown("</div>", unsafe_allow_html=True)

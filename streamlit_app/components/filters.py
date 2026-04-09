@@ -33,7 +33,7 @@ def render_filters(data, config, key_prefix="filter", columns_per_row=3):
                     options,
                     index=options.index(default_value),
                     key=f"{key_prefix}_{key}",
-                    format_func=lambda x, ia=include_all, al=all_label, conf=conf: conf.get("all_display", "— Todos —") if ia and x == al else x,
+                    format_func=lambda x, ia=include_all, al=all_label, conf=conf: str(conf.get("all_display", "— Todos —")) if ia and x == al else str(x),
                 )
 
     return selections
