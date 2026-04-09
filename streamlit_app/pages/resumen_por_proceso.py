@@ -1,6 +1,7 @@
 import unicodedata
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 from streamlit_app.components import KPIRow
 from streamlit_app.services.data_service import DataService
 from streamlit_app.components.filters import render_filters
@@ -221,9 +222,64 @@ def render():
 
     periodo_info = f"{mes} {anio}" if anio and mes else "Período no definido"
 
-    tabs = st.tabs(["📊 Indicadores", "📋 Resumen", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
+    tabs = st.tabs(["📋 Resumen General", "📊 Indicadores", "📋 Resumen", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
 
+    # ---------- Tab 0: Resumen General
     with tabs[0]:
+        st.markdown(f"### Resumen general — {selected_process}")
+        st.caption(f"Corte consultado: {periodo_info}")
+        if proc_df.empty:
+            st.info("No hay datos disponibles para el período seleccionado.")
+        else:
+            # Métricas generales
+            total = len(proc_df)
+            reportado = int((proc_df.get("Estado") == "Reportado").sum()) if "Estado" in proc_df.columns else 0
+            pendiente = int((proc_df.get("Estado") == "Pendiente").sum()) if "Estado" in proc_df.columns else 0
+            no_aplica = int((proc_df.get("Estado") == "No aplica").sum()) if "Estado" in proc_df.columns else 0
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Total indicadores", total)
+            c2.metric("Reportados", reportado, delta=f"{round(reportado/total*100,1)}%" if total else None)
+            c3.metric("Pendientes", pendiente, delta=f"{round(pendiente/total*100,1)}%" if total else None)
+            c4.metric("No aplica", no_aplica)
+
+            # Pie: distribución por Estado (si existe)
+            if "Estado" in proc_df.columns:
+                estado_counts = proc_df["Estado"].value_counts().reset_index()
+                estado_counts.columns = ["Estado", "count"]
+                fig_pie = px.pie(estado_counts, names="Estado", values="count", title="Distribución por Estado")
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+            # Barra: top Unidades por cantidad de reportados
+            if "Unidad" in proc_df.columns:
+                unidad_counts = proc_df[proc_df.get("Estado") == "Reportado"].groupby("Unidad")["Id"].nunique().reset_index(name="reportados") if "Id" in proc_df.columns else proc_df[proc_df.get("Estado") == "Reportado"].groupby("Unidad").size().reset_index(name="reportados")
+                unidad_counts = unidad_counts.sort_values("reportados", ascending=False)
+                if not unidad_counts.empty:
+                    fig_un = px.bar(unidad_counts, x="reportados", y="Unidad", orientation="h", title="Reportados por Unidad")
+                    st.plotly_chart(fig_un, use_container_width=True)
+
+            # Barra: top Procesos por reportados
+            if "Proceso" in proc_df.columns:
+                proc_counts = proc_df[proc_df.get("Estado") == "Reportado"].groupby("Proceso")["Id"].nunique().reset_index(name="reportados") if "Id" in proc_df.columns else proc_df[proc_df.get("Estado") == "Reportado"].groupby("Proceso").size().reset_index(name="reportados")
+                proc_counts = proc_counts.sort_values("reportados", ascending=False).head(25)
+                if not proc_counts.empty:
+                    fig_proc = px.bar(proc_counts, x="reportados", y="Proceso", orientation="h", title="Top procesos por reportados")
+                    st.plotly_chart(fig_proc, use_container_width=True)
+
+            # Cumplimiento: si existe columna Cumplimiento o Nivel, mostrar distribución
+            if "Cumplimiento" in proc_df.columns or "Nivel de cumplimiento" in proc_df.columns:
+                if "Nivel de cumplimiento" in proc_df.columns:
+                    niv_counts = proc_df["Nivel de cumplimiento"].value_counts().reset_index()
+                    niv_counts.columns = ["Nivel", "count"]
+                    fig_niv = px.bar(niv_counts, x="Nivel", y="count", title="Distribución por Nivel de cumplimiento")
+                    st.plotly_chart(fig_niv, use_container_width=True)
+                else:
+                    # Cumplimiento numérico: mostrar histograma
+                    fig_c = px.histogram(proc_df, x="Cumplimiento", nbins=20, title="Histograma de Cumplimiento")
+                    st.plotly_chart(fig_c, use_container_width=True)
+
+    # ---------- Tab 1: Indicadores (moved)
+    with tabs[1]:
         st.markdown(f"### Indicadores — {selected_process}")
         st.caption(f"Corte consultado: {periodo_info}")
         if proc_df.empty:
