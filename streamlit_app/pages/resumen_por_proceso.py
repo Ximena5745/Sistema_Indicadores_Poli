@@ -5,6 +5,8 @@ import plotly.express as px
 from streamlit_app.components import KPIRow
 from streamlit_app.services.data_service import DataService
 from streamlit_app.components.filters import render_filters
+from core.config import VICERRECTORIA_COLORS, COLORES
+from components.charts import exportar_excel, panel_detalle_indicador
 
 # Meses en español para selección
 MESES_OPCIONES = [
@@ -222,7 +224,7 @@ def render():
 
     periodo_info = f"{mes} {anio}" if anio and mes else "Período no definido"
 
-    tabs = st.tabs(["📋 Resumen General", "📊 Indicadores", "📋 Resumen", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
+    tabs = st.tabs(["📋 Resumen General", "ℹ️ Información por proceso", "📊 Indicadores", "📋 Resumen", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
 
     # ---------- Tab 0: Resumen General
     with tabs[0]:
@@ -250,12 +252,40 @@ def render():
                 fig_pie = px.pie(estado_counts, names="Estado", values="count", title="Distribución por Estado")
                 st.plotly_chart(fig_pie, use_container_width=True)
 
-            # Barra: top Unidades por cantidad de reportados
+            # Barra: top Unidades por cantidad de reportados (colores por vicerrectoría)
             if "Unidad" in proc_df.columns:
                 unidad_counts = proc_df[proc_df.get("Estado") == "Reportado"].groupby("Unidad")["Id"].nunique().reset_index(name="reportados") if "Id" in proc_df.columns else proc_df[proc_df.get("Estado") == "Reportado"].groupby("Unidad").size().reset_index(name="reportados")
                 unidad_counts = unidad_counts.sort_values("reportados", ascending=False)
                 if not unidad_counts.empty:
-                    fig_un = px.bar(unidad_counts, x="reportados", y="Unidad", orientation="h", title="Reportados por Unidad")
+                    # Construir mapa de colores: usar mapeo fijo y una paleta para los restantes
+                    # Paleta institucional como fallback
+                    palette = [
+                        COLORES.get("primario"),
+                        COLORES.get("secundario"),
+                        COLORES.get("cumplimiento"),
+                        COLORES.get("alerta"),
+                        COLORES.get("peligro"),
+                        COLORES.get("sin_dato"),
+                    ]
+                    unique_unidades = unidad_counts["Unidad"].tolist()
+                    color_map = {}
+                    idx = 0
+                    for u in unique_unidades:
+                        if u in VICERRECTORIA_COLORS:
+                            color_map[u] = VICERRECTORIA_COLORS[u]
+                        else:
+                            color_map[u] = palette[idx % len(palette)] or "#7d8be3"
+                            idx += 1
+
+                    fig_un = px.bar(
+                        unidad_counts,
+                        x="reportados",
+                        y="Unidad",
+                        orientation="h",
+                        title="Reportados por Unidad",
+                        color="Unidad",
+                        color_discrete_map=color_map,
+                    )
                     st.plotly_chart(fig_un, use_container_width=True)
 
             # Barra: top Procesos por reportados
@@ -278,7 +308,7 @@ def render():
                     fig_c = px.histogram(proc_df, x="Cumplimiento", nbins=20, title="Histograma de Cumplimiento")
                     st.plotly_chart(fig_c, use_container_width=True)
 
-    # ---------- Tab 1: Indicadores (moved)
+    # ---------- Tab 1: Información por proceso (detalle por indicador)
     with tabs[1]:
         st.markdown(f"### Indicadores — {selected_process}")
         st.caption(f"Corte consultado: {periodo_info}")
@@ -387,18 +417,77 @@ def render():
                 st.markdown("**Procesos con más indicadores en la selección**")
                 st.dataframe(top_processes, use_container_width=True, hide_index=True)
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown(f"### Calidad — {selected_process}")
         st.write("Métrica de calidad basada en el estado de reporte para el proceso seleccionado.")
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown(f"### Auditoría — {selected_process}")
         st.write("Los datos están filtrados por proceso y listos para análisis de auditoría.")
 
-    with tabs[4]:
+    with tabs[5]:
         st.markdown(f"### Propuestos — {selected_process}")
         st.write("Indicadores propuestos y notas relacionadas con el proceso seleccionado.")
 
-    with tabs[5]:
+    with tabs[6]:
         st.markdown(f"### Análisis IA — {selected_process}")
         st.write("Análisis IA (mock) para el proceso seleccionado.")
+
+    # ---------- Tab 2: Información por proceso (detalle por indicador)
+    with tabs[2]:
+        st.markdown(f"### Información por proceso — {selected_process}")
+        st.caption(f"Corte consultado: {periodo_info}")
+        if proc_df.empty:
+            st.info("No hay datos disponibles para el proceso seleccionado.")
+        else:
+            df_for_table = proc_df.copy()
+            # Tomar último registro por indicador (por Fecha o Periodo si existe)
+            if "Fecha" in df_for_table.columns:
+                col_fecha = "Fecha"
+            elif "Periodo" in df_for_table.columns:
+                col_fecha = "Periodo"
+            else:
+                col_fecha = None
+
+            if col_fecha:
+                df_last = df_for_table.sort_values(col_fecha).drop_duplicates(subset="Id", keep="last")
+            else:
+                df_last = df_for_table.drop_duplicates(subset="Id", keep="last")
+
+            cols_display = [c for c in ["Id", "Indicador", "Proceso", "Subproceso", "Periodo", "Meta", "Ejecucion", "Cumplimiento_norm", "Categoria"] if c in df_last.columns]
+            df_show = df_last[cols_display].copy()
+            if "Cumplimiento_norm" in df_show.columns:
+                df_show["Cumplimiento_norm"] = (df_show["Cumplimiento_norm"] * 100).round(1).astype(str) + "%"
+                df_show = df_show.rename(columns={"Cumplimiento_norm": "Cumpl.%", "Ejecucion": "Ejecución"})
+
+            event = st.dataframe(
+                df_show,
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+                key="info_proc_tbl",
+            )
+
+            curr_rows = event.selection.get("rows", []) if (event and event.selection) else []
+            prev_key = "_info_prev"
+            if curr_rows != st.session_state.get(prev_key, []):
+                st.session_state[prev_key] = curr_rows
+                if curr_rows:
+                    idx = curr_rows[0]
+                    st.session_state["_info_ficha_id"] = str(df_show.iloc[idx]["Id"])
+                    st.session_state["_info_ficha_nom"] = str(df_show.iloc[idx].get("Indicador", ""))
+
+            id_ficha = st.session_state.get("_info_ficha_id")
+            if id_ficha:
+                nom_ficha = st.session_state.get("_info_ficha_nom", "")
+                df_hist = proc_df[proc_df["Id"].astype(str) == id_ficha].copy()
+
+                @st.dialog(f"📊 {id_ficha} — {nom_ficha[:65]}", width="large")
+                def _ficha():
+                    if st.button("✖ Cerrar"):
+                        st.session_state["_info_ficha_id"] = None
+                        st.rerun()
+                    panel_detalle_indicador(df_hist, id_ficha, proc_df)
+
+                _ficha()
