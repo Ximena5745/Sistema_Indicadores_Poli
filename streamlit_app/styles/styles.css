@@ -4,6 +4,8 @@
 html, body, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] * {
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     color: var(--text);
+    margin: 0;
+    padding: 0;
 }
 
 :root {
@@ -39,6 +41,17 @@ div[data-testid="stAppViewContainer"] {
     background-color: var(--bg) !important;
     color: var(--text) !important;
     min-height: 100vh;
+    padding-top: 0 !important;
+}
+
+h1, h2, h3, h4, h5 {
+    margin-top: 0 !important;
+    margin-bottom: 10px !important;
+}
+
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
+    margin-top: 0 !important;
+    margin-bottom: 10px !important;
 }
 
 main .block-container,
@@ -58,9 +71,11 @@ section[data-testid="stSidebar"],
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #020f23 0%, #071b38 100%) !important;
     color: var(--sidebar-text) !important;
-    padding: 22px 22px 18px 22px !important;
+    padding: 22px 18px 18px 18px !important;
     border-right: 1px solid rgba(255,255,255,0.06);
     min-height: 100vh;
+    width: 260px !important;
+    min-width: 260px !important;
 }
 
 section[data-testid="stSidebar"] > div,
@@ -102,9 +117,16 @@ section[data-testid="stSidebar"] select,
 [data-testid="stSidebar"] select,
 section[data-testid="stSidebar"] button,
 [data-testid="stSidebar"] button {
-    background: rgba(255,255,255,0.10) !important;
+    background: rgba(255,255,255,0.12) !important;
     color: #ffffff !important;
     border-color: rgba(255,255,255,0.18) !important;
+}
+
+section[data-testid="stSidebar"] .stSelectbox,
+[data-testid="stSidebar"] .stSelectbox,
+section[data-testid="stSidebar"] .stTextInput,
+[data-testid="stSidebar"] .stTextInput {
+    margin-bottom: 8px !important;
 }
 
 .sidebar-header {
@@ -161,9 +183,9 @@ section[data-testid="stSidebar"] button,
 }
 
 .sidebar-section-title {
-    margin-top: 24px;
+    margin-top: 18px;
     margin-bottom: 10px;
-    color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.78);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     font-size: 11px;
@@ -217,8 +239,8 @@ section[data-testid="stSidebar"] button,
     padding: 12px 16px !important;
     margin-bottom: 8px !important;
     font-weight: 700 !important;
-    border: 1px solid transparent !important;
-    background: rgba(15,32,64,0.18) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    background: rgba(15,32,64,0.20) !important;
     box-shadow: none !important;
 }
 
@@ -229,10 +251,10 @@ section[data-testid="stSidebar"] button,
 }
 
 .streamlit-option-menu .nav-link.active {
-    background: rgba(255,255,255,0.24) !important;
+    background: rgba(255,255,255,0.32) !important;
     color: #ffffff !important;
-    border-color: rgba(255,255,255,0.28) !important;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2) !important;
+    border-color: rgba(255,255,255,0.32) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22) !important;
 }
 
 .streamlit-option-menu .nav-link.active:hover {
@@ -297,7 +319,7 @@ section[data-testid="stSidebar"] button,
 .html-bar-chart {
     display: grid;
     gap: 14px;
-    padding: 16px 0;
+    padding: 10px 0;
 }
 
 .html-bar-item {
@@ -305,12 +327,10 @@ section[data-testid="stSidebar"] button,
     grid-template-columns: 1fr auto;
     gap: 12px;
     align-items: center;
-}
-
-.html-bar-item .bar-label {
-    font-size: 13px;
-    color: #0f2137;
-    font-weight: 700;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.96);
+    border-radius: 20px;
+    border: 1px solid rgba(15,32,64,0.08);
 }
 
 .html-bar-item .bar-axis {
@@ -319,12 +339,18 @@ section[data-testid="stSidebar"] button,
     gap: 6px;
 }
 
+.html-bar-item .bar-label {
+    font-size: 13px;
+    color: #0f2137;
+    font-weight: 700;
+}
+
 .html-bar-item .bar-track {
     position: relative;
     width: 100%;
-    height: 16px;
+    height: 18px;
     border-radius: 999px;
-    background: #eef4fb;
+    background: rgba(15,32,64,0.05);
     overflow: hidden;
 }
 
@@ -332,10 +358,11 @@ section[data-testid="stSidebar"] button,
     height: 100%;
     border-radius: 999px;
     transition: width 0.4s ease;
+    box-shadow: 0 4px 12px rgba(15,32,64,0.12);
 }
 
 .html-bar-item .bar-value {
-    min-width: 54px;
+    min-width: 52px;
     text-align: right;
     font-size: 13px;
     color: #0f2137;
@@ -522,6 +549,24 @@ button[kind="secondary"]:hover,
     text-transform: uppercase;
     letter-spacing: 0.18em;
     margin-bottom: 8px;
+}
+
+.filter-caption {
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    padding-left: 6px;
+    margin-bottom: 4px;
+}
+
+.stSelectbox>div>div>div {
+    min-width: 0 !important;
+}
+
+.stSelectbox>div>div>div>div {
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(15,32,64,0.14) !important;
 }
 
 .filter-caption {
@@ -714,16 +759,20 @@ button[kind="secondary"]:hover,
 .stDataFrame,
 .dataframe,
 [data-testid="stDataFrame"] {
-    border-radius: 24px !important;
+    border-radius: 22px !important;
     border: 1px solid rgba(15,32,64,0.12) !important;
-    box-shadow: 0 24px 60px rgba(15,32,64,0.08) !important;
-    background: #f8fbff !important;
+    box-shadow: 0 18px 36px rgba(15,32,64,0.08) !important;
+    background: #ffffff !important;
+    padding: 16px !important;
 }
 
 .stDataFrame th,
 .dataframe th,
 [data-testid="stDataFrame"] th {
     background: rgba(15,32,64,0.08) !important;
+    color: #0f3a6d !important;
+    font-weight: 700 !important;
+    padding: 14px 16px !important;
 }
 
 .stDataFrame table,
