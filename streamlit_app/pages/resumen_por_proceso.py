@@ -121,14 +121,33 @@ def render():
         proc_df = pd.DataFrame()
     else:
         proc_df = df.copy()
+        if "Proceso" in map_df.columns:
+            proc_df = proc_df.merge(
+                map_df[["Unidad", "Proceso", "Subproceso", "Tipo de proceso"]],
+                on="Proceso",
+                how="left",
+            )
+
+        if tipo_proceso != "Todos" and "Tipo de proceso" in proc_df.columns:
+            proc_df = proc_df[proc_df["Tipo de proceso"] == tipo_proceso]
+        if unidad != "Todas" and "Unidad" in proc_df.columns:
+            proc_df = proc_df[proc_df["Unidad"] == unidad]
         if proceso != "Todos":
             proc_df = proc_df[proc_df["Proceso"] == proceso]
         if subproceso != "Todos" and "Subproceso" in proc_df.columns:
             proc_df = proc_df[proc_df["Subproceso"] == subproceso]
 
-    selected_process = proceso if proceso != "Todos" else (subproceso if subproceso != "Todos" else "Proceso seleccionado")
+    selected_process = (
+        proceso
+        if proceso != "Todos"
+        else subproceso
+        if subproceso != "Todos"
+        else unidad
+        if unidad != "Todas"
+        else "Todos los procesos"
+    )
 
-    tabs = st.tabs(["📊 Indicadores", "📋 Reporte", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
+    tabs = st.tabs(["📊 Indicadores", "📋 Resumen", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
 
     with tabs[0]:
         st.markdown(f"### Indicadores — {selected_process}")
@@ -141,37 +160,51 @@ def render():
             no_aplica = int((proc_df["Estado"] == "No aplica").sum()) if "Estado" in proc_df.columns else 0
 
             cols = st.columns([1, 1, 1, 1])
-            cols[0].metric("Total registros", total)
+            cols[0].metric("Total indicadores", total)
             cols[1].metric("Reportado", reportado)
             cols[2].metric("Pendiente", pendiente, delta=f"{round(pendiente/total*100,1)}%" if total else None)
             cols[3].metric("No aplica", no_aplica)
 
-            st.markdown("#### Estado por reporte")
-            state_counts = proc_df["Estado"].value_counts().to_dict() if "Estado" in proc_df.columns else {}
+            st.markdown("#### Indicadores clave")
+            breakdown = proc_df["Estado"].value_counts().to_dict() if "Estado" in proc_df.columns else {}
             st.markdown(
                 _render_html_bars(
-                    state_counts,
+                    breakdown,
                     ["Reportado", "Pendiente", "No aplica"],
                     {
                         "Reportado": "#0f3a6d",
                         "Pendiente": "#ffab00",
                         "No aplica": "#9e9e9e",
                     },
-                    max(state_counts.values()) if state_counts else 1,
+                    max(breakdown.values()) if breakdown else 1,
                 ),
                 unsafe_allow_html=True,
             )
 
-            st.markdown("#### Datos recientes")
-            table_cols = [c for c in ["Id", "Indicador", "Periodo", "Estado", "Fuente"] if c in proc_df.columns]
-            st.dataframe(proc_df[table_cols].head(15), use_container_width=True)
-
-            _indicator_modal(selected_process)
+            st.markdown("#### Distribución por periodicidad")
+            periodo_counts = proc_df["Periodicidad"].value_counts().to_dict() if "Periodicidad" in proc_df.columns else {}
+            st.markdown(
+                _render_html_bars(
+                    periodo_counts,
+                    sorted(periodo_counts.keys()),
+                    {
+                        "Anual": "#0f3a6d",
+                        "Bimestral": "#00b8d4",
+                        "Mensual": "#1d4a86",
+                        "Semestral": "#1d9c60",
+                        "Trimestral": "#ffab00",
+                    },
+                    max(periodo_counts.values()) if periodo_counts else 1,
+                ),
+                unsafe_allow_html=True,
+            )
 
     with tabs[1]:
-        st.markdown(f"#### Reporte — {selected_process}")
-        st.write("Este módulo usa el archivo `Tracking Mensual` como fuente de proceso y muestra los indicadores filtrados.")
-        if not proc_df.empty:
+        st.markdown(f"#### Resumen — {selected_process}")
+        st.write("Resumen agregado de indicadores filtrados por proceso. Aquí se prioriza el análisis por estado y periodicidad.")
+        if proc_df.empty:
+            st.info("No hay datos disponibles para el proceso seleccionado.")
+        else:
             periodo_counts = proc_df["Periodicidad"].value_counts().to_dict() if "Periodicidad" in proc_df.columns else {}
             st.write("**Periodicidad dentro del proceso seleccionado**")
             st.markdown(
@@ -189,6 +222,38 @@ def render():
                 ),
                 unsafe_allow_html=True,
             )
+
+            status_summary = (
+                proc_df["Estado"]
+                .value_counts(dropna=True)
+                .rename_axis("Estado")
+                .reset_index(name="Indicadores")
+            ) if "Estado" in proc_df.columns else pd.DataFrame()
+            if not status_summary.empty:
+                st.markdown("**Indicadores por estado**")
+                st.table(status_summary)
+
+            breakdown_df = (
+                proc_df[["Periodicidad", "Estado"]]
+                .dropna(subset=["Periodicidad", "Estado"])
+                .groupby(["Periodicidad", "Estado"], as_index=False)
+                .size()
+                .rename(columns={"size": "Indicadores"})
+            )
+            if not breakdown_df.empty:
+                st.markdown("**Indicadores por periodicidad y estado**")
+                st.dataframe(breakdown_df, use_container_width=True)
+
+            top_processes = (
+                proc_df["Proceso"]
+                .value_counts()
+                .rename_axis("Proceso")
+                .reset_index(name="Indicadores")
+                .head(8)
+            )
+            if not top_processes.empty:
+                st.markdown("**Procesos con más indicadores en la selección**")
+                st.table(top_processes)
 
     with tabs[2]:
         st.markdown(f"### Calidad — {selected_process}")
