@@ -12,19 +12,19 @@ class Topbar:
             "</div>".format(self.title, self.subtitle),
             unsafe_allow_html=True,
         )
-        cols = st.columns([2.2, 1, 1, 1, 1])
+        cols = st.columns([1.6, 1, 1, 0.8])
         with cols[0]:
             st.markdown("<div class='topbar-actions'>Filtros de vista</div>", unsafe_allow_html=True)
         with cols[1]:
-            year = st.selectbox("Año", [2026, 2025, 2024], index=0, key='topbar_year')
+            st.markdown("<div class='filter-caption'>Año</div>", unsafe_allow_html=True)
+            year = st.selectbox("", [2026, 2025, 2024], index=0, key='topbar_year', label_visibility='collapsed')
         with cols[2]:
-            month = st.selectbox("Mes", ["Todos", "Ene", "Feb", "Mar", "Abr"], index=0, key='topbar_month')
+            st.markdown("<div class='filter-caption'>Mes</div>", unsafe_allow_html=True)
+            month = st.selectbox("", ["Todos", "Ene", "Feb", "Mar", "Abr"], index=0, key='topbar_month', label_visibility='collapsed')
         with cols[3]:
-            area = st.selectbox("Área", ["Todas las áreas", "Académica", "Administrativa"], index=0, key='topbar_area')
-        with cols[4]:
             if st.button("Actualizar datos", key='topbar_refresh'):
                 st.experimental_rerun()
-        return dict(year=year, month=month, area=area)
+        return dict(year=year, month=month)
 
 
 def render_topbar(default_year=2026):

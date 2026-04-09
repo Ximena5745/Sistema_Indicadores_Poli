@@ -41,6 +41,18 @@ div[data-testid="stAppViewContainer"] {
     min-height: 100vh;
 }
 
+main .block-container,
+[data-testid="stAppViewContainer"] .main .block-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+}
+
+[data-testid="stAppViewContainer"] .css-18e3th9 {
+    max-width: 100% !important;
+}
+
 /* Sidebar */
 section[data-testid="stSidebar"],
 [data-testid="stSidebar"] {
@@ -121,6 +133,7 @@ section[data-testid="stSidebar"] button,
 }
 
 .sidebar-logo-img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -192,38 +205,38 @@ section[data-testid="stSidebar"] button,
 
 /* Sidebar menu */
 .streamlit-option-menu {
-    background: rgba(255,255,255,0.08);
+    background: rgba(15,32,64,0.16);
     border-radius: 22px;
-    padding: 14px 10px 14px 10px;
-    border: 1px solid rgba(255,255,255,0.20);
+    padding: 10px 8px 10px 8px;
+    border: 1px solid rgba(255,255,255,0.16);
 }
 
 .streamlit-option-menu .nav-link {
     color: #f3f7ff !important;
     border-radius: 14px !important;
-    padding: 14px 18px !important;
+    padding: 12px 16px !important;
     margin-bottom: 8px !important;
     font-weight: 700 !important;
     border: 1px solid transparent !important;
-    background: rgba(255,255,255,0.08) !important;
+    background: rgba(15,32,64,0.18) !important;
     box-shadow: none !important;
 }
 
 .streamlit-option-menu .nav-link:hover {
-    background: rgba(255,255,255,0.18) !important;
+    background: rgba(255,255,255,0.14) !important;
     color: #ffffff !important;
-    border-color: rgba(255,255,255,0.20) !important;
+    border-color: rgba(255,255,255,0.22) !important;
 }
 
 .streamlit-option-menu .nav-link.active {
-    background: linear-gradient(90deg, #0f3a6d, #1d4a86) !important;
+    background: rgba(255,255,255,0.24) !important;
     color: #ffffff !important;
-    border-color: rgba(255,255,255,0.2) !important;
-    box-shadow: 0 16px 36px rgba(0,0,0,0.18) !important;
+    border-color: rgba(255,255,255,0.28) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2) !important;
 }
 
 .streamlit-option-menu .nav-link.active:hover {
-    background: linear-gradient(90deg, #0c335e, #1b4f82) !important;
+    background: rgba(255,255,255,0.28) !important;
 }
 
 /* Navigation tabs */
@@ -509,6 +522,14 @@ button[kind="secondary"]:hover,
     text-transform: uppercase;
     letter-spacing: 0.18em;
     margin-bottom: 8px;
+}
+
+.filter-caption {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
 }
 
 .filter-chip {
