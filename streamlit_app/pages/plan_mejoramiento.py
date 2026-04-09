@@ -50,13 +50,16 @@ def render():
             st.rerun()
 
         _anio_default, _corte_default = _default_corte(anios)
-        anio = st.selectbox("Año de corte", anios, index=anios.index(_anio_default), key="pm_cna_anio")
-        corte = st.selectbox(
-            "Corte",
-            list(CORTE_SEMESTRAL.keys()),
-            index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
-            key="pm_cna_corte",
-        )
+        _pfc1, _pfc2 = st.columns(2)
+        with _pfc1:
+            anio = st.selectbox("Año de corte", anios, index=anios.index(_anio_default), key="pm_cna_anio")
+        with _pfc2:
+            corte = st.selectbox(
+                "Corte semestral",
+                list(CORTE_SEMESTRAL.keys()),
+                index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
+                key="pm_cna_corte",
+            )
         mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_cna_con_cierre(int(anio), int(mes))
@@ -69,7 +72,9 @@ def render():
         cna_catalog["Factor"].dropna().astype(str).unique().tolist()
         if not cna_catalog.empty else df["Factor"].dropna().astype(str).unique().tolist()
     )
-    factor_sel = st.selectbox("Factor CNA", ["Todos"] + factores, key="pm_cna_factor")
+    _pff1, _pff2, _pff3 = st.columns([1, 2, 2])
+    with _pff1:
+        factor_sel = st.selectbox("Factor CNA", ["Todos"] + factores, key="pm_cna_factor")
 
     if not cna_catalog.empty:
         car_pool = cna_catalog if factor_sel == "Todos" else cna_catalog[cna_catalog["Factor"] == factor_sel]
@@ -78,8 +83,10 @@ def render():
         df_car = df if factor_sel == "Todos" else df[df["Factor"] == factor_sel]
         caracts = sorted(df_car["Caracteristica"].dropna().astype(str).unique().tolist())
 
-    car_sel = st.selectbox("Característica", ["Todas"] + caracts, key="pm_cna_caracteristica")
-    nombre_q = st.text_input("Buscar indicador", key="pm_cna_nombre", placeholder="Texto en nombre del indicador")
+    with _pff2:
+        car_sel = st.selectbox("Característica", ["Todas"] + caracts, key="pm_cna_caracteristica")
+    with _pff3:
+        nombre_q = st.text_input("Buscar indicador", key="pm_cna_nombre", placeholder="Texto en nombre del indicador")
 
     if factor_sel != "Todos":
         df = df[df["Factor"] == factor_sel]
@@ -207,15 +214,56 @@ def render():
             st.plotly_chart(fig_tree, use_container_width=True, key="pm_factor_car_tree")
 
     st.markdown("### Indicadores CNA")
-    tabla = df[[
-        "Id", "Indicador", "Factor", "Caracteristica", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha",
-    ]].copy()
+    _cols_cna = ["Id", "Indicador", "Factor", "Caracteristica", "cumplimiento_pct", "Nivel de cumplimiento"]
+    if "Meta" in df.columns:
+        _cols_cna.append("Meta")
+    if "Ejecucion" in df.columns:
+        _cols_cna.append("Ejecucion")
+    if "Sentido" in df.columns:
+        _cols_cna.append("Sentido")
+    _cols_cna += ["Anio", "Mes", "Fecha"]
+    tabla = df[[c for c in _cols_cna if c in df.columns]].copy()
     tabla = tabla.rename(columns={
         "cumplimiento_pct": "Cumplimiento (%)",
         "Nivel de cumplimiento": "Nivel",
         "Anio": "Año cierre",
         "Mes": "Mes cierre",
         "Caracteristica": "Característica",
+        "Meta": "Meta",
+        "Ejecucion": "Ejecución",
     })
     tabla["Cumplimiento (%)"] = pd.to_numeric(tabla["Cumplimiento (%)"], errors="coerce").round(1)
-    st.dataframe(tabla.sort_values(["Factor", "Característica", "Id"], na_position="last"), use_container_width=True, hide_index=True)
+    if "Meta" in tabla.columns:
+        tabla["Meta"] = pd.to_numeric(tabla["Meta"], errors="coerce").round(2)
+    if "Ejecución" in tabla.columns:
+        tabla["Ejecución"] = pd.to_numeric(tabla["Ejecución"], errors="coerce").round(2)
+    _NIVEL_ICONS_CNA = {
+        "Peligro": "🔴", "Alerta": "🟡", "Cumplimiento": "🟢",
+        "Sobrecumplimiento": "🔵", "No aplica": "⚫", "Pendiente de reporte": "⚪",
+    }
+    if "Nivel" in tabla.columns:
+        tabla["Nivel"] = tabla["Nivel"].apply(
+            lambda n: f'{_NIVEL_ICONS_CNA.get(str(n), "")} {n}' if pd.notna(n) else n
+        )
+    _sort_cols = [c for c in ["Factor", "Característica", "Id"] if c in tabla.columns]
+    tabla = tabla.sort_values(_sort_cols, na_position="last")
+    _cfg_cna = {
+        "Id":              st.column_config.TextColumn("ID",          width="small"),
+        "Indicador":       st.column_config.TextColumn("Indicador",   width="large"),
+        "Factor":          st.column_config.TextColumn("Factor",      width="medium"),
+        "Característica":  st.column_config.TextColumn("Característica", width="medium"),
+        "Nivel":           st.column_config.TextColumn("Nivel",       width="medium"),
+        "Cumplimiento (%)": st.column_config.NumberColumn("Cumplimiento %", format="%.1f", width="small"),
+        "Meta":            st.column_config.NumberColumn("Meta",      format="%.2f", width="small"),
+        "Ejecución":       st.column_config.NumberColumn("Ejecución", format="%.2f", width="small"),
+        "Sentido":         st.column_config.TextColumn("Sentido",     width="small"),
+        "Año cierre":      st.column_config.NumberColumn("Año",       format="%d",   width="small"),
+        "Mes cierre":      st.column_config.NumberColumn("Mes",       format="%d",   width="small"),
+        "Fecha":           st.column_config.DatetimeColumn("Fecha",   width="small"),
+    }
+    st.dataframe(
+        tabla,
+        use_container_width=True,
+        hide_index=True,
+        column_config={k: v for k, v in _cfg_cna.items() if k in tabla.columns},
+    )

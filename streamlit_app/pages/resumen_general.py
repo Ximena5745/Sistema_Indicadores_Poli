@@ -49,6 +49,15 @@ MESES_OPCIONES = [
 _MES_NUM = {m: i + 1 for i, m in enumerate(MESES_OPCIONES)}
 _MESES_ES_P1 = {i + 1: m for i, m in enumerate(MESES_OPCIONES)}
 
+# ── Meses de cierre por periodicidad (para Matriz de Calor) ────────────────────
+_CIERRE_MESES = {
+    "Anual":      [12],
+    "Semestral":  [6, 12],
+    "Trimestral": [3, 6, 9, 12],
+    "Bimestral":  [2, 4, 6, 8, 10, 12],
+    "Mensual":    list(range(1, 13)),
+}
+
 # ── Niveles extendidos ─────────────────────────────────────────────────────────
 _NO_APLICA   = "No aplica"
 _PEND        = "Pendiente de reporte"
@@ -56,6 +65,7 @@ _METRICA     = "Métrica"
 
 _NIVEL_COLOR = {
     **NIVEL_COLOR,
+    "Sobrecumplimiento": "#4472C4",   # azul más claro (antes #1A3A5C)
     _NO_APLICA: "#78909C",
     _PEND:      "#BDBDBD",
     _METRICA:   "#5C6BC0",
@@ -579,14 +589,6 @@ def _preparar_datos_por_fecha(df_all: pd.DataFrame, anio: int, mes: str) -> pd.D
     df_filtrado = df_anio[df_anio["_mes_cierre"] == mes_num].drop(columns=["_mes_cierre"])
 
     if df_filtrado.empty:
-        # Fallback: semestre completo (no hay datos con mes de cierre exacto)
-        semestre = 1 if mes_num <= 6 else 2
-        meses_sem = list(range(1, 7)) if semestre == 1 else list(range(7, 13))
-        df_filtrado = df_anio[
-            df_anio["fecha"].dt.month.isin(meses_sem)
-        ].drop(columns=["_mes_cierre"])
-
-    if df_filtrado.empty:
         return df_all.head(0)
 
     if not kawak_df.empty:
@@ -775,13 +777,15 @@ def _fig_barras_nivel(df, col_cat, max_items=None):
         if nivel not in stats.columns:
             continue
         vals = stats[nivel].tolist()
+        bar_colors = {**_NIVEL_COLOR}
         fig.add_trace(go.Bar(
             y=cats, x=vals, orientation="h", name=nivel,
-            marker_color=_NIVEL_COLOR.get(nivel, "#BDBDBD"),
+            marker_color=bar_colors.get(nivel, "#BDBDBD"),
             customdata=[nivel] * len(cats),
             text=[v if v > 0 else "" for v in vals],
             textposition="inside", insidetextanchor="middle",
             textfont=dict(size=10, color="white"),
+            textangle=0,
         ))
 
     fig.update_layout(
@@ -1095,25 +1099,31 @@ def render():
     kc = st.columns(len(metricas))
     for i, (label, val, val_prev) in enumerate(metricas):
         border_c, bg_c = _CARD_COLORS.get(label, ("#9E9E9E", "#F5F5F5"))
-        _lines = [
-            f'<span style="font-size:0.8rem;color:{border_c};font-weight:600">{label}</span>',
-            f'<span style="font-size:1.8rem;font-weight:700;color:{border_c}">{val}</span>',
-        ]
-        if total and label != "Total":
-            _lines.append(f'<span style="font-size:0.75rem;color:#666">{round(val/total*100,1)}%</span>')
+        _icons = {
+            "Total": "🏷️", "Peligro": "🔴", "Alerta": "🟡",
+            "Cumplimiento": "🟢", "Sobrecumplimiento": "🔵",
+            "No aplica": "⚫", "Pendiente": "⚪",
+        }
+        _icon = _icons.get(label, "")
+        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/total*100,1)}%</div>' if total and label != "Total" else ""
         if val_prev is not None and label != "Total":
             delta = val - val_prev
-            d_color = "#43A047" if delta <= 0 and label in ("Peligro",) else (
-                      "#D32F2F" if delta > 0 and label in ("Peligro",) else (
-                      "#43A047" if delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento") else (
-                      "#D32F2F" if delta < 0 and label in ("Cumplimiento", "Sobrecumplimiento") else "#666")))
-            _lines.append(f'<span style="font-size:0.75rem;color:{d_color}">{delta:+d} vs ant.</span>')
-        _body = "<br>".join(_lines)
+            is_good = (delta <= 0 and label == "Peligro") or (delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
+            is_bad  = (delta > 0 and label == "Peligro") or (delta < 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
+            d_color = "#43A047" if is_good else ("#D32F2F" if is_bad else "#888")
+            arrow   = "▲" if delta > 0 else ("▼" if delta < 0 else "—")
+            d_txt   = f'<div style="font-size:0.72rem;color:{d_color};font-weight:600">{arrow} {abs(delta)} vs ant.</div>'
+        else:
+            d_txt = ""
         with kc[i]:
             st.markdown(
                 f'<div style="border-left:4px solid {border_c};background:{bg_c};'
-                f'border-radius:8px;padding:12px;text-align:center;">'
-                f'{_body}</div>',
+                f'border-radius:10px;padding:14px 8px;text-align:center;'
+                f'box-shadow:0 1px 4px rgba(0,0,0,0.07)">'
+                f'<div style="font-size:1.3rem;margin-bottom:2px">{_icon}</div>'
+                f'<div style="font-size:0.7rem;color:{border_c};font-weight:700;text-transform:uppercase;letter-spacing:0.04em">{label}</div>'
+                f'<div style="font-size:2rem;font-weight:800;color:{border_c};line-height:1.1">{val}</div>'
+                f'{_pct_txt}{d_txt}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -1131,10 +1141,57 @@ def render():
         n_mejor  = int((validos["ord_act"] > validos["ord_prev"]).sum())
         n_peor   = int((validos["ord_act"] < validos["ord_prev"]).sum())
         if n_mejor or n_peor:
-            st.caption(
-                f"📈 **{n_mejor}** indicadores mejoraron de categoría · "
-                f"📉 **{n_peor}** empeoraron · respecto al período anterior"
+            # ── Tabla de cambio de categoría ──────────────────────────────────
+            df_cambio = df_raw[["Id", "Nivel de cumplimiento"]].merge(
+                df_prev[["Id", "Nivel de cumplimiento", "Cumplimiento"]].rename(
+                    columns={"Nivel de cumplimiento": "Nivel_prev", "Cumplimiento": "Cum_prev"}),
+                on="Id", how="inner",
             )
+            if "Cumplimiento" in df_raw.columns:
+                df_cambio = df_cambio.merge(df_raw[["Id", "Cumplimiento", "Indicador"]], on="Id", how="left")
+            else:
+                df_cambio["Cumplimiento"] = "—"
+                df_cambio["Indicador"] = df_cambio["Id"]
+            df_cambio["ord_act"]  = df_cambio["Nivel de cumplimiento"].map(_ORDEN_NUM)
+            df_cambio["ord_prev"] = df_cambio["Nivel_prev"].map(_ORDEN_NUM)
+            _val_cambio = df_cambio[(df_cambio["ord_act"] >= 0) & (df_cambio["ord_prev"] >= 0)]
+            _mejor = _val_cambio[_val_cambio["ord_act"] > _val_cambio["ord_prev"]].copy()
+            _peor  = _val_cambio[_val_cambio["ord_act"] < _val_cambio["ord_prev"]].copy()
+
+            _COL_CAMBIO = st.columns(2)
+            for _cc_col, _df_cc, _titulo, _emoji in [
+                (_COL_CAMBIO[0], _mejor, "Mejoraron de categoría",  "📈"),
+                (_COL_CAMBIO[1], _peor,  "Deterioraron de categoría", "📉"),
+            ]:
+                with _cc_col:
+                    if _df_cc.empty:
+                        st.caption(f"{_emoji} Sin cambios en esta dirección")
+                        continue
+                    with st.expander(f"{_emoji} **{_titulo}** ({len(_df_cc)})", expanded=False):
+                        _rows_cc = []
+                        for _, _r in _df_cc.iterrows():
+                            _ic_prev = _NIVEL_ICON.get(str(_r["Nivel_prev"]), "")
+                            _ic_act  = _NIVEL_ICON.get(str(_r["Nivel de cumplimiento"]), "")
+                            _rows_cc.append({
+                                "ID": str(_r["Id"]),
+                                "Indicador": str(_r.get("Indicador", _r["Id"]))[:60],
+                                "Anterior": f'{_ic_prev} {_r["Nivel_prev"]}',
+                                "Actual": f'{_ic_act} {_r["Nivel de cumplimiento"]}',
+                                "Cum. ant.": str(_r.get("Cum_prev", "—")),
+                                "Cum. act.": str(_r.get("Cumplimiento", "—")),
+                            })
+                        st.dataframe(
+                            pd.DataFrame(_rows_cc),
+                            use_container_width=True, hide_index=True,
+                            column_config={
+                                "ID":        st.column_config.TextColumn("ID",         width="small"),
+                                "Indicador": st.column_config.TextColumn("Indicador",  width="large"),
+                                "Anterior":  st.column_config.TextColumn("Cat. ant.",  width="medium"),
+                                "Actual":    st.column_config.TextColumn("Cat. act.",  width="medium"),
+                                "Cum. ant.": st.column_config.TextColumn("Cum. ant.",  width="small"),
+                                "Cum. act.": st.column_config.TextColumn("Cum. act.",  width="small"),
+                            },
+                        )
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("---")

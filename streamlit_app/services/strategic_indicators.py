@@ -128,6 +128,7 @@ def load_worksheet_flags() -> pd.DataFrame:
     c_car = _find_col(df, ["CARACTERISTICA", "Caracteristica", "CARACTERÍSTICA"])
     c_plan = _find_col(df, ["Indicadores Plan estrategico"])
     c_cna = _find_col(df, ["CNA"])
+    c_proyecto = _find_col(df, ["Proyecto", "PROYECTO"])
 
     needed = [c for c in [c_id, c_ind, c_linea, c_obj, c_factor, c_car, c_plan, c_cna] if c]
     if not needed:
@@ -144,6 +145,10 @@ def load_worksheet_flags() -> pd.DataFrame:
         c_plan: "FlagPlanEstrategico",
         c_cna: "FlagCNA",
     }
+    if c_proyecto:
+        out = df[needed + [c_proyecto]].copy()
+        rename_map[c_proyecto] = "Proyecto"
+
     out = out.rename(columns={k: v for k, v in rename_map.items() if k is not None})
 
     if "Id" not in out.columns:
@@ -160,6 +165,9 @@ def load_worksheet_flags() -> pd.DataFrame:
             out[flag] = pd.to_numeric(out[flag], errors="coerce").fillna(0).astype(int)
         else:
             out[flag] = 0
+
+    if "Proyecto" in out.columns:
+        out["Proyecto"] = pd.to_numeric(out["Proyecto"], errors="coerce").fillna(0).astype(int)
 
     out = out[out["Id"] != ""].copy()
     return out.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
@@ -284,9 +292,19 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     if plan.empty:
         return pd.DataFrame()
 
+    # Excluir indicadores de tipo Proyecto (Proyecto=1)
+    if "Proyecto" in plan.columns:
+        plan = plan[plan["Proyecto"] != 1].copy()
+    if plan.empty:
+        return pd.DataFrame()
+
     close = cierre_por_corte(cierres, anio, mes)
+    cols_close = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
+    for _ec in ["Meta", "Ejecucion", "Sentido"]:
+        if _ec in close.columns:
+            cols_close.append(_ec)
     merged = plan.merge(
-        close[["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]],
+        close[cols_close],
         on="Id",
         how="left",
         suffixes=("", "_cierre"),
@@ -316,8 +334,12 @@ def preparar_cna_con_cierre(anio: int, mes: int) -> pd.DataFrame:
         return pd.DataFrame()
 
     close = cierre_por_corte(cierres, anio, mes)
+    cols_close_cna = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
+    for _ec in ["Meta", "Ejecucion", "Sentido"]:
+        if _ec in close.columns:
+            cols_close_cna.append(_ec)
     merged = cna.merge(
-        close[["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]],
+        close[cols_close_cna],
         on="Id",
         how="left",
         suffixes=("", "_cierre"),

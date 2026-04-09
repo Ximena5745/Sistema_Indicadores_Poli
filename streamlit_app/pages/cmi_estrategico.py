@@ -79,13 +79,16 @@ def render():
             st.rerun()
 
         _anio_default, _corte_default = _default_corte(anios)
-        anio = st.selectbox("Año de corte", anios, index=anios.index(_anio_default), key="cmi_pdi_anio")
-        corte = st.selectbox(
-            "Corte",
-            list(CORTE_SEMESTRAL.keys()),
-            index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
-            key="cmi_pdi_corte",
-        )
+        _fc1, _fc2 = st.columns(2)
+        with _fc1:
+            anio = st.selectbox("Año de corte", anios, index=anios.index(_anio_default), key="cmi_pdi_anio")
+        with _fc2:
+            corte = st.selectbox(
+                "Corte semestral",
+                list(CORTE_SEMESTRAL.keys()),
+                index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
+                key="cmi_pdi_corte",
+            )
         mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_pdi_con_cierre(int(anio), int(mes))
@@ -98,7 +101,9 @@ def render():
         pdi_catalog["Linea"].dropna().astype(str).unique().tolist()
         if not pdi_catalog.empty else df["Linea"].dropna().astype(str).unique().tolist()
     )
-    linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_pdi_linea")
+    _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
+    with _ff1:
+        linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_pdi_linea")
 
     if not pdi_catalog.empty:
         obj_pool = pdi_catalog if linea_sel == "Todas" else pdi_catalog[pdi_catalog["Linea"] == linea_sel]
@@ -107,8 +112,10 @@ def render():
         df_obj = df if linea_sel == "Todas" else df[df["Linea"] == linea_sel]
         objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
 
-    objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos, key="cmi_pdi_objetivo")
-    nombre_q = st.text_input("Buscar indicador", key="cmi_pdi_nombre", placeholder="Texto en nombre del indicador")
+    with _ff2:
+        objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos, key="cmi_pdi_objetivo")
+    with _ff3:
+        nombre_q = st.text_input("Buscar indicador", key="cmi_pdi_nombre", placeholder="Texto en nombre del indicador")
 
     if linea_sel != "Todas":
         df = df[df["Linea"] == linea_sel]
@@ -190,14 +197,64 @@ def render():
         st.plotly_chart(fig_niv, use_container_width=True, key="cmi_pdi_nivel_pie")
 
     st.markdown("### Indicadores PDI")
-    tabla = df[[
-        "Id", "Indicador", "Linea", "Objetivo", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha",
-    ]].copy()
+    st.markdown("### Indicadores PDI")
+    _cols_pdi = ["Id", "Indicador", "Linea", "Objetivo", "cumplimiento_pct", "Nivel de cumplimiento"]
+    if "Meta" in df.columns:
+        _cols_pdi.append("Meta")
+    if "Ejecucion" in df.columns:
+        _cols_pdi.append("Ejecucion")
+    if "Sentido" in df.columns:
+        _cols_pdi.append("Sentido")
+    _cols_pdi += ["Anio", "Mes", "Fecha"]
+    tabla = df[[c for c in _cols_pdi if c in df.columns]].copy()
     tabla = tabla.rename(columns={
         "cumplimiento_pct": "Cumplimiento (%)",
         "Nivel de cumplimiento": "Nivel",
         "Anio": "Año cierre",
         "Mes": "Mes cierre",
+        "Meta": "Meta",
+        "Ejecucion": "Ejecución",
     })
     tabla["Cumplimiento (%)"] = pd.to_numeric(tabla["Cumplimiento (%)"], errors="coerce").round(1)
-    st.dataframe(tabla.sort_values(["Linea", "Objetivo", "Id"], na_position="last"), use_container_width=True, hide_index=True)
+    if "Meta" in tabla.columns:
+        tabla["Meta"] = pd.to_numeric(tabla["Meta"], errors="coerce").round(2)
+    if "Ejecución" in tabla.columns:
+        tabla["Ejecución"] = pd.to_numeric(tabla["Ejecución"], errors="coerce").round(2)
+    tabla = tabla.sort_values(["Linea", "Objetivo", "Id"] if all(c in tabla.columns for c in ["Linea", "Objetivo"]) else ["Id"], na_position="last")
+
+    # Color de fondo por Nivel en columna Nivel
+    _NIVEL_BG_CMI = {
+        "Peligro": "#FFCDD2", "Alerta": "#FEF3D0", "Cumplimiento": "#E8F5E9",
+        "Sobrecumplimiento": "#D0E4FF", "No aplica": "#ECEFF1", "Pendiente de reporte": "#F5F5F5",
+    }
+    _NIVEL_ICONS_CMI = {
+        "Peligro": "🔴", "Alerta": "🟡", "Cumplimiento": "🟢",
+        "Sobrecumplimiento": "🔵", "No aplica": "⚫", "Pendiente de reporte": "⚪",
+    }
+    if "Nivel" in tabla.columns:
+        tabla["Nivel"] = tabla["Nivel"].apply(
+            lambda n: f'{_NIVEL_ICONS_CMI.get(str(n), "")} {n}' if pd.notna(n) else n
+        )
+    if "Linea" in tabla.columns:
+        tabla["Color Línea"] = tabla["Linea"].apply(lambda l: _linea_color(str(l or "")))
+
+    _cfg_pdi = {
+        "Id":        st.column_config.TextColumn("ID",          width="small"),
+        "Indicador": st.column_config.TextColumn("Indicador",   width="large"),
+        "Linea":     st.column_config.TextColumn("Línea",       width="medium"),
+        "Objetivo":  st.column_config.TextColumn("Objetivo",    width="large"),
+        "Nivel":     st.column_config.TextColumn("Nivel",       width="medium"),
+        "Cumplimiento (%)": st.column_config.NumberColumn("Cumplimiento %", format="%.1f", width="small"),
+        "Meta":      st.column_config.NumberColumn("Meta",      format="%.2f", width="small"),
+        "Ejecución": st.column_config.NumberColumn("Ejecución", format="%.2f", width="small"),
+        "Sentido":   st.column_config.TextColumn("Sentido",     width="small"),
+        "Año cierre": st.column_config.NumberColumn("Año",      format="%d",   width="small"),
+        "Mes cierre": st.column_config.NumberColumn("Mes",      format="%d",   width="small"),
+        "Fecha":     st.column_config.DatetimeColumn("Fecha",   width="small"),
+    }
+    st.dataframe(
+        tabla,
+        use_container_width=True,
+        hide_index=True,
+        column_config={k: v for k, v in _cfg_pdi.items() if k in tabla.columns},
+    )
