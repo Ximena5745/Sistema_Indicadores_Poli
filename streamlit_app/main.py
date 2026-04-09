@@ -36,8 +36,15 @@ def _load_sidebar_logo_html():
     from base64 import b64encode
     from pathlib import Path
 
-    logo_path = Path(r"c:/Users/ximen/Downloads/Wallpaper-POLI.jpg.webp")
-    if not logo_path.exists():
+    base = Path(__file__).parent / "assets"
+    logo_candidates = [
+        base / "Wallpaper-POLI.jpg.webp",
+        base / "Wallpaper-POLI.webp",
+        base / "Wallpaper-POLI.jpg",
+        base / "Wallpaper-POLI.png",
+    ]
+    logo_path = next((p for p in logo_candidates if p.exists()), None)
+    if logo_path is None:
         return None
     mime = "image/webp" if logo_path.suffix.lower() == ".webp" else "image/png"
     try:

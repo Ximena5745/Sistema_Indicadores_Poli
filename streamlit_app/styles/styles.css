@@ -42,12 +42,57 @@ div[data-testid="stAppViewContainer"] {
 }
 
 /* Sidebar */
+section[data-testid="stSidebar"],
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #020f23 0%, #071b38 100%) !important;
     color: var(--sidebar-text) !important;
     padding: 22px 22px 18px 22px !important;
     border-right: 1px solid rgba(255,255,255,0.06);
     min-height: 100vh;
+}
+
+section[data-testid="stSidebar"] > div,
+[data-testid="stSidebar"] > div {
+    background: transparent !important;
+}
+
+section[data-testid="stSidebar"] .css-1d391kg,
+[data-testid="stSidebar"] .css-1d391kg,
+section[data-testid="stSidebar"] .css-1lcbmhc,
+[data-testid="stSidebar"] .css-1lcbmhc,
+section[data-testid="stSidebar"] .css-k1vhr4,
+[data-testid="stSidebar"] .css-k1vhr4 {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+section[data-testid="stSidebar"] > div,
+[data-testid="stSidebar"] > div,
+section[data-testid="stSidebar"] > div > div,
+[data-testid="stSidebar"] > div > div,
+section[data-testid="stSidebar"] > div > div > div,
+[data-testid="stSidebar"] > div > div > div {
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+section[data-testid="stSidebar"] *,
+[data-testid="stSidebar"] * {
+    color: inherit !important;
+}
+
+section[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] select,
+[data-testid="stSidebar"] select,
+section[data-testid="stSidebar"] button,
+[data-testid="stSidebar"] button {
+    background: rgba(255,255,255,0.10) !important;
+    color: #ffffff !important;
+    border-color: rgba(255,255,255,0.18) !important;
 }
 
 .sidebar-header {
@@ -69,7 +114,7 @@ div[data-testid="stAppViewContainer"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.16);
     color: #ffffff;
     font-weight: 700;
     overflow: hidden;
@@ -150,7 +195,7 @@ div[data-testid="stAppViewContainer"] {
     background: rgba(255,255,255,0.08);
     border-radius: 22px;
     padding: 14px 10px 14px 10px;
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.20);
 }
 
 .streamlit-option-menu .nav-link {
@@ -205,8 +250,22 @@ div[data-testid="stAppViewContainer"] {
     background: #ffffff !important;
     color: var(--primary) !important;
     border-color: rgba(15,32,64,0.1) !important;
-    border-bottom-color: var(--primary) !important;
+    box-shadow: inset 0 -3px 0 rgba(255,255,255,0.9) !important;
 }
+
+[role="tablist"] button:nth-child(1)[aria-selected="true"] { border-bottom-color: #0f3a6d !important; }
+[role="tablist"] button:nth-child(2)[aria-selected="true"] { border-bottom-color: #1d4a86 !important; }
+[role="tablist"] button:nth-child(3)[aria-selected="true"] { border-bottom-color: #00b8d4 !important; }
+[role="tablist"] button:nth-child(4)[aria-selected="true"] { border-bottom-color: #f6a600 !important; }
+[role="tablist"] button:nth-child(5)[aria-selected="true"] { border-bottom-color: #1d9c60 !important; }
+[role="tablist"] button:nth-child(6)[aria-selected="true"] { border-bottom-color: #d81c3d !important; }
+
+[role="tablist"] button:nth-child(1)[aria-selected="true"] { border-bottom-color: #0f3a6d !important; }
+[role="tablist"] button:nth-child(2)[aria-selected="true"] { border-bottom-color: #1d4a86 !important; }
+[role="tablist"] button:nth-child(3)[aria-selected="true"] { border-bottom-color: #00b8d4 !important; }
+[role="tablist"] button:nth-child(4)[aria-selected="true"] { border-bottom-color: #f6a600 !important; }
+[role="tablist"] button:nth-child(5)[aria-selected="true"] { border-bottom-color: #1d9c60 !important; }
+[role="tablist"] button:nth-child(6)[aria-selected="true"] { border-bottom-color: #d81c3d !important; }
 
 [role="tablist"] button:hover {
     background: rgba(255,255,255,0.98) !important;
@@ -219,6 +278,55 @@ div[data-testid="stAppViewContainer"] {
 
 [role="tablist"] {
     margin-bottom: 18px !important;
+}
+
+/* HTML bar charts */
+.html-bar-chart {
+    display: grid;
+    gap: 14px;
+    padding: 16px 0;
+}
+
+.html-bar-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.html-bar-item .bar-label {
+    font-size: 13px;
+    color: #0f2137;
+    font-weight: 700;
+}
+
+.html-bar-item .bar-axis {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.html-bar-item .bar-track {
+    position: relative;
+    width: 100%;
+    height: 16px;
+    border-radius: 999px;
+    background: #eef4fb;
+    overflow: hidden;
+}
+
+.html-bar-item .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+
+.html-bar-item .bar-value {
+    min-width: 54px;
+    text-align: right;
+    font-size: 13px;
+    color: #0f2137;
+    font-weight: 700;
 }
 
 /* Buttons */
@@ -257,13 +365,14 @@ button[kind="secondary"]:hover,
 .stSelectbox>div>div>div>div,
 .stMultiSelectbox>div>div>div>div,
 .stNumberInput>div>div>input,
-.stDateInput>div>div>input {
+.stDateInput>div>div>input,
+.stTextInput>div>div>div>div {
     border-radius: 16px !important;
-    border: 1px solid rgba(15,32,64,0.12) !important;
-    background: #ffffff !important;
+    border: 1px solid rgba(15,32,64,0.16) !important;
+    background: #f8fbff !important;
     padding: 12px 14px !important;
     color: #0f2137 !important;
-    box-shadow: inset 0 2px 10px rgba(15,32,64,0.05) !important;
+    box-shadow: inset 0 2px 10px rgba(15,32,64,0.04) !important;
 }
 
 .stTextInput>div>div>input:focus,
@@ -281,6 +390,10 @@ button[kind="secondary"]:hover,
 .stNumberInput>div>div>input::placeholder,
 .stDateInput>div>div>input::placeholder {
     color: rgba(15,32,64,0.7) !important;
+}
+
+.stSelectbox>div>div>div>div {
+    min-height: 48px !important;
 }
 
 /* Expander filters */
@@ -580,10 +693,16 @@ button[kind="secondary"]:hover,
 .stDataFrame,
 .dataframe,
 [data-testid="stDataFrame"] {
-    border-radius: 20px !important;
-    border: 1px solid rgba(4,18,46,0.08) !important;
-    box-shadow: 0 20px 50px rgba(4,18,46,0.06) !important;
-    background: #ffffff !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(15,32,64,0.12) !important;
+    box-shadow: 0 24px 60px rgba(15,32,64,0.08) !important;
+    background: #f8fbff !important;
+}
+
+.stDataFrame th,
+.dataframe th,
+[data-testid="stDataFrame"] th {
+    background: rgba(15,32,64,0.08) !important;
 }
 
 .stDataFrame table,

@@ -46,32 +46,33 @@ class Charts:
 
     def draw_semaforo(self):
         df = self.service.get_semaforo()
-        fig = px.bar(
-            df,
-            x="valor",
-            y="estado",
-            orientation="h",
-            color="estado",
-            color_discrete_map={
-                "Peligro": "#ff3b30",
-                "Alerta": "#ffab00",
-                "Cumplimiento": "#00c853",
-                "Sobrecumplimiento": "#00b8d4",
-            },
-            labels={"valor": "Indicadores", "estado": "Estado"},
-        )
-        fig.update_layout(
-            title="Semáforo global",
-            template="plotly_white",
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, t=40, b=20),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=False),
-            showlegend=False,
-        )
-        fig.update_traces(marker_line_width=0)
-        st.plotly_chart(fig, use_container_width=True)
+        max_val = df["valor"].max() if not df.empty else 1
+        color_map = {
+            "Peligro": "#ff3b30",
+            "Alerta": "#ffab00",
+            "Cumplimiento": "#00c853",
+            "Sobrecumplimiento": "#00b8d4",
+        }
+        html_rows = [
+            "<div class='html-bar-chart'>",
+            "<div style='font-weight:700;margin-bottom:14px;color:#0f2137;'>Semáforo global</div>",
+        ]
+        for _, row in df.iterrows():
+            estado = str(row["estado"])
+            valor = int(row["valor"])
+            width = min(max(valor / max_val * 100, 2), 100)
+            color = color_map.get(estado, "#7d8be3")
+            html_rows.append(
+                f"<div class='html-bar-item'>"
+                f"<div class='bar-axis'>"
+                f"<div class='bar-label'>{estado}</div>"
+                f"<div class='bar-track'><div class='bar-fill' style='width:{width}%;background:{color};'></div></div>"
+                f"</div>"
+                f"<div class='bar-value'>{valor}</div>"
+                f"</div>"
+            )
+        html_rows.append("</div>")
+        st.markdown("".join(html_rows), unsafe_allow_html=True)
 
 
 def deterministic_timeseries():
