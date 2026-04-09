@@ -903,6 +903,16 @@ def render():
     _sk_rg_prev  = "_rg_last_anio_seen"
     _hoy_rg      = _date.today()
     _anio_actual_rg = st.session_state.get(_sk_rg_anio, anios_disponibles[-1])
+    # Asegurar que el año en session_state esté dentro de los años disponibles.
+    # Si la sesión contiene un año inválido (p.ej. 2026) lo reemplazamos
+    # por el año más reciente disponible para evitar que las gráficas queden vacías.
+    try:
+        if _anio_actual_rg not in anios_disponibles:
+            _anio_actual_rg = anios_disponibles[-1]
+            st.session_state[_sk_rg_anio] = _anio_actual_rg
+    except Exception:
+        _anio_actual_rg = anios_disponibles[-1]
+        st.session_state[_sk_rg_anio] = _anio_actual_rg
 
     # Si el año cambia → reset del mes para que tome el default inteligente
     if st.session_state.get(_sk_rg_prev) != _anio_actual_rg:
@@ -949,6 +959,11 @@ def render():
     with st.spinner("Procesando niveles de cumplimiento..."):
         df_raw = _preparar_datos_por_fecha(_raw, anio_seleccionado, mes_seleccionado)
         df_prev = _preparar_datos_por_fecha(_raw, anio_prev, MESES_OPCIONES[mes_prev - 1])
+
+    # Si no hay datos para el período seleccionado, mostrar mensaje claro
+    if df_raw.empty:
+        st.info(f"No hay datos para {mes_seleccionado} {anio_seleccionado}. Prueba otro período o verifica el archivo 'Resultados Consolidados.xlsx'.")
+        st.stop()
 
     # Calcular fecha de corte
     corte_actual = pd.Timestamp(anio_seleccionado, mes_num, 1)
@@ -1070,8 +1085,67 @@ def render():
     st.markdown("---")
 
     st.markdown("<div class='section-panel'>", unsafe_allow_html=True)
+    # ── KPIs: Primera fila — Resumen general (corte fijo: Diciembre 2025)
+    df_cut = _preparar_datos_por_fecha(_raw, 2025, "Diciembre")
+    # Normalizar columna de nivel si falta
+    if df_cut is None:
+        df_cut = pd.DataFrame()
+    if not df_cut.empty and "Nivel de cumplimiento" not in df_cut.columns:
+        if "cumplimiento" in df_cut.columns:
+            df_cut["Nivel de cumplimiento"] = df_cut["cumplimiento"].apply(_nivel_c)
+        elif "Cumplimiento" in df_cut.columns:
+            df_cut["Nivel de cumplimiento"] = df_cut["Cumplimiento"].apply(_nivel_c)
+        else:
+            df_cut["Nivel de cumplimiento"] = "Sin dato"
+
+    total_cut = len(df_cut)
+    total_cut_reportados = int(df_cut['fecha'].notna().sum()) if 'fecha' in df_cut.columns else 0
+    kawak_cut = _cargar_kawak_por_anio(2025)
+    total_cut_indicadores = int(len(kawak_cut)) if not kawak_cut.empty else total_cut
+
+    cnts_cut = df_cut["Nivel de cumplimiento"].value_counts() if not df_cut.empty else pd.Series(dtype=int)
+    cnts_cut_p = pd.Series(dtype=int)
+
+    _CARD_COLORS_LOCAL = _CARD_COLORS
+    metricas_cut = [
+        ("Reportados",         total_cut_reportados,                        None),
+        ("Peligro",            int(cnts_cut.get("Peligro", 0)),           int(cnts_cut_p.get("Peligro", 0))),
+        ("Alerta",             int(cnts_cut.get("Alerta", 0)),            int(cnts_cut_p.get("Alerta", 0))),
+        ("Cumplimiento",       int(cnts_cut.get("Cumplimiento", 0)),      int(cnts_cut_p.get("Cumplimiento", 0))),
+        ("Sobrecumplimiento",  int(cnts_cut.get("Sobrecumplimiento", 0)), int(cnts_cut_p.get("Sobrecumplimiento", 0))),
+        ("No aplica",          int(cnts_cut.get(_NO_APLICA, 0)),          int(cnts_cut_p.get(_NO_APLICA, 0))),
+        ("Pendiente",          int(cnts_cut.get(_PEND, 0)),               int(cnts_cut_p.get(_PEND, 0))),
+    ]
+
+    st.markdown("**Resumen general — Corte: Diciembre 2025**")
+    kc_cut = st.columns(len(metricas_cut))
+    for i, (label, val, val_prev) in enumerate(metricas_cut):
+        border_c, bg_c = _CARD_COLORS.get(label, ("#9E9E9E", "#F5F5F5"))
+        _icons = {"Total": "🏷️", "Peligro": "🔴", "Alerta": "🟡", "Cumplimiento": "🟢", "Sobrecumplimiento": "🔵", "No aplica": "⚫", "Pendiente": "⚪",}
+        _icon = _icons.get(label, "")
+        denom_cut = total_cut_reportados if total_cut_reportados else total_cut
+        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/denom_cut*100,1)}%</div>' if denom_cut and label not in ("Reportados",) else ""
+        with kc_cut[i]:
+            st.markdown(
+                f'<div style="border-left:4px solid {border_c};background:{bg_c};'
+                f'border-radius:10px;padding:14px 8px;text-align:center;'
+                f'box-shadow:0 1px 4px rgba(0,0,0,0.07)'>
+                f'<div style="font-size:1.3rem;margin-bottom:2px">{_icon}</div>'
+                f'<div style="font-size:0.7rem;color:{border_c};font-weight:700;text-transform:uppercase;letter-spacing:0.04em">{label}</div>'
+                f'<div style="font-size:2rem;font-weight:800;color:{border_c};line-height:1.1">{val}</div>'
+                f'{_pct_txt}</div>',
+                unsafe_allow_html=True,
+            )
+    st.caption(f"Indicadores totales (Kawak) al corte 2025: {total_cut_indicadores} · Reportados en corte: {total_cut_reportados}")
+
     # ── KPIs con comparativa ──────────────────────────────────────────────────────
+    # total raw (incluye pendientes agregados) -> corresponde a Indicadores totales (Kawak)
     total = len(df_raw)
+    # Contar cuantos indicadores tienen fecha (reportados) en el período
+    total_reportados = int(df_raw['fecha'].notna().sum()) if 'fecha' in df_raw.columns else 0
+    # Intentar obtener el total real de indicadores desde Kawak (mejor fuente de verdad)
+    kawak_df = _cargar_kawak_por_anio(anio_seleccionado)
+    total_indicadores = int(len(kawak_df)) if not kawak_df.empty else total
     # Asegurar que exista la columna 'Nivel de cumplimiento' (algunas fuentes pueden nombrarla distinto)
     if "Nivel de cumplimiento" not in df_raw.columns:
         if "cumplimiento" in df_raw.columns:
@@ -1096,7 +1170,7 @@ def render():
         "Pendiente":          ("#9E9E9E", "#F5F5F5"),
     }
     metricas = [
-        ("Total",              total,                                  None),
+        ("Reportados",         total_reportados,                        None),
         ("Peligro",            int(cnts.get("Peligro", 0)),           int(cnts_p.get("Peligro", 0))),
         ("Alerta",             int(cnts.get("Alerta", 0)),            int(cnts_p.get("Alerta", 0))),
         ("Cumplimiento",       int(cnts.get("Cumplimiento", 0)),      int(cnts_p.get("Cumplimiento", 0))),
@@ -1114,7 +1188,9 @@ def render():
             "No aplica": "⚫", "Pendiente": "⚪",
         }
         _icon = _icons.get(label, "")
-        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/total*100,1)}%</div>' if total and label != "Total" else ""
+        # Mostrar porcentaje relativo al total reportado cuando exista, sino al total de indicadores
+        denom = total_reportados if total_reportados else total
+        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/denom*100,1)}%</div>' if denom and label not in ("Reportados", "Indicadores") else ""
         if val_prev is not None and label != "Total":
             delta = val - val_prev
             is_good = (delta <= 0 and label == "Peligro") or (delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
@@ -1129,12 +1205,15 @@ def render():
                 f'<div style="border-left:4px solid {border_c};background:{bg_c};'
                 f'border-radius:10px;padding:14px 8px;text-align:center;'
                 f'box-shadow:0 1px 4px rgba(0,0,0,0.07)">'
-                f'<div style="font-size:1.3rem;margin-bottom:2px">{_icon}</div>'
+                    f'<div style="font-size:1.3rem;margin-bottom:2px">{_icon}</div>'
                 f'<div style="font-size:0.7rem;color:{border_c};font-weight:700;text-transform:uppercase;letter-spacing:0.04em">{label}</div>'
                 f'<div style="font-size:2rem;font-weight:800;color:{border_c};line-height:1.1">{val}</div>'
                 f'{_pct_txt}{d_txt}</div>',
                 unsafe_allow_html=True,
             )
+
+        # Mostrar leyenda pequeña con total de indicadores para evitar confusión
+        st.caption(f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}")
 
     # Caption de tendencia general
     if not df_prev.empty:

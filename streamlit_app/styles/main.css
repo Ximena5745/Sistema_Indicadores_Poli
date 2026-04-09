@@ -10,8 +10,8 @@ body {
 .main .block-container {
     max-width: none !important;
     padding-top: 0.8rem !important;
-    padding-left: 0.55rem !important;
-    padding-right: 0.55rem !important;
+    padding-left: 0.1rem !important;
+    padding-right: 0.1rem !important;
 }
 
 /* Sidebar oscuro con degradado */
