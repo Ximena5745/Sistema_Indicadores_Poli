@@ -1136,7 +1136,17 @@ def render():
         _icon = _icons.get(label, "")
         denom_cut = total_cut_reportados if total_cut_reportados else total_cut
         _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/denom_cut*100,1)}%</div>' if denom_cut and label not in ("Reportados",) else ""
-        with kc[i]:
+        # Delta vs período anterior (si existe)
+        if val_prev is not None and label != "Total":
+            delta = val - val_prev
+            is_good = (delta <= 0 and label == "Peligro") or (delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
+            is_bad  = (delta > 0 and label == "Peligro") or (delta < 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
+            d_color = "#43A047" if is_good else ("#D32F2F" if is_bad else "#888")
+            arrow   = "▲" if delta > 0 else ("▼" if delta < 0 else "—")
+            d_txt   = f'<div style="font-size:0.72rem;color:{d_color};font-weight:600">{arrow} {abs(delta)} vs ant.</div>'
+        else:
+            d_txt = ""
+        with kc_cut[i]:
             st.markdown(
                 f'<div style="border-left:4px solid {border_c};background:{bg_c};'
                 f'border-radius:8px;padding:10px 6px;text-align:center;'

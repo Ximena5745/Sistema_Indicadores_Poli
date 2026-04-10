@@ -252,9 +252,64 @@ def render():
         "Mes cierre": st.column_config.NumberColumn("Mes",      format="%d",   width="small"),
         "Fecha":     st.column_config.DatetimeColumn("Fecha",   width="small"),
     }
-    st.dataframe(
-        tabla,
-        use_container_width=True,
-        hide_index=True,
-        column_config={k: v for k, v in _cfg_pdi.items() if k in tabla.columns},
-    )
+    # Renderizar indicadores PDI por Línea: título con color y tarjetas por Objetivo
+    def _render_indicator_table(df_obj: pd.DataFrame) -> str:
+        """Retorna HTML de una tabla compacta con columnas Indicador, Meta, Ejecución, Cumplimiento."""
+        cols = [c for c in ["Indicador", "Meta", "Ejecución", "Cumplimiento (%)"] if c in df_obj.columns]
+        if df_obj.empty:
+            return "<div style='padding:8px'>No hay indicadores para este objetivo.</div>"
+        html = ["<table style='width:100%;border-collapse:collapse;font-size:0.9rem'>"]
+        # header
+        html.append("<tr style='background:#e9f7fb;color:#033;'><th style='padding:8px;border:1px solid #d0e9ef;text-align:left'>Indicador</th>")
+        for c in cols[1:]:
+            html.append(f"<th style='padding:8px;border:1px solid #d0e9ef;text-align:center'>{c}</th>")
+        html.append("</tr>")
+        # rows
+        for _, r in df_obj.iterrows():
+            html.append("<tr>")
+            html.append(f"<td style='padding:8px;border:1px solid #eef7fb'>{_escape(str(r.get('Indicador','')))}</td>")
+            for c in cols[1:]:
+                val = r.get(c, "")
+                display = f"{val}" if pd.notna(val) else ""
+                align = "center"
+                html.append(f"<td style='padding:8px;border:1px solid #eef7fb;text-align:{align}'>{display}</td>")
+            html.append("</tr>")
+        html.append("</table>")
+        return "".join(html)
+
+    # Ordenar líneas según catálogo (asegurar las seis líneas ordenadas)
+    ordered_lineas = [l for l in LINEA_COLORS.keys() if l in tabla['Linea'].unique()] + [l for l in tabla['Linea'].unique() if l not in LINEA_COLORS.keys()]
+    from html import escape as _escape
+
+    for linea in ordered_lineas:
+        color = LINEA_COLORS.get(linea, _linea_color(linea))
+        st.markdown(f"<div style='background:{color};padding:14px;border-radius:6px;margin-top:12px;margin-bottom:8px'><h3 style='color:#ffffff;margin:0;padding:0'>{_escape(linea)}</h3></div>", unsafe_allow_html=True)
+        df_line = tabla[tabla['Linea'] == linea].copy()
+        if df_line.empty:
+            st.info(f"No hay indicadores PDI para la línea {linea} en el corte seleccionado.")
+            continue
+        # Agrupar por Objetivo y renderizar tarjetas en dos columnas
+        objetivos = df_line['Objetivo'].fillna('Sin objetivo').unique().tolist()
+        cols_iter = iter(objetivos)
+        while True:
+            try:
+                o1 = next(cols_iter)
+            except StopIteration:
+                break
+            o2 = None
+            try:
+                o2 = next(cols_iter)
+            except StopIteration:
+                o2 = None
+            c1, c2 = st.columns([1,1])
+            with c1:
+                df_o1 = df_line[df_line['Objetivo'] == o1]
+                st.markdown(f"<div style='background:#f2fbfb;border-radius:6px;padding:8px'><strong>{_escape(str(o1))}</strong></div>", unsafe_allow_html=True)
+                st.markdown(_render_indicator_table(df_o1), unsafe_allow_html=True)
+            with c2:
+                if o2:
+                    df_o2 = df_line[df_line['Objetivo'] == o2]
+                    st.markdown(f"<div style='background:#f2fbfb;border-radius:6px;padding:8px'><strong>{_escape(str(o2))}</strong></div>", unsafe_allow_html=True)
+                    st.markdown(_render_indicator_table(df_o2), unsafe_allow_html=True)
+        # separación entre líneas
+        st.markdown("<br>", unsafe_allow_html=True)
