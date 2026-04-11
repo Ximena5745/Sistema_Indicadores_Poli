@@ -9,7 +9,7 @@
 
 ## 🎯 Executive Summary
 
-Profiling del pipeline ETL completado y re-ejecutado tras optimizaciones sobre `actualizar_consolidado`.
+Profiling del pipeline ETL completado y re-ejecutado tras optimizaciones de los lotes 1, 2 y 3.
 
 **BASELINE (pre-optimización):**
 
@@ -28,10 +28,20 @@ Profiling del pipeline ETL completado y re-ejecutado tras optimizaciones sobre `
 | Baseline | 44.80s | - | - |
 | Post lote 1 | 34.41s | -10.39s | -23.20% |
 | Post lote 2 (última corrida) | 35.25s | -9.55s | -21.32% |
+| Post lote 3 (corrida focalizada) | 36.57s | -8.23s | -18.37% |
 
-Resumen: la optimización inicial redujo el cuello principal entre 21% y 23% según corrida, manteniendo salida válida.
+**CORRIDA COMPARABLE END-TO-END (pipeline completo):**
 
-**Status:** ✅ Completado 11-abr-2026 01:50:23 UTC
+| Métrica | Baseline Full | Post lote 3 Full | Delta |
+|---|---:|---:|---:|
+| Tiempo total pipeline | 59.23s | 57.48s | -1.75s (-2.95%) |
+| consolidar_api | 10.09s | 10.88s | +0.79s |
+| actualizar_consolidado | 44.80s | 43.27s | -1.53s (-3.42%) |
+| generar_reporte | 4.30s | 3.31s | -0.99s |
+
+Resumen: la corrida focalizada sigue mostrando mejora importante en `actualizar_consolidado`, pero en corrida full comparable el impacto acumulado observado en esta ejecución es moderado por variabilidad de extremo a extremo.
+
+**Status:** ✅ Actualizado con lote 3 y corrida full comparable (11-abr-2026 17:45 local)
 
 ---
 
@@ -73,6 +83,11 @@ Resumen: la optimización inicial redujo el cuello principal entre 21% y 23% seg
 - Más I/O reads que consolidar_api pero menos memoria
 - Hipótesis: Cálculos DataFrame complejos o escritura Excel lenta
 - Prioridad: CRÍTICO - Optimizar primero
+
+**Actualización post lote 3 (corrida full comparable):**
+- Duración: 43.27s
+- Delta vs baseline full: -1.53s (-3.42%)
+- Mantiene principal cuello de botella del pipeline.
 
 ---
 
@@ -120,6 +135,9 @@ Basado en resultados de profiling real:
 - `scripts/actualizar_consolidado.py`: lectura de hojas con `pd.ExcelFile`, `LLAVE` vectorizada, construcción de `hist_escalas` sin `iterrows`.
 - `scripts/etl/fuentes.py`: `LLAVE` vectorizada en cargadores principales.
 - `scripts/etl/builders.py`: eliminación de `apply` remanente en agregados semestrales.
+- `scripts/etl/builders.py`: cambio de `iterrows` a `itertuples` en histórico.
+- `scripts/etl/escritura.py`: `llaves_de_df` vectorizada.
+- `scripts/etl/extraccion.py`: soporte `_asdict` para filas tipo namedtuple.
 
 **Próximas (iteración siguiente):**
 - Perfilar por función dentro de `builders` y `extraccion` para aislar el siguiente 10-15%.
@@ -144,9 +162,9 @@ Basado en resultados de profiling real:
 
 ## 📋 Próximas Acciones
 
-1. **Semana 3:** perfilar por función (cProfile detallado) en `builders`/`extraccion`.
-2. **Semana 3-4:** aplicar segundo ciclo de optimización sobre agregaciones y escritura.
-3. **Semana 4:** re-profile comparativo y actualizar SLA de ejecución objetivo.
+1. **Semana 3:** estabilizar benchmark comparable (3 corridas full, mediana) para reducir variabilidad.
+2. **Semana 3-4:** perfilar por función con salida estable de `top_functions` (hoy aparece vacío) para atacar hotspots restantes.
+3. **Semana 4:** aplicar cuarto ciclo focalizado y recalcular SLA con mediana de corridas.
 
 ---
 
@@ -158,5 +176,5 @@ Basado en resultados de profiling real:
 
 ---
 
-**Status:** ✅ ACTIVO - baseline y post-optimizaciones medidos  
-**Última actualización:** 11 de abril de 2026
+**Status:** ✅ ACTIVO - baseline, lote 3 y corrida full comparable medidos  
+**Última actualización:** 11 de abril de 2026 (17:45)

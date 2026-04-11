@@ -5,7 +5,7 @@
 **Duración Estimada:** 8 semanas (mayo-junio 2026)  
 **Esfuerzo:** ~232 horas (6 personas × 4 semanas)  
 **Infraestructura:** NO Redis Cloud (sin presupuesto de inversión)  
-**Estado:** 🟡 SEMANA 2 EN EJECUCIÓN - profiling completado, contratos validados, Redis descartado
+**Estado:** 🟡 SEMANA 2 EN EJECUCIÓN - profiling completado, contratos validados, Redis descartado, corrida full comparable post lote 3 medida (57.48s)
 
 ---
 
