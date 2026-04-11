@@ -8,6 +8,7 @@ Regla de capas:
   - Lógica pura          → core/calculos.py
   - Configuración        → core/config.py
   - Carga con caché Streamlit → aquí (services/)
+  - Mapeos de procesos   → services/procesos.py (desde config/mapeos_procesos.yaml)
 """
 import unicodedata
 import streamlit as st
@@ -16,6 +17,7 @@ from pathlib import Path
 
 from core.calculos import normalizar_cumplimiento, categorizar_cumplimiento, estado_tiempo_acciones
 from core.config import DATA_RAW, DATA_OUTPUT
+from services.procesos import obtener_proceso_padre
 
 _RENAME = {
     "Año":           "Anio",
@@ -51,118 +53,11 @@ def _id_a_str(x) -> str:
         return str(x)
 
 
-# ── Mapa subproceso → proceso padre (basado en Subproceso-Proceso-Area.xlsx) ─
-# Hardcodeado como constante para evitar dependencias de lectura de archivos
-# dentro de funciones cacheadas anidadas.
-# Clave: _ascii_lower(subproceso)  Valor: proceso canonical (MAYÚSCULAS)
-_MAPA_PROCESO_PADRE: dict[str, str] = {
-    # DIRECCIONAMIENTO ESTRATÉGICO
-    _ascii_lower("Gestion de Proyectos"):             "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
-    _ascii_lower("Planeacion Estrategica"):            "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
-    _ascii_lower("Desempeno Institucional"):           "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
-    _ascii_lower("Gerencia de Estrategia"):            "DIRECCIONAMIENTO ESTRAT\u00c9GICO",
-    # PLANIFICACIÓN Y MEJORA DEL SISTEMA INTEGRADO
-    _ascii_lower("Gestion de calidad"):                "PLANIFICACI\u00d3N Y MEJORA DEL SISTEMA INTEGRADO",
-    _ascii_lower("Gestion de Calidad"):                "PLANIFICACI\u00d3N Y MEJORA DEL SISTEMA INTEGRADO",
-    _ascii_lower("Planificacion POLISIGS"):            "PLANIFICACI\u00d3N Y MEJORA DEL SISTEMA INTEGRADO",
-    # COMUNICACIÓN Y POSICIONAMIENTO ESTRATÉGICO
-    _ascii_lower("Comunicaciones Externas"):           "COMUNICACI\u00d3N Y POSICIONAMIENTO ESTRAT\u00c9GICO",
-    _ascii_lower("Comunicaciones Internas"):           "COMUNICACI\u00d3N Y POSICIONAMIENTO ESTRAT\u00c9GICO",
-    _ascii_lower("Gestion de campanas integradas de marketing"):
-                                                       "COMUNICACI\u00d3N Y POSICIONAMIENTO ESTRAT\u00c9GICO",
-    # AUTOEVALUACIÓN Y AUTOREGULACIÓN
-    _ascii_lower("Autoevaluacion de programas academicos"):
-                                                       "AUTOEVALUACI\u00d3N Y AUTOREGULACI\u00d3N",
-    _ascii_lower("Autoevaluacion institucional"):      "AUTOEVALUACI\u00d3N Y AUTOREGULACI\u00d3N",
-    # GESTIÓN DE PORTAFOLIO INSTITUCIONAL
-    _ascii_lower("Gestion, Evaluacion e Innovacion Curricular"):
-                                                       "GESTI\u00d3N DE PORTAFOLIO INSTITUCIONAL",
-    _ascii_lower("Creacion, modificacion y cierre de programas academicos"):
-                                                       "GESTI\u00d3N DE PORTAFOLIO INSTITUCIONAL",
-    _ascii_lower("Diseno de Contenido Virtual"):       "GESTI\u00d3N DE PORTAFOLIO INSTITUCIONAL",
-    # DOCENCIA
-    _ascii_lower("Gestion Docente"):                   "DOCENCIA",
-    _ascii_lower("Gestion de Unidades Academicas"):    "DOCENCIA",
-    _ascii_lower("Operaciones Academicas"):            "DOCENCIA",
-    _ascii_lower("Operacion de Educacion no Formal"):  "DOCENCIA",
-    _ascii_lower("Operaciones Academica pregrado y posgrado presencial."):
-                                                       "DOCENCIA",
-    _ascii_lower("Operaciones Academica pregrado y posgrado virtual"):
-                                                       "DOCENCIA",
-    _ascii_lower("Operacion de nuevos negocios y CI"): "DOCENCIA",
-    # EXTENSIÓN
-    _ascii_lower("Gestion de Graduados"):              "EXTENSI\u00d3N",
-    _ascii_lower("Practicas"):                         "EXTENSI\u00d3N",
-    _ascii_lower("Emprendimiento"):                    "EXTENSI\u00d3N",
-    _ascii_lower("Gestion de la Responsabilidad Social"):
-                                                       "EXTENSI\u00d3N",
-    # INVESTIGACIÓN, INNOVACIÓN Y CREACIÓN
-    _ascii_lower("Investigacion, desarrollo tecnologico, innovacion y creacion"):
-                                                       "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
-    _ascii_lower("Investigacion, desarrollo tecnologico e innovacion"):
-                                                       "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
-    _ascii_lower("Formacion para la investigacion, creacion e innovacion"):
-                                                       "INVESTIGACI\u00d3N, INNOVACI\u00d3N Y CREACI\u00d3N",
-    # RECURSOS ACADÉMICOS Y DE INVESTIGACIÓN
-    _ascii_lower("Biblioteca Institucional"):          "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
-    _ascii_lower("Editorial y Publicaciones"):         "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
-    _ascii_lower("Centro de Medios Audiovisuales"):    "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
-    _ascii_lower("LEI"):                               "RECURSOS ACAD\u00c9MICOS Y DE INVESTIGACI\u00d3N",
-    # MERCADEO, ADMISIONES Y MATRÍCULA
-    _ascii_lower("Inscripcion, admision y matricula de estudiantes nuevos"):
-                                                       "MERCADEO, ADMISIONES Y MATR\u00cdCULA",
-    _ascii_lower("Mercadeo de programas academicos"):  "MERCADEO, ADMISIONES Y MATR\u00cdCULA",
-    _ascii_lower("Mercadeo y venta de educacion para la vida"):
-                                                       "MERCADEO, ADMISIONES Y MATR\u00cdCULA",
-    # BIENESTAR INSTITUCIONAL
-    _ascii_lower("Cultura y Deporte"):                 "BIENESTAR INSTITUCIONAL",
-    _ascii_lower("Servicio de Salud"):                 "BIENESTAR INSTITUCIONAL",
-    # SERVICIO Y PERMANENCIA
-    _ascii_lower("Servicio"):                          "SERVICIO Y PERMANENCIA",
-    _ascii_lower("Permanencia"):                       "SERVICIO Y PERMANENCIA",
-    _ascii_lower("Registro y Control"):                "SERVICIO Y PERMANENCIA",
-    _ascii_lower("Rematricula"):                       "SERVICIO Y PERMANENCIA",
-    # GESTIÓN FINANCIERA
-    _ascii_lower("Planeacion Financiera"):             "GESTI\u00d3N FINANCIERA",
-    _ascii_lower("Contabilidad"):                      "GESTI\u00d3N FINANCIERA",
-    _ascii_lower("Tesoreria"):                         "GESTI\u00d3N FINANCIERA",
-    # INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS
-    _ascii_lower("Gestion Infraestructura Fisica"):    "INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS",
-    _ascii_lower("Administracion de Servicios Generales"):
-                                                       "INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS",
-}
-
-
 def _cargar_mapa_proceso_padre() -> dict:
-    """
-    Retorna {ascii_lower(subproceso): proceso_canonical}.
-    Usa el mapa hardcodeado como base y lo enriquece leyendo
-    Subproceso-Proceso-Area.xlsx si está disponible.
-    """
-    mapa: dict[str, str] = dict(_MAPA_PROCESO_PADRE)
-    path = DATA_RAW / "Subproceso-Proceso-Area.xlsx"
-    if not path.exists():
-        return mapa
-    try:
-        df = pd.read_excel(str(path), engine="openpyxl")
-        df.columns = [str(c).strip() for c in df.columns]
-        col_sub = next((c for c in df.columns if "ubpro" in c), None)
-        col_pro = next((c for c in df.columns
-                        if "roceso" in c and "ubpro" not in c), None)
-        if col_sub and col_pro:
-            for _, r in df.iterrows():
-                if pd.isna(r[col_sub]) or pd.isna(r[col_pro]):
-                    continue
-                pro = str(r[col_pro]).strip()
-                sub = str(r[col_sub]).strip()
-                if _ascii_lower(pro) in ("no aplica", ""):
-                    continue
-                key = _ascii_lower(sub)
-                if key not in mapa:
-                    mapa[key] = pro
-    except Exception as exc:
-        print(f"[data_loader] _cargar_mapa_proceso_padre: {exc}")
-    return mapa
+    """DEPRECADO (11-abr-2026): usar services.procesos.obtener_proceso_padre() en su lugar."""
+    from services.procesos import cargar_mapeos_procesos
+    return cargar_mapeos_procesos()
+
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando datos principales...")
@@ -213,10 +108,7 @@ def cargar_dataset() -> pd.DataFrame:
 
     # ── Enriquecer con Proceso padre desde Subproceso-Proceso-Area.xlsx ─────
     if "Proceso" in df.columns:
-        _mapa_proc = _cargar_mapa_proceso_padre()
-        df["ProcesoPadre"] = df["Proceso"].apply(
-            lambda x: _mapa_proc.get(_ascii_lower(str(x)), str(x).strip())
-        )
+        df["ProcesoPadre"] = df["Proceso"].apply(obtener_proceso_padre)
 
     # ── Reconstruir columnas derivadas de fórmulas Excel ─────────────────────
     # El xlsx tiene fórmulas (=YEAR(F), =IFERROR(...), etc.) que openpyxl guarda

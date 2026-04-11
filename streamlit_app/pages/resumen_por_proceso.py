@@ -1,6 +1,7 @@
 import unicodedata
 import pandas as pd
 import streamlit as st
+from core.config import CACHE_TTL
 from streamlit_app.components import KPIRow
 from streamlit_app.services.data_service import DataService
 from streamlit_app.components.filters import render_filters
@@ -11,7 +12,7 @@ MESES_OPCIONES = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _obtener_anios_disponibles(df: pd.DataFrame) -> list:
     """Retorna lista de años disponibles en el dataset."""
     if df.empty or "Año" not in df.columns:

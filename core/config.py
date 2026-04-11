@@ -62,6 +62,19 @@ UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00   # tope 100%
 # Indicadores de sentido Negativo cuyo cumplimiento no debe superar el 100%.
 IDS_TOPE_100 = {"208", "218"}
 
+# ── Aliases de colores para compatibilidad heredada ──────────────────────────
+# (core/niveles.py usaba estos nombres)
+NIVEL_COLOR = COLOR_CATEGORIA
+NIVEL_BG = COLOR_CATEGORIA_CLARO
+
+NIVEL_ICON = {
+    "Peligro":           "🔴",
+    "Alerta":            "🟡",
+    "Cumplimiento":      "🟢",
+    "Sobrecumplimiento": "🟢",  # compat con datos históricos (antes usaba 🔵)
+    "Sin dato":          "⚪",
+}
+
 # ── Orden y visualización de categorías ───────────────────────────────────────
 ORDEN_CATEGORIAS = ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin dato"]
 
@@ -71,6 +84,9 @@ ICONOS_CATEGORIA = {
     "Cumplimiento":      "🟢",
     "Sobrecumplimiento": "🔵",
 }
+
+# ── Alias para compatibilidad ──────────────────────────────────────────────────
+NIVEL_ORDEN = ORDEN_CATEGORIAS
 
 # ── Columnas de visualización por página ──────────────────────────────────────
 COLS_TABLA_RESUMEN = [

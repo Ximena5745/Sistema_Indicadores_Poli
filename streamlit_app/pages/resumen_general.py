@@ -24,9 +24,18 @@ import streamlit as st
 
 from components.charts import exportar_excel, panel_detalle_indicador
 from services.data_loader import cargar_dataset, _cargar_mapa_proceso_padre, _ascii_lower
-from core.niveles import (NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, nivel_desde_pct,
-                          UMBRAL_SOBRECUMPLIMIENTO_DEC)
+from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, NIVEL_ORDEN
+from core.calculos import simple_categoria_desde_porcentaje
+from core.config import UMBRAL_SOBRECUMPLIMIENTO as _UMBRAL_SOBRECUMPLIMIENTO_DEC
 from streamlit_app.components.filters import render_filters
+from streamlit_app.utils.formatting import (
+    is_null as _is_null,
+    to_num as _to_num,
+    limpiar as _limpiar,
+    id_limpio as _id_limpio,
+    fmt_num as _fmt_num,
+    fmt_valor as _fmt_valor,
+)
 
 # ── Rutas ─────────────────────────────────────────────────────────────────────
 from pathlib import Path
@@ -97,32 +106,6 @@ _ORDEN_NUM = {
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _is_null(v) -> bool:
-    if v is None:
-        return True
-    try:
-        if pd.isna(v):
-            return True
-    except (TypeError, ValueError):
-        pass
-    try:
-        f = float(str(v).strip())
-        return math.isnan(f)
-    except (ValueError, TypeError):
-        pass
-    return str(v).strip().lower() in ("", "nan", "none")
-
-
-def _to_num(v):
-    if _is_null(v):
-        return None
-    try:
-        f = float(str(v).strip())
-        return None if math.isnan(f) else f
-    except (ValueError, TypeError):
-        return None
-
-
 def _nivel(row) -> str:
     """Determina el nivel de cumplimiento del indicador."""
     tipo = str(row.get("Tipo_Registro", "") or "").strip().lower()
@@ -145,7 +128,7 @@ def _nivel(row) -> str:
             return "Alerta"
         # Verificar sobrecumplimiento por porcentaje
         c_kwk = _to_num(row.get("cumplimiento", ""))
-        if c_kwk is not None and c_kwk >= UMBRAL_SOBRECUMPLIMIENTO_DEC:
+        if c_kwk is not None and c_kwk >= _UMBRAL_SOBRECUMPLIMIENTO_DEC:
             return "Sobrecumplimiento"
         return "Cumplimiento"
 
@@ -153,66 +136,9 @@ def _nivel(row) -> str:
     c = _to_num(row.get("cumplimiento", ""))
     if c is None:
         return _PEND
-    if c >= UMBRAL_SOBRECUMPLIMIENTO_DEC:
+    if c >= _UMBRAL_SOBRECUMPLIMIENTO_DEC:
         return "Sobrecumplimiento"
-    return nivel_desde_pct(c * 100)
-
-
-def _limpiar(v) -> str:
-    if _is_null(v):
-        return ""
-    return _html.unescape(str(v)).strip()
-
-
-def _id_limpio(x) -> str:
-    if _is_null(x):
-        return ""
-    try:
-        f = float(x)
-        return str(int(f)) if f == int(f) else str(f)
-    except (ValueError, TypeError):
-        return str(x).strip()
-
-
-def _fmt_num(v) -> str:
-    n = _to_num(v)
-    if n is None:
-        s = str(v).strip()
-        return s if s and s.lower() not in ("nan", "none", "") else "—"
-    return f"{n:,.2f}".rstrip("0").rstrip(".")
-
-
-def _fmt_valor(v, signo, decimales) -> str:
-    """Formatea un valor numérico concatenando signo y decimales.
-    signo: '%' | '$' | 'ENT' | otro texto
-    decimales: int o float indicando dígitos decimales
-    """
-    n = _to_num(v)
-    if n is None:
-        return "—"
-    try:
-        d = max(0, int(float(decimales))) if not _is_null(decimales) else 2
-    except (ValueError, TypeError):
-        d = 2
-    s = str(signo).strip() if not _is_null(signo) else "%"
-    su = s.upper()
-    if s == "%":
-        return f"{n:,.{d}f}%"
-    elif s == "$":
-        # Formato colombiano: . miles, , decimales (ej. $1.234.567,89)
-        formatted = f"{n:,.{d}f}"  # "1,234,567.89"
-        formatted = formatted.replace(",", "X").replace(".", ",").replace("X", ".")
-        return f"${formatted}"
-    elif su in ("ENT", "N", "", "METRICA", "MÉTRICA"):
-        return f"{int(round(n)):,}" if d == 0 else f"{n:,.{d}f}"
-    elif su == "DEC":
-        return f"{n:,.{d}f}"
-    elif su in ("NO APLICA", "SIN REPORTE", "NA"):
-        # Etiqueta de estado, no unidad — mostrar solo el número
-        return f"{n:,.{d}f}" if d > 0 else f"{int(round(n)):,}"
-    else:
-        return f"{n:,.{d}f} {s}"
-
+    return simple_categoria_desde_porcentaje(c * 100)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CARGA DE DATOS
@@ -221,7 +147,7 @@ def _fmt_valor(v, signo, decimales) -> str:
 _INVALIDOS_MAPA = {"", "NAN", "NO APLICA", "N/A", "NONE", "SIN DATO"}
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _cargar_mapa() -> pd.DataFrame:
     """Lee Subproceso-Proceso-Area.xlsx.
     La llave de cruce es SIEMPRE el Subproceso:
@@ -251,7 +177,7 @@ def _cargar_mapa() -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _cargar_cmi() -> pd.DataFrame:
     """Retorna Id → Subproceso desde Indicadores por CMI.xlsx (fuente autoritativa)."""
     if not _RUTA_CMI.exists():
@@ -275,7 +201,7 @@ def _cargar_cmi() -> pd.DataFrame:
     return result.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
 
 
-@st.cache_data(ttl=300, show_spinner="Cargando Resultados Consolidados.xlsx...")
+@st.cache_data(ttl=CACHE_TTL, show_spinner="Cargando Resultados Consolidados.xlsx...")
 def _cargar_consolidados() -> pd.DataFrame:
     """Carga datos desde Resultados Consolidados.xlsx hoja Consolidado Historico."""
     if not _RUTA_CONSOLIDADOS.exists():
@@ -408,7 +334,7 @@ def _cargar_consolidados() -> pd.DataFrame:
     return df
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _obtener_anios_disponibles() -> list:
     """Retorna lista de años disponibles en el dataset."""
     df = _cargar_consolidados()
@@ -418,7 +344,7 @@ def _obtener_anios_disponibles() -> list:
     return [int(a) for a in anios if not pd.isna(a)]
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _cargar_kawak_por_anio(anio: int) -> pd.DataFrame:
     """Carga IDs y umbrales (peligro/alerta) del archivo Kawak del año indicado.
     Si no existe el año, une todos los archivos disponibles como fallback.
@@ -461,12 +387,12 @@ def _cargar_kawak_por_anio(anio: int) -> pd.DataFrame:
 
 
 # Dataset_Unificado para el dialog de detalle (histórico completo)
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _cargar_historico_detalle() -> pd.DataFrame:
     return cargar_dataset()
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _cargar_consolidado_cierres() -> pd.DataFrame:
     """Lee Consolidado Cierres de Resultados Consolidados.xlsx."""
     if not _RUTA_CONSOLIDADOS.exists():

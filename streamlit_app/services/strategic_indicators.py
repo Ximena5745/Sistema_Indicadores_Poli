@@ -6,8 +6,16 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from core.config import IDS_PLAN_ANUAL, IDS_TOPE_100
-from core.niveles import NIVEL_COLOR, UMBRAL_ALERTA_DEC, UMBRAL_PELIGRO_DEC, UMBRAL_SOBRECUMPLIMIENTO_DEC
+from core.config import (
+    IDS_PLAN_ANUAL, IDS_TOPE_100, CACHE_TTL,
+    NIVEL_COLOR, UMBRAL_ALERTA, UMBRAL_PELIGRO, UMBRAL_SOBRECUMPLIMIENTO
+)
+from core import calculos as _calculos
+
+# Aliases decimales para compatibilidad
+UMBRAL_ALERTA_DEC = UMBRAL_ALERTA
+UMBRAL_PELIGRO_DEC = UMBRAL_PELIGRO
+UMBRAL_SOBRECUMPLIMIENTO_DEC = UMBRAL_SOBRECUMPLIMIENTO
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
@@ -64,7 +72,7 @@ def _nivel_desde_cumplimiento(cumplimiento_dec) -> str:
     return "Peligro"
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_pdi_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
         return pd.DataFrame(columns=["Linea", "Objetivo"])
@@ -86,7 +94,7 @@ def load_pdi_catalog() -> pd.DataFrame:
     return out.drop_duplicates().reset_index(drop=True)
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_cna_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
         return pd.DataFrame(columns=["Factor", "Caracteristica"])
@@ -108,7 +116,7 @@ def load_cna_catalog() -> pd.DataFrame:
     return out.drop_duplicates().reset_index(drop=True)
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_worksheet_flags() -> pd.DataFrame:
     if not RAW_XLSX.exists():
         return pd.DataFrame()
@@ -173,7 +181,7 @@ def load_worksheet_flags() -> pd.DataFrame:
     return out.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_cierres() -> pd.DataFrame:
     if not OUT_XLSX.exists():
         return pd.DataFrame()

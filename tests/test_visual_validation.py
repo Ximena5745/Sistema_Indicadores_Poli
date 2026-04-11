@@ -13,6 +13,7 @@ def test_mapping_and_consolidado_exist():
 def test_mapping_columns_and_merge():
     root = Path(__file__).resolve().parents[1]
     mapping = pd.read_csv(root / 'data' / 'output' / 'artifacts' / 'indicadores_cmi_mapping_v2.csv')
+    mapping['Id'] = mapping['Id'].astype(str).str.replace(r'\.0$', '', regex=True)
     assert 'Id' in mapping.columns
     assert 'Indicador' in mapping.columns
     # Load consolidado and check expected columns
@@ -26,6 +27,7 @@ def test_mapping_columns_and_merge():
     assert 'Id' in dfc.columns
     assert 'Cumplimiento' in dfc.columns
     assert 'Fecha' in dfc.columns
+    dfc['Id'] = dfc['Id'].astype(str).str.replace(r'\.0$', '', regex=True)
 
     # Merge and ensure Cumplimiento column present after merge
     idx = dfc.groupby('Id')['Fecha'].idxmax()

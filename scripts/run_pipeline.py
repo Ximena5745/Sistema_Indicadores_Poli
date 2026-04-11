@@ -487,6 +487,43 @@ def main() -> int:
     except Exception:
         qa["enabled"] = False
 
+    data_contract_checks: Dict[str, Any] = {
+        "enabled": bool(checks_cfg.get("strict_data_contracts", False)),
+        "strict": bool(checks_cfg.get("strict_data_contracts", False)),
+        "sources": {},
+    }
+    ok_contracts = True
+    if data_contract_checks["enabled"]:
+        try:
+            if str(base_dir) not in sys.path:
+                sys.path.insert(0, str(base_dir))
+            from services.data_validation import validate_all_sources
+
+            contract_reports = validate_all_sources()
+            for source_name, contract_report in contract_reports.items():
+                data_contract_checks["sources"][source_name] = {
+                    "ok": len(contract_report.issues) == 0,
+                    "error_count": contract_report.error_count,
+                    "warning_count": contract_report.warning_count,
+                    "issue_count": len(contract_report.issues),
+                    "dataset_shape": list(contract_report.dataset_shape),
+                }
+                if contract_report.issues:
+                    data_contract_checks["sources"][source_name]["issues"] = [
+                        {
+                            "level": issue.level,
+                            "sheet": issue.sheet,
+                            "column": issue.column,
+                            "row_count": int(issue.row_count),
+                            "description": issue.description,
+                        }
+                        for issue in contract_report.issues[:10]
+                    ]
+            ok_contracts = all(item["ok"] for item in data_contract_checks["sources"].values())
+        except Exception as exc:
+            ok_contracts = False
+            data_contract_checks["error"] = str(exc)
+
     ok_steps = True if args.no_exec else (all(r.ok for r in results) and (len(results) == len(steps_cfg)))
     ok_outputs = len(missing_outputs) == 0
     ok_sheets = True
@@ -499,7 +536,7 @@ def main() -> int:
         "settings": _rel(settings_path, base_dir),
         "base_dir": str(base_dir),
         "elapsed_total_s": round(elapsed_total, 3),
-        "ok": bool(ok_steps and ok_outputs and ok_sheets),
+        "ok": bool(ok_steps and ok_outputs and ok_sheets and ok_contracts),
         "steps": [
             {
                 "name": r.name,
@@ -513,6 +550,7 @@ def main() -> int:
         "checks": {
             "missing_outputs": missing_outputs,
             "sheets": sheets_checks,
+            "data_contracts": data_contract_checks,
         },
         "qa": qa,
         "artifacts": {
@@ -538,7 +576,10 @@ def main() -> int:
         return 11
     if not ok_sheets:
         return 12
+    if not ok_contracts:
+        return 13
     return 1
+
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ name = "Indicadores_Oportunidad_Mejora"
 # ── Reglas de negocio ─────────────────────────────────────────────
 # Editar aqui cada año. NO editar código Python.
 [business]
-año_cierre       = 2025
+"año_cierre"    = 2025
 ids_plan_anual   = ["373","390","414","415","416","417","418","420","469","470","471"]
 ids_tope_100     = ["208","218"]
 # IDs que NO deben excluirse aunque no estén en el catálogo Kawak del año
@@ -39,6 +39,7 @@ artifacts_dir = "artifacts"
 
 [checks]
 # Validaciones basicas post-ejecucion (sin dependencias extra)
+strict_data_contracts = true
 required_outputs = [
   "data/raw/Fuentes Consolidadas/Indicadores Kawak.xlsx",
   "data/raw/Fuentes Consolidadas/Consolidado_API_Kawak.xlsx",

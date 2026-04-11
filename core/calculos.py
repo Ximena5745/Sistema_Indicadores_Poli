@@ -204,3 +204,34 @@ def estado_tiempo_acciones(df):
         ] = "Por vencer"
         df.loc[df["ESTADO"] == "Cerrada", "Estado_Tiempo"] = "Cerrada"
     return df
+
+
+def simple_categoria_desde_porcentaje(pct) -> str:
+    """Categoriza valor en escala porcentual (0-100+) sin consideraciones especiales.
+    
+    Regla simple (sin Plan Anual ni IDS_TOPE_100):
+      < 80%   → Peligro
+      80-99%  → Alerta
+      ≥ 100%  → Cumplimiento
+    
+    Args:
+        pct: valor en rango 0-100+
+    
+    Returns:
+        'Peligro' | 'Alerta' | 'Cumplimiento' | 'Sin dato'
+    
+    Nota: Para categorización completa con Plan Anual, usar categorizar_cumplimiento().
+    
+    Referencia histórica: Este patrón reemplaza a core/niveles.nivel_desde_pct() (deprecado).
+    """
+    try:
+        c = float(pct)
+    except (TypeError, ValueError):
+        return "Sin dato"
+    
+    if c < UMBRAL_PELIGRO * 100:      # < 80%
+        return "Peligro"
+    if c < UMBRAL_ALERTA * 100:       # 80-99%
+        return "Alerta"
+    return "Cumplimiento"
+

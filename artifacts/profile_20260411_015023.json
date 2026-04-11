@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-04-11T01:49:24.129496",
+  "total_duration_sec": 59.2323055267334,
+  "success_rate": 1.0,
+  "components": [
+    {
+      "name": "consolidar_api",
+      "description": "Consolidate API and Kawak data sources",
+      "start_time": 1775890164.1337655,
+      "end_time": 1775890174.2230036,
+      "duration_sec": 10.089238166809082,
+      "success": true,
+      "error_message": null,
+      "memory": {
+        "initial_mb": 23.625,
+        "peak_mb": 0.0,
+        "final_mb": 23.93359375,
+        "delta_mb": 0.30859375
+      },
+      "io_ops": {
+        "read_count": 163,
+        "write_count": 4,
+        "read_bytes": 2385448,
+        "write_bytes": 354
+      },
+      "output_files_created": [
+        "data/raw/Fuentes Consolidadas/Indicadores Kawak.xlsx",
+        "data/raw/Fuentes Consolidadas/Consolidado_API_Kawak.xlsx"
+      ],
+      "cprofile_stats": null,
+      "top_functions": []
+    },
+    {
+      "name": "actualizar_consolidado",
+      "description": "Update historical consolidation with latest data",
+      "start_time": 1775890174.2459474,
+      "end_time": 1775890219.0493162,
+      "duration_sec": 44.80336880683899,
+      "success": true,
+      "error_message": null,
+      "memory": {
+        "initial_mb": 24.3359375,
+        "peak_mb": 0.0,
+        "final_mb": 24.375,
+        "delta_mb": 0.0390625
+      },
+      "io_ops": {
+        "read_count": 193,
+        "write_count": 5,
+        "read_bytes": 2503265,
+        "write_bytes": 425
+      },
+      "output_files_created": [
+        "data/output/Resultados Consolidados.xlsx"
+      ],
+      "cprofile_stats": null,
+      "top_functions": []
+    },
+    {
+      "name": "generar_reporte",
+      "description": "Generate final report",
+      "start_time": 1775890219.0571442,
+      "end_time": 1775890223.3553433,
+      "duration_sec": 4.29819917678833,
+      "success": true,
+      "error_message": null,
+      "memory": {
+        "initial_mb": 24.37890625,
+        "peak_mb": 0.0,
+        "final_mb": 24.109375,
+        "delta_mb": -0.26953125
+      },
+      "io_ops": {
+        "read_count": 275,
+        "write_count": 6,
+        "read_bytes": 2508394,
+        "write_bytes": 489
+      },
+      "output_files_created": [],
+      "cprofile_stats": null,
+      "top_functions": []
+    }
+  ],
+  "notes": ""
+}

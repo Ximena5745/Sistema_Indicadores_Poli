@@ -253,11 +253,14 @@ def extraer_meta_ejec_variables(vars_list: List[Dict]) -> Tuple[Optional[float],
     
     meta_val = ejec_val = None
     
+    def _valor_valido(x: Any) -> bool:
+        return x is not None and not (isinstance(x, float) and np.isnan(x))
+
     for v in vars_list:
         nombre = str(v.get('nombre', '')).lower()
         valor = v.get('valor', None)
         
-        if valor is None or (isinstance(valor, float) and np.isnan(valor)):
+        if not _valor_valido(valor):
             continue
         
         if any(kw in nombre for kw in KW_META) and meta_val is None:
@@ -266,9 +269,13 @@ def extraer_meta_ejec_variables(vars_list: List[Dict]) -> Tuple[Optional[float],
             ejec_val = valor
     
     if meta_val is None and len(vars_list) >= 2:
-        meta_val = vars_list[1].get('valor')
+        cand_meta = vars_list[1].get('valor')
+        if _valor_valido(cand_meta):
+            meta_val = cand_meta
     if ejec_val is None and len(vars_list) >= 1:
-        ejec_val = vars_list[0].get('valor')
+        cand_ejec = vars_list[0].get('valor')
+        if _valor_valido(cand_ejec):
+            ejec_val = cand_ejec
     
     return meta_val, ejec_val
 
