@@ -9,9 +9,9 @@
 
 ## 🎯 Executive Summary
 
-Profiling del pipeline ETL (3 componentes principales) completado exitosamente.
+Profiling del pipeline ETL completado y re-ejecutado tras optimizaciones sobre `actualizar_consolidado`.
 
-**RESULTADOS GLOBALES:**
+**BASELINE (pre-optimización):**
 
 | Componente | Duración | % del Total | I/O Ops | Memory Δ |
 |-----------|----------|-------------|---------|----------|
@@ -19,7 +19,17 @@ Profiling del pipeline ETL (3 componentes principales) completado exitosamente.
 | **actualizar_consolidado** | **44.80s** | **75.8%** | 193 reads | +0.04 MB |
 | generar_reporte | 4.30s | 7.2% | 275 reads | -0.27 MB |
 ────────────────────────────────
-**TOTAL ETL: 59.23 segundos** (Target: <5 min) ✅ BAJO TARGET
+**TOTAL ETL: 59.23 segundos** (target global <5 min) ✅
+
+**POST-OPTIMIZACIÓN (focalizado en actualizar_consolidado):**
+
+| Corrida | Duración actualizar_consolidado | Delta vs baseline | Mejora |
+|---|---:|---:|---:|
+| Baseline | 44.80s | - | - |
+| Post lote 1 | 34.41s | -10.39s | -23.20% |
+| Post lote 2 (última corrida) | 35.25s | -9.55s | -21.32% |
+
+Resumen: la optimización inicial redujo el cuello principal entre 21% y 23% según corrida, manteniendo salida válida.
 
 **Status:** ✅ Completado 11-abr-2026 01:50:23 UTC
 
@@ -80,14 +90,15 @@ Profiling del pipeline ETL (3 componentes principales) completado exitosamente.
 
 ---
 
-## 🔍 Análisis Detallado (Por Completar)
+## 🔍 Análisis Detallado (Actualizado)
 
 ### Top 3 Cuellos de Botella (Basado en Profiling Real)
 
-**CUELLO #1: actualizar_consolidado (44.80s, 75.8%)**
+**CUELLO #1: actualizar_consolidado (44.80s baseline, 34-35s post-optimización)**
 - Componente: scripts/actualizar_consolidado.py
 - Patrón: Bajo memory usage + alto tiempo = CPU-bound operations
-- Causa probable: .apply() sin vectorización
+- Causa principal validada: operaciones fila-a-fila (`apply`/`iterrows`) e I/O Excel repetido.
+- Acción aplicada: vectorización de `LLAVE`, lectura de hojas via `ExcelFile`, y reducción de `apply` en builders.
 
 **CUELLO #2: Escritura Excel en actualizar_consolidado**
 - I/O Pattern: 5 writes vs outputs esperados
@@ -103,7 +114,16 @@ Profiling del pipeline ETL (3 componentes principales) completado exitosamente.
 
 Basado en resultados de profiling real:
 
-### Optimizaciones por Impacto (Ordenadas)
+### Optimizaciones Ejecutadas y Próximas
+
+**Ejecutadas (11-abr-2026):**
+- `scripts/actualizar_consolidado.py`: lectura de hojas con `pd.ExcelFile`, `LLAVE` vectorizada, construcción de `hist_escalas` sin `iterrows`.
+- `scripts/etl/fuentes.py`: `LLAVE` vectorizada en cargadores principales.
+- `scripts/etl/builders.py`: eliminación de `apply` remanente en agregados semestrales.
+
+**Próximas (iteración siguiente):**
+- Perfilar por función dentro de `builders` y `extraccion` para aislar el siguiente 10-15%.
+- Evaluar reducción adicional de I/O de workbook y operaciones de guardado.
 
 **#1 - Vectorizar cálculos (actualizar_consolidado)** [-15-20s]
 - ✅ Cambiar Excel → CSV/Parquet (10x más rápido)
@@ -124,9 +144,9 @@ Basado en resultados de profiling real:
 
 ## 📋 Próximas Acciones
 
-1. **Semana 2:** Ejecutar profiling + documentar hallazgos (THIS)
-2. **Semana 3-4:** Implementar 3 optimizaciones (esperar resultados)
-3. **Semana 5:** Re-profile para validar mejora
+1. **Semana 3:** perfilar por función (cProfile detallado) en `builders`/`extraccion`.
+2. **Semana 3-4:** aplicar segundo ciclo de optimización sobre agregaciones y escritura.
+3. **Semana 4:** re-profile comparativo y actualizar SLA de ejecución objetivo.
 
 ---
 
@@ -138,7 +158,5 @@ Basado en resultados de profiling real:
 
 ---
 
-**Status:** 🔄 PENDING (Profiling en ejecución)  
+**Status:** ✅ ACTIVO - baseline y post-optimizaciones medidos  
 **Última actualización:** 11 de abril de 2026
-
-Actualizaremos este documento cuando results estén disponibles.

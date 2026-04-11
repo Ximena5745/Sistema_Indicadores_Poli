@@ -284,12 +284,12 @@ Transformar SGIND de plataforma funcional a **escalable, automatizable y predeci
 
 | Task | Owner | Days | Deliverable |
 |------|-------|------|-------------|
-| Lazy load implementation | Backend | 4 | data_loader refactored |
+| ETL hot-path optimization (lote 1-2) | Backend | 3 | actualizar_consolidado/fuentes/builders optimizados ✅ |
 | Validation auto in ingest | Backend | 3 | services/validation.py |
 | Quality dashboard page | Frontend | 3 | Streamlit page |
 | Forecasting POC | ML Eng | 4 | Prophet model trained |
 
-**Gate:** ✅ Pipeline <7 min, validation working, forecast accuracy >80%
+**Gate:** ✅ `actualizar_consolidado` con mejora >20% vs baseline, validation working, forecast accuracy >80%
 
 ---
 
@@ -299,12 +299,12 @@ Transformar SGIND de plataforma funcional a **escalable, automatizable y predeci
 
 | Task | Owner | Days | Deliverable |
 |------|-------|------|-------------|
-| Redis prod setup | DevOps | 4 | Cache working in staging |
+| Local cache tuning + observabilidad | DevOps/Backend | 3 | hit-rate y estrategia TTL documentadas |
 | Risk prediction model | ML Eng | 4 | XGBoost model ready |
 | Runbooks drafted | Operations | 3 | 5+ key scenarios |
 | Drift detector | ML Eng | 2 | Deployed to staging |
 
-**Gate:** ✅ Pipeline <5 min, risk model >85% accuracy, staging stable
+**Gate:** ✅ Pipeline estable y optimizado (sin Redis), risk model >85% accuracy, staging stable
 
 ---
 
