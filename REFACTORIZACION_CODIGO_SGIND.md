@@ -1256,3 +1256,100 @@ Todos los cambios documentados en este archivo han sido **VALIDADOS, TESTEADOS E
 
 👉 **VER [CIERRE_FASE_1.md](CIERRE_FASE_1.md)**
 
+---
+
+# 5. SPRINT 4 (PLAN EJECUTABLE) — NIVEL 2 GESTIÓN Y ACREDITACIÓN
+
+**Fecha de planificación:** 12 de abril de 2026  
+**Estado:** LISTO PARA EJECUCIÓN
+
+## 5.1 Pantalla prioritaria seleccionada
+
+**Pantalla:** `pdi_acreditacion` (Nivel 2: Gestión y Cumplimiento)  
+**Archivo base actual:** `streamlit_app/pages/pdi_acreditacion.py`
+
+**Justificación de prioridad (alineación documental):**
+- `docs/fase3_prioritizacion.md`: después del bloque operativo, el siguiente frente es **Nivel 2** con entregables de árbol, benchmark, brechas y matriz de acreditación.
+- `docs/fase3_wireframes_detailed.md`: define para Nivel 2 un layout con scorecard, árbol/drill-down y comparativas.
+- `docs/fase3_kpis.md`: formaliza los KPIs de Nivel 2 (`cumplimiento_proceso`, `brecha_promedio`, `tasa_cierre_OM`).
+
+## 5.2 Objetivo del Sprint 4
+
+Implementar una pantalla funcional de **Gestión y Acreditación** con datos reales del repositorio para decisiones tácticas semanales/mensuales, manteniendo estilo visual unificado del frontend actual.
+
+## 5.3 Alcance MVP (Sprint 4)
+
+1. **Scorecard Nivel 2 (3 KPIs)**
+    - Cumplimiento por proceso (%).
+    - Brecha promedio (pp).
+    - Tasa de cierre OM (%).
+
+2. **Matriz de Acreditación (tabla priorizada)**
+    - Estructura mínima: frente/factor, estado, responsable, vencimiento, días a vencimiento, semáforo.
+    - Filtros por estado, macro-línea, horizonte y texto.
+
+3. **Comparativa de brechas por proceso**
+    - Gráfico de barras ordenado por mayor brecha.
+    - Semaforización consistente con `NIVEL_COLOR`.
+
+4. **Integración en navegación principal**
+    - Exponer la pantalla en el menú o pestaña de contexto estratégico.
+
+## 5.4 Fuentes y contratos de datos
+
+- Dataset consolidado: `cargar_dataset()`.
+- OM y acciones: `cargar_acciones_mejora()`.
+- Catálogos estratégicos/CNA: `streamlit_app/services/strategic_indicators.py`.
+- Artefactos de apoyo: `data/output/artifacts/`.
+
+**Contrato mínimo esperado por vista:**
+- IDs de indicador normalizados (`Id`).
+- `cumplimiento_pct` o `Cumplimiento` en escala porcentual.
+- Estado de OM/acción para cálculo de cierre.
+- Periodo/corte para filtros temporales.
+
+## 5.5 Criterios de aceptación
+
+1. La pantalla carga en menos de 5s con caché habilitado.
+2. Los 3 KPIs del scorecard responden al corte y filtros.
+3. La matriz permite filtrar y ordenar por criticidad sin recargar manualmente.
+4. La comparativa de brechas refleja top procesos críticos del corte.
+5. La visual conserva estilos del sistema: colores, tarjetas, fondos transparentes en Plotly.
+
+## 5.6 Plan técnico por tarea
+
+1. **Refactor de página base**
+    - Reemplazar mock de `streamlit_app/pages/pdi_acreditacion.py` por pipeline real.
+    - Mantener `render_filters` para consistencia UX.
+
+2. **Capa de cálculo reutilizable**
+    - Crear helpers privados en la página para:
+      - normalización de cumplimiento,
+      - cálculo de brecha,
+      - tasa de cierre OM,
+      - clasificación semafórica.
+
+3. **Visualizaciones**
+    - Scorecard + barras de brecha por proceso (Plotly).
+    - Tabla matriz de acreditación con `st.dataframe` y `column_config`.
+
+4. **Integración en `main.py`**
+    - Añadir la pantalla como pestaña dentro de "Resumen Estratégico" junto a CMI y Plan de Mejoramiento.
+
+5. **Validación y cierre**
+    - Verificar errores de lint/runtime.
+    - Commit con mensaje de Sprint 4.
+
+## 5.7 Estimación operativa
+
+- Duración: **1 sprint corto (3-5 días hábiles)**.
+- Riesgo: **medio-bajo** (pantalla existe y requiere evolución sobre estructura actual).
+- Dependencia principal: consistencia de columnas de OM/acciones en el dataset consolidado.
+
+## 5.8 Entregables de Sprint 4
+
+- `streamlit_app/pages/pdi_acreditacion.py` implementada con datos reales.
+- `streamlit_app/main.py` actualizado para navegación.
+- Validación funcional de KPIs y filtros.
+- Commit de cierre Sprint 4.
+
