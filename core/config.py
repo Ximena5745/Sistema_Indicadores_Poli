@@ -46,6 +46,16 @@ COLOR_CATEGORIA_CLARO = {
     "Sin dato":          "#EEEEEE",
 }
 
+# Colores específicos por Unidad / Vicerrectoría. Definir colores fijos
+# para vicerrectorías clave y dejar un color por defecto para las demás.
+VICERRECTORIA_COLORS = {
+    # Vicerrectorías solicitadas con color fijo
+    "Calidad":    "#1A3A5C",
+    "Expansión":  "#1565C0",
+    "Experiencia": "#43A047",
+    # Puede ampliarse con más mapeos explícitos según se requiera
+}
+
 # ── Umbrales de cumplimiento ───────────────────────────────────────────────────
 # Generales:  0–79.9% Peligro | 80–99.9% Alerta | 100–104.99% Cumplimiento | ≥105% Sobrecumplimiento
 UMBRAL_PELIGRO           = 0.80

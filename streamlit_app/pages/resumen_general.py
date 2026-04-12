@@ -889,6 +889,16 @@ def render():
     _sk_rg_prev  = "_rg_last_anio_seen"
     _hoy_rg      = _date.today()
     _anio_actual_rg = st.session_state.get(_sk_rg_anio, anios_disponibles[-1])
+    # Asegurar que el año en session_state esté dentro de los años disponibles.
+    # Si la sesión contiene un año inválido (p.ej. 2026) lo reemplazamos
+    # por el año más reciente disponible para evitar que las gráficas queden vacías.
+    try:
+        if _anio_actual_rg not in anios_disponibles:
+            _anio_actual_rg = anios_disponibles[-1]
+            st.session_state[_sk_rg_anio] = _anio_actual_rg
+    except Exception:
+        _anio_actual_rg = anios_disponibles[-1]
+        st.session_state[_sk_rg_anio] = _anio_actual_rg
 
     # Si el año cambia → reset del mes para que tome el default inteligente
     if st.session_state.get(_sk_rg_prev) != _anio_actual_rg:
@@ -935,6 +945,11 @@ def render():
     with st.spinner("Procesando niveles de cumplimiento..."):
         df_raw = _preparar_datos_por_fecha(_raw, anio_seleccionado, mes_seleccionado)
         df_prev = _preparar_datos_por_fecha(_raw, anio_prev, MESES_OPCIONES[mes_prev - 1])
+
+    # Si no hay datos para el período seleccionado, mostrar mensaje claro
+    if df_raw.empty:
+        st.info(f"No hay datos para {mes_seleccionado} {anio_seleccionado}. Prueba otro período o verifica el archivo 'Resultados Consolidados.xlsx'.")
+        st.stop()
 
     # Calcular fecha de corte
     corte_actual = pd.Timestamp(anio_seleccionado, mes_num, 1)
@@ -1056,8 +1071,85 @@ def render():
     st.markdown("---")
 
     st.markdown("<div class='section-panel'>", unsafe_allow_html=True)
-    # ── KPIs con comparativa ──────────────────────────────────────────────────────
-    total = len(df_raw)
+    # ── KPIs: Definiciones de color y Primera fila — Resumen general (corte fijo: Diciembre 2025)
+    _CARD_COLORS = {
+        "Total":              ("#1A3A5C", "#D0E4FF"),
+        "Peligro":            ("#D32F2F", "#FFCDD2"),
+        "Alerta":             ("#F57F17", "#FFF8E1"),
+        "Cumplimiento":       ("#43A047", "#E8F5E9"),
+        "Sobrecumplimiento":  ("#6699FF", "#EEF2FF"),
+        "No aplica":          ("#BDBDBD", "#F9F9F9"),
+        "Pendiente":          ("#9E9E9E", "#F5F5F5"),
+    }
+
+    # ── KPIs: Primera fila — Resumen general (corte fijo: Diciembre 2025)
+    df_cut = _preparar_datos_por_fecha(_raw, 2025, "Diciembre")
+    # Normalizar columna de nivel si falta
+    if df_cut is None:
+        df_cut = pd.DataFrame()
+    if not df_cut.empty and "Nivel de cumplimiento" not in df_cut.columns:
+        if "cumplimiento" in df_cut.columns:
+            df_cut["Nivel de cumplimiento"] = df_cut["cumplimiento"].apply(_nivel_c)
+        elif "Cumplimiento" in df_cut.columns:
+            df_cut["Nivel de cumplimiento"] = df_cut["Cumplimiento"].apply(_nivel_c)
+        else:
+            df_cut["Nivel de cumplimiento"] = "Sin dato"
+
+    total_cut = len(df_cut)
+    total_cut_reportados = int(df_cut['fecha'].notna().sum()) if 'fecha' in df_cut.columns else 0
+    kawak_cut = _cargar_kawak_por_anio(2025)
+    total_cut_indicadores = int(len(kawak_cut)) if not kawak_cut.empty else total_cut
+
+    cnts_cut = df_cut["Nivel de cumplimiento"].value_counts() if not df_cut.empty else pd.Series(dtype=int)
+    cnts_cut_p = pd.Series(dtype=int)
+
+    _CARD_COLORS_LOCAL = _CARD_COLORS
+    metricas_cut = [
+        ("Reportados",         total_cut_reportados,                        None),
+        ("Peligro",            int(cnts_cut.get("Peligro", 0)),           int(cnts_cut_p.get("Peligro", 0))),
+        ("Alerta",             int(cnts_cut.get("Alerta", 0)),            int(cnts_cut_p.get("Alerta", 0))),
+        ("Cumplimiento",       int(cnts_cut.get("Cumplimiento", 0)),      int(cnts_cut_p.get("Cumplimiento", 0))),
+        ("Sobrecumplimiento",  int(cnts_cut.get("Sobrecumplimiento", 0)), int(cnts_cut_p.get("Sobrecumplimiento", 0))),
+        ("No aplica",          int(cnts_cut.get(_NO_APLICA, 0)),          int(cnts_cut_p.get(_NO_APLICA, 0))),
+        ("Pendiente",          int(cnts_cut.get(_PEND, 0)),               int(cnts_cut_p.get(_PEND, 0))),
+    ]
+
+    st.markdown("**Resumen general — Corte: Diciembre 2025**")
+    kc_cut = st.columns(len(metricas_cut))
+    for i, (label, val, val_prev) in enumerate(metricas_cut):
+        border_c, bg_c = _CARD_COLORS.get(label, ("#9E9E9E", "#F5F5F5"))
+        _icons = {"Total": "🏷️", "Peligro": "🔴", "Alerta": "🟡", "Cumplimiento": "🟢", "Sobrecumplimiento": "🔵", "No aplica": "⚫", "Pendiente": "⚪",}
+        _icon = _icons.get(label, "")
+        denom_cut = total_cut_reportados if total_cut_reportados else total_cut
+        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/denom_cut*100,1)}%</div>' if denom_cut and label not in ("Reportados",) else ""
+        # Delta vs período anterior (si existe)
+        if val_prev is not None and label != "Total":
+            delta = val - val_prev
+            is_good = (delta <= 0 and label == "Peligro") or (delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
+            is_bad  = (delta > 0 and label == "Peligro") or (delta < 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
+            d_color = "#43A047" if is_good else ("#D32F2F" if is_bad else "#888")
+            arrow   = "▲" if delta > 0 else ("▼" if delta < 0 else "—")
+            d_txt   = f'<div style="font-size:0.72rem;color:{d_color};font-weight:600">{arrow} {abs(delta)} vs ant.</div>'
+        else:
+            d_txt = ""
+        with kc_cut[i]:
+            st.markdown(
+                f'<div style="border-left:4px solid {border_c};background:{bg_c};'
+                f'border-radius:8px;padding:10px 6px;text-align:center;'
+                f'box-shadow:0 1px 3px rgba(0,0,0,0.06)'>
+                f'<div style="font-size:1.1rem;margin-bottom:2px">{_icon}</div>'
+                f'<div style="font-size:0.72rem;color:{border_c};font-weight:700;text-transform:uppercase;letter-spacing:0.04em">{label}</div>'
+                f'<div style="font-size:1.6rem;font-weight:800;color:{border_c};line-height:1.1">{val}</div>'
+                f'{_pct_txt}{d_txt}</div>',
+                unsafe_allow_html=True,
+            )
+    # Contar cuantos indicadores tienen fecha (reportados) en el período
+    total_reportados = int(df_raw['fecha'].notna().sum()) if 'fecha' in df_raw.columns else 0
+    # Intentar obtener el total real de indicadores desde Kawak (mejor fuente de verdad)
+    kawak_df = _cargar_kawak_por_anio(anio_seleccionado)
+    total_indicadores = int(len(kawak_df)) if not kawak_df.empty else total
+    # Mostrar leyenda pequeña con total de indicadores para evitar confusión (una sola vez)
+    st.caption(f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}")
     # Asegurar que exista la columna 'Nivel de cumplimiento' (algunas fuentes pueden nombrarla distinto)
     if "Nivel de cumplimiento" not in df_raw.columns:
         if "cumplimiento" in df_raw.columns:
@@ -1071,18 +1163,8 @@ def render():
 
     # Previos
     cnts_p = df_prev["Nivel de cumplimiento"].value_counts() if not df_prev.empty else pd.Series(dtype=int)
-
-    _CARD_COLORS = {
-        "Total":              ("#1A3A5C", "#D0E4FF"),
-        "Peligro":            ("#D32F2F", "#FFCDD2"),
-        "Alerta":             ("#F57F17", "#FFF8E1"),
-        "Cumplimiento":       ("#43A047", "#E8F5E9"),
-        "Sobrecumplimiento":  ("#6699FF", "#EEF2FF"),
-        "No aplica":          ("#BDBDBD", "#F9F9F9"),
-        "Pendiente":          ("#9E9E9E", "#F5F5F5"),
-    }
     metricas = [
-        ("Total",              total,                                  None),
+        ("Reportados",         total_reportados,                        None),
         ("Peligro",            int(cnts.get("Peligro", 0)),           int(cnts_p.get("Peligro", 0))),
         ("Alerta",             int(cnts.get("Alerta", 0)),            int(cnts_p.get("Alerta", 0))),
         ("Cumplimiento",       int(cnts.get("Cumplimiento", 0)),      int(cnts_p.get("Cumplimiento", 0))),
@@ -1100,7 +1182,9 @@ def render():
             "No aplica": "⚫", "Pendiente": "⚪",
         }
         _icon = _icons.get(label, "")
-        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/total*100,1)}%</div>' if total and label != "Total" else ""
+        # Mostrar porcentaje relativo al total reportado cuando exista, sino al total de indicadores
+        denom = total_reportados if total_reportados else total
+        _pct_txt = f'<div style="font-size:0.72rem;color:{border_c};opacity:0.8">{round(val/denom*100,1)}%</div>' if denom and label not in ("Reportados", "Indicadores") else ""
         if val_prev is not None and label != "Total":
             delta = val - val_prev
             is_good = (delta <= 0 and label == "Peligro") or (delta > 0 and label in ("Cumplimiento", "Sobrecumplimiento"))
@@ -1115,12 +1199,15 @@ def render():
                 f'<div style="border-left:4px solid {border_c};background:{bg_c};'
                 f'border-radius:10px;padding:14px 8px;text-align:center;'
                 f'box-shadow:0 1px 4px rgba(0,0,0,0.07)">'
-                f'<div style="font-size:1.3rem;margin-bottom:2px">{_icon}</div>'
+                    f'<div style="font-size:1.3rem;margin-bottom:2px">{_icon}</div>'
                 f'<div style="font-size:0.7rem;color:{border_c};font-weight:700;text-transform:uppercase;letter-spacing:0.04em">{label}</div>'
                 f'<div style="font-size:2rem;font-weight:800;color:{border_c};line-height:1.1">{val}</div>'
                 f'{_pct_txt}{d_txt}</div>',
                 unsafe_allow_html=True,
             )
+
+        # Mostrar leyenda pequeña con total de indicadores para evitar confusión
+        st.caption(f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}")
 
     # Caption de tendencia general
     if not df_prev.empty:
@@ -1241,18 +1328,20 @@ def render():
 
     # ─────────────────────────────────────────────────────────────────────────────
     # TAB RESUMEN — Gráficas principales
-    # ─────────────────────────────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────────────────────
     with tab_res:
         st.markdown("<div class='section-panel'>", unsafe_allow_html=True)
         st.markdown("### Distribución General de Cumplimiento")
         gr1, gr2 = st.columns([1, 2])
         with gr1:
             st.markdown("#### Por Nivel")
-            st.plotly_chart(_fig_donut(df_raw), use_container_width=True, key="res_donut")
+            # Mostrar sólo indicadores reportados en el período
+            df_reported = df_raw[df_raw.get("fecha").notna()] if "fecha" in df_raw.columns else df_raw
+            st.plotly_chart(_fig_donut(df_reported), use_container_width=True, key="res_donut")
         with gr2:
             st.markdown("#### Por Vicerrectoría")
             if "Vicerrectoria" in df_raw.columns:
-                st.plotly_chart(_fig_barras_nivel(df_raw, "Vicerrectoria"),
+                st.plotly_chart(_fig_barras_nivel(df_reported, "Vicerrectoria"),
                                 use_container_width=True, key="res_vicerr")
             else:
                 st.info("No hay datos de Vicerrectoría disponibles.")
@@ -1295,10 +1384,12 @@ def render():
             if st.session_state[_SK_RES_PROC]:
                 _proc_sel = st.session_state[_SK_RES_PROC]
                 df_sub = df_raw[df_raw[_col_padre] == _proc_sel]
-                if not df_sub.empty and _col_sub in df_sub.columns:
+                # asegurarse de usar sólo reportados cuando se muestre desglose
+                df_sub_rep = df_sub[df_sub.get("fecha").notna()] if "fecha" in df_sub.columns else df_sub
+                if not df_sub_rep.empty and _col_sub in df_sub_rep.columns:
                     st.markdown(f"**Subprocesos de: {_proc_sel}**")
                     st.plotly_chart(
-                        _fig_barras_nivel(df_sub, _col_sub),
+                        _fig_barras_nivel(df_sub_rep, _col_sub),
                         use_container_width=True, key="res_subproceso",
                     )
 
@@ -1440,40 +1531,49 @@ def render():
         st.caption(f"Mostrando **{len(df_filt)}** de **{len(df_con)}** indicadores · clic en una fila para ver el detalle histórico")
 
         # ── Tabla ─────────────────────────────────────────────────────────────
+        # Columnas mostradas: Id, Indicador, Meta, Ejecución, Cumplimiento, Nivel, Vicerrectoría, Proceso, Subproceso, Periodicidad
         _COLS_CON = [
-            "Id", "Indicador", "Nivel de cumplimiento",
-            "Meta_fmt", "Ejecucion_fmt", "Cumplimiento",
-            "Fecha reporte",
-            "Vicerrectoria", "Proceso", "Subproceso", "Periodicidad", "Sentido", "linea",
+            "Id", "Indicador", "Meta_fmt", "Ejecucion_fmt", "Cumplimiento", "Nivel de cumplimiento",
+            "Vicerrectoria", "Proceso", "Subproceso", "Periodicidad", "linea",
         ]
         cols_show = [c for c in _COLS_CON if c in df_filt.columns]
         df_mostrar = df_filt[cols_show].copy()
 
         col_cfg = {
-            "Id":                    st.column_config.TextColumn("ID",           width="small"),
-            "Indicador":             st.column_config.TextColumn("Indicador",    width="large"),
-            "Nivel de cumplimiento": st.column_config.TextColumn("Nivel",        width="medium"),
-            "Meta_fmt":              st.column_config.TextColumn("Meta",         width="small"),
-            "Ejecucion_fmt":         st.column_config.TextColumn("Ejecución",    width="small"),
-            "Cumplimiento":          st.column_config.TextColumn("Cumplimiento", width="small"),
-            "Fecha reporte":         st.column_config.TextColumn("Fecha",        width="small"),
-            "Vicerrectoria":         st.column_config.TextColumn("Vicerrectoría", width="medium"),
-            "Proceso":               st.column_config.TextColumn("Proceso",      width="medium"),
-            "Subproceso":            st.column_config.TextColumn("Subproceso",   width="medium"),
-            "Periodicidad":          st.column_config.TextColumn("Periodicidad", width="small"),
-            "Sentido":               st.column_config.TextColumn("Sentido",      width="small"),
-            "linea":                 st.column_config.TextColumn("Línea",        width="medium"),
+            "Id":                st.column_config.TextColumn("ID",        width="small"),
+            "Indicador":         st.column_config.TextColumn("Indicador", width="large"),
+            "Meta_fmt":          st.column_config.TextColumn("Meta",       width="small"),
+            "Ejecucion_fmt":     st.column_config.TextColumn("Ejecución",  width="small"),
+            "Cumplimiento":      st.column_config.TextColumn("Cumplimiento", width="small"),
+            "Nivel de cumplimiento": st.column_config.TextColumn("Nivel", width="medium"),
+            "Vicerrectoria":     st.column_config.TextColumn("Vicerrectoría", width="medium"),
+            "Proceso":           st.column_config.TextColumn("Proceso",   width="medium"),
+            "Subproceso":        st.column_config.TextColumn("Subproceso",width="medium"),
+            "Periodicidad":      st.column_config.TextColumn("Periodicidad", width="small"),
+            "linea":             st.column_config.TextColumn("Línea",      width="medium"),
         }
 
-        ev_tabla = st.dataframe(
-            df_mostrar.style.apply(_estilo_nivel, axis=1),
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            column_config=col_cfg,
-            key="con_tabla_detalle",
-        )
+        # Si hay columna 'linea', mostrar una tabla por cada línea con cabecera coloreada
+        def _color_for_name(name: str) -> str:
+            h = abs(hash(name)) % 0xFFFFFF
+            return f"#{h:06x}"
+
+        if "linea" in df_mostrar.columns:
+            for ln in sorted(df_mostrar["linea"].dropna().unique()):
+                color = _color_for_name(str(ln))
+                st.markdown(f"<div style='background:{color};padding:6px;border-radius:6px;color:#fff;font-weight:700;margin-top:8px'>{ln}</div>", unsafe_allow_html=True)
+                sub = df_mostrar[df_mostrar["linea"] == ln].copy()
+                st.dataframe(sub.style.apply(_estilo_nivel, axis=1), use_container_width=True, hide_index=True, column_config=col_cfg)
+        else:
+            ev_tabla = st.dataframe(
+                df_mostrar.style.apply(_estilo_nivel, axis=1),
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+                column_config=col_cfg,
+                key="con_tabla_detalle",
+            )
 
         # ── Dialog de detalle ─────────────────────────────────────────────────
         if ev_tabla.selection and ev_tabla.selection.get("rows"):
