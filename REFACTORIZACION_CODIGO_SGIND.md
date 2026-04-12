@@ -1346,10 +1346,74 @@ Implementar una pantalla funcional de **Gestión y Acreditación** con datos rea
 - Riesgo: **medio-bajo** (pantalla existe y requiere evolución sobre estructura actual).
 - Dependencia principal: consistencia de columnas de OM/acciones en el dataset consolidado.
 
-## 5.8 Entregables de Sprint 4
 
 - `streamlit_app/pages/pdi_acreditacion.py` implementada con datos reales.
 - `streamlit_app/main.py` actualizado para navegación.
 - Validación funcional de KPIs y filtros.
 - Commit de cierre Sprint 4.
+
+---
+
+# 6. SPRINT 5 (PLANIFICACIÓN) — ÁRBOL DE OBJETIVOS, BENCHMARK Y BRECHAS (NIVEL 2)
+
+**Fecha de planificación:** 12 de abril de 2026  
+**Estado:** LISTO PARA INICIO
+
+## 6.1 Objetivo del Sprint 5
+
+Implementar el Árbol de Objetivos (treemap drill-down), comparativa vs benchmark y evolución de brechas en la pantalla de Gestión y Acreditación (Nivel 2), permitiendo análisis jerárquico y comparativo de cumplimiento y brechas.
+
+## 6.2 Alcance MVP (Sprint 5)
+
+1. **Treemap drill-down**
+    - Visualización jerárquica: Macrolinea → Objetivo → Indicador.
+    - Color por % cumplimiento, tamaño uniforme.
+    - Interacción: clic en bloque muestra tabla de indicadores asociados.
+2. **Comparativa vs benchmark**
+    - Selección de universidad par (mock o dataset real si disponible).
+    - Gráfico de barras: cumplimiento propio vs benchmark por proceso/objetivo.
+    - Delta y semaforización.
+3. **Evolución de brechas**
+    - Línea de tiempo de brecha promedio por proceso u objetivo.
+    - Filtros por periodo y macrolinea.
+4. **Integración y validación**
+    - Todo integrado en la pestaña Gestión y Acreditación.
+    - Mantener estilos y performance (<5s carga).
+
+## 6.3 Criterios de aceptación
+
+1. El treemap permite drill-down y muestra datos reales.
+2. La comparativa vs benchmark es funcional y visualmente clara.
+3. La evolución de brechas es navegable y exportable.
+4. Todo responde a los filtros globales y mantiene la experiencia visual unificada.
+
+## 6.4 Plan técnico por tarea
+
+1. **Treemap drill-down**
+    - Implementar función Plotly para jerarquía Macrolinea → Objetivo → Indicador.
+    - Añadir callback para mostrar tabla filtrada al hacer clic.
+2. **Comparativa vs benchmark**
+    - Mock de benchmark (o cargar dataset si existe).
+    - Gráfico de barras comparativo con delta y semaforización.
+3. **Evolución de brechas**
+    - Línea de tiempo de brecha promedio por proceso/objetivo.
+    - Filtros de periodo y macrolinea.
+4. **Integración y validación**
+    - Integrar todo en la pestaña Gestión y Acreditación.
+    - Validar performance y estilos.
+5. **Commit y cierre**
+    - Commit de cierre Sprint 5.
+
+## 6.5 Estimación operativa
+
+- Duración: **1 sprint estándar (5-7 días hábiles)**.
+- Riesgo: **medio** (requiere lógica de interacción y visualización avanzada).
+- Dependencia: disponibilidad de benchmark real (si no, usar mock).
+
+## 6.6 Entregables de Sprint 5
+
+- Árbol de Objetivos funcional en Gestión y Acreditación.
+- Comparativa vs benchmark implementada.
+- Evolución de brechas navegable.
+- Validación funcional y commit de cierre Sprint 5.
 
