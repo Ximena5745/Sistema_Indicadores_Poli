@@ -92,28 +92,60 @@ def render():
     else:
         k3.metric("Tasa cierre OM (%)", "-")
 
-    st.markdown("---")
 
-    # --- Comparativa de brechas por proceso ---
-    st.markdown("#### Brecha promedio por proceso")
-    if "Proceso" in df.columns:
-        df_proc = df.groupby("Proceso", dropna=False).agg(
-            brecha=("brecha", "mean"),
-            cumplimiento=("cumplimiento_pct", "mean"),
-            n=("Id", "count")
-        ).reset_index().sort_values("brecha", ascending=False)
-        fig = px.bar(
-            df_proc,
-            x="Proceso", y="brecha",
-            color="cumplimiento",
-            color_continuous_scale=[NIVEL_COLOR["Peligro"], NIVEL_COLOR["Alerta"], NIVEL_COLOR["Cumplimiento"]],
-            labels={"brecha": "Brecha promedio (pp)", "cumplimiento": "% Cumplimiento"},
-            title="Brecha promedio por proceso",
+    # --- Árbol de Objetivos (Treemap drill-down) ---
+    st.markdown("#### Árbol de Objetivos (drill-down)")
+    if not df.empty and all(c in df.columns for c in ["Macrolinea", "Objetivo", "Indicador"]):
+        df_tm = df.copy()
+        df_tm["_size"] = 1
+        df_tm["Indicador_label"] = df_tm.apply(lambda r: f"{r['Id']}: {str(r.get('Indicador',''))[:40]}", axis=1)
+        fig_tm = px.treemap(
+            df_tm,
+            path=["Macrolinea", "Objetivo", "Indicador_label"],
+            values="_size",
+            color="cumplimiento_pct",
+            color_continuous_scale=[NIVEL_COLOR["Peligro"], NIVEL_COLOR["Alerta"], NIVEL_COLOR["Cumplimiento"], NIVEL_COLOR["Sobrecumplimiento"]],
+            range_color=[0, 130],
+            title="Árbol de Objetivos: Macrolinea → Objetivo → Indicador",
         )
-        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=340)
-        st.plotly_chart(fig, use_container_width=True)
+        fig_tm.update_layout(paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=40, b=10, l=10, r=10), height=420)
+        st.plotly_chart(fig_tm, use_container_width=True)
     else:
-        st.info("No hay datos de proceso para comparar brechas.")
+        st.info("No hay datos suficientes para el árbol de objetivos.")
+
+    # --- Comparativa vs Benchmark (mock) ---
+    st.markdown("#### Comparativa vs Benchmark (mock)")
+    # Simulación: benchmark = cumplimiento propio - 5pp, por proceso
+    if "Proceso" in df.columns:
+        df_bench = df.groupby("Proceso", dropna=False).agg(
+            cumplimiento=("cumplimiento_pct", "mean")
+        ).reset_index()
+        df_bench["benchmark"] = df_bench["cumplimiento"] - 5
+        fig_bench = px.bar(
+            df_bench.melt(id_vars="Proceso", value_vars=["cumplimiento", "benchmark"], var_name="Serie", value_name="% Cumplimiento"),
+            x="Proceso", y="% Cumplimiento", color="Serie", barmode="group",
+            color_discrete_map={"cumplimiento": NIVEL_COLOR["Cumplimiento"], "benchmark": NIVEL_COLOR["Alerta"]},
+            title="Cumplimiento propio vs benchmark (simulado)",
+        )
+        fig_bench.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=340)
+        st.plotly_chart(fig_bench, use_container_width=True)
+    else:
+        st.info("No hay datos de proceso para comparar benchmark.")
+
+    # --- Evolución de brechas (línea de tiempo) ---
+    st.markdown("#### Evolución de brechas promedio por periodo")
+    if "Periodo" in df.columns and "Proceso" in df.columns:
+        df_evo = df.groupby(["Periodo", "Proceso"], dropna=False).agg(
+            brecha=("brecha", "mean")
+        ).reset_index()
+        fig_evo = px.line(
+            df_evo, x="Periodo", y="brecha", color="Proceso",
+            markers=True, title="Brecha promedio por proceso a lo largo del tiempo",
+        )
+        fig_evo.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=340)
+        st.plotly_chart(fig_evo, use_container_width=True)
+    else:
+        st.info("No hay datos de periodo/proceso para evolución de brechas.")
 
     st.markdown("---")
 
