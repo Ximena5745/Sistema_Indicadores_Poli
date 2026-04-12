@@ -1,17 +1,14 @@
+
 import unicodedata
 import os
 from pathlib import Path
 import pandas as pd
 import streamlit as st
-<<<<<<< HEAD
-from core.config import CACHE_TTL
-=======
 import plotly.express as px
->>>>>>> cabfc3f3d09e2017a2a5a5531d7dfab387ee96f1
 from streamlit_app.components import KPIRow
 from streamlit_app.services.data_service import DataService
 from streamlit_app.components.filters import render_filters
-from core.config import VICERRECTORIA_COLORS, COLORES
+from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
 from components.charts import exportar_excel, panel_detalle_indicador
 
 # Constantes y helpers replicados de Direccionamiento Estratégico
