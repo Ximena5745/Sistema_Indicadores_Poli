@@ -11,6 +11,7 @@ from streamlit_app.pages import (
     resumen_por_proceso,
     seguimiento_reportes,
     tablero_operativo,
+    pdi_acreditacion,
 )
 
 st.set_page_config(page_title="Sistema de Indicadores", layout="wide")
@@ -107,11 +108,13 @@ def main():
     # Routing simple a páginas
     if menu == "Resumen Estratégico":
         # Resumen estratégico: cada pestaña tiene su propio resumen ejecutivo.
-        tab_cmi, tab_plan = st.tabs(["CMI Estratégico", "Plan de Mejoramiento"])
+        tab_cmi, tab_plan, tab_acred = st.tabs(["CMI Estratégico", "Plan de Mejoramiento", "Gestión y Acreditación"])
         with tab_cmi:
             cmi_estrategico.render()
         with tab_plan:
             plan_mejoramiento.render()
+        with tab_acred:
+            pdi_acreditacion.render()
 
     elif menu == "Resumen general":
         resumen_general.render()
