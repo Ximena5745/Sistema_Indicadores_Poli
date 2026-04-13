@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Estratégico y Operativo - PDI & Procesos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F9FAFB;
+            color: #1F2937;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            color: white;
+            padding: 30px 20px;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .year-filter {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .year-filter label {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .year-filter select {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #1F2937;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #667EEA;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667EEA;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .kpi-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: #6B7280;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .kpi-card.total .kpi-value { color: #667EEA; }
+        .kpi-card.sobrecumplimiento .kpi-value { color: #10B981; }
+        .kpi-card.cumplimiento .kpi-value { color: #34D399; }
+        .kpi-card.alerta .kpi-value { color: #F59E0B; }
+        .kpi-card.peligro .kpi-value { color: #EF4444; }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #374151;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        th {
+            background: #F3F4F6;
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background: #F9FAFB;
+        }
+
+        .improvement-positive {
+            color: #10B981;
+            font-weight: 700;
+        }
+
+        .improvement-negative {
+            color: #EF4444;
+            font-weight: 700;
+        }
+
+        /* Insights Box */
+        .insights-box {
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+            border-left: 5px solid #667EEA;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .insights-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1E40AF;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .insights-content {
+            color: #1E3A8A;
+            line-height: 1.8;
+        }
+
+        .insights-content ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .insights-content li {
+            margin-bottom: 8px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            header h1 {
+                font-size: 22px;
+            }
+
+            .year-filter {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Dashboard Estratégico y Operativo - PDI & Procesos</h1>
+            <p>Monitoreo de cumplimiento de indicadores estratégicos y operativos</p>
+            <div class="year-filter">
+                <label for="yearSelect">📅 Año de análisis:</label>
+                <select id="yearSelect" onchange="updateDashboard()">
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- SECCIÓN 1: Indicadores PDI - CMI Estratégico -->
+        <div class="section">
+            <h2 class="section-title">🎯 Indicadores PDI - CMI Estratégico</h2>
+
+            <!-- Gráfico de cascada -->
+            <div class="charts-grid">
+                <div class="chart-container" style="grid-column: span 2;">
+                    <h3 class="chart-title">Cascada de Cumplimiento por Línea y Objetivo Estratégico</h3>
+                    <canvas id="cascadeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Tarjetas KPI -->
+            <div class="kpi-grid" style="margin-top: 30px;">
+                <div class="kpi-card total">
+                    <div class="kpi-value" id="totalPDI">24</div>
+                    <div class="kpi-label">Total Indicadores PDI</div>
+                </div>
+                <div class="kpi-card sobrecumplimiento">
+                    <div class="kpi-value" id="sobrecumplimientoPDI">5</div>
+                    <div class="kpi-label">Sobrecumplimiento</div>
+                </div>
+                <div class="kpi-card cumplimiento">
+                    <div class="kpi-value" id="cumplimientoPDI">12</div>
+                    <div class="kpi-label">Cumplimiento</div>
+                </div>
+                <div class="kpi-card alerta">
+                    <div class="kpi-value" id="alertaPDI">4</div>
+                    <div class="kpi-label">Alerta</div>
+                </div>
+                <div class="kpi-card peligro">
+                    <div class="kpi-value" id="peligroPDI">3</div>
+                    <div class="kpi-label">Peligro</div>
+                </div>
+            </div>
+
+            <!-- Mejoras y desmejoras -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3 class="chart-title">📈 Indicadores con Mayor Mejora vs Histórico</h3>
+                    <div class="table-container">
+                        <table id="improvementTable">
+                            <thead>
+                                <tr>
+                                    <th>Indicador</th>
+                                    <th>Mejora</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">📉 Indicadores con Mayor Desmejora vs Histórico</h3>
+                    <div class="table-container">
+                        <table id="declineTable">
+                            <thead>
+                                <tr>
+                                    <th>Indicador</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights IA -->
+            <div class="insights-box">
+                <div class="insights-title">
+                    <span>🤖</span> Insights Estratégicos (IA)
+                </div>
+                <div class="insights-content" id="strategicInsights">
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: Indicadores por Proceso -->
+        <div class="section">
+            <h2 class="section-title">⚙️ Indicadores por Proceso</h2>
+
+            <!-- Tarjeta total -->
+            <div class="kpi-grid" style="margin-bottom: 30px;">
+                <div class="kpi-card total" style="grid-column: span 5;">
+                    <div class="kpi-value" id="totalProcesos">120</div>
+                    <div class="kpi-label">Total Indicadores por Proceso</div>
+                </div>
+            </div>
+
+            <!-- Gráfico por proceso -->
+            <div class="chart-container" style="margin-bottom: 30px;">
+                <h3 class="chart-title">Distribución de Cumplimiento por Proceso</h3>
+                <canvas id="processChart"></canvas>
+            </div>
+
+            <!-- Mejoras y alertas por proceso -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3 class="chart-title">🚀 Procesos con Mayor Mejora vs Año Anterior</h3>
+                    <div class="table-container">
+                        <table id="processImprovementTable">
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Mejora</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">⚠️ Procesos en Alerta con Empeoramiento</h3>
+                    <div class="table-container">
+                        <table id="processAlertTable">
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights IA -->
+            <div class="insights-box" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-left-color: #F59E0B;">
+                <div class="insights-title" style="color: #92400E;">
+                    <span>🤖</span> Insights Operativos (IA)
+                </div>
+                <div class="insights-content" id="operationalInsights">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos mock por año
+        const mockData = {
+            2025: {
+                pdi: {
+                    lines: [
+                        { name: "Eficiencia Operativa", objectives: [
+                            { name: "Reducir costos un 15%", compliance: 82 },
+                            { name: "Optimizar tiempos de respuesta", compliance: 76 }
+                        ]},
+                        { name: "Innovación", objectives: [
+                            { name: "Lanzar 5 nuevos servicios", compliance: 45 },
+                            { name: "Implementar 3 tecnologías emergentes", compliance: 68 }
+                        ]},
+                        { name: "Sostenibilidad", objectives: [
+                            { name: "Reducir huella de carbono", compliance: 93 },
+                            { name: "Certificación ambiental", compliance: 88 }
+                        ]},
+                        { name: "Excelencia Académica", objectives: [
+                            { name: "Acreditar 10 programas", compliance: 71 },
+                            { name: "Incrementar investigación 20%", compliance: 54 }
+                        ]}
+                    ],
+                    kpis: { total: 24, sobrecumplimiento: 5, cumplimiento: 12, alerta: 4, peligro: 3 },
+                    improvements: [
+                        { name: "Tasa de graduación", change: 22 },
+                        { name: "Satisfacción estudiantil", change: 18 },
+                        { name: "Publicaciones indexadas", change: 15 }
+                    ],
+                    declines: [
+                        { name: "Retención primer año", change: -15 },
+                        { name: "Eficiencia terminal", change: -12 },
+                        { name: "Fondos competitivos", change: -8 }
+                    ]
+                },
+                processes: {
+                    total: 120,
+                    byProcess: [
+                        { name: "Gestión Ambiental", sobrecumplimiento: 8, cumplimiento: 12, alerta: 3, peligro: 2 },
+                        { name: "Extensión", sobrecumplimiento: 5, cumplimiento: 10, alerta: 6, peligro: 4 },
+                        { name: "Datos y Analítica", sobrecumplimiento: 12, cumplimiento: 8, alerta: 2, peligro: 1 },
+                        { name: "Gestión Financiera", sobrecumplimiento: 6, cumplimiento: 14, alerta: 4, peligro: 3 },
+                        { name: "Gestión de Riesgos", sobrecumplimiento: 4, cumplimiento: 9, alerta: 7, peligro: 5 },
+                        { name: "Talento Humano", sobrecumplimiento: 7, cumplimiento: 11, alerta: 5, peligro: 2 }
+                    ],
+                    improvements: [
+                        { name: "Datos y Analítica", change: 28 },
+                        { name: "Gestión Ambiental", change: 19 },
+                        { name: "Talento Humano", change: 14 }
+                    ],
+                    alerts: [
+                        { name: "Gestión de Riesgos", change: -11 },
+                        { name: "Extensión", change: -7 }
+                    ]
+                }
+            },
+            2024: {
+                pdi: {
+                    lines: [
+                        { name: "Eficiencia Operativa", objectives: [
+                            { name: "Reducir costos un 15%", compliance: 78 },
+                            { name: "Optimizar tiempos de respuesta", compliance: 72 }
+                        ]},
+                        { name: "Innovación", objectives: [
+                            { name: "Lanzar 5 nuevos servicios", compliance: 52 },
+                            { name: "Implementar 3 tecnologías emergentes", compliance: 61 }
+                        ]},
+                        { name: "Sostenibilidad", objectives: [
+                            { name: "Reducir huella de carbono", compliance: 89 },
+                            { name: "Certificación ambiental", compliance: 85 }
+                        ]},
+                        { name: "Excelencia Académica", objectives: [
+                            { name: "Acreditar 10 programas", compliance: 65 },
+                            { name: "Incrementar investigación 20%", compliance: 58 }
+                        ]}
+                    ],
+                    kpis: { total: 24, sobrecumplimiento: 4, cumplimiento: 11, alerta: 6, peligro: 3 },
+                    improvements: [
+                        { name: "Certificación ambiental", change: 19 },
+                        { name: "Satisfacción estudiantil", change: 16 },
+                        { name: "Optimizar tiempos", change: 13 }
+                    ],
+                    declines: [
+                        { name: "Retención primer año", change: -18 },
+                        { name: "Lanzar nuevos servicios", change: -14 },
+                        { name: "Fondos competitivos", change: -9 }
+                    ]
+                },
+                processes: {
+                    total: 118,
+                    byProcess: [
+                        { name: "Gestión Ambiental", sobrecumplimiento: 6, cumplimiento: 11, alerta: 5, peligro: 3 },
+                        { name: "Extensión", sobrecumplimiento: 4, cumplimiento: 9, alerta: 7, peligro: 5 },
+                        { name: "Datos y Analítica", sobrecumplimiento: 10, cumplimiento: 9, alerta: 3, peligro: 1 },
+                        { name: "Gestión Financiera", sobrecumplimiento: 5, cumplimiento: 13, alerta: 5, peligro: 4 },
+                        { name: "Gestión de Riesgos", sobrecumplimiento: 3, cumplimiento: 8, alerta: 8, peligro: 6 },
+                        { name: "Talento Humano", sobrecumplimiento: 6, cumplimiento: 10, alerta: 6, peligro: 3 }
+                    ],
+                    improvements: [
+                        { name: "Datos y Analítica", change: 24 },
+                        { name: "Gestión Ambiental", change: 16 },
+                        { name: "Gestión Financiera", change: 11 }
+                    ],
+                    alerts: [
+                        { name: "Gestión de Riesgos", change: -13 },
+                        { name: "Extensión", change: -9 }
+                    ]
+                }
+            },
+            2023: {
+                pdi: {
+                    lines: [
+                        { name: "Eficiencia Operativa", objectives: [
+                            { name: "Reducir costos un 15%", compliance: 71 },
+                            { name: "Optimizar tiempos de respuesta", compliance: 68 }
+                        ]},
+                        { name: "Innovación", objectives: [
+                            { name: "Lanzar 5 nuevos servicios", compliance: 58 },
+                            { name: "Implementar 3 tecnologías emergentes", compliance: 55 }
+                        ]},
+                        { name: "Sostenibilidad", objectives: [
+                            { name: "Reducir huella de carbono", compliance: 82 },
+                            { name: "Certificación ambiental", compliance: 79 }
+                        ]},
+                        { name: "Excelencia Académica", objectives: [
+                            { name: "Acreditar 10 programas", compliance: 60 },
+                            { name: "Incrementar investigación 20%", compliance: 62 }
+                        ]}
+                    ],
+                    kpis: { total: 22, sobrecumplimiento: 3, cumplimiento: 10, alerta: 6, peligro: 3 },
+                    improvements: [
+                        { name: "Reducción huella carbono", change: 21 },
+                        { name: "Acreditación programas", change: 17 },
+                        { name: "Tasa de graduación", change: 12 }
+                    ],
+                    declines: [
+                        { name: "Retención primer año", change: -20 },
+                        { name: "Eficiencia terminal", change: -16 },
+                        { name: "Lanzar nuevos servicios", change: -11 }
+                    ]
+                },
+                processes: {
+                    total: 115,
+                    byProcess: [
+                        { name: "Gestión Ambiental", sobrecumplimiento: 5, cumplimiento: 10, alerta: 6, peligro: 4 },
+                        { name: "Extensión", sobrecumplimiento: 3, cumplimiento: 8, alerta: 8, peligro: 6 },
+                        { name: "Datos y Analítica", sobrecumplimiento: 8, cumplimiento: 10, alerta: 4, peligro: 2 },
+                        { name: "Gestión Financiera", sobrecumplimiento: 4, cumplimiento: 12, alerta: 6, peligro: 5 },
+                        { name: "Gestión de Riesgos", sobrecumplimiento: 2, cumplimiento: 7, alerta: 9, peligro: 7 },
+                        { name: "Talento Humano", sobrecumplimiento: 5, cumplimiento: 9, alerta: 7, peligro: 4 }
+                    ],
+                    improvements: [
+                        { name: "Datos y Analítica", change: 20 },
+                        { name: "Gestión Ambiental", change: 15 },
+                        { name: "Talento Humano", change: 10 }
+                    ],
+                    alerts: [
+                        { name: "Gestión de Riesgos", change: -15 },
+                        { name: "Extensión", change: -12 }
+                    ]
+                }
+            },
+            2022: {
+                pdi: {
+                    lines: [
+                        { name: "Eficiencia Operativa", objectives: [
+                            { name: "Reducir costos un 15%", compliance: 65 },
+                            { name: "Optimizar tiempos de respuesta", compliance: 62 }
+                        ]},
+                        { name: "Innovación", objectives: [
+                            { name: "Lanzar 5 nuevos servicios", compliance: 48 },
+                            { name: "Implementar 3 tecnologías emergentes", compliance: 51 }
+                        ]},
+                        { name: "Sostenibilidad", objectives: [
+                            { name: "Reducir huella de carbono", compliance: 76 },
+                            { name: "Certificación ambiental", compliance: 73 }
+                        ]},
+                        { name: "Excelencia Académica", objectives: [
+                            { name: "Acreditar 10 programas", compliance: 55 },
+                            { name: "Incrementar investigación 20%", compliance: 59 }
+                        ]}
+                    ],
+                    kpis: { total: 20, sobrecumplimiento: 2, cumplimiento: 9, alerta: 6, peligro: 3 },
+                    improvements: [
+                        { name: "Certificación ambiental", change: 18 },
+                        { name: "Publicaciones indexadas", change: 14 },
+                        { name: "Satisfacción estudiantil", change: 11 }
+                    ],
+                    declines: [
+                        { name: "Retención primer año", change: -22 },
+                        { name: "Eficiencia terminal", change: -19 },
+                        { name: "Fondos competitivos", change: -13 }
+                    ]
+                },
+                processes: {
+                    total: 110,
+                    byProcess: [
+                        { name: "Gestión Ambiental", sobrecumplimiento: 4, cumplimiento: 9, alerta: 7, peligro: 5 },
+                        { name: "Extensión", sobrecumplimiento: 2, cumplimiento: 7, alerta: 9, peligro: 7 },
+                        { name: "Datos y Analítica", sobrecumplimiento: 6, cumplimiento: 11, alerta: 5, peligro: 3 },
+                        { name: "Gestión Financiera", sobrecumplimiento: 3, cumplimiento: 11, alerta: 7, peligro: 6 },
+                        { name: "Gestión de Riesgos", sobrecumplimiento: 1, cumplimiento: 6, alerta: 10, peligro: 8 },
+                        { name: "Talento Humano", sobrecumplimiento: 4, cumplimiento: 8, alerta: 8, peligro: 5 }
+                    ],
+                    improvements: [
+                        { name: "Datos y Analítica", change: 17 },
+                        { name: "Gestión Ambiental", change: 12 },
+                        { name: "Gestión Financiera", change: 9 }
+                    ],
+                    alerts: [
+                        { name: "Gestión de Riesgos", change: -18 },
+                        { name: "Extensión", change: -14 }
+                    ]
+                }
+            }
+        };
+
+        let cascadeChartInstance = null;
+        let processChartInstance = null;
+
+        function generateStrategicInsights(year, data) {
+            const kpis = data.pdi.kpis;
+            const totalIssues = kpis.alerta + kpis.peligro;
+            const healthRate = ((kpis.sobrecumplimiento + kpis.cumplimiento) / kpis.total * 100).toFixed(1);
+            
+            let insights = `<ul>`;
+            
+            // Insight 1: Salud general
+            if (healthRate >= 70) {
+                insights += `<li>✅ El <strong>${healthRate}%</strong> de los indicadores PDI muestran cumplimiento adecuado, reflejando una gestión estratégica efectiva en ${year}.</li>`;
+            } else if (healthRate >= 50) {
+                insights += `<li>⚠️ El <strong>${healthRate}%</strong> de los indicadores PDI están en cumplimiento. Se requiere atención en ${totalIssues} indicadores con alertas o peligro.</li>`;
+            } else {
+                insights += `<li>🚨 Solo el <strong>${healthRate}%</strong> de los indicadores PDI cumplen expectativas. Se recomienda revisión urgente de objetivos estratégicos.</li>`;
+            }
+
+            // Insight 2: Línea con mejor desempeño
+            const bestLine = data.pdi.lines.reduce((best, current) => {
+                const avgCurrent = current.objectives.reduce((sum, obj) => sum + obj.compliance, 0) / current.objectives.length;
+                const avgBest = best.objectives.reduce((sum, obj) => sum + obj.compliance, 0) / best.objectives.length;
+                return avgCurrent > avgBest ? current : best;
+            });
+            const bestAvg = bestLine.objectives.reduce((sum, obj) => sum + obj.compliance, 0) / bestLine.objectives.length;
+            insights += `<li>🌟 La línea <strong>"${bestLine.name}"</strong> lidera con ${bestAvg.toFixed(1)}% de cumplimiento promedio. Sus prácticas pueden replicarse en otras áreas.</li>`;
+
+            // Insight 3: Recomendación basada en mejoras/desmejoras
+            if (data.pdi.improvements[0].change >= 20) {
+                insights += `<li>📈 Destaca la mejora de <strong>"${data.pdi.improvements[0].name}"</strong> (+${data.pdi.improvements[0].change}%). Analizar factores de éxito para escalarlos.</li>`;
+            }
+            if (data.pdi.declines[0].change <= -15) {
+                insights += `<li>📉 Atención prioritaria a <strong>"${data.pdi.declines[0].name}"</strong> (${data.pdi.declines[0].change}%). Requiere plan de acción inmediato.</li>`;
+            }
+
+            insights += `</ul>`;
+            return insights;
+        }
+
+        function generateOperationalInsights(year, data) {
+            let insights = `<ul>`;
+
+            // Insight 1: Procesos destacados
+            const topProcess = data.processes.improvements[0];
+            insights += `<li>🚀 <strong>${topProcess.name}</strong> registra la mayor mejora (+${topProcess.change}%). Identificar buenas prácticas para replicar.</li>`;
+
+            // Insight 2: Procesos en riesgo
+            if (data.processes.alerts.length > 0) {
+                const alertProcess = data.processes.alerts[0];
+                insights += `<li>⚠️ <strong>${alertProcess.name}</strong> está en alerta con deterioro de ${alertProcess.change}%. Requiere intervención prioritaria.</li>`;
+            }
+
+            // Insight 3: Distribución general
+            const totalIndicators = data.processes.byProcess.reduce((sum, p) => 
+                sum + p.sobrecumplimiento + p.cumplimiento + p.alerta + p.peligro, 0);
+            const healthyCount = data.processes.byProcess.reduce((sum, p) => sum + p.sobrecumplimiento + p.cumplimiento, 0);
+            const healthPercent = (healthyCount / totalIndicators * 100).toFixed(1);
+            
+            if (healthPercent >= 75) {
+                insights += `<li>✅ El <strong>${healthPercent}%</strong> de indicadores por proceso están en niveles saludables. Mantener estrategias actuales.</li>`;
+            } else {
+                insights += `<li>⚠️ El <strong>${(100 - healthPercent).toFixed(1)}%</strong> de indicadores operativos requieren atención. Priorizar procesos con mayor concentración de alertas.</li>`;
+            }
+
+            insights += `</ul>`;
+            return insights;
+        }
+
+        function updateDashboard() {
+            const selectedYear = document.getElementById('yearSelect').value;
+            const data = mockData[selectedYear];
+
+            // Actualizar KPIs PDI
+            document.getElementById('totalPDI').textContent = data.pdi.kpis.total;
+            document.getElementById('sobrecumplimientoPDI').textContent = data.pdi.kpis.sobrecumplimiento;
+            document.getElementById('cumplimientoPDI').textContent = data.pdi.kpis.cumplimiento;
+            document.getElementById('alertaPDI').textContent = data.pdi.kpis.alerta;
+            document.getElementById('peligroPDI').textContent = data.pdi.kpis.peligro;
+
+            // Actualizar KPI Procesos
+            document.getElementById('totalProcesos').textContent = data.processes.total;
+
+            // Actualizar tablas de mejoras/desmejoras PDI
+            const improvementTbody = document.querySelector('#improvementTable tbody');
+            improvementTbody.innerHTML = data.pdi.improvements.map(item => 
+                `<tr><td>${item.name}</td><td class="improvement-positive">+${item.change}%</td></tr>`
+            ).join('');
+
+            const declineTbody = document.querySelector('#declineTable tbody');
+            declineTbody.innerHTML = data.pdi.declines.map(item => 
+                `<tr><td>${item.name}</td><td class="improvement-negative">${item.change}%</td></tr>`
+            ).join('');
+
+            // Actualizar tablas de procesos
+            const processImprovementTbody = document.querySelector('#processImprovementTable tbody');
+            processImprovementTbody.innerHTML = data.processes.improvements.map(item => 
+                `<tr><td>${item.name}</td><td class="improvement-positive">+${item.change}%</td></tr>`
+            ).join('');
+
+            const processAlertTbody = document.querySelector('#processAlertTable tbody');
+            processAlertTbody.innerHTML = data.processes.alerts.map(item => 
+                `<tr><td>${item.name}</td><td class="improvement-negative">${item.change}%</td></tr>`
+            ).join('');
+
+            // Actualizar insights
+            document.getElementById('strategicInsights').innerHTML = generateStrategicInsights(selectedYear, data);
+            document.getElementById('operationalInsights').innerHTML = generateOperationalInsights(selectedYear, data);
+
+            // Actualizar gráfico de cascada
+            if (cascadeChartInstance) {
+                cascadeChartInstance.destroy();
+            }
+
+            const cascadeCtx = document.getElementById('cascadeChart').getContext('2d');
+            const cascadeData = {
+                labels: data.pdi.lines.flatMap(line => 
+                    line.objectives.map(obj => `${line.name}: ${obj.name}`)
+                ),
+                datasets: [{
+                    label: 'Cumplimiento (%)',
+                    data: data.pdi.lines.flatMap(line => line.objectives.map(obj => obj.compliance)),
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(52, 211, 153, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(52, 211, 153, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(52, 211, 153, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(52, 211, 153, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(239, 68, 68, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            };
+
+            cascadeChartInstance = new Chart(cascadeCtx, {
+                type: 'doughnut',
+                data: cascadeData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    return `${label}: ${value}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Actualizar gráfico por procesos
+            if (processChartInstance) {
+                processChartInstance.destroy();
+            }
+
+            const processCtx = document.getElementById('processChart').getContext('2d');
+            const processLabels = data.processes.byProcess.map(p => p.name);
+            
+            processChartInstance = new Chart(processCtx, {
+                type: 'bar',
+                data: {
+                    labels: processLabels,
+                    datasets: [
+                        {
+                            label: 'Sobrecumplimiento',
+                            data: data.processes.byProcess.map(p => p.sobrecumplimiento),
+                            backgroundColor: '#10B981',
+                            stack: 'Stack 0'
+                        },
+                        {
+                            label: 'Cumplimiento',
+                            data: data.processes.byProcess.map(p => p.cumplimiento),
+                            backgroundColor: '#34D399',
+                            stack: 'Stack 0'
+                        },
+                        {
+                            label: 'Alerta',
+                            data: data.processes.byProcess.map(p => p.alerta),
+                            backgroundColor: '#F59E0B',
+                            stack: 'Stack 0'
+                        },
+                        {
+                            label: 'Peligro',
+                            data: data.processes.byProcess.map(p => p.peligro),
+                            backgroundColor: '#EF4444',
+                            stack: 'Stack 0'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: {
+                                font: { size: 10 },
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cantidad de Indicadores'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 15,
+                                padding: 10,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Inicializar dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDashboard();
+        });
+    </script>
+</body>
+</html>
