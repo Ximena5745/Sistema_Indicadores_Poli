@@ -151,9 +151,14 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
 
     if "cumplimiento_pct" in df.columns:
         def _map_level(value):
+            import math
+            if pd.isna(value):
+                return "Pendiente de reporte"
             try:
                 pct = float(value)
             except Exception:
+                return "Pendiente de reporte"
+            if math.isnan(pct):
                 return "Pendiente de reporte"
             if pct >= 105:
                 return "Sobrecumplimiento"
@@ -185,6 +190,39 @@ def _available_years(df: pd.DataFrame) -> list[int]:
     years = pd.to_numeric(df["Año"], errors="coerce").dropna().astype(int).unique().tolist()
     allowed = [y for y in sorted(years) if y in {2022, 2023, 2024, 2025}]
     return allowed or sorted(years)
+
+
+def _filter_consolidado_by_year_month(df: pd.DataFrame, year: int | None, month: int | None) -> pd.DataFrame:
+    df = df.copy()
+    # detect a plausible year column (Año, A�o, A\x1fo, Anio, etc.)
+    year_col = None
+    for c in df.columns:
+        if isinstance(c, str) and ('A' in c and ('o' in c or '\xe1' in c or '\x1f' in c)):
+            year_col = c
+            break
+    if year_col is not None and year_col in df.columns:
+        df['_year'] = pd.to_numeric(df[year_col], errors='coerce')
+    elif 'Periodo' in df.columns:
+        # extract year from 'Periodo' like '2026-1'
+        df['_year'] = df['Periodo'].astype(str).str.split('-').str[0].apply(lambda x: pd.to_numeric(x, errors='coerce'))
+    else:
+        df['_year'] = pd.NA
+
+    if 'Mes_num' in df.columns:
+        df['_month'] = pd.to_numeric(df['Mes_num'], errors='coerce')
+    elif 'Mes' in df.columns:
+        df['_month'] = df['Mes'].apply(_parse_month)
+    else:
+        df['_month'] = pd.NA
+
+    if year is not None:
+        df = df[df['_year'] == int(year)]
+    if month:
+        df = df[df['_month'] == int(month)]
+
+    # drop helper cols
+    df = df.drop(columns=[c for c in ['_year', '_month'] if c in df.columns])
+    return df
 
 
 def _latest_month_for_year(df: pd.DataFrame, year: int) -> int | None:
@@ -828,9 +866,8 @@ def render():
         st.warning("No se encontró columna de proceso en los datos reales.")
         return
     # Construir `process_data` a partir del `consolidado` (contiene Proceso)
-    process_data = consolidado[consolidado["Año"] == selected_year].copy()
-    if selected_month:
-        process_data = process_data[process_data["Mes_num"] == selected_month]
+    # Filtrar consolidado con la misma lógica de Año y Mes seleccionados en la página
+    process_data = _filter_consolidado_by_year_month(consolidado, selected_year, selected_month)
 
     # Si por alguna razón `Proceso` no existe, detectar la columna en `process_data`
     detected_col = _find_process_column(process_data)
@@ -929,9 +966,7 @@ def render():
     else:
         st.info("No hay información de niveles de cumplimiento por proceso en el período seleccionado.")
 
-    previous_process_data = consolidado[consolidado["Año"] == prev_year].copy()
-    if selected_month:
-        previous_process_data = previous_process_data[previous_process_data["Mes_num"] == prev_month]
+    previous_process_data = _filter_consolidado_by_year_month(consolidado, prev_year, prev_month)
     process_top, process_alert = _process_improvements(process_data, previous_process_data, process_col)
 
     st.markdown("### Procesos con Mayor Mejora vs Año Anterior")
