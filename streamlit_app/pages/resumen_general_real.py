@@ -368,11 +368,12 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     except Exception:
         pass
 
-    # Expand objective nodes slightly to make outer text more visible (multiply nodes with a parent)
+    # Expand objective nodes more to make outer text more visible (multiply nodes with a parent)
     try:
         for i, p in enumerate(all_parents):
             if p and i < len(all_values):
-                all_values[i] = max(1, int(all_values[i] * 1.2))
+                # Increase outer ring (objetivos) so labels fit better
+                all_values[i] = max(1, int(all_values[i] * 2.5))
     except Exception:
         pass
 
@@ -452,17 +453,17 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         if len(fig.data) >= 1 and getattr(fig.data[0], 'type', None) == 'sunburst':
             # stronger styling to match reference: larger inner text, thin separators, radial labels
             # Increase sizes and emphasize the percentage in blue via texttemplate
-            fig.data[0].update(
+                fig.data[0].update(
                 uniformtext=dict(minsize=8, mode='hide'),
-                textfont=dict(family='Inter, sans-serif', size=13, color='#062A4F'),
-                insidetextfont=dict(family='Inter, sans-serif', size=18, color='#0B5FFF'),
-                marker=dict(line=dict(color='#FFFFFF', width=4)),
+                textfont=dict(family='Inter, sans-serif', size=14, color='#062A4F'),
+                insidetextfont=dict(family='Inter, sans-serif', size=20, color='#0B5FFF'),
+                marker=dict(line=dict(color='#FFFFFF', width=1)),
                 branchvalues='total',
-                separation=2,
+                separation=0,
                 # use raw text (with newlines) and let Plotly render it
                 texttemplate='%{text}',
                 hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
-                insidetextorientation='horizontal',
+                insidetextorientation='radial',
                 constraintext='hide'
             )
     except Exception:
