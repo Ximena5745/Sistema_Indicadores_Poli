@@ -24,20 +24,6 @@ def _clasificar_estado(cumpl):
     return "Sobrecumplimiento"
 
 def render():
-    # Cargar catálogo CNA para cruce de columnas faltantes
-    import os
-    cna_path = os.path.join(os.path.dirname(__file__), '../../data/db/Indicadores por CMI.xlsx')
-    try:
-        df_cna = pd.read_excel(cna_path, sheet_name="Worksheet")
-    except Exception as e:
-        df_cna = pd.DataFrame()
-        st.warning(f"No se pudo cargar el catálogo CNA: {e}")
-
-    # Asegurar que las columnas clave estén presentes
-    # Si faltan, traerlas del catálogo CNA
-    for col in ["Linea", "Objetivo", "Indicador"]:
-        if col not in df.columns and not df_cna.empty and col in df_cna.columns:
-            df = df.merge(df_cna[["Id", col]], on="Id", how="left")
     st.title("Gestión y Acreditación (Nivel 2)")
     st.caption("Panel de cumplimiento, brechas y matriz de acreditación.")
 
@@ -80,6 +66,20 @@ def render():
 
     df = df[df["Clasificacion"].str.contains("acredit", case=False, na=False)]
     df = df.copy()
+
+    # Cargar catálogo CNA para completar columnas faltantes
+    import os
+    cna_path = os.path.join(os.path.dirname(__file__), '../../data/db/Indicadores por CMI.xlsx')
+    try:
+        df_cna = pd.read_excel(cna_path, sheet_name="Worksheet")
+    except Exception:
+        df_cna = pd.DataFrame()
+
+    # Completar columnas faltantes desde el catálogo CNA
+    for col in ["Linea", "Objetivo", "Indicador"]:
+        if col not in df.columns and not df_cna.empty and col in df_cna.columns:
+            df = df.merge(df_cna[["Id", col]], on="Id", how="left")
+
     # Buscar la columna de cumplimiento real disponible
     col_cumpl = None
     for c in ["Cumplimiento", "Cumplimiento_norm", "cumplimiento", "cumplimiento_norm"]:
