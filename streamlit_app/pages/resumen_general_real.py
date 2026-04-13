@@ -344,6 +344,30 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     except Exception:
         pass
 
+    # Ensure parent nodes have values >= sum(children) to satisfy branchvalues='total'
+    try:
+        # build index map
+        label_to_index = {lbl: idx for idx, lbl in enumerate(all_labels)}
+        # compute children sums
+        children_sum = {lbl: 0 for lbl in all_labels}
+        for idx, parent in enumerate(all_parents):
+            if parent and parent in label_to_index:
+                children_sum[parent] += int(all_values[idx]) if idx < len(all_values) else 0
+        # adjust parent values if needed
+        for parent, s in children_sum.items():
+            if s <= 0:
+                continue
+            pidx = label_to_index.get(parent)
+            if pidx is None or pidx >= len(all_values):
+                continue
+            try:
+                if int(all_values[pidx]) < s:
+                    all_values[pidx] = int(s)
+            except Exception:
+                all_values[pidx] = int(s)
+    except Exception:
+        pass
+
     # Prepare per-label text using newlines (Plotly respects '\n' inside sectors)
     if not all_text or len(all_text) != len(all_labels):
         all_text = []
