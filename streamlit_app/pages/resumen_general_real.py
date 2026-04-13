@@ -274,9 +274,10 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                     wrapped_lines.append(" ".join(cur))
             # clean and return joined lines
             cleaned = [re.sub(r"\s+", " ", ln).strip() for ln in wrapped_lines]
-            return "\n".join(cleaned)
+            return "<br>".join(cleaned)
 
         # Build wrapped text lines; include percentage on its own line for both inner and outer
+        # Use HTML line breaks (<br>) since Plotly renders them reliably inside sector text
         text = []
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
@@ -285,8 +286,8 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 wrapped = wrap_label(lab, width=12)
             else:
                 wrapped = wrap_label(lab, width=26)
-            # show label and percentage (no decimals) centered via newline
-            text.append(f"{wrapped}\n{pct:.0f}%")
+            # show label and percentage (no decimals) using HTML break
+            text.append(f"{wrapped}<br>{pct:.0f}%")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
     inner_idxs = [i for i, p in enumerate(parents) if p == ""]

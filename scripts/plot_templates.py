@@ -1,6 +1,7 @@
 """Plantillas Plotly minimal para prototipos de Fase 3.
 Incluye paleta y estilos consistentes para el dashboard."""
 from typing import List
+import textwrap
 
 import pandas as pd
 import numpy as np
@@ -110,6 +111,15 @@ def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = N
 
     x_clean, y_clean = zip(*pairs)
 
+    # helper: wrap long labels to fit chart width
+    def _wrap_label(s: str, width: int = 24, sep: str = "<br>") -> str:
+        if not isinstance(s, str):
+            s = str(s)
+        parts = textwrap.wrap(s, width=width)
+        return sep.join(parts) if parts else s
+
+    x_wrapped = [_wrap_label(v) for v in x_clean]
+
     # Build colors list mapping each x value to a color in color_map (fallback palette)
     if color_map:
         colors = [color_map.get(v, DEFAULT_PALETTE[0]) for v in x_clean]
@@ -118,9 +128,11 @@ def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = N
 
     try:
         # Some Plotly versions (older) don't accept `marker` in Waterfall constructor.
-        fig = go.Figure(go.Waterfall(x=list(x_clean), y=list(y_clean)))
+        # pass wrapped labels for visual axis while keeping original values in hover
+        fig = go.Figure(go.Waterfall(x=list(x_wrapped), y=list(y_clean), customdata=list(x_clean)))
         fig.update_layout(title=title, height=420, template=DEFAULT_TEMPLATE)
-        fig.update_traces(hovertemplate="%{x}<br>%{y:.1f}%<extra></extra>")
+        # show original (unwrapped) label in hover via customdata
+        fig.update_traces(hovertemplate="%{customdata}<br>%{y:.1f}%<extra></extra>")
         # Try to apply marker/colors afterwards (safer across versions)
         try:
             fig.update_traces(marker=dict(color=colors, line=dict(color="#ffffff", width=1)))
@@ -134,7 +146,8 @@ def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = N
         # Fallback: bar chart if Waterfall fails, but include diagnostic info
         import traceback
         err = traceback.format_exc()
-        fig = go.Figure(go.Bar(x=list(x_clean), y=list(y_clean), marker_color=colors))
+        # fallback bar uses wrapped labels and keeps original label in hover
+        fig = go.Figure(go.Bar(x=list(x_wrapped), y=list(y_clean), marker_color=colors, customdata=list(x_clean)))
         msg = f"Waterfall rendering failed; fallback to Bar. Error: {str(err).splitlines()[-1]}"
         fig.update_layout(title=(title or 'Waterfall fallback: Bar'), height=420, template=DEFAULT_TEMPLATE)
         # add a visible annotation with brief message and store full traceback in meta
@@ -142,6 +155,7 @@ def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = N
             fig.add_annotation(text=msg, xref='paper', yref='paper', x=0.5, y=1.05, showarrow=False, font=dict(size=11, color='darkred'))
         except Exception:
             pass
+        fig.update_traces(hovertemplate="%{customdata}<br>%{y:.1f}%<extra></extra>")
         fig.layout.meta = {"waterfall_used": False, "fallback_error": err}
         return fig
 
