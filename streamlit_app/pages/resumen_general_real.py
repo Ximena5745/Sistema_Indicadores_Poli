@@ -77,6 +77,32 @@ def _load_consolidado_cierres() -> pd.DataFrame:
     else:
         df["Mes_num"] = None
 
+    df = _ensure_nivel_cumplimiento(df)
+    return df
+
+
+def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
+    if "Nivel de cumplimiento" in df.columns:
+        return df
+    if "Categoria" in df.columns:
+        df["Nivel de cumplimiento"] = df["Categoria"]
+        return df
+    if "cumplimiento_pct" in df.columns:
+        def _map_level(value):
+            try:
+                pct = float(value)
+            except Exception:
+                return "Pendiente de reporte"
+            if pct >= 105:
+                return "Sobrecumplimiento"
+            if pct >= 100:
+                return "Cumplimiento"
+            if pct >= 80:
+                return "Alerta"
+            return "Peligro"
+        df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_map_level)
+        return df
+    df["Nivel de cumplimiento"] = "Pendiente de reporte"
     return df
 
 
@@ -170,10 +196,13 @@ def _find_process_column(df: pd.DataFrame) -> str | None:
 def _process_counts(df: pd.DataFrame, process_col: str) -> pd.DataFrame:
     levels = ["Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]
     df = df.copy()
+    if "Nivel de cumplimiento" not in df.columns:
+        df = _ensure_nivel_cumplimiento(df)
     df["Nivel de cumplimiento"] = df["Nivel de cumplimiento"].fillna("Pendiente de reporte")
+    group_col = "Id" if "Id" in df.columns else process_col
     pivot = (
         df[df["Nivel de cumplimiento"].isin(levels)]
-          .groupby([process_col, "Nivel de cumplimiento"]) ["Id"]
+          .groupby([process_col, "Nivel de cumplimiento"])[group_col]
           .nunique()
           .reset_index(name="count")
           .pivot(index=process_col, columns="Nivel de cumplimiento", values="count")
