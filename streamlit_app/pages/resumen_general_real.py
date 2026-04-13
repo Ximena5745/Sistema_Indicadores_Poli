@@ -53,6 +53,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from streamlit_app.services.strategic_indicators import preparar_pdi_con_cierre
+from streamlit_app.services import strategic_indicators as si
 
 DATA_ROOT = Path(__file__).resolve().parents[2]
 PATH_CONSOLIDADO = DATA_ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
@@ -812,28 +813,111 @@ def render():
 
     st.markdown("---")
     st.subheader("Indicadores por Proceso")
+    # Para la visualización por procesos usamos el `consolidado` (hoja Consolidado Cierres)
+    # porque contiene la columna `Proceso` y mapeo necesario para todos los indicadores.
     process_col = _find_process_column(consolidado)
     if not process_col:
         st.warning("No se encontró columna de proceso en los datos reales.")
         return
+    # Construir `process_data` a partir del `consolidado` (contiene Proceso)
     process_data = consolidado[consolidado["Año"] == selected_year].copy()
     if selected_month:
         process_data = process_data[process_data["Mes_num"] == selected_month]
+
+    # Si por alguna razón `Proceso` no existe, detectar la columna en `process_data`
+    detected_col = _find_process_column(process_data)
+    if detected_col:
+        process_col = detected_col
     if process_data.empty:
         st.warning("No hay datos por proceso para el año seleccionado.")
         return
 
     total_process = int(process_data["Id"].nunique()) if "Id" in process_data.columns else len(process_data)
     st.markdown(f"**Total indicadores por proceso:** {total_process}")
+    # Bloque de diagnóstico para validar niveles de cumplimiento
+    with st.expander("Diagnóstico: Niveles de cumplimiento (procesos)", expanded=False):
+        st.markdown("Se muestran estadísticas y una muestra de filas para identificar por qué todos aparecen en 'Peligro'.")
+        # asegurar columnas
+        for c in [process_col, "cumplimiento_pct", "Nivel de cumplimiento", "Id"]:
+            if c not in process_data.columns:
+                process_data[c] = pd.NA
+        # Estadísticas numéricas de cumplimiento
+        stats = process_data["cumplimiento_pct"].describe(percentiles=[0.25, 0.5, 0.75]).to_dict()
+        st.markdown("**Resumen numérico de `cumplimiento_pct`**")
+        st.write({k: (None if pd.isna(v) else float(v)) for k, v in stats.items()})
+        # Bins por umbrales esperados
+        bins = {
+            "<80 (Peligro)": int((process_data["cumplimiento_pct"] < 80).sum()),
+            "80-99.9 (Alerta)": int(((process_data["cumplimiento_pct"] >= 80) & (process_data["cumplimiento_pct"] < 100)).sum()),
+            "100-104.9 (Cumplimiento)": int(((process_data["cumplimiento_pct"] >= 100) & (process_data["cumplimiento_pct"] < 105)).sum()),
+            ">=105 (Sobrecumplimiento)": int((process_data["cumplimiento_pct"] >= 105).sum()),
+            "NaN": int(process_data["cumplimiento_pct"].isna().sum()),
+        }
+        st.markdown("**Conteo por rango (bins)**")
+        st.write(bins)
+        # Mostrar valor único de Nivel de cumplimiento y limpiar espacios
+        st.markdown("**Valores únicos de `Nivel de cumplimiento`**")
+        st.write(process_data["Nivel de cumplimiento"].astype(str).str.strip().value_counts())
+        # mostrar primeras 20 filas con columnas relevantes
+        preview_cols = ["Id", process_col, "cumplimiento_pct", "Nivel de cumplimiento"]
+        st.markdown("**Muestra de filas (primeras 20)**")
+        st.dataframe(process_data[preview_cols].head(20))
     proc_counts = _process_counts(process_data, process_col)
     if not proc_counts.empty:
+        # Mejorar gráfica: usar colores oficiales por categoría y orden definido
+        try:
+            from core.config import COLOR_CATEGORIA, ORDEN_CATEGORIAS
+        except Exception:
+            COLOR_CATEGORIA = {
+                'Peligro': '#D32F2F', 'Alerta': '#FBAF17', 'Cumplimiento': '#43A047', 'Sobrecumplimiento': '#1A3A5C'
+            }
+            ORDEN_CATEGORIAS = ['Peligro', 'Alerta', 'Cumplimiento', 'Sobrecumplimiento']
+
+        # Asegurar columnas de orden
+        levels = [lvl for lvl in ORDEN_CATEGORIAS if lvl in proc_counts.columns]
+        # ordenar procesos por total (desc) para mejor lectura
+        proc_counts['_total'] = proc_counts[[c for c in levels]].sum(axis=1)
+        proc_counts = proc_counts.sort_values('_total', ascending=False).reset_index(drop=True)
+
         fig = go.Figure()
-        fig.add_trace(go.Bar(name='Sobrecumplimiento', x=proc_counts[process_col], y=proc_counts['Sobrecumplimiento'], marker_color='#1A3A5C'))
-        fig.add_trace(go.Bar(name='Cumplimiento', x=proc_counts[process_col], y=proc_counts['Cumplimiento'], marker_color='#43A047'))
-        fig.add_trace(go.Bar(name='Alerta', x=proc_counts[process_col], y=proc_counts['Alerta'], marker_color='#FBAF17'))
-        fig.add_trace(go.Bar(name='Peligro', x=proc_counts[process_col], y=proc_counts['Peligro'], marker_color='#D32F2F'))
-        fig.update_layout(barmode='stack', xaxis_tickangle=-45, height=480, margin=dict(t=40, b=150))
+        # agregar trazas siguiendo el orden de niveles (stacked)
+        for lvl in levels:
+            color = COLOR_CATEGORIA.get(lvl, '#6B728E')
+            yvals = proc_counts.get(lvl, [0] * len(proc_counts))
+            fig.add_trace(go.Bar(name=lvl, x=proc_counts[process_col], y=yvals, marker_color=color,
+                                 hovertemplate=f"%{{x}}<br>{lvl}: %{{y}}<extra></extra>"))
+
+        fig.update_layout(barmode='stack', xaxis_tickangle=-45, height=520,
+                          margin=dict(t=40, b=180), template='plotly_white',
+                          legend=dict(title_text='Nivel de cumplimiento', orientation='v', x=1.02, xanchor='left'))
+        fig.update_xaxes(tickfont=dict(size=10), tickangle=-45)
+        fig.update_yaxes(title_text='N° indicadores')
         st.plotly_chart(fig, use_container_width=True)
+        # Detalle: mostrar indicadores con nivel 'Peligro' (detalle filtrable)
+        try:
+            peligro_mask = process_data.get('Nivel de cumplimiento').astype(str).str.strip().str.lower().str.contains('peligro', na=False)
+            peligro_df = process_data[peligro_mask].copy()
+        except Exception:
+            peligro_df = pd.DataFrame()
+
+        with st.expander("Indicadores en Peligro (detalle)", expanded=False):
+            if peligro_df.empty:
+                st.info("No se encontraron indicadores en nivel 'Peligro' para el período seleccionado.")
+            else:
+                st.markdown(f"**Total indicadores en Peligro:** {len(peligro_df)}")
+                proc_col_list = []
+                if 'Proceso' in peligro_df.columns:
+                    proc_col_list = sorted(peligro_df['Proceso'].dropna().unique())
+                if proc_col_list:
+                    sel_proc = st.selectbox("Filtrar por proceso", ["Todos"] + proc_col_list)
+                    if sel_proc != "Todos":
+                        disp_df = peligro_df[peligro_df['Proceso'] == sel_proc]
+                    else:
+                        disp_df = peligro_df
+                else:
+                    disp_df = peligro_df
+                cols_show = [c for c in ['Id','Indicador','Proceso','Subproceso','cumplimiento_pct','Meta','Ejecucion','Fecha'] if c in disp_df.columns]
+                st.dataframe(disp_df[cols_show].reset_index(drop=True), use_container_width=True)
     else:
         st.info("No hay información de niveles de cumplimiento por proceso en el período seleccionado.")
 
