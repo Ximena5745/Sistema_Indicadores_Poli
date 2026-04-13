@@ -224,7 +224,28 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             customdata.append([row["cumplimiento_pct"] if pd.notna(row["cumplimiento_pct"]) else 0])
             colors.append(LINEA_COLORS.get(parent_name, "#6B728E"))
 
-        text = [f"{lab}\n{(cd[0] if cd and cd[0] is not None else 0):.1f}%" for lab, cd in zip(labels, customdata)]
+        # Wrap long labels to multiple lines so they fit inside sectors
+        def wrap_label(s: str, width: int = 18) -> str:
+            parts = []
+            cur = []
+            for word in str(s).split():
+                if sum(len(w) for w in cur) + len(cur) + len(word) <= width:
+                    cur.append(word)
+                else:
+                    parts.append(" ".join(cur))
+                    cur = [word]
+            if cur:
+                parts.append(" ".join(cur))
+            # center each line and join with newline
+            return "\n".join(part.strip() for part in parts)
+
+        # Build wrapped text lines; put percentage on its own centered line
+        text = []
+        for lab, cd in zip(labels, customdata):
+            pct = (cd[0] if cd and cd[0] is not None else 0)
+            # choose width smaller for objectives if label longer
+            wrapped = wrap_label(lab, width=18)
+            text.append(f"{wrapped}\n{pct:.1f}%")
 
     fig = go.Figure(go.Sunburst(
         labels=labels,
