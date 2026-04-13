@@ -333,11 +333,16 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         for i, lab in enumerate(all_labels):
             try:
                 nk = _norm_key(lab)
-                if nk == edu_key:
-                    # increase Educación more (×3) per request
-                    all_values[i] = int(all_values[i] * 3)
+                parent_label = all_parents[i] if i < len(all_parents) else ""
+                parent_nk = _norm_key(parent_label) if parent_label else ""
+                # Increase Educación substantially for inner node
+                if nk == edu_key and (not parent_label):
+                    all_values[i] = max(1, int(all_values[i] * 8))
+                # If a node is a child of Educación, enlarge it too so sector is visible
+                elif parent_nk == edu_key:
+                    all_values[i] = max(1, int(all_values[i] * 3))
+                # reduce Sostenibilidad
                 if nk == sus_key:
-                    # decrease Sostenibilidad further (×0.4)
                     all_values[i] = max(1, int(all_values[i] * 0.4))
             except Exception:
                 continue
