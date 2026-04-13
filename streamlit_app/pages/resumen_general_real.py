@@ -239,16 +239,13 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             # center each line and join with newline
             return "\n".join(part.strip() for part in parts)
 
-        # Build wrapped text lines; put percentage on its own centered line
+        # Build wrapped text lines; include percentage on its own line for both inner and outer
         text = []
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
             wrapped = wrap_label(lab, width=18)
-            # Show label + percentage only for inner ring (parents == ""); outer ring shows wrapped label only
-            if parent == "":
-                text.append(f"{wrapped}\n{pct:.1f}%")
-            else:
-                text.append(wrapped)
+            # Show label + percentage for all rings to match reference
+            text.append(f"{wrapped}\n{pct:.1f}%")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
     inner_idxs = [i for i, p in enumerate(parents) if p == ""]
@@ -267,16 +264,23 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     outer_custom = [customdata[i] for i in outer_idxs]
     outer_text = [text[i] for i in outer_idxs]
 
+    # Build a single Sunburst trace (more robust across runtimes)
     fig = go.Figure()
-    # Outer ring: smaller white text
+    all_labels = labels
+    all_parents = parents
+    all_values = values
+    all_colors = colors
+    all_custom = customdata
+    all_text = text
+
     fig.add_trace(go.Sunburst(
-        labels=outer_labels,
-        parents=outer_parents,
-        values=outer_values,
+        labels=all_labels,
+        parents=all_parents,
+        values=all_values,
         branchvalues="total",
-        marker=dict(colors=outer_colors, line=dict(color=outer_colors, width=0)),
-        customdata=outer_custom,
-        text=outer_text,
+        marker=dict(colors=all_colors, line=dict(color="#ffffff", width=3)),
+        customdata=all_custom,
+        text=all_text,
         textinfo='text',
         insidetextorientation="radial",
         hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
@@ -285,43 +289,20 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         sort=False
     ))
 
-    # Inner ring: larger, colored percentage text
-    fig.add_trace(go.Sunburst(
-        labels=inner_labels,
-        parents=["" for _ in inner_labels],
-        values=inner_values,
-        branchvalues="total",
-        marker=dict(colors=inner_colors, line=dict(color=inner_colors, width=0)),
-        customdata=inner_custom,
-        text=inner_text,
-        textinfo='text',
-        insidetextorientation="radial",
-        hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
-        domain=dict(x=[0,1], y=[0,1]),
-        maxdepth=1,
-        insidetextfont=dict(size=16, color="#08306B", family='Arial')
-    ))
-
-    # Improve readability: set explicit templates for outer and inner sunburst traces
+    # Improve readability: set explicit templates for the sunburst trace
     try:
-        # Outer trace (labels)
         if len(fig.data) >= 1 and getattr(fig.data[0], 'type', None) == 'sunburst':
+            # stronger styling to match reference: larger inner text, thin separators, radial labels
             fig.data[0].update(
-                uniformtext=dict(minsize=9, mode='hide'),
-                textfont=dict(family='Arial', size=11, color='#0b1946'),
-                insidetextfont=dict(family='Arial', size=11, color='white'),
-                texttemplate='%{text}',
-                hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>"
-            )
-
-        # Inner trace (percentages) — más grande y con otro tono
-        if len(fig.data) >= 2 and getattr(fig.data[1], 'type', None) == 'sunburst':
-            fig.data[1].update(
                 uniformtext=dict(minsize=12, mode='hide'),
-                textfont=dict(family='Arial', size=14, color='#08306B'),
+                textfont=dict(family='Arial', size=12, color='#0b1946'),
                 insidetextfont=dict(family='Arial', size=18, color='#08306B'),
-                texttemplate='%{customdata[0]:.1f}%',
-                hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>"
+                marker=dict(line=dict(color='#ffffff', width=3)),
+                branchvalues='total',
+                separation=2,
+                texttemplate='%{text}',
+                hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
+                insidetextorientation='radial'
             )
     except Exception:
         # no queremos romper la renderización por problemas de versionado de plotly
