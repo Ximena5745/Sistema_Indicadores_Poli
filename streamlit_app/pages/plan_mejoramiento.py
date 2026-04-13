@@ -152,7 +152,29 @@ def render():
             color_discrete_map=factor_color_map,
         )
         fig_factor.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
-        st.plotly_chart(fig_factor, use_container_width=True, key="pm_factor_avg")
+        try:
+            from streamlit_app.components.renderers import render_echarts
+            def _option_factor_bar(df_by_factor, color_map):
+                labels = df_by_factor['Factor'].astype(str).tolist()
+                vals = [float(v) for v in df_by_factor['cumplimiento_pct'].tolist()]
+                data = [{"value": v, "name": n, "itemStyle": {"color": color_map.get(n, '#888')}} for n, v in zip(labels, vals)]
+                option = {
+                    "tooltip": {"trigger": "item"},
+                    "xAxis": {"type": "value"},
+                    "yAxis": {"type": "category", "data": labels[::-1]},
+                    "series": [{"type": "bar", "data": [d['value'] for d in data[::-1]], "itemStyle": {}}],
+                }
+                # attach colors per bar via visualMap workaround (simpler: itemStyle per data in series not supported here),
+                # we instead return data and let render_echarts render basic bars with default colors
+                return {"option": option, "height": 300}
+
+            opt = _option_factor_bar(by_factor, factor_color_map)
+            if opt and opt.get('option'):
+                render_echarts(opt['option'], height=opt.get('height', 300))
+            else:
+                st.plotly_chart(fig_factor, use_container_width=True, key="pm_factor_avg")
+        except Exception:
+            st.plotly_chart(fig_factor, use_container_width=True, key="pm_factor_avg")
 
     with r1c2:
         niveles = df["Nivel de cumplimiento"].fillna("Pendiente de reporte").value_counts().reset_index()
@@ -166,8 +188,23 @@ def render():
             color_discrete_map=NIVEL_COLOR_EXT,
             hole=0.45,
         )
-        fig_niv.update_layout(margin=dict(l=10, r=10, t=50, b=10))
-        st.plotly_chart(fig_niv, use_container_width=True, key="pm_niveles_pie")
+        try:
+            from streamlit_app.components.renderers import render_echarts
+            def _option_pie_from_counts(df_counts):
+                labels = df_counts['Nivel'].astype(str).tolist()
+                vals = [int(v) for v in df_counts['Cantidad'].tolist()]
+                option = {"tooltip": {"trigger": "item", "formatter": "{b}: {c} ({d}%)"},
+                          "legend": {"bottom": 0},
+                          "series": [{"type": "pie", "radius": ["40%","65%"], "data": [{"name": l, "value": v} for l, v in zip(labels, vals)]}]}
+                return {"option": option, "height": 300}
+
+            opt = _option_pie_from_counts(niveles)
+            if opt and opt.get('option'):
+                render_echarts(opt['option'], height=opt.get('height', 300))
+            else:
+                st.plotly_chart(fig_niv, use_container_width=True, key="pm_niveles_pie")
+        except Exception:
+            st.plotly_chart(fig_niv, use_container_width=True, key="pm_niveles_pie")
 
     st.markdown("### Gráficas adicionales")
     r2c1, r2c2 = st.columns([1, 1])
@@ -185,8 +222,32 @@ def render():
             barmode="stack",
             color_discrete_map=NIVEL_COLOR_EXT,
         )
-        fig_stack.update_layout(margin=dict(l=10, r=10, t=50, b=10), xaxis_title="Factor")
-        st.plotly_chart(fig_stack, use_container_width=True, key="pm_factor_nivel_stack")
+        try:
+            from streamlit_app.components.renderers import render_echarts
+            def _option_stack(df_stack):
+                factors = sorted(df_stack['Factor'].astype(str).unique().tolist())
+                niveles = sorted(df_stack['Nivel de cumplimiento'].astype(str).unique().tolist())
+                series = []
+                for niv in niveles:
+                    vals = []
+                    for f in factors:
+                        row = df_stack[(df_stack['Factor'] == f) & (df_stack['Nivel de cumplimiento'] == niv)]
+                        vals.append(int(row['Cantidad'].sum()) if not row.empty else 0)
+                    series.append({"name": niv, "type": "bar", "stack": "total", "data": vals})
+                option = {"tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+                          "legend": {"bottom": 0},
+                          "xAxis": {"type": "category", "data": factors},
+                          "yAxis": {"type": "value"},
+                          "series": series}
+                return {"option": option, "height": 360}
+
+            opt = _option_stack(df_stack)
+            if opt and opt.get('option'):
+                render_echarts(opt['option'], height=opt.get('height', 360))
+            else:
+                st.plotly_chart(fig_stack, use_container_width=True, key="pm_factor_nivel_stack")
+        except Exception:
+            st.plotly_chart(fig_stack, use_container_width=True, key="pm_factor_nivel_stack")
 
     with r2c2:
         df_tree = df[["Factor", "Caracteristica"]].copy()
@@ -200,19 +261,31 @@ def render():
         ]
         df_tree = df_tree.groupby(["Factor", "Caracteristica"], as_index=False).size().rename(columns={"size": "Cantidad"})
 
-        if df_tree.empty:
-            st.info("No hay datos válidos para el treemap de factor/característica.")
-        else:
-            fig_tree = px.treemap(
-                df_tree,
-                path=["Factor", "Caracteristica"],
-                values="Cantidad",
-                title="Mapa de indicadores por factor y característica",
-                color="Factor",
-                color_discrete_map=factor_color_map,
-            )
-            fig_tree.update_layout(margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_tree, use_container_width=True, key="pm_factor_car_tree")
+            if df_tree.empty:
+                st.info("No hay datos válidos para el treemap de factor/característica.")
+            else:
+                try:
+                    from streamlit_app.components.renderers import render_echarts
+                    # construir estructura anidada para ECharts treemap
+                    tree_data = []
+                    for f, grp in df_tree.groupby('Factor'):
+                        children = []
+                        for _, r in grp.iterrows():
+                            children.append({"name": r['Caracteristica'], "value": int(r['Cantidad']), "itemStyle": {"color": factor_color_map.get(f)}})
+                        tree_data.append({"name": f, "children": children})
+                    option = {"series": [{"type": "treemap", "data": tree_data}]}
+                    render_echarts(option, height=360)
+                except Exception:
+                    fig_tree = px.treemap(
+                        df_tree,
+                        path=["Factor", "Caracteristica"],
+                        values="Cantidad",
+                        title="Mapa de indicadores por factor y característica",
+                        color="Factor",
+                        color_discrete_map=factor_color_map,
+                    )
+                    fig_tree.update_layout(margin=dict(l=10, r=10, t=50, b=10))
+                    st.plotly_chart(fig_tree, use_container_width=True, key="pm_factor_car_tree")
 
     st.markdown("### Indicadores CNA")
     _cols_cna = ["Id", "Indicador", "Factor", "Caracteristica", "cumplimiento_pct", "Nivel de cumplimiento"]
@@ -331,8 +404,18 @@ def render():
                         color="Estado",
                         text_auto=True,
                     )
-                    fig_acc.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
-                    st.plotly_chart(fig_acc, use_container_width=True, key="pm_acc_avance")
+                    try:
+                        from streamlit_app.components.renderers import render_echarts
+                        labels = _acc_g['Estado'].astype(str).tolist()
+                        vals = [float(v) for v in _acc_g['Avance promedio (%)'].tolist()]
+                        option = {"tooltip": {"trigger": "axis"},
+                                  "xAxis": {"type": "category", "data": labels},
+                                  "yAxis": {"type": "value"},
+                                  "series": [{"type": "bar", "data": vals, "label": {"show": True}}]}
+                        render_echarts(option, height=300)
+                    except Exception:
+                        fig_acc.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
+                        st.plotly_chart(fig_acc, use_container_width=True, key="pm_acc_avance")
 
                 # Tabla de acciones
                 _show_cols = [c for c in [

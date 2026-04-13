@@ -28,6 +28,7 @@ from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, NIVEL_ORDE
 from core.calculos import simple_categoria_desde_porcentaje
 from core.config import UMBRAL_SOBRECUMPLIMIENTO as _UMBRAL_SOBRECUMPLIMIENTO_DEC
 from streamlit_app.components.filters import render_filters
+from streamlit_app.components.renderers import render_kawak_caption, render_narrative_panel, render_alert_strip
 from streamlit_app.utils.formatting import (
     is_null as _is_null,
     to_num as _to_num,
@@ -728,6 +729,80 @@ def _fig_barras_nivel(df, col_cat, max_items=None):
     return fig
 
 
+def _option_donut(df):
+    if df is None or df.empty or "Nivel de cumplimiento" not in df.columns:
+        return {}
+    counts = df["Nivel de cumplimiento"].value_counts()
+    labels = [l for l in counts.index]
+    values = [int(counts[l]) for l in labels]
+    colors = [_NIVEL_COLOR.get(l, "#BDBDBD") for l in labels]
+    option = {
+        "tooltip": {"trigger": "item", "formatter": "{b}: {c} ({d}%)"},
+        "legend": {"orient": "horizontal", "bottom": 0},
+        "series": [
+            {
+                "name": "Niveles",
+                "type": "pie",
+                "radius": ["40%", "65%"],
+                "avoidLabelOverlap": False,
+                "label": {"show": False, "position": "center"},
+                "emphasis": {"label": {"show": True, "fontSize": 14, "fontWeight": "bold"}},
+                "labelLine": {"show": False},
+                "data": [{"value": v, "name": l} for v, l in zip(values, labels)],
+            }
+        ],
+    }
+    return {"option": option, "height": 430}
+
+
+def _option_barras_nivel(df, col_cat, max_items=None):
+    if col_cat not in df.columns or df.empty:
+        return {}
+    tmp = df.copy()
+    tmp[col_cat] = tmp[col_cat].astype(str).str.strip()
+    tmp = tmp[tmp[col_cat].notna() & (tmp[col_cat] != "nan")]
+
+    stats = (tmp.groupby([col_cat, "Nivel de cumplimiento"]).size().unstack(fill_value=0).reset_index())
+    niveles = [n for n in _NIVEL_ORDEN if n in stats.columns]
+    for _n in ("Peligro", "Alerta"):
+        if _n not in stats.columns:
+            stats[_n] = 0
+    stats["_critico"] = stats["Peligro"] + stats["Alerta"]
+    stats["_t"] = stats[niveles].sum(axis=1)
+    stats = stats.sort_values(["_critico", "_t"], ascending=False).drop(columns=["_critico", "_t"])
+    if max_items and len(stats) > max_items:
+        stats = stats.head(max_items)
+    cats = list(stats[col_cat].astype(str))
+    # heights and margins similar to Plotly
+    max_len = max((len(c) for c in cats), default=10)
+    margin_l = min(max(max_len * 6, 120), 360)
+    h = max(300, len(stats) * 36 + 70)
+
+    series = []
+    for nivel in niveles:
+        if nivel not in stats.columns:
+            continue
+        vals = [int(v) for v in stats[nivel].tolist()]
+        series.append({
+            "name": nivel,
+            "type": "bar",
+            "stack": "total",
+            "label": {"show": True, "position": "inside", "color": "#ffffff"},
+            "itemStyle": {"color": _NIVEL_COLOR.get(nivel, "#BDBDBD")},
+            "data": vals[::-1],
+        })
+
+    option = {
+        "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+        "legend": {"orient": "horizontal", "bottom": 0},
+        "grid": {"left": f"{margin_l}px", "right": "3%", "bottom": "10%", "containLabel": True},
+        "xAxis": {"type": "value"},
+        "yAxis": {"type": "category", "data": cats[::-1]},
+        "series": series,
+    }
+    return {"option": option, "height": h}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FILTROS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -929,7 +1004,7 @@ def render():
             },
         }
 
-        selections = render_filters(pd.DataFrame(), filter_config, key_prefix="resumen_general_periodo", columns_per_row=2)
+        selections = render_filters(pd.DataFrame(), filter_config, key_prefix="resumen_general_periodo", columns_per_row=2, collapsible=True)
 
         anio_seleccionado = selections.get("anio", anios_disponibles[-1] if anios_disponibles else 2024)
         mes_seleccionado = selections.get("mes", _mes_default_rg)
@@ -1150,7 +1225,7 @@ def render():
     kawak_df = _cargar_kawak_por_anio(anio_seleccionado)
     total_indicadores = int(len(kawak_df)) if not kawak_df.empty else 0
     # Mostrar leyenda pequeña con total de indicadores para evitar confusión (una sola vez)
-    st.caption(f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}")
+    render_kawak_caption(total_indicadores, total_reportados)
     # Asegurar que exista la columna 'Nivel de cumplimiento' (algunas fuentes pueden nombrarla distinto)
     if "Nivel de cumplimiento" not in df_raw.columns:
         if "cumplimiento" in df_raw.columns:
@@ -1208,7 +1283,7 @@ def render():
             )
 
         # Mostrar leyenda pequeña con total de indicadores para evitar confusión
-        st.caption(f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}")
+        render_kawak_caption(total_indicadores, total_reportados)
 
     # Caption de tendencia general
     if not df_prev.empty:
@@ -1338,12 +1413,27 @@ def render():
             st.markdown("#### Por Nivel")
             # Mostrar sólo indicadores reportados en el período
             df_reported = df_raw[df_raw.get("fecha").notna()] if "fecha" in df_raw.columns else df_raw
-            st.plotly_chart(_fig_donut(df_reported), use_container_width=True, key="res_donut")
+            try:
+                from streamlit_app.components.renderers import render_echarts
+                opt = _option_donut(df_reported)
+                if opt and opt.get('option'):
+                    render_echarts(opt['option'], height=opt.get('height', 430))
+                else:
+                    st.plotly_chart(_fig_donut(df_reported), use_container_width=True, key="res_donut")
+            except Exception:
+                st.plotly_chart(_fig_donut(df_reported), use_container_width=True, key="res_donut")
         with gr2:
             st.markdown("#### Por Vicerrectoría")
             if "Vicerrectoria" in df_raw.columns:
-                st.plotly_chart(_fig_barras_nivel(df_reported, "Vicerrectoria"),
-                                use_container_width=True, key="res_vicerr")
+                try:
+                    from streamlit_app.components.renderers import render_echarts
+                    opt = _option_barras_nivel(df_reported, "Vicerrectoria")
+                    if opt and opt.get('option'):
+                        render_echarts(opt['option'], height=opt.get('height', 420))
+                    else:
+                        st.plotly_chart(_fig_barras_nivel(df_reported, "Vicerrectoria"), use_container_width=True, key="res_vicerr")
+                except Exception:
+                    st.plotly_chart(_fig_barras_nivel(df_reported, "Vicerrectoria"), use_container_width=True, key="res_vicerr")
             else:
                 st.info("No hay datos de Vicerrectoría disponibles.")
 
@@ -1366,8 +1456,15 @@ def render():
             )
             if n_proc > 25:
                 with st.expander(f"Ver los {n_proc} procesos completos"):
-                    st.plotly_chart(_fig_barras_nivel(df_raw, _col_padre),
-                                    use_container_width=True, key="res_proceso_all")
+                    try:
+                        from streamlit_app.components.renderers import render_echarts
+                        opt = _option_barras_nivel(df_raw, _col_padre)
+                        if opt and opt.get('option'):
+                            render_echarts(opt['option'], height=opt.get('height', 420))
+                        else:
+                            st.plotly_chart(_fig_barras_nivel(df_raw, _col_padre), use_container_width=True, key="res_proceso_all")
+                    except Exception:
+                        st.plotly_chart(_fig_barras_nivel(df_raw, _col_padre), use_container_width=True, key="res_proceso_all")
 
             # Leer selección del gráfico
             _pts_res = (ev_res_proc.selection or {}).get("points", [])
@@ -1400,8 +1497,15 @@ def render():
             df_clasif = df_raw[df_raw["Clasificacion"].notna() & 
                                (df_raw["Clasificacion"].astype(str).str.strip() != "")]
             if not df_clasif.empty:
-                st.plotly_chart(_fig_barras_nivel(df_clasif, "Clasificacion"),
-                                use_container_width=True, key="res_clasif")
+                try:
+                    from streamlit_app.components.renderers import render_echarts
+                    opt = _option_barras_nivel(df_clasif, "Clasificacion")
+                    if opt and opt.get('option'):
+                        render_echarts(opt['option'], height=opt.get('height', 420))
+                    else:
+                        st.plotly_chart(_fig_barras_nivel(df_clasif, "Clasificacion"), use_container_width=True, key="res_clasif")
+                except Exception:
+                    st.plotly_chart(_fig_barras_nivel(df_clasif, "Clasificacion"), use_container_width=True, key="res_clasif")
             else:
                 st.info("Sin datos de Clasificación disponibles.")
         else:
@@ -2063,14 +2167,48 @@ def render():
 
             # KPIs
             _cnts_cc = _dfc2["Nivel"].value_counts()
+            from streamlit_app.components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
+            # Generar sparklines basados en el subconjunto filtrado
+            spark_total = generate_sparkline_counts(_dfc2, periods=6)
+            spark_peligro = generate_sparkline_counts(_dfc2, group_col='Nivel', filter_val='Peligro', periods=6)
+            spark_alerta = generate_sparkline_counts(_dfc2, group_col='Nivel', filter_val='Alerta', periods=6)
+            spark_cum = generate_sparkline_agg(_dfc2, value_col='Cumplimiento', agg='mean', periods=6)
             _kc2 = st.columns(5)
-            _kc2[0].metric("Total",              len(_dfc2))
-            _kc2[1].metric("🔴 Peligro",          int(_cnts_cc.get("Peligro",           0)))
-            _kc2[2].metric("🟡 Alerta",            int(_cnts_cc.get("Alerta",             0)))
-            _kc2[3].metric("🟢 Cumplimiento",      int(_cnts_cc.get("Cumplimiento",       0)))
-            _kc2[4].metric("🔵 Sobrecumplimiento", int(_cnts_cc.get("Sobrecumplimiento",  0)))
+            with _kc2[0]:
+                try:
+                    kpi_card("Total", len(_dfc2), category=None, sparkline=spark_total)
+                except Exception:
+                    st.metric("Total", len(_dfc2))
+            with _kc2[1]:
+                try:
+                    kpi_card("🔴 Peligro", int(_cnts_cc.get("Peligro", 0)), category="Peligro", sparkline=spark_peligro)
+                except Exception:
+                    st.metric("🔴 Peligro", int(_cnts_cc.get("Peligro", 0)))
+            with _kc2[2]:
+                try:
+                    kpi_card("🟡 Alerta", int(_cnts_cc.get("Alerta", 0)), category="Alerta", sparkline=spark_alerta)
+                except Exception:
+                    st.metric("🟡 Alerta", int(_cnts_cc.get("Alerta", 0)))
+            with _kc2[3]:
+                try:
+                    kpi_card("🟢 Cumplimiento", int(_cnts_cc.get("Cumplimiento", 0)), category="Cumplimiento", sparkline=spark_cum)
+                except Exception:
+                    st.metric("🟢 Cumplimiento", int(_cnts_cc.get("Cumplimiento", 0)))
+            with _kc2[4]:
+                try:
+                    kpi_card("🔵 Sobrecumplimiento", int(_cnts_cc.get("Sobrecumplimiento", 0)), category="Sobrecumplimiento")
+                except Exception:
+                    st.metric("🔵 Sobrecumplimiento", int(_cnts_cc.get("Sobrecumplimiento", 0)))
 
             st.caption(f"**{len(_dfc2):,}** registros · {_dfc2['Id'].nunique()} indicadores")
+            try:
+                render_narrative_panel(
+                    "Insight rápido",
+                    f"Registros: {len(_dfc2):,} · Indicadores únicos: {_dfc2['Id'].nunique()} · Última fecha: {_dfc2['Fecha'].max() if 'Fecha' in _dfc2.columns else 'N/A'}",
+                    collapsed=True,
+                )
+            except Exception:
+                pass
 
             _COLS_CC = ["Id", "Indicador", "Proceso", "Subproceso", "Periodicidad", "Sentido",
                         "Fecha", "Periodo", "Meta_fmt", "Ejecucion_fmt", "Cumplimiento %", "Nivel"]

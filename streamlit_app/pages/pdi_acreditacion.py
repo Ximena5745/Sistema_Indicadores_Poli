@@ -44,6 +44,7 @@ def render():
             },
             key_prefix="pdi",
             columns_per_row=3,
+            collapsible=True,
         )
 
     activos = []
@@ -122,7 +123,22 @@ def render():
             title="Árbol de Objetivos: Macrolinea → Objetivo → Indicador",
         )
         fig_tm.update_layout(paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=40, b=10, l=10, r=10), height=420)
-        st.plotly_chart(fig_tm, use_container_width=True)
+        try:
+            from streamlit_app.components.renderers import render_echarts
+            # construir datos jerárquicos para ECharts treemap
+            tree_data = []
+            for macro, gmacro in df_tm.groupby('Macrolinea'):
+                macro_children = []
+                for obj, gobj in gmacro.groupby('Objetivo'):
+                    obj_children = []
+                    for _, r in gobj.iterrows():
+                        obj_children.append({"name": r['Indicador_label'], "value": int(r['_size'])})
+                    macro_children.append({"name": str(obj), "children": obj_children})
+                tree_data.append({"name": str(macro), "children": macro_children})
+            option = {"series": [{"type": "treemap", "data": tree_data}]}
+            render_echarts(option, height=420)
+        except Exception:
+            st.plotly_chart(fig_tm, use_container_width=True)
     else:
         st.info("No hay datos suficientes para el árbol de objetivos.")
 
@@ -140,8 +156,19 @@ def render():
             color_discrete_map={"cumplimiento": NIVEL_COLOR["Cumplimiento"], "benchmark": NIVEL_COLOR["Alerta"]},
             title="Cumplimiento propio vs benchmark (simulado)",
         )
-        fig_bench.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=340)
-        st.plotly_chart(fig_bench, use_container_width=True)
+        try:
+            from streamlit_app.components.renderers import render_echarts
+            # construir opción ECharts para barras agrupadas
+            df_m = df_bench.melt(id_vars="Proceso", value_vars=["cumplimiento", "benchmark"], var_name="Serie", value_name="Valor")
+            procs = df_m['Proceso'].astype(str).unique().tolist()
+            series = []
+            for serie in df_m['Serie'].unique():
+                vals = [float(df_m[(df_m['Proceso'] == p) & (df_m['Serie'] == serie)]['Valor'].sum() or 0) for p in procs]
+                series.append({"name": serie, "type": "bar", "data": vals})
+            option = {"tooltip": {"trigger": "axis"}, "legend": {"bottom": 0}, "xAxis": {"type": "category", "data": procs}, "yAxis": {"type": "value"}, "series": series}
+            render_echarts(option, height=340)
+        except Exception:
+            st.plotly_chart(fig_bench, use_container_width=True)
     else:
         st.info("No hay datos de proceso para comparar benchmark.")
 
@@ -155,8 +182,22 @@ def render():
             df_evo, x="Periodo", y="brecha", color="Proceso",
             markers=True, title="Brecha promedio por proceso a lo largo del tiempo",
         )
-        fig_evo.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=340)
-        st.plotly_chart(fig_evo, use_container_width=True)
+        try:
+            from streamlit_app.components.renderers import render_echarts
+            # construir opción ECharts para serie temporal por proceso
+            periods = sorted(df_evo['Periodo'].astype(str).unique().tolist())
+            procs = sorted(df_evo['Proceso'].astype(str).unique().tolist())
+            series = []
+            for p in procs:
+                vals = []
+                for per in periods:
+                    v = df_evo[(df_evo['Periodo'].astype(str) == per) & (df_evo['Proceso'] == p)]['brecha']
+                    vals.append(float(v.values[0]) if not v.empty else None)
+                series.append({"name": p, "type": "line", "data": vals})
+            option = {"tooltip": {"trigger": "axis"}, "legend": {"bottom": 0}, "xAxis": {"type": "category", "data": periods}, "yAxis": {"type": "value"}, "series": series}
+            render_echarts(option, height=340)
+        except Exception:
+            st.plotly_chart(fig_evo, use_container_width=True)
     else:
         st.info("No hay datos de periodo/proceso para evolución de brechas.")
 

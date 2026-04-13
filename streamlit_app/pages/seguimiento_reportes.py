@@ -195,7 +195,44 @@ def render():
             margin=dict(l=10, r=10, t=50, b=120),
             legend_title="Estado",
         )
-        st.plotly_chart(fig_proc, use_container_width=True, key="sr_proc_estado")
+        try:
+            from streamlit_app.components.renderers import render_echarts
+
+            def _option_proc_estado(df_proc, color_map):
+                procs = df_proc['Proceso'].astype(str).unique().tolist()
+                estados = df_proc['Estado'].astype(str).unique().tolist()
+                # ordenar procs
+                procs = sorted(procs)
+                series = []
+                for est in estados:
+                    vals = []
+                    for p in procs:
+                        s = df_proc[(df_proc['Proceso'] == p) & (df_proc['Estado'] == est)]
+                        vals.append(int(s['Cantidad'].sum()) if not s.empty else 0)
+                    series.append({
+                        'name': est,
+                        'type': 'bar',
+                        'stack': 'total',
+                        'data': vals,
+                        'itemStyle': {'color': color_map.get(est, '#888')},
+                    })
+                option = {
+                    'tooltip': {'trigger': 'axis', 'axisPointer': {'type': 'shadow'}},
+                    'legend': {'bottom': 0},
+                    'xAxis': {'type': 'category', 'data': procs, 'axisLabel': {'rotate': -35}},
+                    'yAxis': {'type': 'value'},
+                    'series': series,
+                    'grid': {'left': '10%', 'right': '5%', 'bottom': '20%'}
+                }
+                return {'option': option, 'height': max(320, len(procs) * 28 + 80)}
+
+            opt = _option_proc_estado(df_proc, _col_estado)
+            if opt and opt.get('option'):
+                render_echarts(opt['option'], height=opt.get('height', 420))
+            else:
+                st.plotly_chart(fig_proc, use_container_width=True, key="sr_proc_estado")
+        except Exception:
+            st.plotly_chart(fig_proc, use_container_width=True, key="sr_proc_estado")
 
     st.markdown("### Detalle")
     st.dataframe(df_view, use_container_width=True, height=500)

@@ -315,6 +315,26 @@ streamlit run streamlit_app/main.py
 
 ---
 
+## 📥 Descargas y Persistencia (Excel)
+
+- **Formato preferente:** Las exportaciones y los guardados locales se generan preferentemente en formato Excel (.xlsx) para facilitar el consumo por usuarios y equipos de análisis.
+- **Dependencia:** Esto requiere `openpyxl` (ya listada en [requirements.txt](requirements.txt)). Si la librería no está disponible, la aplicación realiza un fallback a CSV.
+- **Ubicación de guardado local:** Los archivos generados por la UI se escriben en `data/raw/` con timestamp. Ver carpeta: [data/raw](data/raw).
+- **Guardado en base de datos (opcional):** Existe un hook experimental `guardar_acciones_bulk(df)` en [core/db_manager.py](core/db_manager.py). Ajusta esquema y permisos antes de usar en producción.
+ 
+## ♿ Accesibilidad (QA rápido)
+
+Lista mínima de comprobación para las vistas actualizadas (prioridad alta):
+
+- **Contraste:** verificar contraste suficiente en tiras de alerta y títulos (WCAG AA).
+- **Orden de foco:** revisar tab-order y que controles (selectboxes, botones) sean accesibles por teclado.
+- **Texto alternativo:** imágenes y gráficos embebidos deben tener texto alternativo o descripciones en el panel narrativo.
+- **Expander / panels:** los expanders deben ser navegables por teclado y su estado (expanded/collapsed) ser claro.
+- **Exportaciones:** asegurar que los archivos Excel exportados incluyan encabezados semánticos y formatos legibles.
+
+Para QA automatizado sugerido: usar `pa11y` o `axe` en las páginas renderizadas (puede integrarse en un pipeline de tests visuales).
+
+
 ## 🔑 Conceptos Clave
 
 ### Indicadores de Cumplimiento

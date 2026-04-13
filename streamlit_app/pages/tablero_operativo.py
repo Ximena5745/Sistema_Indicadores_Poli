@@ -218,6 +218,32 @@ def _fig_donut(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def _option_donut(df: pd.DataFrame) -> dict:
+    if "Categoria" not in df.columns or df.empty:
+        return {}
+    cats = [c for c, *_ in _KANBAN_COLS]
+    counts = df["Categoria"].value_counts()
+    labels = [c for c in cats if c in counts.index]
+    values = [int(counts[c]) for c in labels]
+    option = {
+        "tooltip": {"trigger": "item", "formatter": "{b}: {c} ({d}%)"},
+        "legend": {"orient": "horizontal", "bottom": 0},
+        "series": [
+            {
+                "name": "Categorias",
+                "type": "pie",
+                "radius": ["40%", "65%"],
+                "avoidLabelOverlap": False,
+                "label": {"show": False, "position": "center"},
+                "emphasis": {"label": {"show": True, "fontSize": 14, "fontWeight": "bold"}},
+                "labelLine": {"show": False},
+                "data": [{"value": v, "name": l} for v, l in zip(values, labels)],
+            }
+        ],
+    }
+    return {"option": option, "height": 380}
+
+
 def _fig_proceso(df: pd.DataFrame) -> go.Figure:
     col = (
         "ProcesoPadre" if "ProcesoPadre" in df.columns
@@ -326,23 +352,49 @@ def render() -> None:
         cum_s   = pd.to_numeric(df.get("Cumplimiento", pd.Series(dtype=float)), errors="coerce").dropna()
         prom_c  = float(cum_s.mean() * 100) if not cum_s.empty else None
 
+        from streamlit_app.components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
+        # Generar sparklines (usamos `df_all` para series históricas)
+        spark_total = generate_sparkline_counts(df_all, periods=6)
+        spark_peligro = generate_sparkline_counts(df_all, group_col='Categoria', filter_val='Peligro', periods=6)
+        spark_alerta = generate_sparkline_counts(df_all, group_col='Categoria', filter_val='Alerta', periods=6)
+        spark_sinrep = generate_sparkline_counts(df_all, group_col='Categoria', filter_val=_PEND, periods=6)
+        spark_prom = generate_sparkline_agg(df_all, value_col='Cumplimiento', agg='mean', periods=6)
+
         k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric("Total indicadores", total)
-        k2.metric(
-            "🔴 Peligro", peligro,
-            delta=f"{peligro / total * 100:.1f}%" if total else "",
-            delta_color="inverse",
-        )
-        k3.metric(
-            "🟡 Alerta", alerta,
-            delta=f"{alerta / total * 100:.1f}%" if total else "",
-            delta_color="inverse",
-        )
-        k4.metric("⚪ Sin reporte", pend)
-        k5.metric(
-            "Cumplimiento promedio",
-            f"{prom_c:.1f}%" if prom_c is not None else "N/D",
-        )
+        with k1:
+            try:
+                kpi_card("Total indicadores", total, sparkline=spark_total)
+            except Exception:
+                st.metric("Total indicadores", total)
+        with k2:
+            try:
+                kpi_card("🔴 Peligro", peligro, delta=(f"{peligro / total * 100:.1f}%" if total else ""), category="Peligro", sparkline=spark_peligro)
+            except Exception:
+                st.metric("🔴 Peligro", peligro, delta=(f"{peligro / total * 100:.1f}%" if total else ""), delta_color="inverse")
+        with k3:
+            try:
+                kpi_card("🟡 Alerta", alerta, delta=(f"{alerta / total * 100:.1f}%" if total else ""), category="Alerta", sparkline=spark_alerta)
+            except Exception:
+                st.metric("🟡 Alerta", alerta, delta=(f"{alerta / total * 100:.1f}%" if total else ""), delta_color="inverse")
+        with k4:
+            try:
+                kpi_card("⚪ Sin reporte", pend, sparkline=spark_sinrep)
+            except Exception:
+                st.metric("⚪ Sin reporte", pend)
+        with k5:
+            try:
+                kpi_card("Cumplimiento promedio", f"{prom_c:.1f}%" if prom_c is not None else "N/D", sparkline=spark_prom)
+            except Exception:
+                st.metric("Cumplimiento promedio", f"{prom_c:.1f}%" if prom_c is not None else "N/D")
+
+        try:
+            from streamlit_app.components.renderers import render_narrative_panel, render_alert_strip
+            # Mostrar advertencia si promedio muy bajo
+            if prom_c is not None and prom_c < 70:
+                render_alert_strip(f"Promedio de cumplimiento bajo: {prom_c:.1f}% — revisar procesos críticos.", level='warning')
+            render_narrative_panel("Resumen rápido", f"Total: {total} · Peligro: {peligro} · Alerta: {alerta} · Sin reporte: {pend}", collapsed=True)
+        except Exception:
+            pass
 
         # Alertas de frecuencia de reporte
         venc = _detectar_vencidos(df)
@@ -354,10 +406,26 @@ def render() -> None:
         r1c1, r1c2 = st.columns([1, 1])
         with r1c1:
             st.markdown("#### Distribución por nivel")
-            st.plotly_chart(_fig_donut(df), use_container_width=True, key="to_res_donut")
+            try:
+                from streamlit_app.components.renderers import render_echarts
+                opt = _option_donut(df)
+                if opt and opt.get('option'):
+                    render_echarts(opt['option'], height=opt.get('height', 380))
+                else:
+                    st.plotly_chart(_fig_donut(df), use_container_width=True, key="to_res_donut")
+            except Exception:
+                st.plotly_chart(_fig_donut(df), use_container_width=True, key="to_res_donut")
         with r1c2:
             st.markdown("#### Por proceso (top 16 críticos)")
-            st.plotly_chart(_fig_proceso(df), use_container_width=True, key="to_res_proc")
+            try:
+                from streamlit_app.components.renderers import render_echarts
+                opt_h = _option_proceso(df)
+                if opt_h and isinstance(opt_h, dict) and opt_h.get('option'):
+                    render_echarts(opt_h['option'], height=opt_h.get('height', 420))
+                else:
+                    st.plotly_chart(_fig_proceso(df), use_container_width=True, key="to_res_proc")
+            except Exception:
+                st.plotly_chart(_fig_proceso(df), use_container_width=True, key="to_res_proc")
 
         # Panel de acciones de mejora vinculadas
         st.markdown("---")

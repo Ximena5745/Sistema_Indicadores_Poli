@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Executive Summary</title>
+  <style>
+    :root{
+      --color-primary: #0B5FFF;
+      --success: #16A34A;
+      --alert: #F59E0B;
+      --danger: #DC2626;
+      --bg: #F5F7FA;
+      --panel: #FFFFFF;
+      --text: #0F1724;
+    }
+    body{font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:12px; background:var(--bg); color:var(--text)}
+    .container{display:grid; grid-template-columns: repeat(12, 1fr); gap:12px; align-items:start}
+    .kpi{background:var(--panel); border-radius:8px; padding:12px; box-shadow:0 1px 0 rgba(15,23,36,0.04); display:flex; flex-direction:column; justify-content:center}
+    .kpi .title{font-size:12px; color:#556078}
+    .kpi .value{font-size:28px; font-weight:700; margin-top:6px}
+    .kpi .meta{font-size:12px; color:#7b8794; margin-top:4px}
+    .kpi .trend{font-size:13px; margin-left:auto}
+    .donut{background:var(--panel); border-radius:8px; padding:12px; box-shadow:0 1px 0 rgba(15,23,36,0.04)}
+    .row{grid-column: span 12}
+    @media(min-width:900px){
+      .kpi-1{grid-column: span 4}
+      .kpi-2{grid-column: span 4}
+      .kpi-3{grid-column: span 4}
+      .donut{grid-column: span 4}
+      .insight{grid-column: span 8}
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div id="kpi1" class="kpi kpi-1 row">
+      <div class="title" id="kpi1_title">Cargando...</div>
+      <div class="value" id="kpi1_value">—</div>
+      <div style="display:flex;align-items:center;margin-top:6px;"><div class="meta" id="kpi1_meta"></div><div class="trend" id="kpi1_trend"></div></div>
+      <div id="kpi1_spark" style="height:36px;margin-top:8px"></div>
+    </div>
+
+    <div id="kpi2" class="kpi kpi-2 row">
+      <div class="title" id="kpi2_title">Cargando...</div>
+      <div class="value" id="kpi2_value">—</div>
+      <div style="display:flex;align-items:center;margin-top:6px;"><div class="meta" id="kpi2_meta"></div><div class="trend" id="kpi2_trend"></div></div>
+      <div id="kpi2_spark" style="height:36px;margin-top:8px"></div>
+    </div>
+
+    <div id="kpi3" class="kpi kpi-3 row">
+      <div class="title" id="kpi3_title">Cargando...</div>
+      <div class="value" id="kpi3_value">—</div>
+      <div style="display:flex;align-items:center;margin-top:6px;"><div class="meta" id="kpi3_meta"></div><div class="trend" id="kpi3_trend"></div></div>
+      <div id="kpi3_spark" style="height:36px;margin-top:8px"></div>
+    </div>
+
+    <div id="insight" class="row insight" style="background:var(--panel); border-radius:8px; padding:12px;">
+      <h4 style="margin:0 0 6px 0;">Insight rápido</h4>
+      <div id="insight_text">Cargando insights...</div>
+    </div>
+
+    <div id="donut" class="donut" style="height:220px;">
+      <div id="donut_chart" style="width:100%;height:100%"></div>
+    </div>
+  </div>
+
+  <script>
+    // DATA variable injected by server
+    try{
+      const DATA = JSON.parse(document.getElementById('DATA_HOLDER').textContent || 'null');
+      const k1 = DATA.kpis[0] || {};
+      const k2 = DATA.kpis[1] || {};
+      const k3 = DATA.kpis[2] || {};
+      document.getElementById('kpi1_title').innerText = k1.title || '';
+      document.getElementById('kpi1_value').innerText = k1.value==null? '—' : k1.value;
+      document.getElementById('kpi1_meta').innerText = k1.meta || '';
+      document.getElementById('kpi1_trend').innerText = k1.trend || '';
+
+      document.getElementById('kpi2_title').innerText = k2.title || '';
+      document.getElementById('kpi2_value').innerText = k2.value==null? '—' : k2.value;
+      document.getElementById('kpi2_meta').innerText = k2.meta || '';
+      document.getElementById('kpi2_trend').innerText = k2.trend || '';
+
+      document.getElementById('kpi3_title').innerText = k3.title || '';
+      document.getElementById('kpi3_value').innerText = k3.value==null? '—' : k3.value;
+      document.getElementById('kpi3_meta').innerText = k3.meta || '';
+      document.getElementById('kpi3_trend').innerText = k3.trend || '';
+
+      const donut = echarts.init(document.getElementById('donut_chart'));
+      donut.setOption({
+        tooltip:{trigger:'item'},
+        legend:{orient:'horizontal',bottom:0},
+        series:[{
+          type:'pie', radius:['50%','75%'], avoidLabelOverlap:false,
+          itemStyle:{borderRadius:6,borderColor:'#fff',borderWidth:2},
+          label:{show:false},
+          emphasis:{label:{show:true, fontSize:14,fontWeight:'bold'}},
+          data: (DATA.donut || [])
+        }]
+      });
+
+      document.getElementById('insight_text').innerText = DATA.insight || '';
+
+      // Render sparklines if present
+      function renderSpark(elId, arr){
+        try{
+          if(!arr || !Array.isArray(arr) || arr.length===0) return;
+          const e = echarts.init(document.getElementById(elId));
+          const opt = {
+            grid:{left:2,right:2,top:2,bottom:2},
+            xAxis:{show:false,type:'category',data:arr.map((_,i)=>i)},
+            yAxis:{show:false,type:'value'},
+            series:[{type:'line', smooth:true, symbol:'none', data:arr, lineStyle:{width:2,color:getComputedStyle(document.documentElement).getPropertyValue('--color-primary')||'#0B5FFF'}}]
+          };
+          e.setOption(opt);
+        }catch(e){console.error(e)}
+      }
+      if(DATA.kpis){
+        renderSpark('kpi1_spark', DATA.kpis[0].sparkline || []);
+        renderSpark('kpi2_spark', DATA.kpis[1].sparkline || []);
+        renderSpark('kpi3_spark', DATA.kpis[2].sparkline || []);
+      }
+    }catch(e){console.error(e)}
+  </script>
+  <script type="application/json" id="DATA_HOLDER">null</script>
+</body>
+</html>

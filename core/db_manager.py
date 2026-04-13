@@ -253,3 +253,130 @@ def registros_om_como_dict(anio: int = None) -> dict:
 
 # Inicializar al importar
 inicializar_db()
+
+
+def guardar_acciones_bulk(df) -> bool:
+    """
+    Guarda un DataFrame o lista de dicts de acciones en una tabla `acciones`.
+    Esta función es deliberadamente tolerante: crea la tabla con columnas TEXT
+    según los nombres de columnas del DataFrame y luego inserta filas.
+
+    Retorna True si la operación parece exitosa.
+    """
+    if df is None:
+        return False
+    try:
+        import pandas as pd
+    except Exception:
+        pd = None
+
+    # Normalizar a DataFrame
+    if pd is not None and not isinstance(df, pd.DataFrame):
+        try:
+            df = pd.DataFrame(df)
+        except Exception:
+            return False
+
+    # Si no hay filas, salir
+    if (hasattr(df, 'empty') and df.empty) or (not hasattr(df, 'shape') and len(df) == 0):
+        return False
+
+    cols = list(df.columns)
+    try:
+        if _use_pg():
+            import psycopg2
+            conn = psycopg2.connect(_get_database_url())
+            cur = conn.cursor()
+            # Crear tabla con columnas TEXT si no existe
+            cols_defs = ", ".join([f'"{c}" TEXT' for c in cols])
+            cur.execute(f'CREATE TABLE IF NOT EXISTS acciones (id SERIAL PRIMARY KEY, {cols_defs})')
+            # Insertar filas
+            for _, row in df.iterrows():
+                vals = [None if (pd is not None and pd.isna(x)) else str(x) for x in row.tolist()]
+                placeholders = ','.join(['%s'] * len(vals))
+                cur.execute(f'INSERT INTO acciones ({", ".join([f"\"{c}\"" for c in cols])}) VALUES ({placeholders})', tuple(vals))
+            conn.commit()
+            cur.close()
+            conn.close()
+            return True
+        else:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cols_defs = ", ".join([f'"{c}" TEXT' for c in cols])
+            cur.execute(f'CREATE TABLE IF NOT EXISTS acciones (id INTEGER PRIMARY KEY AUTOINCREMENT, {cols_defs})')
+            insert_sql = f'INSERT INTO acciones ({", ".join([f"\"{c}\"" for c in cols])}) VALUES ({", ".join(["?" for _ in cols])})'
+            for _, row in df.iterrows():
+                vals = [None if (pd is not None and pd.isna(x)) else str(x) for x in row.tolist()]
+                cur.execute(insert_sql, vals)
+            conn.commit()
+            conn.close()
+            return True
+    except Exception as e:
+        try:
+            import streamlit as st
+            st.error(f"Error guardar_acciones_bulk: {e}")
+        except Exception:
+            pass
+        return False
+
+
+def leer_acciones(limit: int = 1000) -> list:
+    """Lee hasta `limit` filas de la tabla `acciones` y retorna lista de dicts."""
+    try:
+        if _use_pg():
+            import psycopg2.extras
+            conn = psycopg2.connect(_get_database_url())
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(f"SELECT * FROM acciones ORDER BY id DESC LIMIT {int(limit)}")
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            return [dict(r) for r in rows]
+        else:
+            if not DB_PATH.exists():
+                return []
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(f"SELECT * FROM acciones ORDER BY id DESC LIMIT {int(limit)}")
+            rows = cur.fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+    except Exception as e:
+        try:
+            import streamlit as st
+            st.error(f"Error leer_acciones: {e}")
+        except Exception:
+            pass
+        return []
+
+
+def borrar_acciones_por_marker(col: str, value: str) -> bool:
+    """Borra filas de la tabla `acciones` donde `col` == `value`.
+
+    Retorna True si la operación se ejecutó sin excepciones.
+    """
+    try:
+        if _use_pg():
+            import psycopg2
+            conn = psycopg2.connect(_get_database_url())
+            cur = conn.cursor()
+            cur.execute(f"DELETE FROM acciones WHERE \"{col}\" = %s", (str(value),))
+            conn.commit()
+            cur.close()
+            conn.close()
+            return True
+        else:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute(f"DELETE FROM acciones WHERE \"{col}\" = ?", (str(value),))
+            conn.commit()
+            conn.close()
+            return True
+    except Exception as e:
+        try:
+            import streamlit as st
+            st.error(f"Error borrar_acciones_por_marker: {e}")
+        except Exception:
+            pass
+        return False

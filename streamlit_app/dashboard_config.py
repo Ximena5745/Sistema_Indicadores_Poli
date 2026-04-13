@@ -98,19 +98,40 @@ data_cmi = pd.DataFrame({
 st.subheader("Módulo IRIP Predictivo")
 fig_irip = px.bar(data_irip, x="Riesgo", y="Indicador", orientation="h", color="Riesgo",
                   color_continuous_scale="reds", title="Ranking de Riesgo IRIP")
-st.plotly_chart(fig_irip)
+try:
+    from streamlit_app.components.renderers import render_echarts
+    labels = data_irip['Indicador'].astype(str).tolist()
+    vals = [int(v) for v in data_irip['Riesgo'].tolist()]
+    option = {"tooltip": {"trigger": "axis"}, "xAxis": {"type": "value"}, "yAxis": {"type": "category", "data": labels}, "series": [{"type": "bar", "data": vals}]}
+    render_echarts(option, height=260)
+except Exception:
+    st.plotly_chart(fig_irip)
 
 # Módulo DAD / Detector de anomalías
 st.subheader("Módulo DAD / Detector de anomalías")
 fig_anomalias = px.line(data_anomalias, x="Fecha", y="Anomalías", markers=True,
                         title="Tendencia de Anomalías Detectadas")
-st.plotly_chart(fig_anomalias)
+try:
+    from streamlit_app.components.renderers import render_echarts
+    xs = [str(d.date()) for d in data_anomalias['Fecha'].tolist()]
+    ys = [int(v) for v in data_anomalias['Anomalías'].tolist()]
+    option = {"tooltip": {"trigger": "axis"}, "xAxis": {"type": "category", "data": xs}, "yAxis": {"type": "value"}, "series": [{"type": "line", "data": ys, "showSymbol": True}]}
+    render_echarts(option, height=300)
+except Exception:
+    st.plotly_chart(fig_anomalias)
 
 # Módulo CMI Estratégico
 st.subheader("Módulo CMI Estratégico")
 fig_cmi = px.bar(data_cmi, x="Perspectiva", y="Cumplimiento", color="Cumplimiento",
                  color_continuous_scale="blues", title="Cumplimiento por Perspectiva CMI")
-st.plotly_chart(fig_cmi)
+try:
+    from streamlit_app.components.renderers import render_echarts
+    cats = data_cmi['Perspectiva'].astype(str).tolist()
+    vals = [float(v) for v in data_cmi['Cumplimiento'].tolist()]
+    option = {"tooltip": {"trigger": "axis"}, "xAxis": {"type": "category", "data": cats}, "yAxis": {"type": "value"}, "series": [{"type": "bar", "data": vals}]}
+    render_echarts(option, height=300)
+except Exception:
+    st.plotly_chart(fig_cmi)
 
 # Footer
 st.markdown("---")

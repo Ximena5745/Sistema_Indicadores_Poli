@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from streamlit_app.components import KPIRow
+from streamlit_app.components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
 from streamlit_app.services.data_service import DataService
 from streamlit_app.components.filters import render_filters
 from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
@@ -59,9 +60,25 @@ def _render_kpis(total: int, cats: dict):
     cols = st.columns(len(definiciones))
     for col, (label, val, color, delta) in zip(cols, definiciones):
         with col:
-            st.metric(label, val, delta=delta,
-                      delta_color="off" if label == "Total" else
-                      ("inverse" if "Peligro" in label or "Alerta" in label else "normal"))
+            # determinar categoría a partir de la etiqueta
+            cat = None
+            if "Peligro" in label:
+                cat = "Peligro"
+            elif "Alerta" in label:
+                cat = "Alerta"
+            elif "Cumplimiento" in label:
+                cat = "Cumplimiento"
+            elif "Sobrecumpl" in label:
+                cat = "Sobrecumplimiento"
+
+            # usar kpi_card para renderizar (se maneja color y progreso si aplica)
+            try:
+                # generar sparklines sobre el conjunto actual (`df` corresponde al último por indicador)
+                spark = generate_sparkline_counts(df, periods=6) if label == 'Total' or 'Peligro' in label or 'Alerta' in label else generate_sparkline_agg(df, value_col='Cumplimiento', agg='mean', periods=6)
+                kpi_card(title=label, value=val, delta=delta, sparkline=spark, category=cat)
+            except Exception:
+                # fallback simple
+                st.metric(label, val, delta=delta)
 
 
 def _tabla_display(df: pd.DataFrame) -> pd.DataFrame:
@@ -291,6 +308,7 @@ def render():
             filter_config,
             key_prefix="resumen_proceso",
             columns_per_row=3,
+            collapsible=True,
         )
 
         anio = selections.get("anio")
