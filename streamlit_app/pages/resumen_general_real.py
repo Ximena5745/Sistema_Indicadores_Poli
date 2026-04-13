@@ -40,6 +40,9 @@ MES_MAP = {
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [str(c).strip() for c in df.columns]
+    # Normaliza la columna de cumplimiento
+    if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
+        df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
     return df
 
 
@@ -65,17 +68,21 @@ def _load_consolidado_cierres() -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
     df = _normalize_columns(df)
-    if "Año" in df.columns:
-        df["Año"] = pd.to_numeric(df["Año"], errors="coerce")
+    if "Ao" in df.columns:
+        df["Ao"] = pd.to_numeric(df["Ao"], errors="coerce")
     elif "Anio" in df.columns:
-        df["Año"] = pd.to_numeric(df["Anio"], errors="coerce")
+        df["Ao"] = pd.to_numeric(df["Anio"], errors="coerce")
     else:
-        df["Año"] = pd.NA
+        df["Ao"] = pd.NA
 
     if "Mes" in df.columns:
         df["Mes_num"] = df["Mes"].apply(_parse_month)
     else:
         df["Mes_num"] = None
+
+    # Si existe "Cumplimiento" y no "cumplimiento_pct", normaliza
+    if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
+        df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
 
     df = _ensure_nivel_cumplimiento(df)
     return df
@@ -87,6 +94,9 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     if "Categoria" in df.columns:
         df["Nivel de cumplimiento"] = df["Categoria"]
         return df
+    # Si existe "Cumplimiento" y no "cumplimiento_pct", normaliza
+    if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
+        df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
     if "cumplimiento_pct" in df.columns:
         def _map_level(value):
             try:
