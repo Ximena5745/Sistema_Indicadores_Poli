@@ -924,11 +924,24 @@
             const sunburstData = data.pdi.lines.map(line => ({
                 name: line.name,
                 itemStyle: { color: line.color },
+                label: {
+                    show: true,
+                    color: '#ffffff',
+                    fontWeight: 'bold',
+                    fontSize: 13,
+                    overflow: 'truncate',
+                    formatter: '{b}\n{c}%'
+                },
                 children: line.objectives.map(obj => ({
                     name: obj.name,
                     value: obj.compliance,
+                    itemStyle: { color: line.color },
                     label: {
-                        formatter: '{b}\n{c}%'
+                        show: true,
+                        color: '#ffffff',
+                        fontSize: 11,
+                        formatter: '{b}\n{c}%',
+                        overflow: 'truncate'
                     }
                 }))
             }));
@@ -949,17 +962,22 @@
                         rotate: 'radial',
                         color: '#fff',
                         fontWeight: 'bold',
-                        fontSize: 11,
+                        fontSize: 12,
                         textBorderWidth: 1,
                         textBorderColor: '#fff'
                     },
                     itemStyle: {
-                        borderRadius: 4,
-                        borderWidth: 2,
-                        borderColor: '#fff'
+                        borderRadius: 5,
+                        borderWidth: 1.5,
+                        borderColor: '#ffffff'
                     },
                     emphasis: {
-                        focus: 'ancestor'
+                        focus: 'ancestor',
+                        label: {
+                            show: true,
+                            fontSize: 13,
+                            fontWeight: 'bold'
+                        }
                     },
                     levels: [
                         {},
@@ -967,15 +985,18 @@
                             r0: '0%',
                             r: '35%',
                             label: {
-                                fontSize: 13,
-                                fontWeight: 'bold'
+                                rotate: 'radial',
+                                fontSize: 14,
+                                fontWeight: '700'
                             }
                         },
                         {
                             r0: '35%',
                             r: '90%',
                             label: {
-                                fontSize: 11
+                                rotate: 'radial',
+                                fontSize: 11,
+                                lineHeight: 18
                             }
                         }
                     ]

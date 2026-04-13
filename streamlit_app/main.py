@@ -60,7 +60,7 @@ def main():
         cmi_estrategico,
         gestion_om,
         plan_mejoramiento,
-        resumen_general,
+        resumen_general_real as resumen_general,
         resumen_por_proceso,
         seguimiento_reportes,
         tablero_operativo,
