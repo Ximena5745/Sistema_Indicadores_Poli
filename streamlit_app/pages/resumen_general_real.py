@@ -182,6 +182,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     df["Linea"] = df["Linea"].fillna("Sin línea")
     df["Objetivo"] = df["Objetivo"].fillna("Sin objetivo")
     df = df[df["cumplimiento_pct"].notna()]
+
     # Si no hay datos válidos, crear un nodo dummy con 0%
     if df.empty:
         labels = ["Sin datos"]
@@ -189,19 +190,23 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         values = [1]
         customdata = [[0]]
         colors = ["#6B728E"]
+        text = ["Sin datos\n0.0%"]
     else:
-        # Nivel 1: Linea
+        # Nivel 1: Linea (promedio)
         lines = df.groupby("Linea", dropna=False).agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
-        # Nivel 2: Objetivo
+        # Nivel 2: Objetivo (promedio)
         grouped = df.groupby(["Linea", "Objetivo"], dropna=False).agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
+
         labels = []
         parents = []
         values = []
         customdata = []
         colors = []
-        # Usar conteos reales como valores para evitar inconsistencias en la suma de ramas
+
+        # Use counts for sizing but show cumplimiento_pct as text inside sectors
         line_counts = df.groupby('Linea').size().to_dict()
         obj_counts = df.groupby(['Linea', 'Objetivo']).size().to_dict()
+
         for _, line in lines.iterrows():
             linea_name = line["Linea"]
             labels.append(linea_name)
@@ -209,6 +214,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             values.append(int(line_counts.get(linea_name, 0)) or 1)
             customdata.append([line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0])
             colors.append(LINEA_COLORS.get(linea_name, "#6B728E"))
+
         for _, row in grouped.iterrows():
             obj_name = row["Objetivo"]
             parent_name = row["Linea"]
@@ -217,6 +223,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             values.append(int(obj_counts.get((parent_name, obj_name), 0)) or 1)
             customdata.append([row["cumplimiento_pct"] if pd.notna(row["cumplimiento_pct"]) else 0])
             colors.append(LINEA_COLORS.get(parent_name, "#6B728E"))
+
+        text = [f"{lab}\n{(cd[0] if cd and cd[0] is not None else 0):.1f}%" for lab, cd in zip(labels, customdata)]
+
     fig = go.Figure(go.Sunburst(
         labels=labels,
         parents=parents,
@@ -224,10 +233,14 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         branchvalues="total",
         marker=dict(colors=colors, line=dict(color="#ffffff", width=2)),
         customdata=customdata,
+        text=text,
+        texttemplate="%{text}",
+        textinfo='text',
         hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
         insidetextorientation="radial",
     ))
-    fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=600)
+
+    fig.update_layout(margin=dict(t=20, l=0, r=0, b=0), height=720)
     return fig
 
 
