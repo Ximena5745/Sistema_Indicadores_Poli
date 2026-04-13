@@ -532,6 +532,15 @@ def render():
     # Mantener el sunburst como referencia visual
     sunburst = _build_sunburst(pdi_df)
     st.plotly_chart(sunburst, use_container_width=True)
+    # Debug: mostrar metadatos del sunburst y commit para verificar versión desplegada
+    try:
+        meta = getattr(sunburst.layout, 'meta', None)
+        import subprocess
+        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
+    except Exception:
+        meta = getattr(sunburst.layout, 'meta', None)
+        commit = None
+    st.markdown(f"**DEBUG:** commit={commit} — meta={meta}")
 
     kpi_cols = st.columns(5)
     colors = ["#0B5FFF", "#1A3A5C", "#43A047", "#FBAF17", "#D32F2F"]
