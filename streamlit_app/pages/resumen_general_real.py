@@ -692,40 +692,30 @@ def render():
                     normalized_color_map = { _norm_key(k): v for k, v in LINEA_COLORS.items() }
                     primary_color = normalized_color_map.get(_norm_key(name), "#6B728E")
                     
-                    # Crear versión más clara del color para el fondo (blend con blanco)
-                    # Convertir hex a RGB, mezclar con blanco, convertir de vuelta
-                    def hex_to_rgb(hex_color):
-                        hex_color = hex_color.lstrip('#')
-                        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-                    def rgb_to_hex(r, g, b):
-                        return f"#{r:02x}{g:02x}{b:02x}"
-                    def lighten_color(hex_color, factor=0.85):
-                        r, g, b = hex_to_rgb(hex_color)
-                        r = int(r + (255 - r) * (1 - factor))
-                        g = int(g + (255 - g) * (1 - factor))
-                        b = int(b + (255 - b) * (1 - factor))
-                        return rgb_to_hex(r, g, b)
-                    
-                    light_bg = lighten_color(primary_color)
-                    text_color = primary_color
+                    # Usar fondo blanco/gris suave con borde de color y acento superior
+                    bg_color = "#FFFFFF"
+                    border_color = primary_color
+                    line_name_color = primary_color
+                    pct_color = "#0B5FFF"
+                    text_color = "#1A1A1A"
                     secondary_text = "#666666"
 
                     if pd.isna(delta):
-                        delta_html = "<span style='color:#FFC107;font-weight:700;font-size:12px;'>N/D</span>"
+                        delta_html = "<span style='color:#FFC107;font-weight:700;font-size:11px;'>N/D</span>"
                     else:
                         color = '#22C55E' if delta >= 0 else '#EF4444'
                         sign = '+' if delta >= 0 else ''
-                        delta_html = f"<span style='color:{color};font-weight:800;font-size:12px;'>{sign}{delta:.1f}%</span>"
+                        delta_html = f"<span style='color:{color};font-weight:800;font-size:11px;'>{sign}{delta:.1f}%</span>"
                     pct_disp = f"{pct:.1f}%" if pct is not None else 'N/D'
                     c.markdown(
-                        f"<div style='background:{light_bg};border:2px solid {primary_color};border-radius:12px;padding:16px;text-align:left;box-shadow:0 2px 6px rgba(0,0,0,0.08);'>"
+                        f"<div style='background:{bg_color};border:1px solid {border_color};border-top:4px solid {border_color};border-radius:10px;padding:14px;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,0.06);'>"
                         f"<div style='display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;'>"
                         f"<div style='font-size:32px;line-height:1;'>{icon}</div>"
                         f"<div style='text-align:right;flex:1;margin-left:12px;'>"
-                        f"<div style='font-size:28px;font-weight:800;color:{text_color};line-height:1;'>{pct_disp}</div>"
-                        f"<div style='font-size:11px;color:{secondary_text};margin-top:3px;'>Var: {delta_html}</div>"
+                        f"<div style='font-size:28px;font-weight:800;color:{pct_color};line-height:1;'>{pct_disp}</div>"
+                        f"<div style='font-size:10px;color:{secondary_text};margin-top:4px;'>Var: {delta_html}</div>"
                         f"</div></div>"
-                        f"<div style='font-size:13px;color:{text_color};font-weight:700;margin-bottom:8px;line-height:1.3;'>{name}</div>"
+                        f"<div style='font-size:12px;color:{line_name_color};font-weight:700;margin-bottom:8px;line-height:1.3;'>{name}</div>"
                         f"<div style='font-size:11px;color:{secondary_text};'>📊 <b>{nind}</b> indicador{'es' if nind != 1 else ''}</div>"
                         f"</div>",
                         unsafe_allow_html=True,
