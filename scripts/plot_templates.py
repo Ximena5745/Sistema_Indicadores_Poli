@@ -3,6 +3,7 @@ Incluye paleta y estilos consistentes para el dashboard."""
 from typing import List
 
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -89,7 +90,18 @@ def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = N
     # Ensure y is numeric; coerce and drop rows with missing x or y
     y_series = pd.to_numeric(df.get(y, pd.Series(dtype=float)), errors='coerce')
     # Align lengths: build pairs where y is not NaN and x is present
-    pairs = [(str(a), float(b)) for a, b in zip(x_vals, y_series.tolist()) if a is not None and str(a).strip() != '' and (b is not None and not pd.isna(b))]
+    pairs = []
+    for a, b in zip(x_vals, y_series.tolist()):
+        if a is None or str(a).strip() == '':
+            continue
+        if b is None or pd.isna(b):
+            continue
+        try:
+            if not np.isfinite(float(b)):
+                continue
+        except Exception:
+            continue
+        pairs.append((str(a), float(b)))
     if not pairs:
         # No valid data; return empty figure with message
         fig = go.Figure()
@@ -105,9 +117,16 @@ def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = N
         colors = [DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)] for i in range(len(x_clean))]
 
     try:
-        fig = go.Figure(go.Waterfall(x=list(x_clean), y=list(y_clean), marker=dict(color=colors, line=dict(color="#ffffff", width=1))))
+        # Some Plotly versions (older) don't accept `marker` in Waterfall constructor.
+        fig = go.Figure(go.Waterfall(x=list(x_clean), y=list(y_clean)))
         fig.update_layout(title=title, height=420, template=DEFAULT_TEMPLATE)
         fig.update_traces(hovertemplate="%{x}<br>%{y:.1f}%<extra></extra>")
+        # Try to apply marker/colors afterwards (safer across versions)
+        try:
+            fig.update_traces(marker=dict(color=colors, line=dict(color="#ffffff", width=1)))
+        except Exception:
+            # ignore if the installed plotly version doesn't accept marker updates for Waterfall
+            pass
         # mark as waterfall
         fig.layout.meta = {"waterfall_used": True}
         return fig
