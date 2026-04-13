@@ -127,6 +127,16 @@ def _load_consolidado_cierres() -> pd.DataFrame:
     # Si existe "Cumplimiento" y no "cumplimiento_pct", normaliza
     if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
+    # Asegurar que `cumplimiento_pct` esté en escala porcentual (0-100)
+    if "cumplimiento_pct" in df.columns:
+        df["cumplimiento_pct"] = pd.to_numeric(df.get("cumplimiento_pct"), errors="coerce")
+        # Si los valores parecen estar en escala decimal [0..2], convertir a porcentaje
+        try:
+            mx = float(df["cumplimiento_pct"].abs().max(skipna=True)) if not df["cumplimiento_pct"].isna().all() else 0
+        except Exception:
+            mx = 0
+        if mx <= 2:
+            df["cumplimiento_pct"] = df["cumplimiento_pct"].multiply(100)
 
     df = _ensure_nivel_cumplimiento(df)
     return df
