@@ -276,9 +276,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             cleaned = [re.sub(r"\s+", " ", ln).strip() for ln in wrapped_lines]
             return "\n".join(cleaned)
 
-        # Build wrapped text lines; include percentage on its own line for both inner and outer
-        # Use '\n' line breaks so Plotly places lines within sectors
+        # Build wrapped text lines; include percentage on its own HTML line for styling
         text = []
+        edu_key = _norm_key('Educación para toda la vida')
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
             # inner (Linea) should be tighter, outer (Objetivo) wider
@@ -286,8 +286,19 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 wrapped = wrap_label(lab, width=12)
             else:
                 wrapped = wrap_label(lab, width=26)
-            # show label and percentage (no decimals) using newline
-            text.append(f"{wrapped}\n{pct:.0f}%")
+            # convert wrapped newlines to HTML breaks for reliable rendering
+            html_label = str(wrapped).replace('\n', '<br>')
+            # wrap label in bold; special color for Educación label
+            try:
+                if _norm_key(lab) == edu_key:
+                    html_label = f"<b><span style='color:#FFFFFF'>{html_label}</span></b>"
+                else:
+                    html_label = f"<b>{html_label}</b>"
+            except Exception:
+                html_label = f"<b>{html_label}</b>"
+            # percentage line: blue and slightly smaller to reduce overlap
+            pct_html = f"<br><span style='color:#0B5FFF;font-size:18px;font-weight:700'>{pct:.0f}%</span>"
+            text.append(f"{html_label}{pct_html}")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
     inner_idxs = [i for i, p in enumerate(parents) if p == ""]
@@ -315,7 +326,17 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     all_custom = customdata
     all_text = text
 
-    # Do not change slice sizes here — keep original values to preserve proportions
+    # Increase visual size of 'Educación para toda la vida' slightly so its text fits
+    try:
+        edu_key = _norm_key('Educación para toda la vida')
+        for i, lab in enumerate(all_labels):
+            try:
+                if _norm_key(lab) == edu_key:
+                    all_values[i] = int(all_values[i] * 1.5)
+            except Exception:
+                continue
+    except Exception:
+        pass
 
     # Prepare per-label text using newlines (Plotly respects '\n' inside sectors)
     if not all_text or len(all_text) != len(all_labels):
@@ -348,24 +369,14 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     except Exception:
         pass
 
-    # Make top-level Linea labels uppercase to increase emphasis (visual 'bold')
-    try:
-        for i, p in enumerate(all_parents):
-            if p == "":
-                # text entries are like "label\nXX%"
-                parts = str(all_text[i]).split('\n')
-                if parts:
-                    parts[0] = parts[0].upper()
-                    all_text[i] = '\n'.join(parts)
-    except Exception:
-        pass
+    # Do not uppercase labels; instead make label text bold using HTML when building `all_text`.
 
     fig.add_trace(go.Sunburst(
         labels=all_labels,
         parents=all_parents,
         values=all_values,
         branchvalues="total",
-        marker=dict(colors=all_colors, line=dict(color="#ffffff", width=3)),
+        marker=dict(colors=all_colors, line=dict(color="#ffffff", width=4)),
         customdata=all_custom,
         text=all_text,
         textinfo='text',
@@ -383,17 +394,17 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             # stronger styling to match reference: larger inner text, thin separators, radial labels
             # Increase sizes and emphasize the percentage in blue via texttemplate
             fig.data[0].update(
-                uniformtext=dict(minsize=10, mode='show'),
-                textfont=dict(family='Inter, sans-serif', size=14, color='#062A4F'),
-                insidetextfont=dict(family='Inter, sans-serif', size=24, color='#0B5FFF'),
-                marker=dict(line=dict(color='#FFFFFF', width=3)),
+                uniformtext=dict(minsize=8, mode='hide'),
+                textfont=dict(family='Inter, sans-serif', size=13, color='#062A4F'),
+                insidetextfont=dict(family='Inter, sans-serif', size=18, color='#0B5FFF'),
+                marker=dict(line=dict(color='#FFFFFF', width=4)),
                 branchvalues='total',
                 separation=2,
                 # use raw text (with newlines) and let Plotly render it
                 texttemplate='%{text}',
                 hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
                 insidetextorientation='horizontal',
-                constraintext='ellipsis'
+                constraintext='hide'
             )
     except Exception:
         # no queremos romper la renderización por problemas de versionado de plotly
