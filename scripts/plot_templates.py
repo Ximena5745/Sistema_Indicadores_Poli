@@ -84,19 +84,36 @@ def sankey_chart(df: pd.DataFrame, source_col: str, target_col: str, value_col: 
 
 
 def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = None, title: str = '') -> go.Figure:
-    # Build colors list mapping each x value to a color in color_map (fallback palette)
-    values = df[x].astype(str).tolist()
-    if color_map:
-        colors = [color_map.get(v, DEFAULT_PALETTE[0]) for v in values]
-    else:
-        # fallback alternating palette
-        colors = [DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)] for i in range(len(values))]
+    # Normalize x and y and validate lengths
+    x_vals = df[x].astype(str).tolist() if x in df.columns else []
+    # Ensure y is numeric; coerce and drop rows with missing x or y
+    y_series = pd.to_numeric(df.get(y, pd.Series(dtype=float)), errors='coerce')
+    # Align lengths: build pairs where y is not NaN and x is present
+    pairs = [(str(a), float(b)) for a, b in zip(x_vals, y_series.tolist()) if a is not None and str(a).strip() != '' and (b is not None and not pd.isna(b))]
+    if not pairs:
+        # No valid data; return empty figure with message
+        fig = go.Figure()
+        fig.update_layout(title=title or 'Waterfall (sin datos)', template=DEFAULT_TEMPLATE)
+        return fig
 
-    # Create waterfall with per-bar colors via marker
-    fig = go.Figure(go.Waterfall(x=values, y=df[y], marker=dict(color=colors, line=dict(color="#ffffff", width=1))))
-    fig.update_layout(title=title, height=420, template=DEFAULT_TEMPLATE)
-    fig.update_traces(hovertemplate="%{x}<br>%{y:.1f}%<extra></extra>")
-    return fig
+    x_clean, y_clean = zip(*pairs)
+
+    # Build colors list mapping each x value to a color in color_map (fallback palette)
+    if color_map:
+        colors = [color_map.get(v, DEFAULT_PALETTE[0]) for v in x_clean]
+    else:
+        colors = [DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)] for i in range(len(x_clean))]
+
+    try:
+        fig = go.Figure(go.Waterfall(x=list(x_clean), y=list(y_clean), marker=dict(color=colors, line=dict(color="#ffffff", width=1))))
+        fig.update_layout(title=title, height=420, template=DEFAULT_TEMPLATE)
+        fig.update_traces(hovertemplate="%{x}<br>%{y:.1f}%<extra></extra>")
+        return fig
+    except Exception:
+        # Fallback: bar chart if Waterfall fails
+        fig = go.Figure(go.Bar(x=list(x_clean), y=list(y_clean), marker_color=colors))
+        fig.update_layout(title=(title or 'Waterfall fallback: Bar'), height=420, template=DEFAULT_TEMPLATE)
+        return fig
 
 
 def radar_chart(df: pd.DataFrame, categories: List[str], values: List[float], title: str = '') -> go.Figure:

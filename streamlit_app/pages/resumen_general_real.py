@@ -199,18 +199,24 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         values = []
         customdata = []
         colors = []
+        # Usar conteos reales como valores para evitar inconsistencias en la suma de ramas
+        line_counts = df.groupby('Linea').size().to_dict()
+        obj_counts = df.groupby(['Linea', 'Objetivo']).size().to_dict()
         for _, line in lines.iterrows():
-            labels.append(line["Linea"])
+            linea_name = line["Linea"]
+            labels.append(linea_name)
             parents.append("")
-            values.append(1)  # valor fijo para estructura
+            values.append(int(line_counts.get(linea_name, 0)) or 1)
             customdata.append([line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0])
-            colors.append(LINEA_COLORS.get(line["Linea"], "#6B728E"))
+            colors.append(LINEA_COLORS.get(linea_name, "#6B728E"))
         for _, row in grouped.iterrows():
-            labels.append(row["Objetivo"])
-            parents.append(row["Linea"])
-            values.append(1)
+            obj_name = row["Objetivo"]
+            parent_name = row["Linea"]
+            labels.append(obj_name)
+            parents.append(parent_name)
+            values.append(int(obj_counts.get((parent_name, obj_name), 0)) or 1)
             customdata.append([row["cumplimiento_pct"] if pd.notna(row["cumplimiento_pct"]) else 0])
-            colors.append(LINEA_COLORS.get(row["Linea"], "#6B728E"))
+            colors.append(LINEA_COLORS.get(parent_name, "#6B728E"))
     fig = go.Figure(go.Sunburst(
         labels=labels,
         parents=parents,
@@ -317,6 +323,15 @@ def render():
     st.caption(f"Corte seleccionado: {selected_year} — Mes {month_label}")
 
     pdi_df = preparar_pdi_con_cierre(selected_year, selected_month if selected_month else 12)
+    # Aplicar filtros explícitos de año/mes a las visualizaciones
+    if not pdi_df.empty:
+        if 'Anio' in pdi_df.columns:
+            pdi_df['Anio'] = pd.to_numeric(pdi_df['Anio'], errors='coerce')
+            pdi_df = pdi_df[pdi_df['Anio'] == int(selected_year)]
+        if selected_month and 'Mes' in pdi_df.columns:
+            pdi_df['Mes'] = pd.to_numeric(pdi_df['Mes'], errors='coerce')
+            pdi_df = pdi_df[pdi_df['Mes'] == int(selected_month)]
+    st.caption(f"Filtros aplicados: Año={selected_year}, Mes={selected_month if selected_month else 'último disponible'}")
     if pdi_df.empty:
         st.warning("No hay indicadores PDI disponibles para el año seleccionado.")
         return
