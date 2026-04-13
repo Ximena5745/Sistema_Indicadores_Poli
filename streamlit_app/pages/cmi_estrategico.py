@@ -364,12 +364,26 @@ def render():
     mes = CORTE_SEMESTRAL[corte]
 
     # Secondary (advanced) filters inside expander
+    # Cargar catálogo PDI y preparar listas para los selectboxes antes del expander
+    try:
+        pdi_catalog = load_pdi_catalog()
+    except Exception:
+        pdi_catalog = pd.DataFrame()
+
+    lineas = sorted(
+        pdi_catalog["Linea"].dropna().astype(str).unique().tolist()
+    ) if not pdi_catalog.empty else []
+
+    objetivos = sorted(
+        pdi_catalog["Objetivo"].dropna().astype(str).unique().tolist()
+    ) if not pdi_catalog.empty else []
+
     with st.expander("🔎 Filtros avanzados", expanded=False):
         _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
         with _ff1:
-            linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_pdi_linea")
+            linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas if lineas else ["Todas"], key="cmi_pdi_linea")
         with _ff2:
-            objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos, key="cmi_pdi_objetivo")
+            objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos if objetivos else ["Todos"], key="cmi_pdi_objetivo")
         with _ff3:
             nombre_q = st.text_input("Buscar indicador", key="cmi_pdi_nombre", placeholder="Texto en nombre del indicador")
 
