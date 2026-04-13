@@ -53,6 +53,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from streamlit_app.services.strategic_indicators import preparar_pdi_con_cierre
+from scripts.plot_templates import waterfall_chart
 
 DATA_ROOT = Path(__file__).resolve().parents[2]
 PATH_CONSOLIDADO = DATA_ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
@@ -342,8 +343,29 @@ def render():
     cascada_df = calcular_cascada(pdi_df)
     # Puedes mostrar la tabla para depuración:
     # st.dataframe(cascada_df)
-    # Aquí podrías construir el gráfico de cascada con Plotly o ECharts usando cascada_df
-    # Por ahora, mantenemos el sunburst como referencia visual
+    # Construir cascada: usar Nivel 1 (Linea) promedio de Cumplimiento cuando exista
+    # Asegurar columna numérica
+    cascada_df['Cumplimiento'] = pd.to_numeric(cascada_df.get('Cumplimiento'), errors='coerce')
+    nivel1 = cascada_df[cascada_df['Nivel'] == 1].copy()
+    nivel1 = nivel1[nivel1['Cumplimiento'].notna()]
+    if not nivel1.empty:
+        # ordenar para estabilizar visualización
+        nivel1 = nivel1.sort_values('Cumplimiento', ascending=False)
+        fig_cascada = waterfall_chart(nivel1, x='Linea', y='Cumplimiento', color_map=LINEA_COLORS, title='Cascada: Promedio cumplimiento por Línea')
+        st.plotly_chart(fig_cascada, use_container_width=True)
+    else:
+        # intentar con indicadores (Nivel 4) si no hay promedios por Línea
+        nivel4 = cascada_df[cascada_df['Nivel'] == 4].copy()
+        nivel4['Cumplimiento'] = pd.to_numeric(nivel4.get('Cumplimiento'), errors='coerce')
+        nivel4 = nivel4[nivel4['Cumplimiento'].notna()]
+        if not nivel4.empty:
+            top4 = nivel4.sort_values('Cumplimiento', ascending=False).head(20)
+            fig_cascada = waterfall_chart(top4, x='Indicador', y='Cumplimiento', title='Cascada: Top 20 Indicadores por Cumplimiento')
+            st.plotly_chart(fig_cascada, use_container_width=True)
+        else:
+            st.info("No hay datos numéricos de cumplimiento disponibles para construir la cascada.")
+
+    # Mantener el sunburst como referencia visual
     sunburst = _build_sunburst(pdi_df)
     st.plotly_chart(sunburst, use_container_width=True)
 

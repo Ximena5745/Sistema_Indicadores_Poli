@@ -83,9 +83,19 @@ def sankey_chart(df: pd.DataFrame, source_col: str, target_col: str, value_col: 
     return fig
 
 
-def waterfall_chart(df: pd.DataFrame, x: str, y: str) -> go.Figure:
-    fig = go.Figure(go.Waterfall(x=df[x], y=df[y]))
-    fig.update_layout(height=400, template=DEFAULT_TEMPLATE)
+def waterfall_chart(df: pd.DataFrame, x: str, y: str, color_map: dict | None = None, title: str = '') -> go.Figure:
+    # Build colors list mapping each x value to a color in color_map (fallback palette)
+    values = df[x].astype(str).tolist()
+    if color_map:
+        colors = [color_map.get(v, DEFAULT_PALETTE[0]) for v in values]
+    else:
+        # fallback alternating palette
+        colors = [DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)] for i in range(len(values))]
+
+    # Create waterfall with per-bar colors via marker
+    fig = go.Figure(go.Waterfall(x=values, y=df[y], marker=dict(color=colors, line=dict(color="#ffffff", width=1))))
+    fig.update_layout(title=title, height=420, template=DEFAULT_TEMPLATE)
+    fig.update_traces(hovertemplate="%{x}<br>%{y:.1f}%<extra></extra>")
     return fig
 
 

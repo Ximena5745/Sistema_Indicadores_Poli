@@ -325,7 +325,55 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     if not pdi_catalog.empty and "Linea" in merged.columns and "Objetivo" in merged.columns:
         merged = merged.merge(pdi_catalog, on=["Linea", "Objetivo"], how="left")
 
+    # Asegurar que exista columna `cumplimiento_pct` usando las fuentes disponibles
+    # 1) Si ya existe (desde load_cierres), respetarla.
+    if "cumplimiento_pct" not in merged.columns:
+        merged["cumplimiento_pct"] = pd.NA
+
+    # 2) Si existe columna 'Cumplimiento' (posible capitalización desde Excel), intentar parsearla
+    if "Cumplimiento" in merged.columns:
+        # eliminar % y normalizar coma decimal
+        merged.loc[merged["cumplimiento_pct"].isna(), "cumplimiento_pct"] = (
+            pd.to_numeric(
+                merged.loc[merged["cumplimiento_pct"].isna(), "Cumplimiento"].astype(str)
+                .str.replace('%', '', regex=False)
+                .str.replace(',', '.', regex=False)
+                .str.strip(),
+                errors="coerce",
+            )
+        )
+
+    # 3) Si aún falta, pero hay Meta/Ejecucion, calcular a nivel fila (similar a load_cierres)
+    for cols in [("Meta", "Ejecucion"), ("Meta", "Ejecucion_cierre")]:
+        meta_col, ejec_col = cols
+        if meta_col in merged.columns and ejec_col in merged.columns:
+            meta_n = pd.to_numeric(merged[meta_col], errors="coerce")
+            ejec_n = pd.to_numeric(merged[ejec_col], errors="coerce")
+            valid = meta_n.notna() & ejec_n.notna() & (meta_n != 0)
+            if valid.any():
+                sentido_col = "Sentido" if "Sentido" in merged.columns else ("Sentido_cierre" if "Sentido_cierre" in merged.columns else None)
+                sentido_neg = merged[sentido_col].astype(str).str.lower() == "negativo" if sentido_col is not None else pd.Series([False] * len(merged))
+                ratio = pd.Series(pd.NA, index=merged.index)
+                ratio.loc[valid & ~sentido_neg] = (ejec_n[valid & ~sentido_neg] / meta_n[valid & ~sentido_neg])
+                ratio.loc[valid & sentido_neg] = (meta_n[valid & sentido_neg] / ejec_n[valid & sentido_neg])
+                merged.loc[merged["cumplimiento_pct"].isna(), "cumplimiento_pct"] = pd.to_numeric(ratio, errors="coerce") * 100
+
+    # 4) Normalizar tipo numérico para cumplimiento_pct
+    merged["cumplimiento_pct"] = pd.to_numeric(merged.get("cumplimiento_pct"), errors="coerce")
+
     merged["Nivel de cumplimiento"] = merged["Nivel de cumplimiento"].fillna(PENDIENTE)
+
+    # Omitir filas que no contienen ninguna fuente de cumplimiento: Meta, Ejecucion o Cumplimiento
+    def _has_source(row):
+        for c in ["Meta", "Ejecucion", "Cumplimiento"]:
+            if c in merged.columns:
+                v = row.get(c)
+                if pd.notna(v) and str(v).strip() != "":
+                    return True
+        return False
+
+    if not merged.empty:
+        merged = merged[merged.apply(_has_source, axis=1)].reset_index(drop=True)
 
     return merged
 
