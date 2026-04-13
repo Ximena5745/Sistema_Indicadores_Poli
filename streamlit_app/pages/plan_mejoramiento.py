@@ -261,31 +261,31 @@ def render():
         ]
         df_tree = df_tree.groupby(["Factor", "Caracteristica"], as_index=False).size().rename(columns={"size": "Cantidad"})
 
-            if df_tree.empty:
-                st.info("No hay datos válidos para el treemap de factor/característica.")
-            else:
-                try:
-                    from streamlit_app.components.renderers import render_echarts
-                    # construir estructura anidada para ECharts treemap
-                    tree_data = []
-                    for f, grp in df_tree.groupby('Factor'):
-                        children = []
-                        for _, r in grp.iterrows():
-                            children.append({"name": r['Caracteristica'], "value": int(r['Cantidad']), "itemStyle": {"color": factor_color_map.get(f)}})
-                        tree_data.append({"name": f, "children": children})
-                    option = {"series": [{"type": "treemap", "data": tree_data}]}
-                    render_echarts(option, height=360)
-                except Exception:
-                    fig_tree = px.treemap(
-                        df_tree,
-                        path=["Factor", "Caracteristica"],
-                        values="Cantidad",
-                        title="Mapa de indicadores por factor y característica",
-                        color="Factor",
-                        color_discrete_map=factor_color_map,
-                    )
-                    fig_tree.update_layout(margin=dict(l=10, r=10, t=50, b=10))
-                    st.plotly_chart(fig_tree, use_container_width=True, key="pm_factor_car_tree")
+        if df_tree.empty:
+            st.info("No hay datos válidos para el treemap de factor/característica.")
+        else:
+            try:
+                from streamlit_app.components.renderers import render_echarts
+                # construir estructura anidada para ECharts treemap
+                tree_data = []
+                for f, grp in df_tree.groupby('Factor'):
+                    children = []
+                    for _, r in grp.iterrows():
+                        children.append({"name": r['Caracteristica'], "value": int(r['Cantidad']), "itemStyle": {"color": factor_color_map.get(f)}})
+                    tree_data.append({"name": f, "children": children})
+                option = {"series": [{"type": "treemap", "data": tree_data}]}
+                render_echarts(option, height=360)
+            except Exception:
+                fig_tree = px.treemap(
+                    df_tree,
+                    path=["Factor", "Caracteristica"],
+                    values="Cantidad",
+                    title="Mapa de indicadores por factor y característica",
+                    color="Factor",
+                    color_discrete_map=factor_color_map,
+                )
+                fig_tree.update_layout(margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(fig_tree, use_container_width=True, key="pm_factor_car_tree")
 
     st.markdown("### Indicadores CNA")
     _cols_cna = ["Id", "Indicador", "Factor", "Caracteristica", "cumplimiento_pct", "Nivel de cumplimiento"]
