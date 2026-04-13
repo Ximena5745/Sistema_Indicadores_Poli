@@ -258,7 +258,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         text = []
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
-            wrapped = wrap_label(lab, width=20)
+            wrapped = wrap_label(lab, width=14)
             # show label and percentage (no decimals) centered via newline
             text.append(f"{wrapped}\n{pct:.0f}%")
 
@@ -315,7 +315,8 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 marker=dict(line=dict(color='#FFFFFF', width=3)),
                 branchvalues='total',
                 separation=2,
-                texttemplate='%{label}<br>%{customdata[0]:.1f}%',
+                # use the prepared wrapped `text` (label + percentage) so lines break correctly
+                texttemplate='%{text}',
                 hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
                 insidetextorientation='radial',
                 constraintext='ellipsis'
