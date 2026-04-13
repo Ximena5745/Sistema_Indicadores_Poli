@@ -53,7 +53,6 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from streamlit_app.services.strategic_indicators import preparar_pdi_con_cierre
-from scripts.plot_templates import waterfall_chart
 
 DATA_ROOT = Path(__file__).resolve().parents[2]
 PATH_CONSOLIDADO = DATA_ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
@@ -631,35 +630,65 @@ def render():
     prev_pdi_df = preparar_pdi_con_cierre(prev_year, prev_month if prev_month else 12) if prev_month else pd.DataFrame()
 
     best_improvements, worst_declines = _compute_trends(pdi_df, prev_pdi_df)
-    # --- Nueva lógica de cascada ---
-    # Asegura que existan las columnas requeridas
-    for col in ["Linea", "Objetivo", "Meta_PDI", "Indicador"]:
-        if col not in pdi_df.columns:
-            pdi_df[col] = None
-    cascada_df = calcular_cascada(pdi_df)
-    # Puedes mostrar la tabla para depuración:
-    # st.dataframe(cascada_df)
-    # Construir cascada: usar Nivel 1 (Linea) promedio de Cumplimiento cuando exista
-    # Asegurar columna numérica
-    cascada_df['Cumplimiento'] = pd.to_numeric(cascada_df.get('Cumplimiento'), errors='coerce')
-    nivel1 = cascada_df[cascada_df['Nivel'] == 1].copy()
-    nivel1 = nivel1[nivel1['Cumplimiento'].notna()]
-    if not nivel1.empty:
-        # ordenar para estabilizar visualización
-        nivel1 = nivel1.sort_values('Cumplimiento', ascending=False)
-        fig_cascada = waterfall_chart(nivel1, x='Linea', y='Cumplimiento', color_map=LINEA_COLORS, title='Cascada: Promedio cumplimiento por Línea')
-        st.plotly_chart(fig_cascada, use_container_width=True)
-    else:
-        # intentar con indicadores (Nivel 4) si no hay promedios por Línea
-        nivel4 = cascada_df[cascada_df['Nivel'] == 4].copy()
-        nivel4['Cumplimiento'] = pd.to_numeric(nivel4.get('Cumplimiento'), errors='coerce')
-        nivel4 = nivel4[nivel4['Cumplimiento'].notna()]
-        if not nivel4.empty:
-            top4 = nivel4.sort_values('Cumplimiento', ascending=False).head(20)
-            fig_cascada = waterfall_chart(top4, x='Indicador', y='Cumplimiento', title='Cascada: Top 20 Indicadores por Cumplimiento')
-            st.plotly_chart(fig_cascada, use_container_width=True)
+
+    # En lugar de la cascada (no aporta valor), mostramos tarjetas por Línea
+    # con: Línea, % Cumplimiento (promedio), N° Indicadores y Variación vs año anterior
+    try:
+        # aseguramos columnas clave
+        for col in ["Linea", "Indicador", "cumplimiento_pct"]:
+            if col not in pdi_df.columns:
+                pdi_df[col] = None
+
+        curr_lines = (
+            pdi_df.groupby('Linea', dropna=False)
+            .agg(Cumplimiento_pct=('cumplimiento_pct', 'mean'), N_Indicadores=('Indicador', 'nunique'))
+            .reset_index()
+        )
+        # preparar prev
+        if not prev_pdi_df.empty:
+            prev_lines = (
+                prev_pdi_df.groupby('Linea', dropna=False)
+                .agg(Cumplimiento_pct_prev=('cumplimiento_pct', 'mean'))
+                .reset_index()
+            )
         else:
-            st.info("No hay datos numéricos de cumplimiento disponibles para construir la cascada.")
+            prev_lines = pd.DataFrame(columns=['Linea', 'Cumplimiento_pct_prev'])
+
+        merged_lines = curr_lines.merge(prev_lines, on='Linea', how='left')
+        merged_lines['Cumplimiento_pct'] = (merged_lines['Cumplimiento_pct'] * 1).round(1)
+        merged_lines['Cumplimiento_pct_prev'] = (merged_lines.get('Cumplimiento_pct_prev') * 1).round(1)
+        merged_lines['Delta_pct'] = (merged_lines['Cumplimiento_pct'] - merged_lines['Cumplimiento_pct_prev']).round(1)
+
+        # Render tarjetas: 4 por fila
+        if not merged_lines.empty:
+            cols_per_row = 4
+            for i in range(0, len(merged_lines), cols_per_row):
+                row = merged_lines.iloc[i:i+cols_per_row]
+                cols = st.columns(len(row))
+                for c, (_, r) in zip(cols, row.iterrows()):
+                    name = r['Linea'] or 'Sin línea'
+                    pct = r.get('Cumplimiento_pct') if pd.notna(r.get('Cumplimiento_pct')) else None
+                    nind = int(r.get('N_Indicadores') or 0)
+                    delta = r.get('Delta_pct')
+                    if pd.isna(delta):
+                        delta_html = "<div style='color:#64748B'>N/D</div>"
+                    else:
+                        color = '#16a34a' if delta >= 0 else '#dc2626'
+                        sign = '+' if delta >= 0 else ''
+                        delta_html = f"<div style='color:{color};font-weight:700'>{sign}{delta:.1f}%</div>"
+                    pct_disp = f"{pct:.1f}%" if pct is not None else 'N/D'
+                    c.markdown(
+                        f"<div style='background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px;text-align:left;'>"
+                        f"<div style='font-size:14px;color:#475569;font-weight:700;margin-bottom:6px;'>{name}</div>"
+                        f"<div style='font-size:26px;font-weight:800;color:#0B5FFF'>{pct_disp}</div>"
+                        f"<div style='font-size:12px;color:#64748B;margin-top:6px;'>Indicadores: <b>{nind}</b></div>"
+                        f"<div style='margin-top:8px;'>Variación vs año anterior: {delta_html}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+    except Exception:
+        # en caso de error, no bloquear la vista
+        st.info("No fue posible generar el resumen por línea.")
 
     # Mantener el sunburst como referencia visual
     sunburst = _build_sunburst(pdi_df)
