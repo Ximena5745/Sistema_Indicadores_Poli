@@ -144,14 +144,11 @@ def _load_consolidado_cierres() -> pd.DataFrame:
 
 
 def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
-    if "Nivel de cumplimiento" in df.columns:
-        return df
-    if "Categoria" in df.columns:
-        df["Nivel de cumplimiento"] = df["Categoria"]
-        return df
-    # Si existe "Cumplimiento" y no "cumplimiento_pct", normaliza
+    # Prefer recalcular 'Nivel de cumplimiento' desde 'cumplimiento_pct' cuando esté disponible
+    # 1) Normalize 'Cumplimiento' -> 'cumplimiento_pct' if necesario
     if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
+
     if "cumplimiento_pct" in df.columns:
         def _map_level(value):
             try:
@@ -165,8 +162,19 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
             if pct >= 80:
                 return "Alerta"
             return "Peligro"
+
+        df = df.copy()
         df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_map_level)
         return df
+
+    # 2) Si no hay 'cumplimiento_pct' pero existe 'Categoria', usarla
+    if "Categoria" in df.columns:
+        df = df.copy()
+        df["Nivel de cumplimiento"] = df["Categoria"]
+        return df
+
+    # 3) Si nada de lo anterior, marcar como pendiente
+    df = df.copy()
     df["Nivel de cumplimiento"] = "Pendiente de reporte"
     return df
 
