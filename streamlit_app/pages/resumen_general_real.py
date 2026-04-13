@@ -233,13 +233,15 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         branchvalues="total",
         marker=dict(colors=colors, line=dict(color="#ffffff", width=2)),
         customdata=customdata,
-        text=text,
-        texttemplate="%{text}",
-        textinfo='text',
         hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
         insidetextorientation="radial",
+        maxdepth=2,
+        texttemplate="%{label}<br>%{customdata[0]:.1f}%",
+        textinfo='label+text'
     ))
 
+    # Improve readability: uniform text sizing and placement
+    fig.update_traces(uniformtext=dict(minsize=10, mode='hide'), textfont=dict(family='Arial', size=12))
     fig.update_layout(margin=dict(t=20, l=0, r=0, b=0), height=720)
     return fig
 
