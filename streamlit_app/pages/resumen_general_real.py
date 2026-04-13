@@ -634,6 +634,16 @@ def render():
     # En lugar de la cascada (no aporta valor), mostramos tarjetas por Línea
     # con: Línea, % Cumplimiento (promedio), N° Indicadores y Variación vs año anterior
     try:
+        # Mapeo de iconos por línea
+        LINEA_ICONS = {
+            "Expansión": "📈",
+            "Educación para toda la vida": "🎓",
+            "Experiencia": "✨",
+            "Calidad": "⭐",
+            "Sostenibilidad": "🌱",
+            "Transformación organizacional": "🔄",
+        }
+
         # aseguramos columnas clave
         for col in ["Linea", "Indicador", "cumplimiento_pct"]:
             if col not in pdi_df.columns:
@@ -659,9 +669,9 @@ def render():
         merged_lines['Cumplimiento_pct_prev'] = (merged_lines.get('Cumplimiento_pct_prev') * 1).round(1)
         merged_lines['Delta_pct'] = (merged_lines['Cumplimiento_pct'] - merged_lines['Cumplimiento_pct_prev']).round(1)
 
-        # Render tarjetas: 4 por fila
+        # Render tarjetas: 3 por fila con estilos mejorados
         if not merged_lines.empty:
-            cols_per_row = 4
+            cols_per_row = 3
             for i in range(0, len(merged_lines), cols_per_row):
                 row = merged_lines.iloc[i:i+cols_per_row]
                 cols = st.columns(len(row))
@@ -670,19 +680,34 @@ def render():
                     pct = r.get('Cumplimiento_pct') if pd.notna(r.get('Cumplimiento_pct')) else None
                     nind = int(r.get('N_Indicadores') or 0)
                     delta = r.get('Delta_pct')
+                    icon = LINEA_ICONS.get(name, "📊")
+                    # Obtener color de la línea (normalizar clave)
+                    import unicodedata, re
+                    def _norm_key(s):
+                        t = str(s).strip().lower()
+                        t = unicodedata.normalize("NFD", t)
+                        t = "".join(ch for ch in t if unicodedata.category(ch) != "Mn")
+                        t = re.sub(r"[^0-9a-z]+", " ", t)
+                        return re.sub(r"\s+", " ", t).strip()
+                    normalized_color_map = { _norm_key(k): v for k, v in LINEA_COLORS.items() }
+                    bg_color = normalized_color_map.get(_norm_key(name), "#6B728E")
+                    # Determinar color del texto para contraste
+                    text_color = "#FFFFFF" if bg_color in ["#0F385A", "#1FB2DE"] else "#000000"
+
                     if pd.isna(delta):
-                        delta_html = "<div style='color:#64748B'>N/D</div>"
+                        delta_html = "<div style='color:#64748B;font-size:13px;'>N/D</div>"
                     else:
                         color = '#16a34a' if delta >= 0 else '#dc2626'
                         sign = '+' if delta >= 0 else ''
-                        delta_html = f"<div style='color:{color};font-weight:700'>{sign}{delta:.1f}%</div>"
+                        delta_html = f"<div style='color:{color};font-weight:700;font-size:13px;'>{sign}{delta:.1f}%</div>"
                     pct_disp = f"{pct:.1f}%" if pct is not None else 'N/D'
                     c.markdown(
-                        f"<div style='background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px;text-align:left;'>"
-                        f"<div style='font-size:14px;color:#475569;font-weight:700;margin-bottom:6px;'>{name}</div>"
-                        f"<div style='font-size:26px;font-weight:800;color:#0B5FFF'>{pct_disp}</div>"
-                        f"<div style='font-size:12px;color:#64748B;margin-top:6px;'>Indicadores: <b>{nind}</b></div>"
-                        f"<div style='margin-top:8px;'>Variación vs año anterior: {delta_html}</div>"
+                        f"<div style='background:{bg_color};border:none;border-radius:16px;padding:24px;text-align:left;box-shadow:0 4px 12px rgba(0,0,0,0.1);'>"
+                        f"<div style='font-size:36px;margin-bottom:8px;'>{icon}</div>"
+                        f"<div style='font-size:13px;color:{text_color};font-weight:700;margin-bottom:6px;opacity:0.9;'>{name}</div>"
+                        f"<div style='font-size:32px;font-weight:800;color:{text_color};margin:12px 0;'>{pct_disp}</div>"
+                        f"<div style='font-size:12px;color:{text_color};margin-top:6px;opacity:0.85;'>Indicadores: <b>{nind}</b></div>"
+                        f"<div style='margin-top:12px;font-size:12px;'>Variación vs año anterior: {delta_html}</div>"
                         f"</div>",
                         unsafe_allow_html=True,
                     )
