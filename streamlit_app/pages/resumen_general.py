@@ -26,21 +26,18 @@ DASHBOARD_HTML = ROOT / "streamlit_app" / "dashboard_estrategico.html"
 # Estilos personalizados para integrar mejor con Streamlit
 st.markdown("""
 <style>
-    /* Ocultar elementos innecesarios de Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
     /* Hacer que el dashboard ocupe todo el ancho */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 1rem;
         padding-left: 2rem;
         padding-right: 2rem;
+        max-width: 1400px;
     }
     
     /* Mejorar apariencia del header */
     .stMarkdown h1 {
-        color: #667EEA;
+        color: #0B5FFF;
         font-weight: 700;
     }
 </style>
