@@ -332,31 +332,36 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             cleaned = [re.sub(r"\s+", " ", ln).strip() for ln in wrapped_lines]
             return "\n".join(cleaned)
 
-        # Build wrapped text lines; include percentage on its own HTML line for styling
+        # Build wrapped text lines; include percentage on its own line for styling
         text = []
         edu_key = _norm_key('Educación para toda la vida')
+        edu_original = 'Educación para toda la vida'
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
             is_edu = _norm_key(lab) == edu_key
-            # inner (Linea) should be tighter, outer (Objetivo) wider
-            # Educación para toda la vida: force 3 lines with smaller width
-            if parent == "":
-                if is_edu:
-                    wrapped = wrap_label(lab, width=6)  # Force 3 lines
+            # Educación para toda la vida: force 3 lines explicitly
+            if is_edu and parent == "":
+                # Force 3 lines: split manually
+                words = edu_original.split()
+                mid = len(words) // 2
+                line1 = ' '.join(words[:mid])
+                line2 = ' '.join(words[mid:])
+                line2_parts = line2.split()
+                if len(line2_parts) > 1:
+                    half = len(line2_parts) // 2
+                    line2a = ' '.join(line2_parts[:half])
+                    line2b = ' '.join(line2_parts[half:])
+                    wrapped = f"{line1}\n{line2a}\n{line2b}"
                 else:
-                    wrapped = wrap_label(lab, width=12)
+                    wrapped = f"{line1}\n{line2}\n"
+            elif parent == "":
+                wrapped = wrap_label(lab, width=12)
             else:
                 wrapped = wrap_label(lab, width=26)
-            # convert wrapped newlines to HTML breaks for reliable rendering
-            html_label = str(wrapped).replace('\n', '<br>')
-            # Educación para toda la vida: mayor fonte
-            if is_edu:
-                html_label = f"<b><span style='color:#FFFFFF;font-size:32px;'>{html_label}</span></b>"
-            else:
-                html_label = f"<b>{html_label}</b>"
-            # percentage line: blue - mayor tamano
-            pct_html = f"<br><span style='color:#0B5FFF;font-size:28px;font-weight:700'>{pct:.0f}%</span>"
-            text.append(f"{html_label}{pct_html}")
+            # Use newlines for wrapping
+            html_label = str(wrapped)
+            # Add percentage on next line
+            text.append(f"{html_label}\n{pct:.0f}%")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
     inner_idxs = [i for i, p in enumerate(parents) if p == ""]
@@ -518,9 +523,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     try:
         if len(fig.data) >= 1 and getattr(fig.data[0], 'type', None) == 'sunburst':
             fig.data[0].update(
-                uniformtext=dict(minsize=8, mode='hide'),
-                textfont=dict(family='Inter, sans-serif', size=16, color='#062A4F'),
-                insidetextfont=dict(family='Inter, sans-serif', size=26, color='#0B5FFF'),
+                uniformtext=dict(minsize=6, mode='hide'),
+                textfont=dict(family='Inter, sans-serif', size=12, color='#062A4F'),
+                insidetextfont=dict(family='Inter, sans-serif', size=32, color='#0B5FFF'),
                 marker=dict(line=dict(color='#FFFFFF', width=1)),
                 branchvalues='total',
                 separation=0,
@@ -529,8 +534,8 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 insidetextorientation='radial',
                 constraintext='hide'
             )
-            fig.data[0].textfont = dict(family='Inter, sans-serif', size=26, color='#062A4F')
-            fig.data[0].insidetextfont = dict(family='Inter, sans-serif', size=28, color='#0B5FFF')
+            # Apply special styling for Educación para toda la vida
+            fig.data[0].textfont = dict(family='Inter, sans-serif', size=24, color='#FFFFFF', weight='bold')
     except Exception:
         pass
 
