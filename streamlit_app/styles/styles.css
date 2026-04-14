@@ -57,21 +57,7 @@ h1, h2, h3, h4, h5 {
     margin-bottom: 10px !important;
 }
 
-main .block-container,
-[data-testid="stAppViewContainer"] .main .block-container {
-    max-width: 100% !important;
-    width: calc(100% - 260px) !important;
-    margin: 0 !important;
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-}
-
-[data-testid="stAppViewContainer"] .css-18e3th9 {
-    max-width: 100% !important;
-    width: calc(100% - 260px) !important;
-}
-
-/* Sidebar */
+/* Sidebar - mantener layout por defecto de Streamlit */
 aside[data-testid="stSidebar"],
 section[data-testid="stSidebar"],
 div[data-testid="stSidebar"],
@@ -80,10 +66,6 @@ div[data-testid="stSidebar"],
     color: var(--sidebar-text) !important;
     padding: 16px !important;
     border-right: 1px solid rgba(255,255,255,0.1);
-    min-height: 100vh;
-    width: 260px !important;
-    min-width: 260px !important;
-    max-width: 260px !important;
 }
 
 aside[data-testid="stSidebar"] > div,
