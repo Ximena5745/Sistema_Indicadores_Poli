@@ -318,48 +318,26 @@ def render():
             "subproceso": {"label": "Subproceso", "options": sorted(map_df["Subproceso"].dropna().unique().tolist())}
         }
 
-        # OPCION 1: Mostrar todos los filtros en línea (sin expander, columns_per_row=6)
-        # selections = render_filters(
-        #     df if not df.empty else map_df,
-        #     filter_config,
-        #     key_prefix="resumen_proceso",
-        #     columns_per_row=6,  # Todos en una fila
-        #     collapsible=False,
-        # )
-
-        # OPCION 2: Filtros principales (Año, Mes, Proceso) en línea, resto en expander
-        selections = render_filters(
-            df if not df.empty else map_df,
-            filter_config,
-            key_prefix="resumen_proceso",
-            columns_per_row=3,
-            collapsible=True,
-            collapsed_by_default=False,  # Expander abierto por defecto
-        )
-
-        # OPCION 3: Usar selectores manuales independientes (sin render_filters)
-        # with st.expander("🔎 Filtros", expanded=True):
-        #     c1, c2, c3 = st.columns(3)
-        #     with c1:
-        #         anio = st.selectbox("Año", anios_disponibles, index=len(anios_disponibles)-1)
-        #     with c2:
-        #         mes = st.selectbox("Mes", MESES_OPCIONES, index=len(MESES_OPCIONES)-1)
-        #     with c3:
-        #         tipo_proceso = st.selectbox("Tipo de proceso", ["Todos"] + sorted(map_df["Tipo de proceso"].dropna().unique().tolist()))
-        #     c4, c5, c6 = st.columns(3)
-        #     with c4:
-        #         unidad = st.selectbox("Unidad", ["Todos"] + sorted(map_df["Unidad"].dropna().unique().tolist()))
-        #     with c5:
-        #         proceso = st.selectbox("Proceso", ["Todos"] + sorted(map_df["Proceso"].dropna().unique().tolist()))
-        #     with c6:
-        #         subproceso = st.selectbox("Subproceso", ["Todos"] + sorted(map_df["Subproceso"].dropna().unique().tolist()))
-
-        anio = selections.get("anio")
-        mes = selections.get("mes")
-        tipo_proceso = selections.get("tipo_proceso", "Todos")
-        unidad = selections.get("unidad", "Todos")
-        proceso = selections.get("proceso", "Todos")
-        subproceso = selections.get("subproceso", "Todos")
+        # Filtros manuales con selectboxes independientes
+        with st.expander("🔎 Filtros", expanded=True):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                anio = st.selectbox("Año", anios_disponibles, index=len(anios_disponibles)-1 if anios_disponibles else 0, key="fp_anio")
+            with c2:
+                mes = st.selectbox("Mes", MESES_OPCIONES, index=len(MESES_OPCIONES)-1, key="fp_mes")
+            with c3:
+                tipo_proceso = st.selectbox("Tipo de proceso", ["Todos"] + sorted(map_df["Tipo de proceso"].dropna().unique().tolist()), key="fp_tipo")
+            
+            c4, c5, c6 = st.columns(3)
+            with c4:
+                unidad = st.selectbox("Unidad", ["Todos"] + sorted(map_df["Unidad"].dropna().unique().tolist()), key="fp_unidad")
+            with c5:
+                proceso = st.selectbox("Proceso", ["Todos"] + sorted(map_df["Proceso"].dropna().unique().tolist()), key="fp_proceso")
+            with c6:
+                subproceso = st.selectbox("Subproceso", ["Todos"] + sorted(map_df["Subproceso"].dropna().unique().tolist()), key="fp_subproceso")
+        
+        # Placeholder para selections (requerido por código)
+        selections = {"anio": anio, "mes": mes, "tipo_proceso": tipo_proceso, "unidad": unidad, "proceso": proceso, "subproceso": subproceso}
 
         # Alternativas para Mostrar subprocesos - Tipos de lista desplegable:
         # Opción 1: Selectbox (dropdown tradicional)
