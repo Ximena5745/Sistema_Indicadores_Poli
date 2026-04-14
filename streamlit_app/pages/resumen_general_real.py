@@ -337,23 +337,29 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         edu_key = _norm_key('Educación para toda la vida')
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
+            is_edu = _norm_key(lab) == edu_key
             # inner (Linea) should be tighter, outer (Objetivo) wider
+            # Educación para toda la vida: force 3 lines with smaller width
             if parent == "":
-                wrapped = wrap_label(lab, width=12)
+                if is_edu:
+                    wrapped = wrap_label(lab, width=9)
+                else:
+                    wrapped = wrap_label(lab, width=12)
             else:
                 wrapped = wrap_label(lab, width=26)
             # convert wrapped newlines to HTML breaks for reliable rendering
             html_label = str(wrapped).replace('\n', '<br>')
             # wrap label in bold; special color for Educación label
             try:
-                if _norm_key(lab) == edu_key:
-                    html_label = f"<b><span style='color:#FFFFFF'>{html_label}</span></b>"
+                if is_edu:
+                    label_font_size = 'font-size:22px;'  # Larger font for Educación label
+                    html_label = f"<b><span style='color:#FFFFFF;{label_font_size}'>{html_label}</span></b>"
                 else:
                     html_label = f"<b>{html_label}</b>"
             except Exception:
                 html_label = f"<b>{html_label}</b>"
-            # percentage line: blue and slightly smaller to reduce overlap
-            pct_html = f"<br><span style='color:#0B5FFF;font-size:18px;font-weight:700'>{pct:.0f}%</span>"
+            # percentage line: blue - increase font size for all percentages
+            pct_html = f"<br><span style='color:#0B5FFF;font-size:24px;font-weight:700'>{pct:.0f}%</span>"
             text.append(f"{html_label}{pct_html}")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
@@ -535,6 +541,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 insidetextorientation='radial',
                 constraintext='hide'
             )
+            # Increase percentage font size to match other labels
+            fig.data[0].textfont = dict(family='Inter, sans-serif', size=24, color='#062A4F')
+            fig.data[0].insidetextfont = dict(family='Inter, sans-serif', size=24, color='#0B5FFF')
     except Exception:
         # no queremos romper la renderización por problemas de versionado de plotly
         pass
