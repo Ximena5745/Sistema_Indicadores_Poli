@@ -412,14 +412,19 @@ def render():
             st.caption("No se hizo merge (map_df no tiene Proceso o proc_df vacío)")
         
         # Aplicar filtros adicionales
+        st.caption(f"Aplicando filtros: tipo_proceso={tipo_proceso}, unidad={unidad}, proceso={proceso}, subproceso={subproceso}")
         if tipo_proceso != "Todos" and "Tipo de proceso" in proc_df.columns:
             proc_df = proc_df[proc_df["Tipo de proceso"] == tipo_proceso]
+            st.caption(f"Después filtro tipo: {len(proc_df)} filas")
         if unidad != "Todos" and "Unidad" in proc_df.columns:
             proc_df = proc_df[proc_df["Unidad"] == unidad]
+            st.caption(f"Después filtro unidad: {len(proc_df)} filas")
         if proceso != "Todos":
             proc_df = proc_df[proc_df["Proceso"] == proceso]
+            st.caption(f"Después filtro proceso: {len(proc_df)} filas")
         if subproceso != "Todos" and "Subproceso" in proc_df.columns:
             proc_df = proc_df[proc_df["Subproceso"] == subproceso]
+            st.caption(f"Después filtro subproceso: {len(proc_df)} filas")
         
         st.caption(f"Después de todos los filtros: {len(proc_df)} filas")
 
@@ -456,17 +461,22 @@ def render():
                 meses_df = sorted(df["Mes"].unique())
                 st.caption(f"Meses disponibles en datos: {meses_df}")
         else:
-            # Métricas generales
-            total = len(proc_df)
-            reportado = int((proc_df.get("Estado") == "Reportado").sum()) if "Estado" in proc_df.columns else 0
-            pendiente = int((proc_df.get("Estado") == "Pendiente").sum()) if "Estado" in proc_df.columns else 0
-            no_aplica = int((proc_df.get("Estado") == "No aplica").sum()) if "Estado" in proc_df.columns else 0
-
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Total indicadores", total)
-            c2.metric("Reportados", reportado, delta=f"{round(reportado/total*100,1)}%" if total else None)
-            c3.metric("Pendientes", pendiente, delta=f"{round(pendiente/total*100,1)}%" if total else None)
-            c4.metric("No aplica", no_aplica)
+            # Verificar contenido
+            st.caption(f"proc_df tiene {len(proc_df)} filas")
+            st.caption(f"Columnas en proc_df: {proc_df.columns.tolist()[:10]}")
+            
+            if len(proc_df) == 0:
+                st.warning("No hay datos después de los filtros")
+            else:
+                # Verificar columnas disponibles
+                if "Estado" not in proc_df.columns:
+                    st.caption("ADVERTENCIA: No existe columna 'Estado'")
+                if "Unidad" not in proc_df.columns:
+                    st.caption("ADVERTENCIA: No existe columna 'Unidad'")
+                    
+                # Métricas generales
+                total = len(proc_df)
+                st.metric("Total indicadores", total)
 
             # Pie: distribución por Estado
             if "Estado" in proc_df.columns and not proc_df.empty:
