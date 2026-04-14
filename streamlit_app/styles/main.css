@@ -3,54 +3,55 @@ body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Layout - Sidebar + Contenido */
 .stApp {
     background: linear-gradient(180deg, #f3f6fb 0%, #edf2f8 100%) !important;
 }
 
-/* Layout principal */
+/* Contenedor principal */
 .main .block-container {
-    max-width: 100% !important;
+    max-width: none !important;
     width: calc(100% - 260px) !important;
-    padding-top: 0.8rem !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
+    padding: 16px 20px !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
-    margin-top: 0 !important;
 }
 
 /* Sidebar */
+section[data-testid="stSidebar"],
+div[data-testid="stSidebar"],
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #020f23 0%, #071b38 100%) !important;
     width: 260px !important;
     min-width: 260px !important;
     max-width: 260px !important;
+    padding: 16px 14px !important;
     border-right: 1px solid rgba(255,255,255,0.1) !important;
-    padding: 16px !important;
 }
 
-[data-testid="stSidebar"] > div:first-child {
+section[data-testid="stSidebar"] > div,
+[data-testid="stSidebar"] > div {
     background: transparent !important;
 }
 
+section[data-testid="stSidebar"] *,
 [data-testid="stSidebar"] * {
     color: #f4f7fb !important;
 }
 
-/* Sidebar header */
+/* Sidebar Header */
 .sidebar-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
+    padding: 14px;
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 14px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .sidebar-logo {
-    flex-shrink: 0;
     width: 48px;
     height: 48px;
     border-radius: 10px;
@@ -60,7 +61,8 @@ body {
     background: rgba(255,255,255,0.12);
 }
 
-.sidebar-logo img, .sidebar-logo-img {
+.sidebar-logo img,
+.sidebar-logo-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -96,45 +98,32 @@ body {
     font-weight: 700;
 }
 
-/* Option menu */
-[data-testid="stSidebar"] .streamlit-option-menu {
+/* Option Menu */
+.streamlit-option-menu {
     width: 100% !important;
     background: transparent !important;
-    border: none !important;
 }
 
-[data-testid="stSidebar"] ul {
-    gap: 0.3rem;
+.streamlit-option-menu ul {
+    gap: 0.25rem;
 }
 
-[data-testid="stSidebar"] .nav-link {
+.streamlit-option-menu .nav-link {
     color: #eaf2ff !important;
     border-radius: 10px !important;
     padding: 10px 12px !important;
-    margin-bottom: 4px !important;
     font-weight: 600 !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
     background: rgba(255,255,255,0.05) !important;
 }
 
-[data-testid="stSidebar"] .nav-link:hover {
+.streamlit-option-menu .nav-link:hover {
     background: rgba(255,255,255,0.12) !important;
-    border-color: rgba(255,255,255,0.22) !important;
 }
 
-[data-testid="stSidebar"] .nav-link.active {
+.streamlit-option-menu .nav-link.active {
     background: linear-gradient(90deg, #0ea5e9 0%, #1d4ed8 100%) !important;
     border-color: #7dd3fc !important;
-    box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3) !important;
-    color: #ffffff !important;
-}
-
-[data-testid="stSidebar"] .nav-link .icon {
-    color: #9fe8ff !important;
-    font-weight: 700 !important;
-}
-
-[data-testid="stSidebar"] .nav-link.active .icon {
     color: #ffffff !important;
 }
 
@@ -149,114 +138,23 @@ body {
     margin-bottom: 1rem;
 }
 
-/* Expander */
-.stExpander {
-    border: 1px solid #c9d8ea !important;
-    border-radius: 10px !important;
-    background: #ffffff !important;
-    padding: 0.4rem !important;
-}
-
-/* KPI */
-div[data-testid="stMetric"],
-div[data-testid="metric-container"] {
+/* KPIs */
+div[data-testid="stMetric"] {
     background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
     border: 1px solid #cfe0f2;
     border-radius: 12px;
     padding: 0.8rem 1rem;
-    box-shadow: 0 3px 8px rgba(15, 56, 90, 0.06);
-}
-
-div[data-testid="stMetric"] label,
-div[data-testid="metric-container"] label {
-    color: #4f5d75 !important;
-    font-weight: 600 !important;
-}
-
-div[data-testid="stMetricValue"],
-div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-    color: #0f385a !important;
-    font-weight: 800 !important;
 }
 
 /* Tablas */
 .stDataFrame {
     border-radius: 12px !important;
-    overflow: hidden !important;
     border: 1px solid #d8e5f3 !important;
-    box-shadow: 0 4px 10px rgba(15, 56, 90, 0.05) !important;
 }
 
-.stDataFrame thead th {
-    background-color: #eef5fc !important;
-    font-weight: 700 !important;
-    border-bottom: 2px solid #c8d8ea !important;
-}
-
-/* Gráficos Plotly */
+/* Gráficos */
 .js-plotly-plot {
-    background: linear-gradient(135deg, #ffffff 0%, #f7fbff 100%) !important;
+    background: #ffffff !important;
     border: 1px solid #d9e6f4 !important;
     border-radius: 12px !important;
-    padding: 8px !important;
-    box-shadow: 0 4px 12px rgba(15, 56, 90, 0.06) !important;
-}
-
-.js-plotly-plot .plotly,
-.js-plotly-plot .svg-container {
-    border-radius: 10px !important;
-    overflow: hidden !important;
-}
-
-/* Barras HTML */
-.html-bar-chart {
-    background: #ffffff;
-    border: 1px solid #d8e5f3;
-    border-radius: 12px;
-    padding: 0.8rem;
-    box-shadow: 0 4px 10px rgba(15, 56, 90, 0.05);
-}
-
-.html-bar-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-    margin: 0.5rem 0;
-}
-
-.bar-axis {
-    flex: 1;
-    min-width: 0;
-}
-
-.bar-label {
-    font-size: 0.82rem;
-    color: #334155;
-    font-weight: 600;
-    margin-bottom: 0.2rem;
-}
-
-.bar-track {
-    width: 100%;
-    height: 12px;
-    border-radius: 999px;
-    background: #e7eef7;
-    overflow: hidden;
-}
-
-.bar-fill {
-    height: 12px;
-    border-radius: 999px;
-}
-
-.bar-value {
-    min-width: 2rem;
-    text-align: right;
-    font-weight: 700;
-    color: #0f385a;
-}
-
-.stMarkdown p:first-child {
-    margin-top: 0 !important;
 }

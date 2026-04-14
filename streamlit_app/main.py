@@ -22,6 +22,42 @@ def _inject_styles():
         if css_path.exists():
             styles = load_css(str(css_path))
             st.markdown(f"<style>{styles}</style>", unsafe_allow_html=True)
+    
+    # CSS adicional para forzar layout
+    st.markdown("""
+    <style>
+    /* Forzar layout side-by-side */
+    div[data-testid="stAppViewContainer"] {
+        display: flex !important;
+        flex-direction: row !important;
+    }
+    
+    /* Sidebar fijo a la izquierda */
+    section[data-testid="stSidebar"],
+    div[data-testid="stSidebar"] {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 260px !important;
+        height: 100vh !important;
+        z-index: 100 !important;
+    }
+    
+    /* Contenido a la derecha del sidebar */
+    main {
+        margin-left: 260px !important;
+        width: calc(100% - 260px) !important;
+        max-width: calc(100% - 260px) !important;
+    }
+    
+    .block-container {
+        max-width: none !important;
+        width: 100% !important;
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 
 def _load_sidebar_logo_html():
