@@ -459,12 +459,20 @@ def render():
         df_riesgo["Mes"] = ""
 
     meses = ["Todos"] + sorted(df_riesgo["Mes"].dropna().astype(str).unique().tolist())
-    anios = ["Todos"] + sorted(
-        df_riesgo["Anio"].dropna().astype(int).astype(str).unique().tolist(),
-        key=lambda x: int(x),
-    )
-    procesos = ["Todos"] + sorted(df_riesgo["Proceso"].dropna().astype(str).unique().tolist())
-    subprocesos = ["Todos"] + sorted(df_riesgo["Subproceso"].dropna().astype(str).unique().tolist())
+    anios = ["Todos"]
+    if "Anio" in df_riesgo.columns:
+        anios += sorted(
+            df_riesgo["Anio"].dropna().astype(int).astype(str).unique().tolist(),
+            key=lambda x: int(x),
+        )
+
+    procesos = ["Todos"]
+    if "Proceso" in df_riesgo.columns:
+        procesos += sorted(df_riesgo["Proceso"].dropna().astype(str).unique().tolist())
+
+    subprocesos = ["Todos"]
+    if "Subproceso" in df_riesgo.columns:
+        subprocesos += sorted(df_riesgo["Subproceso"].dropna().astype(str).unique().tolist())
 
     with st.expander("Filtros", expanded=True):
         fm, fa, fp, fs = st.columns(4)

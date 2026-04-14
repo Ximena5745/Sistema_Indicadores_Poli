@@ -19,6 +19,19 @@ from core.calculos import normalizar_cumplimiento, categorizar_cumplimiento, est
 from core.config import DATA_RAW, DATA_OUTPUT
 from services.procesos import obtener_proceso_padre
 
+# Import data validation skill
+try:
+    import sys
+    from pathlib import Path
+    skill_path = Path(__file__).resolve().parent.parent / ".github" / "skills" / "data-validation"
+    if skill_path.exists():
+        sys.path.insert(0, str(skill_path))
+    from data_validation import enrich_with_process_hierarchy
+except ImportError:
+    # Fallback if skill not available
+    def enrich_with_process_hierarchy(df, path):
+        return df
+
 _RENAME = {
     "Año":           "Anio",
     "Ejecución":     "Ejecucion",
@@ -105,6 +118,10 @@ def cargar_dataset() -> pd.DataFrame:
             df = df.merge(df_cmi[cols_cmi].drop_duplicates("Id"), on="Id", how="left")
     except Exception:
         pass
+
+    # ── Enriquecer con Proceso desde Subproceso-Proceso-Area.xlsx ───────────
+    # (Usando Data Validation Skill para fuente oficial de procesos y subprocesos)
+    df = enrich_with_process_hierarchy(df, DATA_RAW / "Subproceso-Proceso-Area.xlsx")
 
     # ── Enriquecer con Proceso padre desde Subproceso-Proceso-Area.xlsx ─────
     if "Proceso" in df.columns:

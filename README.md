@@ -123,7 +123,26 @@ Centralizar y automatizar:
 
 ---
 
-## 📁 Estructura del Proyecto
+## � Skills Reutilizables
+
+El proyecto implementa un sistema de **skills** para lógica reutilizable y modular:
+
+### Data Validation Skill
+**Ubicación:** `.github/skills/data-validation/`
+
+**Propósito:** Validar y enriquecer datasets usando fuentes oficiales de jerarquía de procesos.
+
+**Funciones principales:**
+- `enrich_with_process_hierarchy()`: Enriquecer datasets con jerarquía oficial
+- `validate_process_sources()`: Validar consistencia entre fuentes
+- `get_process_filter_options()`: Generar opciones validadas para filtros UI
+- `apply_process_filters()`: Aplicar filtros relacionados con procesos
+
+**Integración:** Usado en `services/data_loader.py` para asegurar consistencia de datos.
+
+---
+
+## �📁 Estructura del Proyecto
 
 ```
 sistema_indicadores_poli/
