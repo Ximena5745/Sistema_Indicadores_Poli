@@ -56,12 +56,18 @@ try:
     from services.strategic_indicators import preparar_pdi_con_cierre
     import services.strategic_indicators as si
     from core.config import DATA_OUTPUT
+    from core.proceso_types import TIPOS_PROCESO, get_tipo_color
+    from core.calculos import simple_categoria_desde_porcentaje
+    from services.data_service import DataService
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from services.strategic_indicators import preparar_pdi_con_cierre
     import services.strategic_indicators as si
     from core.config import DATA_OUTPUT
+    from core.proceso_types import TIPOS_PROCESO, get_tipo_color
+    from core.calculos import simple_categoria_desde_porcentaje
+    from services.data_service import DataService
 
 # Limpiar caché corrupto si es necesario
 if "page_cache_cleared" not in st.session_state:
@@ -698,7 +704,7 @@ def render():
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
     ]
 
-    col_year, col_month = st.columns(2)
+    col_year, col_month, col_tipo = st.columns(3)
     with col_year:
         selected_year = st.segmented_control("Año de análisis", options=years, default=years[-1])
     with col_month:
@@ -713,9 +719,18 @@ def render():
             default_idx = 11
         selected_month_name = st.selectbox("Mes de análisis", options=MESES_NOMBRES, index=default_idx)
         selected_month = MESES_NOMBRES.index(selected_month_name) + 1
+    with col_tipo:
+        selected_tipo_proceso = st.selectbox(
+            "Tipo de proceso",
+            ["Todos"] + TIPOS_PROCESO,
+            help="Filtrar indicadores por tipo de proceso"
+        )
 
     month_label = MESES_NOMBRES[selected_month - 1] if selected_month and 1 <= selected_month <= 12 else "último disponible"
-    st.caption(f"Corte seleccionado: {selected_year} — Mes {month_label}")
+    filtros_activos = [f"{selected_year}", f"Mes {month_label}"]
+    if selected_tipo_proceso != "Todos":
+        filtros_activos.append(f"Tipo: {selected_tipo_proceso}")
+    st.caption(f"Filtros activos: {' · '.join(filtros_activos)}")
 
     # Asegurar que el mes predeterminado sea diciembre si no se selecciona otro
     if selected_month is None:
@@ -743,6 +758,115 @@ def render():
         "Alerta": int((pdi_df["Nivel de cumplimiento"] == "Alerta").sum()),
         "Peligro": int((pdi_df["Nivel de cumplimiento"] == "Peligro").sum()),
     }
+
+    # ═══ TARJETAS KPI POR TIPO DE PROCESO ═══
+    # Cargar mapa de procesos para obtener "Tipo de proceso"
+    data_service = DataService()
+    map_df = data_service.get_process_map()
+    
+    if not map_df.empty and "Tipo de proceso" in map_df.columns and "Proceso" in pdi_df.columns:
+        # Hacer merge para agregar Tipo de proceso a pdi_df
+        pdi_with_tipo = pdi_df.merge(
+            map_df[["Proceso", "Tipo de proceso"]].drop_duplicates(),
+            on="Proceso",
+            how="left"
+        )
+        
+        # Aplicar filtro de tipo de proceso si se seleccionó uno específico
+        if selected_tipo_proceso != "Todos":
+            pdi_with_tipo = pdi_with_tipo[pdi_with_tipo["Tipo de proceso"] == selected_tipo_proceso]
+        
+        if not pdi_with_tipo.empty and "Tipo de proceso" in pdi_with_tipo.columns:
+            st.markdown("---")
+            
+            # CASO 1: Mostrar tarjetas por TIPO de proceso (cuando "Todos" está seleccionado)
+            if selected_tipo_proceso == "Todos":
+                st.markdown("### 📊 Indicadores por Tipo de Proceso")
+                
+                tipos_unicos = sorted([t for t in pdi_with_tipo["Tipo de proceso"].dropna().unique() if t in TIPOS_PROCESO])
+                
+                if tipos_unicos:
+                    cols = st.columns(min(4, len(tipos_unicos)))
+                    
+                    for idx, tipo in enumerate(tipos_unicos):
+                        df_tipo = pdi_with_tipo[pdi_with_tipo["Tipo de proceso"] == tipo]
+                        
+                        total_indicadores = len(df_tipo)
+                        n_procesos = df_tipo["Proceso"].nunique() if "Proceso" in df_tipo.columns else 0
+                        
+                        # Calcular % cumplimiento promedio
+                        if "cumplimiento_pct" in df_tipo.columns:
+                            cumpl_promedio = (df_tipo["cumplimiento_pct"].mean() * 100) if not df_tipo["cumplimiento_pct"].isna().all() else 0
+                        else:
+                            cumpl_promedio = 0
+                        
+                        # Contar reportados
+                        if "Nivel de cumplimiento" in df_tipo.columns:
+                            n_reportados = (df_tipo["Nivel de cumplimiento"] != "Pendiente de reporte").sum()
+                            pct_reportados = (n_reportados / total_indicadores * 100) if total_indicadores else 0
+                        else:
+                            pct_reportados = 0
+                        
+                        with cols[idx % len(cols)]:
+                            tipo_color = get_tipo_color(tipo, light=False)
+                            tipo_color_light = get_tipo_color(tipo, light=True)
+                            
+                            st.markdown(
+                                f"""<div style='background: {tipo_color_light}; padding: 1rem; border-radius: 8px; 
+                                border-left: 4px solid {tipo_color}; margin-bottom: 0.5rem;'>
+                                <h4 style='margin: 0; color: {tipo_color};'>{tipo}</h4>
+                                </div>""",
+                                unsafe_allow_html=True
+                            )
+                            
+                            st.metric("Procesos", n_procesos)
+                            st.metric("Indicadores", total_indicadores)
+                            st.metric("% Cumplimiento", f"{cumpl_promedio:.1f}%")
+                            st.metric("% Reportados", f"{pct_reportados:.1f}%")
+            
+            # CASO 2: Mostrar tarjetas por PROCESOS individuales (cuando se seleccionó un tipo específico)
+            else:
+                st.markdown(f"### 📊 Procesos de tipo: {selected_tipo_proceso}")
+                
+                procesos_del_tipo = sorted(pdi_with_tipo["Proceso"].dropna().unique())
+                
+                if procesos_del_tipo:
+                    # Mostrar en grid de 3 columnas
+                    for i in range(0, len(procesos_del_tipo), 3):
+                        cols = st.columns(3)
+                        for idx, proceso in enumerate(procesos_del_tipo[i:i+3]):
+                            df_proceso = pdi_with_tipo[pdi_with_tipo["Proceso"] == proceso]
+                            
+                            total_ind = len(df_proceso)
+                            
+                            if "cumplimiento_pct" in df_proceso.columns:
+                                cumpl_prom = (df_proceso["cumplimiento_pct"].mean() * 100) if not df_proceso["cumplimiento_pct"].isna().all() else 0
+                            else:
+                                cumpl_prom = 0
+                            
+                            # Determinar color según cumplimiento
+                            if cumpl_prom >= 100:
+                                color = "#22C55E"  # Verde
+                            elif cumpl_prom >= 80:
+                                color = "#FBBF24"  # Amarillo
+                            else:
+                                color = "#EF4444"  # Rojo
+                            
+                            with cols[idx]:
+                                st.markdown(
+                                    f"""<div style='background: white; padding: 1rem; border-radius: 8px; 
+                                    border-left: 4px solid {color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>
+                                    <h5 style='margin: 0; color: #1A1A1A; font-size: 14px;'>{proceso}</h5>
+                                    </div>""",
+                                    unsafe_allow_html=True
+                                )
+                                st.metric("Indicadores", total_ind)
+                                st.metric("% Cumplimiento", f"{cumpl_prom:.1f}%", delta=None)
+                else:
+                    st.info(f"No hay procesos del tipo {selected_tipo_proceso} con indicadores en este período.")
+            
+            st.markdown("---")
+    
 
     prev_year = selected_year - 1
     prev_month = _latest_month_for_year(consolidado, prev_year)

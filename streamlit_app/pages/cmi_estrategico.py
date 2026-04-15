@@ -12,6 +12,7 @@ try:
         preparar_pdi_con_cierre,
         load_cierres,
     )
+    from services.cmi_filters import filter_df_for_cmi_estrategico
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.parent.parent))
@@ -21,6 +22,7 @@ except (ImportError, ModuleNotFoundError):
         preparar_pdi_con_cierre,
         load_cierres,
     )
+    from services.cmi_filters import filter_df_for_cmi_estrategico
 
 CORTE_SEMESTRAL = {
     "Junio": 6,
@@ -102,8 +104,14 @@ def render():
         mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_pdi_con_cierre(int(anio), int(mes))
+    
+    # ═══ FILTRO GLOBAL CMI ═══
+    # Usar services/cmi_filters.py para aplicar regla de negocio:
+    # CMI Estratégico = Indicadores Plan estrategico==1 AND Proyecto!=1
+    df = filter_df_for_cmi_estrategico(df, id_column="Id")
+    
     if df.empty:
-        st.warning("No hay indicadores PDI (flag=1) para el corte seleccionado.")
+        st.warning("No hay indicadores de CMI Estratégico para el corte seleccionado.")
         return
 
     pdi_catalog = load_pdi_catalog()
