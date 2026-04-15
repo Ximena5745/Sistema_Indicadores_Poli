@@ -23,12 +23,12 @@ except ImportError:
 # Importes desde root (absolutos con fallback)
 try:
     from core.calculos import simple_categoria_desde_porcentaje
-    from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
+    from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES, COLOR_CATEGORIA
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from core.calculos import simple_categoria_desde_porcentaje
-    from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
+    from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES, COLOR_CATEGORIA
 
 # Importar exportar_excel y panel_detalle_indicador con fallback robusto
 try:
@@ -776,7 +776,7 @@ def render():
                 if not df_last.empty and "Categoria" in df_last.columns:
                     cats = df_last["Categoria"].value_counts().reset_index()
                     cats.columns = ["Categoria", "count"]
-                    fig_cats = px.pie(cats, names="Categoria", values="count", title="Distribución por categoría")
+                    fig_cats = px.pie(cats, names="Categoria", values="count", title="Distribución por categoría", color="Categoria", color_discrete_map=COLOR_CATEGORIA)
                     st.plotly_chart(fig_cats, use_container_width=True)
 
                 # Tabla resumen de indicadores (puede estar vacía)
@@ -834,10 +834,8 @@ def render():
                         values=cat_counts.values,
                         names=cat_counts.index,
                         title="Distribución por Categoría",
-                        color_discrete_map={
-                            "Peligro": "#DC2626", "Alerta": "#EAB308",
-                            "Cumplimiento": "#22C55E", "Sobrecumplimiento": "#0EA5E9"
-                        }
+                        color=cat_counts.index,
+                        color_discrete_map=COLOR_CATEGORIA,
                     )
                     st.plotly_chart(fig, use_container_width=True)
             

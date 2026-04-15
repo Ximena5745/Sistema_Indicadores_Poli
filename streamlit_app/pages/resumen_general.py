@@ -1167,10 +1167,12 @@ def render():
             lineas_resumen.columns = ["Linea", "N_Indicadores", "Cumpl_Promedio"]
 
             strategic_defs = [
+                {"key": "expansion", "alt": [], "label": "Expansion", "icon": "🚀", "color": "#FBAF17"},
+                {"key": "transformacion organizacional", "alt": ["transformacion organizacional"], "label": "Transformacion organizacional", "icon": "📈", "color": "#42F2F2"},
                 {"key": "calidad", "alt": [], "label": "Calidad", "icon": "🏅", "color": "#EC0677"},
-                {"key": "educacion para toda la vida", "alt": ["educacion para toda la vida"], "label": "Educacion para toda la vida", "icon": "🎓", "color": "#0F385A"},
                 {"key": "experiencia", "alt": [], "label": "Experiencia", "icon": "💡", "color": "#1FB2DE"},
-                {"key": "sostenibilidad", "alt": ["sustentabilidad"], "label": "Sostenibilidad", "icon": "📘", "color": "#A6CE38"},
+                {"key": "sostenibilidad", "alt": ["sustentabilidad"], "label": "Sostenibilidad", "icon": "🌱", "color": "#A6CE38"},
+                {"key": "educacion para toda la vida", "alt": ["educacion para toda la vida"], "label": "Educacion para toda la vida", "icon": "🎓", "color": "#0F385A"},
             ]
 
             norm_to_row = {}
@@ -1501,31 +1503,44 @@ def render():
                     for _, r in tmp.sort_values("change", ascending=True).head(5).iterrows()
                 ]
 
-            proc_col_left, proc_col_right = st.columns([2, 1])
-            with proc_col_left:
-                _render_variation_table("Indicadores de Proceso con Mayor Mejora vs Historico", best_proc_rows, positive=True)
-                _render_variation_table("Indicadores de Proceso con Mayor Desmejora vs Historico", worst_proc_rows, positive=False)
+            proc_counts = _process_counts(process_data, "Tipo de proceso") if not process_data.empty else pd.DataFrame()
+            total_process = len(process_data) if not process_data.empty else 0
+            health_process = 0
+            if not proc_counts.empty:
+                health_process = proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
+            health_pct_p = round(health_process / max(total_process, 1) * 100, 1)
+            op_summary = f"{health_pct_p}% de indicadores de proceso en niveles saludables | Mejora: {best_proc_rows[0]['name'] if best_proc_rows else 'N/D'} | Riesgo: {worst_proc_rows[0]['name'] if worst_proc_rows else 'N/D'}"
+            best_proc_html = _build_ia_rows(best_proc_rows)
+            worst_proc_html = _build_ia_rows(worst_proc_rows)
 
-            with proc_col_right:
-                proc_counts = _process_counts(process_data, "Tipo de proceso") if not process_data.empty else pd.DataFrame()
-                total_process = len(process_data) if not process_data.empty else 0
-                health_process = 0
-                if not proc_counts.empty:
-                    health_process = proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
-                health_pct_p = round(health_process / max(total_process, 1) * 100, 1)
-                op_summary = f"{health_pct_p}% de indicadores de proceso en niveles saludables | Mejora: {best_proc_rows[0]['name'] if best_proc_rows else 'N/D'} | Riesgo: {worst_proc_rows[0]['name'] if worst_proc_rows else 'N/D'}"
-                best_proc_html = _build_ia_rows(best_proc_rows)
-                worst_proc_html = _build_ia_rows(worst_proc_rows)
+            st.markdown(
+                f"""
+                <div class='rg-ia'>
+                    <h4>Perspectivas Operativas IA</h4>
+                    <div class='rg-bubble'>{op_summary}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            op_c1, op_c2 = st.columns(2)
+            with op_c1:
                 st.markdown(
                     f"""
                     <div class='rg-ia'>
-                        <h4>Perspectivas Operativas IA</h4>
-                        <div class='rg-bubble'>{op_summary}</div>
                         <div class='rg-ia-inline-title'>Indicadores que mejoraron (Proceso)</div>
                         <table class='rg-ia-table'>
                             <thead><tr><th>Indicador/Proceso</th><th>Variacion</th></tr></thead>
                             <tbody>{best_proc_html}</tbody>
                         </table>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with op_c2:
+                st.markdown(
+                    f"""
+                    <div class='rg-ia'>
                         <div class='rg-ia-inline-title'>Indicadores en riesgo (Proceso)</div>
                         <table class='rg-ia-table'>
                             <thead><tr><th>Indicador/Proceso</th><th>Variacion</th></tr></thead>

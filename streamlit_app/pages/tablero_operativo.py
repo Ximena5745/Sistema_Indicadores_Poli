@@ -21,12 +21,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 try:
-    from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON
+    from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, COLORES
     from services.data_loader import cargar_dataset, cargar_acciones_mejora
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON
+    from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, COLORES
     from services.data_loader import cargar_dataset, cargar_acciones_mejora
 
 # Importes desde streamlit_app
@@ -47,7 +47,7 @@ _PEND      = "Pendiente de reporte"
 
 _NIVEL_COLOR_EXT = {
     **NIVEL_COLOR,
-    "Sobrecumplimiento": "#4472C4",
+    "Sobrecumplimiento": COLORES["sobrecumplimiento"],
     _NO_APLICA: "#78909C",
     _PEND:      "#BDBDBD",
 }

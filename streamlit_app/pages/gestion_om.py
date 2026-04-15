@@ -543,7 +543,7 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
     ]
     cols = [c for c in cols if c in m.columns]
     m = m[cols]
-    return m.sort_values(["accion_creada", "tipo_mitigacion", "Id"], ascending=[True, True, True]).reset_index(drop=True)
+    return m.sort_values(["tipo_mitigacion", "Id"], ascending=[True, True]).reset_index(drop=True)
 
 
 def _construir_tabla_peligro(df_riesgo: pd.DataFrame, registros_om: dict, mes_sel: str, anio_sel: str, proc_sel: str, sub_sel: str) -> pd.DataFrame:
