@@ -1,11 +1,7 @@
 from pathlib import Path
-import sys
 
 import streamlit as st
 from streamlit_option_menu import option_menu
-
-# Agregar streamlit_app al path de imports
-sys.path.insert(0, str(Path(__file__).parent))
 
 st.set_page_config(page_title="Sistema de Indicadores", layout="wide")
 
@@ -63,16 +59,31 @@ def main():
     _inject_styles()
 
     # Importar páginas bajo demanda para evitar circular imports durante la carga
-    from streamlit_app.pages import (
-        cmi_estrategico,
-        gestion_om,
-        plan_mejoramiento,
-        resumen_general,
-        resumen_por_proceso,
-        seguimiento_reportes,
-        tablero_operativo,
-        pdi_acreditacion,
-    )
+    # Usar imports relativos que funcionan en ambos contextos (local y cloud)
+    try:
+        # Intención: import relativo (funciona cuando streamlit_app es paquete)
+        from streamlit_app.pages import (
+            cmi_estrategico,
+            gestion_om,
+            plan_mejoramiento,
+            resumen_general,
+            resumen_por_proceso,
+            seguimiento_reportes,
+            tablero_operativo,
+            pdi_acreditacion,
+        )
+    except (ImportError, ModuleNotFoundError):
+        # Fallback: sys.path ya modificado, importar directamente
+        from pages import (
+            cmi_estrategico,
+            gestion_om,
+            plan_mejoramiento,
+            resumen_general,
+            resumen_por_proceso,
+            seguimiento_reportes,
+            tablero_operativo,
+            pdi_acreditacion,
+        )
 
     # Configuración del sidebar
     with st.sidebar:
