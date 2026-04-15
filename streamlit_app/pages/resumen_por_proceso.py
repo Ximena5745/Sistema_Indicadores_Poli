@@ -66,7 +66,7 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
         max_abs = vals.abs().max(skipna=True) if not vals.dropna().empty else 0
         return vals * 100 if max_abs <= 2 else vals
 
-    return pd.Series([pd.NA] * len(df), index=df.index, dtype="float64")
+    return pd.Series(index=df.index, dtype="float64")
 
 
 def _cumpl_icon(pct: float | None) -> str:
