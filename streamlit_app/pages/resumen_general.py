@@ -58,7 +58,7 @@ try:
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
-    from services.data_service import DataService
+    from streamlit_app.services.data_service import DataService
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -67,7 +67,7 @@ except (ImportError, ModuleNotFoundError):
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
-    from services.data_service import DataService
+    from streamlit_app.services.data_service import DataService
 
 # Limpiar caché corrupto si es necesario
 if "page_cache_cleared" not in st.session_state:
