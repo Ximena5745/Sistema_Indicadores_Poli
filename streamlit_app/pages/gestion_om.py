@@ -638,14 +638,8 @@ def render():
     else:
         df_riesgo["Mes"] = ""
 
-    meses = ["Todos"] + sorted(df_riesgo["Mes"].dropna().astype(str).unique().tolist())
-    anios = ["Todos"]
-    if "Anio" in df_riesgo.columns:
-        anios_filtro = sorted(
-            df_riesgo["Anio"].dropna().astype(int).astype(str).unique().tolist(),
-            key=lambda x: int(x),
-        )
-        anios += [a for a in anios_filtro if a in ("2025", "2026")]
+    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    anios = ["2025", "2026"]
 
     procesos = ["Todos"]
     if "Proceso" in df_riesgo.columns:
@@ -658,10 +652,10 @@ def render():
     with st.expander("Filtros", expanded=True):
         fm, fa, fp, fs = st.columns(4)
         with fm:
-            default_mes = 1 if "Diciembre" in meses else 0
+            default_mes = meses.index("Diciembre")
             mes_sel = st.selectbox("Mes", meses, index=default_mes)
         with fa:
-            anio_sel = st.selectbox("Año", anios, index=anios.index("2025") if "2025" in anios else (anios.index("2026") if "2026" in anios else 1))
+            anio_sel = st.segmented_control("Año", options=anios, default="2025")
         with fp:
             proc_sel = st.selectbox("Proceso", procesos, index=0)
         with fs:
@@ -674,7 +668,8 @@ def render():
         st.info("No hay indicadores en Peligro con los filtros seleccionados.")
         return
 
-    st.markdown("### Indicadores en Peligro")
+    total_peligro = len(df_tabla)
+    st.markdown(f"### 📊 Indicadores en Peligro: {total_peligro} ({mes_sel} {anio_sel})")
     st.markdown(_generar_tabla_html(df_tabla), unsafe_allow_html=True)
 
     opciones = df_tabla.apply(_build_option_label, axis=1).tolist()

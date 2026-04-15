@@ -67,10 +67,10 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
         # Clean up temporary columns
         df = df.drop(columns=["Subproceso_norm", "Proceso_excel"], errors="ignore")
 
-        st.info(f"✅ Enriched {len(df)} records with official process hierarchy")
+        
 
     except Exception as e:
-        st.error(f"❌ Could not enrich with process hierarchy: {e}")
+        st.error(f"❌ Error al enriquecer con jerarquía de procesos: {e}")
 
     return df
 
