@@ -7,6 +7,7 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 
 body {
+    background-color: var(--bg) !important;
     margin: 0;
     padding: 0;
 }
@@ -431,7 +432,7 @@ button[kind="secondary"]:hover,
     color: #ffffff !important;
 }
 
-/* Inputs and selects */
+/* Inputs and selects — selectores BaseWeb (Streamlit moderno) */
 .stTextInput>div>div>input,
 .stTextInput>div>div>textarea,
 .stSelectbox>div>div>div>div,
@@ -439,12 +440,86 @@ button[kind="secondary"]:hover,
 .stNumberInput>div>div>input,
 .stDateInput>div>div>input,
 .stTextInput>div>div>div>div {
-    border-radius: 14px !important;
-    border: 1px solid rgba(15,32,64,0.12) !important;
+    border-radius: 10px !important;
+    border: 1.5px solid #c7d4e4 !important;
     background: #ffffff !important;
     padding: 10px 12px !important;
     color: #0f2137 !important;
-    box-shadow: inset 0 1px 6px rgba(15,32,64,0.06) !important;
+    box-shadow: inset 0 1px 4px rgba(15,32,64,0.04) !important;
+}
+
+/* ── BaseWeb selectbox trigger (elemento padre div que actúa como control) ── */
+[data-baseweb="select"] > div:first-child {
+    background-color: #ffffff !important;
+    border: 1.5px solid #c7d4e4 !important;
+    border-radius: 10px !important;
+    color: #0f2137 !important;
+    min-height: 42px !important;
+}
+
+[data-baseweb="select"] > div:first-child:hover {
+    border-color: #0f3a6d !important;
+}
+
+[data-baseweb="select"] [class*="ValueContainer"],
+[data-baseweb="select"] [class*="singleValue"],
+[data-baseweb="select"] [class*="placeholder"],
+[data-baseweb="select"] span {
+    color: #0f2137 !important;
+}
+
+[data-baseweb="select"] svg {
+    fill: #0f3a6d !important;
+    color: #0f3a6d !important;
+}
+
+/* ── Dropdown popover (lista de opciones) ── */
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div,
+[data-baseweb="menu"],
+div[data-baseweb="menu"],
+[data-baseweb="list"] {
+    background-color: #ffffff !important;
+    border: 1px solid #c7d4e4 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(15, 32, 64, 0.12) !important;
+    color: #0f2137 !important;
+}
+
+/* Opciones en el desplegable */
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] [role="option"],
+[data-baseweb="option"],
+[data-baseweb="menu-item"] {
+    background-color: #ffffff !important;
+    color: #0f2137 !important;
+    padding: 10px 14px !important;
+}
+
+[data-baseweb="menu"] li:hover,
+[data-baseweb="menu"] [role="option"]:hover,
+[data-baseweb="option"]:hover {
+    background-color: #eff4fb !important;
+    color: #0f3a6d !important;
+}
+
+[data-baseweb="menu"] [aria-selected="true"],
+[data-baseweb="option"][aria-selected="true"] {
+    background-color: #dde8f5 !important;
+    color: #0f3a6d !important;
+    font-weight: 600 !important;
+}
+
+/* ── Multiselect chips ── */
+[data-baseweb="tag"] {
+    background-color: #dde8f5 !important;
+    color: #0f3a6d !important;
+    border-radius: 6px !important;
+    border: 1px solid #c7d4e4 !important;
+}
+
+[data-baseweb="tag"] svg {
+    fill: #0f3a6d !important;
 }
 
 .stSelectbox>div>div>div>div {
@@ -454,23 +529,10 @@ button[kind="secondary"]:hover,
 
 .stTextInput>div>div>input:focus,
 .stTextInput>div>div>textarea:focus,
-.stSelectbox>div>div>div>div:focus,
-.stMultiSelectbox>div>div>div>div:focus,
 .stNumberInput>div>div>input:focus,
 .stDateInput>div>div>input:focus {
-    border-color: var(--info) !important;
-    box-shadow: 0 0 0 4px rgba(0,184,212,0.16) !important;
-}
-
-.stSelectbox>div>div>div>div::placeholder,
-.stTextInput>div>div>input::placeholder,
-.stNumberInput>div>div>input::placeholder,
-.stDateInput>div>div>input::placeholder {
-    color: rgba(15,32,64,0.7) !important;
-}
-
-.stSelectbox>div>div>div>div {
-    min-height: 48px !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 4px rgba(15, 58, 109, 0.12) !important;
 }
 
 /* Expander filters */
@@ -857,3 +919,70 @@ button[kind="secondary"]:hover,
 
 /* Utility */
 .muted { color: #45464d; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PORTALS — Overlays montados directamente en <body> por BaseWeb / React Portal
+   Streamlit monta los dropdowns, popovers y tooltips fuera del stAppViewContainer.
+   Estos selectores deben estar montados en <body> para funcionar.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Portal genérico y popover */
+body [data-baseweb="popover"],
+body [data-baseweb="popover"] > div,
+body [data-baseweb="tooltip"] {
+    background-color: #ffffff !important;
+    border: 1px solid #c7d4e4 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(15, 32, 64, 0.14) !important;
+    color: #0f2137 !important;
+}
+
+/* Menú desplegable (lista de opciones del selectbox) */
+body [data-baseweb="menu"],
+body div[data-baseweb="menu"],
+body ul[data-baseweb="menu"] {
+    background-color: #ffffff !important;
+    border: 1px solid #c7d4e4 !important;
+    border-radius: 10px !important;
+    color: #0f2137 !important;
+    padding: 4px !important;
+}
+
+/* Cada opción individual */
+body [data-baseweb="menu"] li,
+body [data-baseweb="option"],
+body [data-baseweb="menu"] [role="option"],
+body [data-baseweb="menu-item"] {
+    background-color: #ffffff !important;
+    color: #0f2137 !important;
+    padding: 10px 14px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+}
+
+body [data-baseweb="menu"] li:hover,
+body [data-baseweb="option"]:hover,
+body [data-baseweb="menu"] [role="option"]:hover {
+    background-color: #eff4fb !important;
+    color: #0f3a6d !important;
+}
+
+body [data-baseweb="menu"] [aria-selected="true"],
+body [data-baseweb="option"][aria-selected="true"] {
+    background-color: #dde8f5 !important;
+    color: #0f3a6d !important;
+    font-weight: 600 !important;
+}
+
+/* Divider dentro del menú */
+body [data-baseweb="menu"] [role="separator"] {
+    background-color: #dce6f2 !important;
+}
+
+/* Overlay de fecha picker y otros componentes emergentes */
+body [data-baseweb="calendar"],
+body [data-baseweb="calendar"] * {
+    background-color: #ffffff !important;
+    color: #0f2137 !important;
+    border-color: #c7d4e4 !important;
+}

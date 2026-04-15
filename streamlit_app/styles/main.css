@@ -90,71 +90,199 @@ body {
     font-weight: 700;
 }
 
-/* ─── SELECTORES Y CONTROLES (Streamlit widgets) ────────────────────────────────── */
+/* ─── SELECTORES Y CONTROLES — Streamlit widgets (BaseWeb) ───────────────────── */
+/*
+   NOTAS DE IMPLEMENTACIÓN:
+   · Streamlit usa BaseWeb (data-baseweb attr) para sus controles internos.
+   · El tema base se define en .streamlit/config.toml (base="light").
+   · Estos selectores cubren: selectbox trigger, dropdown popover/overlay,
+     opciones del menú, multiselect chips, inputs de texto y número.
+   · Paleta: bg=#eff4fb, surface=#ffffff, primary=#0f3a6d, text=#0f2137
+*/
 
-/* Selectbox - estilo claro y visible */
+/* ────── Selectbox – botón/trigger visible ───────────────────────────────── */
 [data-testid="stSelectbox"] {
     margin-bottom: 1rem;
 }
 
-[data-testid="stSelectbox"] > label {
-    color: #1f2937 !important;
-    font-weight: 500 !important;
-    font-size: 0.95rem !important;
-    margin-bottom: 0.5rem !important;
+[data-testid="stSelectbox"] > label,
+[data-testid="stMultiSelect"] > label {
+    color: #0f2137 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 0.35rem !important;
 }
 
-/* Select element (dropdown) */
-select, [data-testid="stSelectbox"] select {
+/* Trigger del selectbox (div con role button en BaseWeb) */
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child,
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child {
     background-color: #ffffff !important;
-    color: #1f2937 !important;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 6px !important;
-    padding: 10px 12px !important;
-    font-size: 0.95rem !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
+    border: 1.5px solid #c7d4e4 !important;
+    border-radius: 10px !important;
+    color: #0f2137 !important;
 }
 
-select:hover, [data-testid="stSelectbox"] select:hover {
-    border-color: #64748b !important;
-    box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.08) !important;
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child:hover,
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child:hover {
+    border-color: #0f3a6d !important;
+    box-shadow: 0 0 0 3px rgba(15, 58, 109, 0.10) !important;
 }
 
-select:focus, [data-testid="stSelectbox"] select:focus {
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child:focus-within,
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child:focus-within {
+    border-color: #0f3a6d !important;
+    box-shadow: 0 0 0 4px rgba(15, 58, 109, 0.14) !important;
     outline: none !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12) !important;
 }
 
-/* Input fields */
-input[type="text"], input[type="number"], input[type="date"], 
-[data-testid="stTextInput"] input {
+/* Icono de flecha del selectbox */
+[data-testid="stSelectbox"] [data-baseweb="select"] svg,
+[data-testid="stMultiSelect"] [data-baseweb="select"] svg {
+    fill: #0f3a6d !important;
+    color: #0f3a6d !important;
+}
+
+/* Texto seleccionado dentro del trigger */
+[data-testid="stSelectbox"] [data-baseweb="select"] span,
+[data-testid="stSelectbox"] [data-baseweb="select"] [class*="valueContainer"] {
+    color: #0f2137 !important;
+}
+
+/* ────── Dropdown popover/overlay (lista de opciones) ────────────────────── */
+[data-baseweb="popover"],
+[data-baseweb="popover"] [data-baseweb="menu"],
+div[data-baseweb="menu"] {
     background-color: #ffffff !important;
-    color: #1f2937 !important;
-    border: 1.5px solid #cbd5e1 !important;
+    border: 1px solid #c7d4e4 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(15, 32, 64, 0.12) !important;
+}
+
+/* Opciones del menú dropdown */
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] [role="option"],
+[data-baseweb="option"] {
+    background-color: #ffffff !important;
+    color: #0f2137 !important;
+    padding: 10px 14px !important;
+}
+
+[data-baseweb="menu"] li:hover,
+[data-baseweb="menu"] [role="option"]:hover,
+[data-baseweb="option"]:hover {
+    background-color: #eff4fb !important;
+    color: #0f3a6d !important;
+}
+
+/* Opción activa/seleccionada en el dropdown */
+[data-baseweb="menu"] [aria-selected="true"],
+[data-baseweb="option"][aria-selected="true"] {
+    background-color: #dde8f5 !important;
+    color: #0f3a6d !important;
+    font-weight: 600 !important;
+}
+
+/* ────── Multiselect chips (etiquetas de valor seleccionado) ─────────────── */
+[data-baseweb="tag"] {
+    background-color: #dde8f5 !important;
+    color: #0f3a6d !important;
     border-radius: 6px !important;
+    border: 1px solid #c7d4e4 !important;
+}
+
+[data-baseweb="tag"] svg {
+    fill: #0f3a6d !important;
+}
+
+/* ────── Inputs de texto, número y fecha ─────────────────────────────────── */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stDateInput"] input,
+[data-baseweb="input"] input,
+[data-baseweb="base-input"] {
+    background-color: #ffffff !important;
+    color: #0f2137 !important;
+    border: 1.5px solid #c7d4e4 !important;
+    border-radius: 10px !important;
     padding: 10px 12px !important;
-    font-size: 0.95rem !important;
-    transition: all 0.2s ease !important;
 }
 
-input:hover, [data-testid="stTextInput"] input:hover {
-    border-color: #64748b !important;
-}
-
-input:focus, [data-testid="stTextInput"] input:focus {
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stDateInput"] input:focus {
+    border-color: #0f3a6d !important;
+    box-shadow: 0 0 0 4px rgba(15, 58, 109, 0.12) !important;
     outline: none !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12) !important;
 }
 
-/* Filtros - Contenedor principal */
-.stContainer, [data-testid="stContainer"] {
-    background-color: #f8fafc !important;
-    border-radius: 8px !important;
-    padding: 1rem !important;
-    margin-bottom: 1rem !important;
+/* ────── Checkbox y Radio ─────────────────────────────────────────────────── */
+[data-testid="stCheckbox"] label,
+[data-testid="stRadio"] label {
+    color: #0f2137 !important;
+}
+
+[data-baseweb="checkbox"] > div:first-child {
+    border-color: #0f3a6d !important;
+}
+
+/* ────── Slider ───────────────────────────────────────────────────────────── */
+[data-testid="stSlider"] [data-baseweb="slider"] [class*="thumb"] {
+    background-color: #0f3a6d !important;
+}
+
+[data-testid="stSlider"] [data-baseweb="slider"] [class*="track"] div:first-child {
+    background-color: #0f3a6d !important;
+}
+
+/* ────── Expanders ───────────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    border: 1px solid #dce6f2 !important;
+    border-radius: 10px !important;
+    background-color: #ffffff !important;
+}
+
+[data-testid="stExpander"] details summary {
+    background-color: #ffffff !important;
+    color: #0f3a6d !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+}
+
+[data-testid="stExpander"] details[open] summary {
+    border-radius: 10px 10px 0 0 !important;
+    border-bottom: 1px solid #dce6f2 !important;
+}
+
+/* ────── Tabs ─────────────────────────────────────────────────────────────── */
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    background-color: transparent !important;
+    border-bottom: 2px solid #dce6f2 !important;
+}
+
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    color: #5a6678 !important;
+    background-color: transparent !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
+    color: #0f3a6d !important;
+    border-bottom-color: #0f3a6d !important;
+}
+
+/* ────── Sidebar – controles dentro del sidebar ──────────────────────────── */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child {
+    background-color: rgba(255,255,255,0.10) !important;
+    border-color: rgba(255,255,255,0.22) !important;
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] span {
+    color: #f4f7fb !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] svg {
+    fill: #f4f7fb !important;
 }
 
 /* ─── CONTENEDORES ────────────────────────────────────────────────────────────── */

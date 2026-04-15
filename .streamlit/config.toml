@@ -1,0 +1,16 @@
+[server]
+port = 8000
+enableCORS = false
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# ── Paleta institucional · Sistema de Indicadores · Politécnico Grancolombiano ──
+base                  = "light"
+primaryColor          = "#0f3a6d"
+backgroundColor       = "#eff4fb"
+secondaryBackgroundColor = "#f7f9fe"
+textColor             = "#0f2137"
+font                  = "sans serif"
