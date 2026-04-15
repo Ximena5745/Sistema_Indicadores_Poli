@@ -30,6 +30,8 @@ MESES_OPCIONES = [
     "Diciembre",
 ]
 
+MES_MAP = {m.upper(): i + 1 for i, m in enumerate(MESES_OPCIONES)}
+
 NIVELES_COLORS = {
     "sobrecumplimiento": "#1565C0",
     "cumplimiento": "#2E7D32",
@@ -54,6 +56,28 @@ def _to_float(value: object) -> float | None:
         return float(value)
     except Exception:
         return None
+
+
+def _mes_to_num(value: object) -> float | None:
+    if pd.isna(value):
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            v = int(value)
+            return float(v) if 1 <= v <= 12 else None
+        except Exception:
+            return None
+
+    txt = str(value).strip()
+    if not txt:
+        return None
+
+    if txt.isdigit():
+        v = int(txt)
+        return float(v) if 1 <= v <= 12 else None
+
+    txt_norm = _norm_text(txt)
+    return float(MES_MAP.get(txt_norm)) if txt_norm in MES_MAP else None
 
 
 def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
@@ -320,7 +344,7 @@ def render() -> None:
 
     years = sorted([int(y) for y in pd.to_numeric(work_df.get("Año"), errors="coerce").dropna().unique().tolist()])
     default_month = "Diciembre"
-    procesos = sorted(work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+    procesos_all = sorted(work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
 
     st.markdown("#### Filtros")
     c1, c2, c3 = st.columns(3)
@@ -328,18 +352,23 @@ def render() -> None:
         anio = st.selectbox("Año", options=years, index=len(years) - 1 if years else None)
     with c2:
         mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month))
-    with c3:
-        proceso_sel = st.selectbox("Proceso (Filtro Padre)", options=["Todos"] + procesos)
+    base_filtered = work_df.copy()
 
-    filtered = work_df.copy()
+    if anio is not None and "Año" in base_filtered.columns:
+        base_filtered = base_filtered[pd.to_numeric(base_filtered["Año"], errors="coerce") == int(anio)]
 
-    if anio is not None and "Año" in filtered.columns:
-        filtered = filtered[pd.to_numeric(filtered["Año"], errors="coerce") == int(anio)]
-
-    if mes and "Mes" in filtered.columns:
+    if mes and "Mes" in base_filtered.columns:
         mes_num = MESES_OPCIONES.index(mes) + 1
-        filtered = filtered[pd.to_numeric(filtered["Mes"], errors="coerce") == mes_num]
+        base_filtered = base_filtered[base_filtered["Mes"].apply(_mes_to_num) == float(mes_num)]
 
+    procesos_filtrados = sorted(base_filtered["Proceso_padre"].dropna().astype(str).unique().tolist())
+    opciones_proceso = ["Todos"] + (procesos_filtrados if procesos_filtrados else procesos_all)
+    default_index = 1 if len(opciones_proceso) > 1 else 0
+
+    with c3:
+        proceso_sel = st.selectbox("Proceso (Filtro Padre)", options=opciones_proceso, index=default_index)
+
+    filtered = base_filtered.copy()
     if proceso_sel != "Todos":
         filtered = filtered[filtered["Proceso_padre"].astype(str) == proceso_sel]
 
@@ -447,7 +476,7 @@ def render() -> None:
 
     with tabs[4]:
         st.markdown("### Auditoría")
-        auditoria_df, auditoria_msg = _load_auditoria_mentions(procesos)
+        auditoria_df, auditoria_msg = _load_auditoria_mentions(procesos_all)
         if auditoria_msg:
             st.warning(auditoria_msg)
         else:
