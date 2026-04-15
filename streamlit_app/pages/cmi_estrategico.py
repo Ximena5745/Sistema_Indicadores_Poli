@@ -91,7 +91,7 @@ def render():
         _anio_default, _corte_default = _default_corte(anios)
         _fc1, _fc2 = st.columns(2)
         with _fc1:
-            anio = st.selectbox("Año de corte", anios, index=anios.index(_anio_default), key="cmi_pdi_anio")
+            anio = st.segmented_control("Año de corte", options=anios, default=_anio_default, key="cmi_pdi_anio")
         with _fc2:
             corte = st.selectbox(
                 "Corte semestral",

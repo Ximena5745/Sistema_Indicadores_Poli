@@ -130,10 +130,10 @@ def render():
     with col_f1:
         year_options = ["Todos"] + anios
         if 2025 in anios:
-            default_idx = 1 + anios.index(2025)
+            default_year = 2025
         else:
-            default_idx = max(0, len(year_options) - 1)
-        anio_sel = st.selectbox("Año", options=year_options, index=default_idx)
+            default_year = anios[-1] if anios else "Todos"
+        anio_sel = st.segmented_control("Año", options=year_options, default=default_year)
 
     meses_nums = sorted(pd.to_numeric(df.get("Mes", pd.Series(dtype=float)), errors="coerce").dropna().astype(int).unique().tolist())
     with col_f2:

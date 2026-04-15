@@ -341,7 +341,7 @@ def render():
         with st.expander("🔎 Filtros", expanded=True):
             c1, c2, c3 = st.columns(3)
             with c1:
-                anio = st.selectbox("Año", anios_disponibles, index=len(anios_disponibles)-1 if anios_disponibles else 0, key="fp_anio")
+                anio = st.segmented_control("Año", options=anios_disponibles, default=anios_disponibles[-1] if anios_disponibles else None, key="fp_anio")
             with c2:
                 mes = st.selectbox("Mes", MESES_OPCIONES, index=len(MESES_OPCIONES)-1, key="fp_mes")
             with c3:
@@ -733,7 +733,7 @@ def render():
                 # Años disponibles para el proceso
                 anios_disp = sorted([int(a) for a in df_proc_sel["Anio"].dropna().unique()]) if (not df_proc_sel.empty and "Anio" in df_proc_sel.columns) else []
                 anio_def = anios_disp[-1] if anios_disp else None
-                anio_sel = st.selectbox("Año", anios_disp, index=(anios_disp.index(anio_def) if anio_def in anios_disp else 0), key="info_proc_anio") if anios_disp else None
+                anio_sel = st.segmented_control("Año", options=anios_disp, default=anio_def, key="info_proc_anio") if anios_disp else None
                 periodo_txt = f"{anio_sel}" if anio_sel else "Período no definido"
                 st.caption(f"Corte consultado: {periodo_txt}")
 

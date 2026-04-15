@@ -181,6 +181,14 @@ def _latest_month_for_year(df: pd.DataFrame, year: int) -> int | None:
     return int(months.max()) if not months.empty else None
 
 
+def _available_months_for_year(df: pd.DataFrame, year: int) -> list[int]:
+    subset = df[df["Año"] == year].copy()
+    if subset.empty or "Mes_num" not in subset.columns:
+        return []
+    months = pd.to_numeric(subset["Mes_num"], errors="coerce").dropna().astype(int).unique()
+    return sorted(months.tolist())
+
+
 def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     df = pdi_df.copy()
     df["Linea"] = df["Linea"].fillna("Sin línea")
@@ -315,8 +323,17 @@ def render():
         st.error("No se encontraron años válidos en los datos.")
         return
 
-    selected_year = st.selectbox("Año de análisis", years, index=len(years)-1)
-    selected_month = _latest_month_for_year(consolidado, selected_year)
+    col_year, col_month = st.columns(2)
+    with col_year:
+        selected_year = st.segmented_control("Año de análisis", options=years, default=years[-1])
+    with col_month:
+        available_months = _available_months_for_year(consolidado, selected_year)
+        if available_months:
+            selected_month = st.selectbox("Mes de análisis", options=available_months, index=len(available_months)-1)
+        else:
+            selected_month = None
+            st.selectbox("Mes de análisis", options=["Sin datos"], disabled=True)
+
     month_label = selected_month if selected_month else "último disponible"
     st.caption(f"Corte seleccionado: {selected_year} — Mes {month_label}")
 

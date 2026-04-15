@@ -552,7 +552,7 @@ def render():
         with fm:
             mes_sel = st.selectbox("Mes", meses, index=meses.index("Todos"))
         with fa:
-            anio_sel = st.selectbox("Año", anios, index=anios.index(str(date.today().year)) if str(date.today().year) in anios else 0)
+            anio_sel = st.segmented_control("Año", options=anios, default=str(date.today().year) if str(date.today().year) in anios else anios[0])
         with fp:
             proc_sel = st.selectbox("Proceso", procesos, index=0)
         with fs:
