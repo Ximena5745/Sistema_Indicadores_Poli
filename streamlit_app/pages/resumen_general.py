@@ -810,7 +810,7 @@ def render():
         sunburst = _build_sunburst(pdi_estrategico)
         st.plotly_chart(sunburst, use_container_width=True)
         
-        # Métricas globales
+        # Métricas globales KPI
         st.markdown("##### Métricas Clave de Negocio")
         count_total_e = len(pdi_estrategico)
         counts_e = {
@@ -826,6 +826,58 @@ def render():
         labels = ["Total indicadores PDI", "Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]
         for col, label, value, color in zip(kpi_cols, labels, values, colors):
             col.metric(label, value)
+        
+        # === Análisis de mejora vs histórico ===
+        st.markdown("##### Indicadores con Mayor Mejora vs Histórico")
+        prev_year_e = year_estrategico - 1
+        prev_month_e = _latest_month_for_year(consolidado, prev_year_e)
+        if prev_month_e:
+            prev_pdi_e = preparar_pdi_con_cierre(prev_year_e, prev_month_e)
+            prev_pdi_e = filter_df_for_cmi_estrategico(prev_pdi_e, id_column="Id")
+            best_improvements_e, worst_declines_e = _compute_trends(pdi_estrategico, prev_pdi_e)
+            
+            if best_improvements_e:
+                for item in best_improvements_e:
+                    st.markdown(f"- **{item['name']}** — +{item['change']:.1f}%")
+            else:
+                st.markdown("- No hay comparativas disponibles contra el año anterior.")
+        else:
+            st.markdown("- No hay datos del año anterior para comparar.")
+        
+        st.markdown("##### Indicadores con Mayor Desmejora vs Histórico")
+        if prev_month_e and worst_declines_e:
+            for item in worst_declines_e:
+                st.markdown(f"- **{item['name']}** — {item['change']:.1f}%")
+        else:
+            st.markdown("- No hay comparativas disponibles contra el año anterior.")
+        
+        # === Insights Estratégicos (IA) ===
+        st.markdown("##### Insights Estratégicos (IA)")
+        best_line = pdi_estrategico.groupby("Linea").agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
+        best_line = best_line.sort_values("cumplimiento_pct", ascending=False).head(1)
+        line_name = str(best_line.iloc[0]["Linea"]) if not best_line.empty else ""
+        line_avg = float(best_line.iloc[0]["cumplimiento_pct"]) if not best_line.empty else 0
+        health_rate_e = round(((counts_e["Sobrecumplimiento"] + counts_e["Cumplimiento"]) / max(count_total_e, 1)) * 100, 1)
+        
+        insights_e = []
+        if health_rate_e >= 70:
+            insights_e.append(f"✅ El {health_rate_e}% de los indicadores PDI están en niveles saludables.")
+        elif health_rate_e >= 50:
+            insights_e.append(f"⚠️ El {health_rate_e}% de los indicadores PDI están en cumplimiento, con riesgo en algunos objetivos.")
+        else:
+            insights_e.append(f"🚨 Solo el {health_rate_e}% de los indicadores PDI cumplen expectativas; se requiere acción prioritaria.")
+        
+        if line_name:
+            insights_e.append(f"🌟 La línea \"{line_name}\" lidera con {line_avg:.1f}% de cumplimiento promedio.")
+        
+        if prev_month_e and best_improvements_e:
+            insights_e.append(f"📈 Mejora destacada: \"{best_improvements_e[0]['name']}\" (+{best_improvements_e[0]['change']:.1f}%).")
+        
+        if prev_month_e and worst_declines_e:
+            insights_e.append(f"📉 Atención a \"{worst_declines_e[0]['name']}\" ({worst_declines_e[0]['change']:.1f}%).")
+        
+        for insight in insights_e:
+            st.markdown(f"- {insight}")
     else:
         st.warning("No hay indicadores de CMI Estratégico para el corte seleccionado.")
     
@@ -972,6 +1024,123 @@ def render():
                         st.markdown(f"- **{item['name']}** mejora +{item['change']:.1f}% respecto al año anterior")
                 else:
                     st.info("No hay comparación con el año anterior.")
+            else:
+                st.info("No hay datos del año anterior para comparar.")
+            
+            # === Gráfico de barras apiladas por tipo de proceso ===
+            st.markdown("##### Distribución de Niveles de Cumplimiento por Tipo de Proceso")
+            # Cargar consolidado filtrado para análisis por tipo
+            process_data = consolidado.copy()
+            process_data["Año"] = pd.to_numeric(process_data.get("Año", process_data.get("Ao", pd.NA)), errors="coerce")
+            process_data = process_data[process_data["Año"] == year_procesos]
+            
+            # Filtrar por mes si está disponible
+            if "Mes_num" in process_data.columns:
+                process_data = process_data[process_data["Mes_num"] == month_procesos]
+            
+            # Merge con tipos de proceso
+            if not process_data.empty and "Subproceso" in process_data.columns:
+                process_data = process_data.merge(
+                    map_df[["Subproceso", "Tipo de proceso"]].drop_duplicates(),
+                    on="Subproceso",
+                    how="left"
+                )
+                
+                # Calcular counts por tipo y nivel
+                proc_counts = _process_counts(process_data, "Tipo de proceso")
+                
+                if not proc_counts.empty:
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        name='Sobrecumplimiento',
+                        x=proc_counts['Tipo de proceso'],
+                        y=proc_counts['Sobrecumplimiento'],
+                        marker_color='#1A3A5C'
+                    ))
+                    fig.add_trace(go.Bar(
+                        name='Cumplimiento',
+                        x=proc_counts['Tipo de proceso'],
+                        y=proc_counts['Cumplimiento'],
+                        marker_color='#43A047'
+                    ))
+                    fig.add_trace(go.Bar(
+                        name='Alerta',
+                        x=proc_counts['Tipo de proceso'],
+                        y=proc_counts['Alerta'],
+                        marker_color='#FBAF17'
+                    ))
+                    fig.add_trace(go.Bar(
+                        name='Peligro',
+                        x=proc_counts['Tipo de proceso'],
+                        y=proc_counts['Peligro'],
+                        marker_color='#D32F2F'
+                    ))
+                    fig.update_layout(
+                        barmode='stack',
+                        xaxis_tickangle=-45,
+                        height=480,
+                        margin=dict(t=40, b=150),
+                        showlegend=True
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No hay información de niveles de cumplimiento por tipo de proceso.")
+            
+            # === Análisis comparativo con año anterior ===
+            if prev_month_p:
+                st.markdown("##### Procesos con Mayor Mejora vs Año Anterior")
+                previous_process_data = consolidado.copy()
+                previous_process_data["Año"] = pd.to_numeric(
+                    previous_process_data.get("Año", previous_process_data.get("Ao", pd.NA)),
+                    errors="coerce"
+                )
+                previous_process_data = previous_process_data[previous_process_data["Año"] == prev_year_p]
+                
+                if "Mes_num" in previous_process_data.columns:
+                    previous_process_data = previous_process_data[previous_process_data["Mes_num"] == prev_month_p]
+                
+                # Merge con tipos
+                if not previous_process_data.empty and "Subproceso" in previous_process_data.columns:
+                    previous_process_data = previous_process_data.merge(
+                        map_df[["Subproceso", "Tipo de proceso"]].drop_duplicates(),
+                        on="Subproceso",
+                        how="left"
+                    )
+                    
+                    process_top, process_alert = _process_improvements(
+                        process_data, previous_process_data, "Tipo de proceso"
+                    )
+                    
+                    if process_top:
+                        for item in process_top:
+                            st.markdown(f"- **{item['name']}** — +{item['change']:.1f}%")
+                    else:
+                        st.markdown("- No hay comparación de procesos con el año anterior.")
+                    
+                    st.markdown("##### Procesos en Alerta con Empeoramiento")
+                    if process_alert:
+                        for item in process_alert:
+                            st.markdown(f"- **{item['name']}** — {item['change']:.1f}%")
+                    else:
+                        st.markdown("- No se detectaron procesos en alerta con empeoramiento.")
+                    
+                    # === Insights Operativos (IA) ===
+                    st.markdown("##### Insights Operativos (IA)")
+                    total_process = len(process_data) if not process_data.empty else 0
+                    health_process = 0
+                    if not proc_counts.empty:
+                        health_process = proc_counts[['Sobrecumplimiento', 'Cumplimiento']].sum(axis=1).sum()
+                    health_pct_p = round(health_process / max(total_process, 1) * 100, 1)
+                    
+                    insights_p = []
+                    if process_top:
+                        insights_p.append(f"🚀 {process_top[0]['name']} registra la mayor mejora respecto al año anterior.")
+                    if process_alert:
+                        insights_p.append(f"⚠️ {process_alert[0]['name']} está en alerta y empeoró respecto al año anterior.")
+                    insights_p.append(f"✅ El {health_pct_p}% de los indicadores por proceso están en niveles saludables.")
+                    
+                    for insight in insights_p:
+                        st.markdown(f"- {insight}")
         else:
             st.warning("No se pudo cargar información de tipos de proceso.")
     else:
