@@ -174,12 +174,19 @@ def load_worksheet_flags() -> pd.DataFrame:
     c_plan = _find_col(df, ["Indicadores Plan estrategico"])
     c_cna = _find_col(df, ["CNA"])
     c_proyecto = _find_col(df, ["Proyecto", "PROYECTO"])
+    c_subproceso = _find_col(df, ["Subproceso", "SUBPROCESO"])
 
     needed = [c for c in [c_id, c_ind, c_linea, c_obj, c_factor, c_car, c_plan, c_cna] if c]
+    optional_cols = []
+    if c_proyecto:
+        optional_cols.append(c_proyecto)
+    if c_subproceso:
+        optional_cols.append(c_subproceso)
+    
     if not needed:
         return pd.DataFrame()
 
-    out = df[needed].copy()
+    out = df[needed + optional_cols].copy()
     rename_map = {
         c_id: "Id",
         c_ind: "Indicador",
@@ -191,8 +198,9 @@ def load_worksheet_flags() -> pd.DataFrame:
         c_cna: "FlagCNA",
     }
     if c_proyecto:
-        out = df[needed + [c_proyecto]].copy()
         rename_map[c_proyecto] = "Proyecto"
+    if c_subproceso:
+        rename_map[c_subproceso] = "Subproceso"
 
     out = out.rename(columns={k: v for k, v in rename_map.items() if k is not None})
 
@@ -200,7 +208,7 @@ def load_worksheet_flags() -> pd.DataFrame:
         return pd.DataFrame()
 
     out["Id"] = out["Id"].apply(_id_limpio)
-    for c in ["Indicador", "Linea", "Objetivo", "Factor", "Caracteristica"]:
+    for c in ["Indicador", "Linea", "Objetivo", "Factor", "Caracteristica", "Subproceso"]:
         if c in out.columns:
             out[c] = out[c].astype(str).str.strip()
             out.loc[out[c].isin(["", "nan", "None"]), c] = None
