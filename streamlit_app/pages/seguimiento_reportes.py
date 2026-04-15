@@ -5,9 +5,23 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from components.charts import exportar_excel
-from core.config import CACHE_TTL
-from streamlit_app.utils.formatting import id_limpio
+# Importes desde root
+try:
+    from components.charts import exportar_excel
+    from core.config import CACHE_TTL
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from components.charts import exportar_excel
+    from core.config import CACHE_TTL
+
+# Importes desde streamlit_app
+try:
+    from ..utils.formatting import id_limpio
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from utils.formatting import id_limpio
 
 
 RUTA_SEGUIMIENTO = Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
@@ -221,7 +235,7 @@ def render():
             legend_title="Estado",
         )
         try:
-            from streamlit_app.components.renderers import render_echarts
+            from components.renderers import render_echarts
 
             def _option_proc_estado(df_proc, color_map):
                 procs = df_proc['Proceso'].astype(str).unique().tolist()

@@ -5,7 +5,14 @@ Ventanas emergentes, modales y notificaciones tipo toast
 
 import streamlit as st
 import streamlit.components.v1 as components
-from streamlit_app.styles.design_system import COLORS, SHADOWS, ICONS, get_line_color
+from pathlib import Path
+
+try:
+    from styles.design_system import COLORS, SHADOWS, ICONS, get_line_color
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from styles.design_system import COLORS, SHADOWS, ICONS, get_line_color
 
 
 def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):

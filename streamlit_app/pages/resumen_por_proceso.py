@@ -5,17 +5,32 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+
+# Importes desde streamlit_app (relativos)
 try:
     from ..components import KPIRow
     from ..components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
-except (ImportError, ValueError):
+    from ..services.data_service import DataService
+    from ..components.filters import render_filters
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from components import KPIRow
     from components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
-from streamlit_app.services.data_service import DataService
-from streamlit_app.components.filters import render_filters
-from core.calculos import simple_categoria_desde_porcentaje
-from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
-from components.charts import exportar_excel, panel_detalle_indicador
+    from services.data_service import DataService
+    from components.filters import render_filters
+
+# Importes desde root (absolutos con fallback)
+try:
+    from core.calculos import simple_categoria_desde_porcentaje
+    from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
+    from components.charts import exportar_excel, panel_detalle_indicador
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from core.calculos import simple_categoria_desde_porcentaje
+    from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
+    from components.charts import exportar_excel, panel_detalle_indicador
 
 # Constantes y helpers replicados de Direccionamiento Estratégico
 _PROCESOS_DIR = {

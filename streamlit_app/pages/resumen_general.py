@@ -53,12 +53,15 @@ import pandas as pd
 import plotly.graph_objects as go
 
 try:
-    from ..services.strategic_indicators import preparar_pdi_con_cierre
-except (ImportError, ValueError):
     from services.strategic_indicators import preparar_pdi_con_cierre
-from services import strategic_indicators as si
-
-from core.config import DATA_OUTPUT
+    import services.strategic_indicators as si
+    from core.config import DATA_OUTPUT
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.strategic_indicators import preparar_pdi_con_cierre
+    import services.strategic_indicators as si
+    from core.config import DATA_OUTPUT
 
 # Limpiar caché corrupto si es necesario
 if "page_cache_cleared" not in st.session_state:

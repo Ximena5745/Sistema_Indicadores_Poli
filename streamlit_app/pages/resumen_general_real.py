@@ -53,8 +53,10 @@ import pandas as pd
 import plotly.graph_objects as go
 
 try:
-    from ..services.strategic_indicators import preparar_pdi_con_cierre
-except (ImportError, ValueError):
+    from services.strategic_indicators import preparar_pdi_con_cierre
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from services.strategic_indicators import preparar_pdi_con_cierre
 
 DATA_ROOT = Path(__file__).resolve().parents[2]

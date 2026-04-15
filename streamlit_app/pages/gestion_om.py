@@ -31,13 +31,19 @@ def _guardar_kpi_diag(con_ia: bool, elapsed: float) -> None:
         pass  # No bloquear la UI si falla la escritura
 
 try:
-    from ..components.charts import exportar_excel
-    from ..services.ai_analysis import analizar_texto_indicador as _analizar_texto_puro
-    from ..services.data_loader import cargar_acciones_mejora, cargar_dataset
-except (ImportError, ValueError):
-    from components.charts import exportar_excel
+    # from ..components.charts import exportar_excel  # Función no implementada
     from services.ai_analysis import analizar_texto_indicador as _analizar_texto_puro
     from services.data_loader import cargar_acciones_mejora, cargar_dataset
+    from core.config import CACHE_TTL
+except (ImportError, ModuleNotFoundError):
+    # Fallback: Sistema está siendo ejecutado como script, no como paquete
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parents[2]))
+    sys.path.insert(0, str(Path(__file__).parents[2] / "services"))
+    from ai_analysis import analizar_texto_indicador as _analizar_texto_puro
+    from data_loader import cargar_acciones_mejora, cargar_dataset
+    from core.config import CACHE_TTL
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

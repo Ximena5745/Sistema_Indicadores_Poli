@@ -1,15 +1,24 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from pathlib import Path
 
-from core.config import NIVEL_COLOR, NIVEL_BG, UMBRAL_PELIGRO, UMBRAL_ALERTA
+# Importes desde root
 try:
-    from ..services.data_loader import cargar_dataset, cargar_acciones_mejora
-except (ImportError, ValueError):
+    from core.config import NIVEL_COLOR, NIVEL_BG, UMBRAL_PELIGRO, UMBRAL_ALERTA
     from services.data_loader import cargar_dataset, cargar_acciones_mejora
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from core.config import NIVEL_COLOR, NIVEL_BG, UMBRAL_PELIGRO, UMBRAL_ALERTA
+    from services.data_loader import cargar_dataset, cargar_acciones_mejora
+
+# Importes desde streamlit_app
 try:
     from ..components.filters import render_filters
-except (ImportError, ValueError):
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from components.filters import render_filters
 
 def _brecha(row):
@@ -130,10 +139,7 @@ def render():
         )
         fig_tm.update_layout(paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=40, b=10, l=10, r=10), height=420)
         try:
-            try:
-                from ..components.renderers import render_echarts
-            except (ImportError, ValueError):
-                from components.renderers import render_echarts
+            from ..components.renderers import render_echarts
             # construir datos jerárquicos para ECharts treemap
             tree_data = []
             for macro, gmacro in df_tm.groupby('Macrolinea'):
@@ -166,10 +172,7 @@ def render():
             title="Cumplimiento propio vs benchmark (simulado)",
         )
         try:
-            try:
-                from ..components.renderers import render_echarts
-            except (ImportError, ValueError):
-                from components.renderers import render_echarts
+            from ..components.renderers import render_echarts
             # construir opción ECharts para barras agrupadas
             df_m = df_bench.melt(id_vars="Proceso", value_vars=["cumplimiento", "benchmark"], var_name="Serie", value_name="Valor")
             procs = df_m['Proceso'].astype(str).unique().tolist()
@@ -195,10 +198,7 @@ def render():
             markers=True, title="Brecha promedio por proceso a lo largo del tiempo",
         )
         try:
-            try:
-                from ..components.renderers import render_echarts
-            except (ImportError, ValueError):
-                from components.renderers import render_echarts
+            from ..components.renderers import render_echarts
             # construir opción ECharts para serie temporal por proceso
             periods = sorted(df_evo['Periodo'].astype(str).unique().tolist())
             procs = sorted(df_evo['Proceso'].astype(str).unique().tolist())

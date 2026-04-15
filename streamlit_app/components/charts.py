@@ -2,13 +2,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-
-try:
-    from ..services.data_service import DataService
-    from ..styles.design_system import COLORS, get_vivid_palette
-except (ImportError, ValueError):
-    from services.data_service import DataService
-    from styles.design_system import COLORS, get_vivid_palette
+from ..services.data_service import DataService
+from ..styles.design_system import COLORS, get_vivid_palette
 
 
 class Charts:

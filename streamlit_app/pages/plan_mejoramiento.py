@@ -5,14 +5,16 @@ import plotly.express as px
 import streamlit as st
 
 try:
-    from ..services.data_loader import cargar_acciones_mejora
-    from ..services.strategic_indicators import (
+    from services.data_loader import cargar_acciones_mejora
+    from services.strategic_indicators import (
         NIVEL_COLOR_EXT,
         load_cna_catalog,
         preparar_cna_con_cierre,
         load_cierres,
     )
-except (ImportError, ValueError):
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.parent.parent))
     from services.data_loader import cargar_acciones_mejora
     from services.strategic_indicators import (
         NIVEL_COLOR_EXT,
@@ -162,7 +164,7 @@ def render():
         )
         fig_factor.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
         try:
-            from streamlit_app.components.renderers import render_echarts
+            from components.renderers import render_echarts
             def _option_factor_bar(df_by_factor, color_map):
                 labels = df_by_factor['Factor'].astype(str).tolist()
                 vals = [float(v) for v in df_by_factor['cumplimiento_pct'].tolist()]
@@ -198,7 +200,7 @@ def render():
             hole=0.45,
         )
         try:
-            from streamlit_app.components.renderers import render_echarts
+            from components.renderers import render_echarts
             def _option_pie_from_counts(df_counts):
                 labels = df_counts['Nivel'].astype(str).tolist()
                 vals = [int(v) for v in df_counts['Cantidad'].tolist()]
@@ -232,7 +234,7 @@ def render():
             color_discrete_map=NIVEL_COLOR_EXT,
         )
         try:
-            from streamlit_app.components.renderers import render_echarts
+            from components.renderers import render_echarts
             def _option_stack(df_stack):
                 factors = sorted(df_stack['Factor'].astype(str).unique().tolist())
                 niveles = sorted(df_stack['Nivel de cumplimiento'].astype(str).unique().tolist())
@@ -274,7 +276,7 @@ def render():
             st.info("No hay datos válidos para el treemap de factor/característica.")
         else:
             try:
-                from streamlit_app.components.renderers import render_echarts
+                from components.renderers import render_echarts
                 # construir estructura anidada para ECharts treemap
                 tree_data = []
                 for f, grp in df_tree.groupby('Factor'):
@@ -414,7 +416,7 @@ def render():
                         text_auto=True,
                     )
                     try:
-                        from streamlit_app.components.renderers import render_echarts
+                        from components.renderers import render_echarts
                         labels = _acc_g['Estado'].astype(str).tolist()
                         vals = [float(v) for v in _acc_g['Avance promedio (%)'].tolist()]
                         option = {"tooltip": {"trigger": "axis"},

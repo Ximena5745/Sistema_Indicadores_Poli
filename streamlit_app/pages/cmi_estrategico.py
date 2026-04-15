@@ -6,13 +6,15 @@ import plotly.express as px
 import streamlit as st
 
 try:
-    from ..services.strategic_indicators import (
+    from services.strategic_indicators import (
         NIVEL_COLOR_EXT,
         load_pdi_catalog,
         preparar_pdi_con_cierre,
         load_cierres,
     )
-except (ImportError, ValueError):
+except (ImportError, ModuleNotFoundError):
+    import sys
+    sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.parent.parent))
     from services.strategic_indicators import (
         NIVEL_COLOR_EXT,
         load_pdi_catalog,
