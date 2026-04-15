@@ -57,6 +57,15 @@ from services import strategic_indicators as si
 
 from core.config import DATA_OUTPUT
 
+# Limpiar caché corrupto si es necesario
+if "page_cache_cleared" not in st.session_state:
+    try:
+        si.load_worksheet_flags.clear()
+        si.load_cierres.clear()
+    except Exception:
+        pass
+    st.session_state.page_cache_cleared = True
+
 PATH_CONSOLIDADO = DATA_OUTPUT / "Resultados Consolidados.xlsx"
 
 LINEA_COLORS = {

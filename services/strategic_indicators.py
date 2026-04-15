@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unicodedata
 from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
@@ -12,12 +11,44 @@ from core.config import (
 )
 from core import calculos as _calculos
 
+# Caché manual simple (no depende de Streamlit)
+_CACHE_MANUAL = {}
+_CACHE_TTL_MANUAL = 300  # segundos
+
+
+def _get_cached(key: str) -> pd.DataFrame | None:
+    """Obtener del caché manual si está disponible."""
+    if key in _CACHE_MANUAL:
+        data, timestamp = _CACHE_MANUAL[key]
+        import time
+        if time.time() - timestamp < _CACHE_TTL_MANUAL:
+            return data
+        else:
+            del _CACHE_MANUAL[key]
+    return None
+
+
+def _set_cached(key: str, data: pd.DataFrame) -> None:
+    """Guardar en caché manual."""
+    import time
+    _CACHE_MANUAL[key] = (data, time.time())
+
+
+def _validate_cached_result(df: pd.DataFrame, context: str) -> bool:
+    """Valida que caché no retorne DataFrame vacío corrupto."""
+    if df.empty:
+        # Log para debugging
+        import sys
+        print(f"WARNING: Caché vacío en {context}, invalidando...", file=sys.stderr)
+        return False
+    return True
+
 # Aliases decimales para compatibilidad
 UMBRAL_ALERTA_DEC = UMBRAL_ALERTA
 UMBRAL_PELIGRO_DEC = UMBRAL_PELIGRO
 UMBRAL_SOBRECUMPLIMIENTO_DEC = UMBRAL_SOBRECUMPLIMIENTO
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 RAW_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
 OUT_XLSX = ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
 
@@ -116,8 +147,14 @@ def load_cna_catalog() -> pd.DataFrame:
     return out.drop_duplicates().reset_index(drop=True)
 
 
-@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_worksheet_flags() -> pd.DataFrame:
+    """Cargador de flags con caché manual como fallback."""
+    # Intentar caché manual primero
+    cached = _get_cached("worksheet_flags")
+    if cached is not None and not cached.empty:
+        return cached
+    
+    # Cargar sin dependencia en st.cache_data
     if not RAW_XLSX.exists():
         return pd.DataFrame()
 
@@ -178,11 +215,21 @@ def load_worksheet_flags() -> pd.DataFrame:
         out["Proyecto"] = pd.to_numeric(out["Proyecto"], errors="coerce").fillna(0).astype(int)
 
     out = out[out["Id"] != ""].copy()
-    return out.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
+    result = out.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
+    
+    # Guardar en caché manual
+    _set_cached("worksheet_flags", result)
+    
+    return result
 
 
-@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_cierres() -> pd.DataFrame:
+    """Cargador de cierres con caché manual como fallback."""
+    # Intentar caché manual primero
+    cached = _get_cached("cierres")
+    if cached is not None and not cached.empty:
+        return cached
+        
     if not OUT_XLSX.exists():
         return pd.DataFrame()
 
@@ -257,7 +304,12 @@ def load_cierres() -> pd.DataFrame:
     out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
     out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
 
-    return out.reset_index(drop=True)
+    result = out.reset_index(drop=True)
+    
+    # Guardar en caché manual
+    _set_cached("cierres", result)
+    
+    return result
 
 
 def cierre_por_corte(df_cierres: pd.DataFrame, anio: int, mes: int) -> pd.DataFrame:

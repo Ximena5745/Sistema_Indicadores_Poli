@@ -4,6 +4,12 @@ from pathlib import Path
 from streamlit.components.v1 import html
 from typing import Any
 
+# Limpiar caché corrupto al inicio
+if "cache_cleared" not in st.session_state:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state.cache_cleared = True
+
 from streamlit_app.components import ui_components
 
 st.set_page_config(page_title="Dashboard Cumplimiento", layout="wide")
