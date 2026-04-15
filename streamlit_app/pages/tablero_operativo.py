@@ -250,7 +250,10 @@ def _option_donut(df: pd.DataFrame) -> dict:
                 "label": {"show": False, "position": "center"},
                 "emphasis": {"label": {"show": True, "fontSize": 14, "fontWeight": "bold"}},
                 "labelLine": {"show": False},
-                "data": [{"value": v, "name": l} for v, l in zip(values, labels)],
+                "data": [
+                    {"value": v, "name": l, "itemStyle": {"color": _NIVEL_COLOR_EXT.get(l, "#BDBDBD")}}
+                    for v, l in zip(values, labels)
+                ],
             }
         ],
     }

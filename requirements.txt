@@ -14,3 +14,4 @@ anthropic>=0.40.0
 streamlit-extras>=0.1.0
 streamlit-option-menu
 reportlab
+pypdf>=4.2.0
