@@ -814,11 +814,11 @@ def render():
                         df_tipo = pdi_with_tipo[pdi_with_tipo["Tipo de proceso"] == tipo]
                         
                         total_indicadores = len(df_tipo)
-                        n_procesos = df_tipo[merge_column].nunique() if merge_column in df_tipo.columns else 0
+                        n_procesos = df_tipo["Subproceso"].nunique() if "Subproceso" in df_tipo.columns else 0
                         
                         # Calcular % cumplimiento promedio
                         if "cumplimiento_pct" in df_tipo.columns:
-                            cumpl_promedio = (df_tipo["cumplimiento_pct"].mean() * 100) if not df_tipo["cumplimiento_pct"].isna().all() else 0
+                            cumpl_promedio = (df_tipo["cumplimiento_pct"].mean()) if not df_tipo["cumplimiento_pct"].isna().all() else 0
                         else:
                             cumpl_promedio = 0
                         
@@ -846,23 +846,23 @@ def render():
                             st.metric("% Cumplimiento", f"{cumpl_promedio:.1f}%")
                             st.metric("% Reportados", f"{pct_reportados:.1f}%")
             
-            # CASO 2: Mostrar tarjetas por PROCESOS individuales (cuando se seleccionó un tipo específico)
+            # CASO 2: Mostrar tarjetas por SUBPROCESOS individuales (cuando se seleccionó un tipo específico)
             else:
-                st.markdown(f"### 📊 Procesos de tipo: {selected_tipo_proceso}")
+                st.markdown(f"### 📊 Subprocesos de tipo: {selected_tipo_proceso}")
                 
-                procesos_del_tipo = sorted(pdi_with_tipo[merge_column].dropna().unique())
+                subprocesos_del_tipo = sorted(pdi_with_tipo["Subproceso"].dropna().unique())
                 
-                if procesos_del_tipo:
-                    # Mostrar en grid de 3 columnasmerge_column
-                    for i in range(0, len(procesos_del_tipo), 3):
+                if subprocesos_del_tipo:
+                    # Mostrar en grid de 3 columnas
+                    for i in range(0, len(subprocesos_del_tipo), 3):
                         cols = st.columns(3)
-                        for idx, proceso in enumerate(procesos_del_tipo[i:i+3]):
-                            df_proceso = pdi_with_tipo[pdi_with_tipo["Proceso"] == proceso]
+                        for idx, subproceso in enumerate(subprocesos_del_tipo[i:i+3]):
+                            df_subproceso = pdi_with_tipo[pdi_with_tipo["Subproceso"] == subproceso]
                             
-                            total_ind = len(df_proceso)
+                            total_ind = len(df_subproceso)
                             
-                            if "cumplimiento_pct" in df_proceso.columns:
-                                cumpl_prom = (df_proceso["cumplimiento_pct"].mean() * 100) if not df_proceso["cumplimiento_pct"].isna().all() else 0
+                            if "cumplimiento_pct" in df_subproceso.columns:
+                                cumpl_prom = (df_subproceso["cumplimiento_pct"].mean()) if not df_subproceso["cumplimiento_pct"].isna().all() else 0
                             else:
                                 cumpl_prom = 0
                             
@@ -878,14 +878,14 @@ def render():
                                 st.markdown(
                                     f"""<div style='background: white; padding: 1rem; border-radius: 8px; 
                                     border-left: 4px solid {color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>
-                                    <h5 style='margin: 0; color: #1A1A1A; font-size: 14px;'>{proceso}</h5>
+                                    <h5 style='margin: 0; color: #1A1A1A; font-size: 14px;'>{subproceso}</h5>
                                     </div>""",
                                     unsafe_allow_html=True
                                 )
                                 st.metric("Indicadores", total_ind)
                                 st.metric("% Cumplimiento", f"{cumpl_prom:.1f}%", delta=None)
                 else:
-                    st.info(f"No hay procesos del tipo {selected_tipo_proceso} con indicadores en este período.")
+                    st.info(f"No hay subprocesos del tipo {selected_tipo_proceso} con indicadores en este período.")
             
             st.markdown("---")
         else:
