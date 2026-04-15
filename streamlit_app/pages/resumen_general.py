@@ -641,9 +641,14 @@ def _find_process_column(df: pd.DataFrame) -> str | None:
 def _process_counts(df: pd.DataFrame, process_col: str) -> pd.DataFrame:
     levels = ["Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]
     df = df.copy()
+    if df.empty or process_col not in df.columns:
+        return pd.DataFrame(columns=[process_col] + levels)
     if "Nivel de cumplimiento" not in df.columns:
         df = _ensure_nivel_cumplimiento(df)
     df["Nivel de cumplimiento"] = df["Nivel de cumplimiento"].fillna("Pendiente de reporte")
+    df = df[df[process_col].notna()].copy()
+    if df.empty:
+        return pd.DataFrame(columns=[process_col] + levels)
     group_col = "Id" if "Id" in df.columns else process_col
     pivot = (
         df[df["Nivel de cumplimiento"].isin(levels)]
@@ -657,6 +662,27 @@ def _process_counts(df: pd.DataFrame, process_col: str) -> pd.DataFrame:
         if lvl not in pivot.columns:
             pivot[lvl] = 0
     return pivot.reset_index()
+
+
+def _ensure_tipo_proceso_column(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    if "Tipo de proceso" in df.columns:
+        return df
+
+    candidates = [
+        "Tipo de proceso_map",
+        "Tipo de proceso_y",
+        "Tipo de proceso_x",
+        "Tipo_proceso",
+        "tipo_proceso",
+    ]
+    for col in candidates:
+        if col in df.columns:
+            df = df.copy()
+            df["Tipo de proceso"] = df[col]
+            return df
+    return df
 
 
 def _process_improvements(current: pd.DataFrame, previous: pd.DataFrame, process_col: str):
@@ -756,9 +782,9 @@ def _inject_dashboard_styles():
             border-radius: 14px;
             border: 1px solid #D6E2F0;
             background: #FFFFFF;
-            padding: 0.9rem;
+            padding: 0.7rem;
             box-shadow: 0 4px 10px rgba(0,0,0,0.07);
-            min-height: 165px;
+            min-height: 136px;
         }
         .rg-card-head {
             display: flex;
@@ -785,13 +811,13 @@ def _inject_dashboard_styles():
         }
         .rg-main-value {
             margin: 0;
-            font-size: 2rem;
+            font-size: 1.55rem;
             font-weight: 800;
             line-height: 1.1;
         }
         .rg-meta {
             color: #546D88;
-            font-size: 0.78rem;
+            font-size: 0.74rem;
             margin-top: 0.2rem;
         }
         .rg-chip {
@@ -820,7 +846,7 @@ def _inject_dashboard_styles():
             border-radius: 14px;
             padding: 0.9rem;
             color: #E8F1FF;
-            min-height: 220px;
+            min-height: 260px;
         }
         .rg-ia h4 {
             margin: 0 0 0.6rem 0;
@@ -835,6 +861,23 @@ def _inject_dashboard_styles():
             background: rgba(113, 197, 255, 0.12);
             font-size: 0.8rem;
             color: #EAF5FF;
+        }
+        .rg-ia-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+        }
+        .rg-ia-table th, .rg-ia-table td {
+            border-bottom: 1px solid rgba(128, 179, 230, 0.3);
+            padding: 0.35rem 0.2rem;
+            text-align: left;
+            color: #EAF5FF;
+        }
+        .rg-ia-table th {
+            color: #A9CCF4;
+            font-size: 0.72rem;
+            font-weight: 700;
         }
         .rg-table {
             width: 100%;
@@ -971,6 +1014,23 @@ def _render_variation_table(title: str, rows: list[dict], positive: bool):
     )
 
 
+def _build_ia_rows(rows: list[dict]) -> str:
+    if not rows:
+        return "<tr><td colspan='2'>Sin datos comparativos</td></tr>"
+    out = ""
+    for row in rows[:5]:
+        change = float(row.get("change", 0.0) or 0.0)
+        sign = "+" if change >= 0 else ""
+        color = "#84F0A2" if change >= 0 else "#FF9FA3"
+        out += (
+            "<tr>"
+            f"<td>{row.get('name', '')}</td>"
+            f"<td style='color:{color};font-weight:700;'>{sign}{change:.1f}%</td>"
+            "</tr>"
+        )
+    return out
+
+
 def render():
     _inject_dashboard_styles()
 
@@ -1082,7 +1142,7 @@ def render():
             for _, row in lineas_resumen.iterrows():
                 norm_to_row[_norm_key(str(row["Linea"]))] = row
 
-            visual_left, visual_right = st.columns([2, 1])
+            visual_left, visual_right = st.columns([1.25, 1.75])
             with visual_left:
                 for i in range(0, len(strategic_defs), 2):
                     row_cols = st.columns(2)
@@ -1128,15 +1188,25 @@ def render():
                 health_rate_e = round(((counts_e["Sobrecumplimiento"] + counts_e["Cumplimiento"]) / max(count_total_e, 1)) * 100, 1)
                 ia_bubbles = [
                     f"{health_rate_e}% de los indicadores en niveles saludables.",
-                    f"{best_improvements_e[0]['name']} presenta la mayor mejora." if best_improvements_e else "Sin mejoras comparables en el periodo.",
-                    f"{worst_declines_e[0]['name']} requiere accion correctiva." if worst_declines_e else "No se detectaron desmejoras criticas.",
+                    f"Sobrecumplimiento: {counts_e['Sobrecumplimiento']} | Cumplimiento: {counts_e['Cumplimiento']}",
+                    f"Alerta: {counts_e['Alerta']} | Peligro: {counts_e['Peligro']}",
                 ]
                 bubbles_html = "".join([f"<div class='rg-bubble'>{b}</div>" for b in ia_bubbles])
+                best_rows_html = _build_ia_rows(best_improvements_e)
+                worst_rows_html = _build_ia_rows(worst_declines_e)
                 st.markdown(
                     f"""
                     <div class='rg-ia'>
                         <h4>Perspectivas IA Estrategicas</h4>
                         {bubbles_html}
+                        <table class='rg-ia-table'>
+                            <thead><tr><th>Indicadores que mejoraron (PDI)</th><th>Variacion</th></tr></thead>
+                            <tbody>{best_rows_html}</tbody>
+                        </table>
+                        <table class='rg-ia-table'>
+                            <thead><tr><th>Indicadores en riesgo (PDI)</th><th>Variacion</th></tr></thead>
+                            <tbody>{worst_rows_html}</tbody>
+                        </table>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -1236,6 +1306,7 @@ def render():
             on="Subproceso",
             how="left"
         )
+        pdi_procesos = _ensure_tipo_proceso_column(pdi_procesos)
         
         # Aplicar filtro de tipo si seleccionaron uno específico
         if tipo_proceso_seleccionado != "Todos":
@@ -1263,6 +1334,7 @@ def render():
                         on="Subproceso",
                         how="left"
                     )
+                    prev_pdi_procesos = _ensure_tipo_proceso_column(prev_pdi_procesos)
                     if tipo_proceso_seleccionado != "Todos":
                         prev_pdi_procesos = prev_pdi_procesos[prev_pdi_procesos["Tipo de proceso"] == tipo_proceso_seleccionado]
 
@@ -1287,23 +1359,59 @@ def render():
                 )
                 process_variation_df["change"] = 0.0
 
-            process_variation_df = process_variation_df.sort_values("indicadores", ascending=False).head(9)
+            process_variation_df = process_variation_df.sort_values("indicadores", ascending=False).head(12)
 
-            if process_variation_df.empty:
-                st.info("No hay subprocesos para mostrar en este periodo.")
+            # Reglas de visualizacion de fichas por filtro:
+            # 1) Todos -> 4 fichas por Tipo de proceso
+            # 2) Tipo especifico -> fichas de procesos/subprocesos asociados a esa tipologia
+            if tipo_proceso_seleccionado == "Todos":
+                type_curr = (
+                    pdi_procesos.groupby("Tipo de proceso", dropna=False)
+                    .agg(indicadores=("Indicador", "count"), actual=("cumplimiento_pct", "mean"))
+                    .reset_index()
+                )
+                if prev_month_p:
+                    prev_type = (
+                        prev_pdi_procesos.groupby("Tipo de proceso", dropna=False)
+                        .agg(prev=("cumplimiento_pct", "mean"))
+                        .reset_index()
+                    )
+                    type_curr = type_curr.merge(prev_type, on="Tipo de proceso", how="left")
+                    type_curr["change"] = type_curr["actual"] - type_curr["prev"]
+                else:
+                    type_curr["change"] = 0.0
+
+                type_curr = type_curr[type_curr["Tipo de proceso"].notna()].copy()
+                cols = st.columns(4)
+                ordered = [t for t in TIPOS_PROCESO if t in type_curr["Tipo de proceso"].astype(str).tolist()]
+                for idx, tipo in enumerate(ordered[:4]):
+                    row = type_curr[type_curr["Tipo de proceso"] == tipo].iloc[0]
+                    delta = float(row.get("change", 0.0) or 0.0)
+                    tipo_color = get_tipo_color(tipo, light=False)
+                    with cols[idx]:
+                        _render_process_card(
+                            name=tipo,
+                            indicadores=int(row.get("indicadores", 0)),
+                            variation=delta,
+                            color=tipo_color,
+                        )
             else:
-                for i in range(0, len(process_variation_df), 3):
-                    pcols = st.columns(3)
-                    for idx, (_, prow) in enumerate(process_variation_df.iloc[i:i+3].iterrows()):
-                        with pcols[idx]:
-                            delta = float(prow.get("change", 0.0) or 0.0)
-                            card_color = "#E55039" if delta < -2 else ("#F39C12" if delta < 2 else "#2E9E55")
-                            _render_process_card(
-                                name=str(prow.get("Subproceso", "Sin subproceso")),
-                                indicadores=int(prow.get("indicadores", 0)),
-                                variation=delta,
-                                color=card_color,
-                            )
+                if process_variation_df.empty:
+                    st.info("No hay procesos asociados a la tipologia seleccionada.")
+                else:
+                    subset_cards = process_variation_df.head(9)
+                    for i in range(0, len(subset_cards), 3):
+                        pcols = st.columns(3)
+                        for idx, (_, prow) in enumerate(subset_cards.iloc[i:i+3].iterrows()):
+                            with pcols[idx]:
+                                delta = float(prow.get("change", 0.0) or 0.0)
+                                card_color = "#E55039" if delta < -2 else ("#F39C12" if delta < 2 else "#2E9E55")
+                                _render_process_card(
+                                    name=str(prow.get("Subproceso", "Sin subproceso")),
+                                    indicadores=int(prow.get("indicadores", 0)),
+                                    variation=delta,
+                                    color=card_color,
+                                )
 
             # Distribucion y tablas
             st.markdown("##### Total Indicadores por Proceso")
@@ -1322,6 +1430,7 @@ def render():
                     on="Subproceso",
                     how="left"
                 )
+                process_data = _ensure_tipo_proceso_column(process_data)
                 
                 if tipo_proceso_seleccionado != "Todos":
                     process_data = process_data[process_data["Tipo de proceso"] == tipo_proceso_seleccionado]

@@ -57,16 +57,38 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         if pd.isna(val):
             return "⚪"
         if val >= 105:
-            return "🔵"  # Sobrecumplimiento
+            return "🔵"
         elif val >= 100:
-            return "🟢"  # Cumplimiento
+            return "🟢"
         elif val >= 80:
-            return "🟡"  # Alerta
+            return "🟡"
         else:
-            return "🔴"  # Peligro
+            return "🔴"
+
+    def _color_tipo_mitigacion(val):
+        if pd.isna(val) or val == "Sin accion":
+            return "#9CA3AF"
+        elif val == "OM":
+            return "#3B82F6"
+        elif val == "Accion de mejora":
+            return "#10B981"
+        elif val == "Reto":
+            return "#F59E0B"
+        elif val == "Proyecto":
+            return "#8B5CF6"
+        return "#6B7280"
 
     cols = list(df.columns)
-    renamed_cols = [c.replace("Cumplimiento_pct", "Cumplimiento") for c in cols]
+    cols_excluir = {"accion_creada", "mitiga_reto", "mitiga_proyecto", "avance_mitigacion_pct"}
+    cols = [c for c in cols if c not in cols_excluir]
+    renamed_cols = [
+        c.replace("Cumplimiento_pct", "Cumplimiento")
+         .replace("tipo_mitigacion", "Tipo Mitigación")
+         .replace("numero_om", "N° OM")
+         .replace("avance_om", "Avance OM")
+         .replace("tiene_om", "Tiene OM")
+        for c in cols
+    ]
     
     html = """
     <style>
@@ -88,7 +110,14 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
             val = row.get(col)
             if col == "Cumplimiento_pct":
                 icono = _icono_cumplimiento(val)
-                html += f"<td>{icono} {val}</td>"
+                html += f"<td>{icono} {val}%</td>"
+            elif col == "tipo_mitigacion":
+                color = _color_tipo_mitigacion(val)
+                html += f"<td style='color: {color}; font-weight: bold;'>{val}</td>"
+            elif col == "tiene_om":
+                html += f"<td>{'✅' if val == 1 else '❌'}</td>"
+            elif col == "avance_om":
+                html += f"<td>{val}%</td>"
             else:
                 html += f"<td>{val}</td>"
         html += "</tr>"
@@ -385,13 +414,13 @@ def _build_consolidado_por_periodo(df_reg: pd.DataFrame) -> pd.DataFrame:
 
 def _resumen_om_por_id(df_reg: pd.DataFrame) -> pd.DataFrame:
     if df_reg.empty:
-        return pd.DataFrame(columns=["Id", "tiene_om", "numero_om", "periodo_om", "anio_om"])
+        return pd.DataFrame(columns=["Id", "tiene_om", "numero_om", "periodo_om", "anio_om", "avance_om"])
 
     df = df_reg.copy()
     df["Id"] = df.get("id_indicador", "").apply(_id_str)
     df = df[df["Id"] != ""].copy()
     if df.empty:
-        return pd.DataFrame(columns=["Id", "tiene_om", "numero_om", "periodo_om", "anio_om"])
+        return pd.DataFrame(columns=["Id", "tiene_om", "numero_om", "periodo_om", "anio_om", "avance_om"])
 
     if "fecha_registro" in df.columns:
         df = df.sort_values("fecha_registro", ascending=False)
@@ -403,9 +432,11 @@ def _resumen_om_por_id(df_reg: pd.DataFrame) -> pd.DataFrame:
             numero_om=("numero_om", "first"),
             periodo_om=("periodo", "first"),
             anio_om=("anio", "first"),
+            avance_om=("tiene_om", "max"),
         )
     )
     out["tiene_om"] = pd.to_numeric(out["tiene_om"], errors="coerce").fillna(0).astype(int)
+    out["avance_om"] = out["avance_om"].apply(lambda x: 100 if x == 1 else 0)
     return out
 
 
@@ -508,8 +539,7 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
 
     cols = [
         "Id", "Indicador", "Proceso", "Periodicidad", "Categoria",
-        "tiene_om", "numero_om", "tipo_mitigacion", "accion_creada",
-        "mitiga_reto", "mitiga_proyecto", "avance_mitigacion_pct", "Cumplimiento_pct",
+        "tiene_om", "numero_om", "avance_om", "tipo_mitigacion", "Cumplimiento_pct",
     ]
     cols = [c for c in cols if c in m.columns]
     m = m[cols]
@@ -584,10 +614,11 @@ def render():
     meses = ["Todos"] + sorted(df_riesgo["Mes"].dropna().astype(str).unique().tolist())
     anios = ["Todos"]
     if "Anio" in df_riesgo.columns:
-        anios += sorted(
+        anios_filtro = sorted(
             df_riesgo["Anio"].dropna().astype(int).astype(str).unique().tolist(),
             key=lambda x: int(x),
         )
+        anios += [a for a in anios_filtro if a in ("2025", "2026")]
 
     procesos = ["Todos"]
     if "Proceso" in df_riesgo.columns:
@@ -600,9 +631,11 @@ def render():
     with st.expander("Filtros", expanded=True):
         fm, fa, fp, fs = st.columns(4)
         with fm:
-            mes_sel = st.selectbox("Mes", meses, index=meses.index("Todos"))
+            default_mes = 1 if "Diciembre" in meses else 0
+            mes_sel = st.selectbox("Mes", meses, index=default_mes)
         with fa:
-            anio_sel = st.segmented_control("Año", options=anios, default=str(date.today().year) if str(date.today().year) in anios else anios[0])
+            default_anio = anios.index("2025") if "2025" in anios else (anios.index("2026") if "2026" in anios else 1)
+            anio_sel = st.segmented_control("Año", options=anios, index=default_anio)
         with fp:
             proc_sel = st.selectbox("Proceso", procesos, index=0)
         with fs:
