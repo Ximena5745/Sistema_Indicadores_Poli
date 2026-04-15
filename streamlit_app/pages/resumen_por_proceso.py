@@ -24,12 +24,14 @@ except (ImportError, ModuleNotFoundError):
 try:
     from core.calculos import simple_categoria_desde_porcentaje
     from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
+    from core.proceso_types import TIPOS_PROCESO, TIPO_PROCESO_COLORS, get_tipo_color
     from components.charts import exportar_excel, panel_detalle_indicador
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from core.calculos import simple_categoria_desde_porcentaje
     from core.config import CACHE_TTL, VICERRECTORIA_COLORS, COLORES
+    from core.proceso_types import TIPOS_PROCESO, TIPO_PROCESO_COLORS, get_tipo_color
     from components.charts import exportar_excel, panel_detalle_indicador
 
 # Constantes y helpers replicados de Direccionamiento Estratégico
@@ -273,6 +275,76 @@ def _render_html_bars(counts, labels, color_map=None, max_value=None):
     return "".join(html)
 
 
+def _render_process_type_cards(df: pd.DataFrame, map_df: pd.DataFrame):
+    """
+    Renderiza tarjetas KPI por tipo de proceso.
+    
+    Args:
+        df: DataFrame con indicadores (debe incluir columna 'Tipo de proceso')
+        map_df: DataFrame con mapeo de procesos
+    """
+    if df.empty or "Tipo de proceso" not in df.columns:
+        st.info("No hay datos disponibles por tipo de proceso")
+        return
+    
+    # Agrupar por tipo de proceso
+    tipos_unicos = sorted(df["Tipo de proceso"].dropna().unique())
+    
+    # Crear tarjetas en grid
+    cols = st.columns(min(4, len(tipos_unicos)))
+    
+    for idx, tipo in enumerate(tipos_unicos):
+        df_tipo = df[df["Tipo de proceso"] == tipo]
+        
+        # Calcular métricas
+        total_indicadores = len(df_tipo)
+        n_procesos = df_tipo["Proceso"].nunique() if "Proceso" in df_tipo.columns else 0
+        
+        # Calcular % cumplimiento promedio (solo donde aplica)
+        if "Cumplimiento" in df_tipo.columns:
+            cumpl_promedio = df_tipo["Cumplimiento"].mean()
+        else:
+            cumpl_promedio = 0
+        
+        # Contar reportados
+        if "Estado" in df_tipo.columns:
+            n_reportados = (df_tipo["Estado"] == "Reportado").sum()
+            pct_reportados = (n_reportados / total_indicadores * 100) if total_indicadores else 0
+        else:
+            pct_reportados = 0
+        
+        # Determinar categoría del cumplimiento promedio
+        categoria = simple_categoria_desde_porcentaje(cumpl_promedio) if cumpl_promedio else "Sin dato"
+        
+        with cols[idx % len(cols)]:
+            # Título con ícono y color
+            tipo_color = get_tipo_color(tipo, light=False)
+            tipo_color_light = get_tipo_color(tipo, light=True)
+            
+            st.markdown(
+                f"""<div style='background: {tipo_color_light}; padding: 1rem; border-radius: 8px; 
+                border-left: 4px solid {tipo_color}; margin-bottom: 0.5rem;'>
+                <h4 style='margin: 0; color: {tipo_color};'>{tipo}</h4>
+                </div>""",
+                unsafe_allow_html=True
+            )
+            
+            # KPIs
+            st.metric("Procesos", n_procesos)
+            st.metric("Indicadores", total_indicadores)
+            st.metric(
+                "% Cumplimiento", 
+                f"{cumpl_promedio:.1f}%",
+                delta=None,
+                help=f"Categoría: {categoria}"
+            )
+            st.metric(
+                "% Reportados", 
+                f"{pct_reportados:.1f}%",
+                delta=None
+            )
+
+
 def render():
     st.title("Resumen por procesos")
     st.write("Seleccione un proceso para ver detalle. Esta vista contiene 6 tabs por proceso.")
@@ -337,26 +409,45 @@ def render():
             "subproceso": {"label": "Subproceso", "options": sorted(map_df["Subproceso"].dropna().unique().tolist())}
         }
 
-        # Filtros manuales con selectboxes independientes
+        # Filtros independientes: Año, Mes, Tipo de Proceso (resumen general completo)
         with st.expander("🔎 Filtros", expanded=True):
             c1, c2, c3 = st.columns(3)
             with c1:
-                anio = st.segmented_control("Año", options=anios_disponibles, default=anios_disponibles[-1] if anios_disponibles else None, key="fp_anio")
+                anio = st.segmented_control(
+                    "Año", 
+                    options=anios_disponibles, 
+                    default=anios_disponibles[-1] if anios_disponibles else None, 
+                    key="fp_anio"
+                )
             with c2:
-                mes = st.selectbox("Mes", MESES_OPCIONES, index=len(MESES_OPCIONES)-1, key="fp_mes")
+                mes = st.selectbox(
+                    "Mes", 
+                    MESES_OPCIONES, 
+                    index=len(MESES_OPCIONES)-1, 
+                    key="fp_mes"
+                )
             with c3:
-                tipo_proceso = st.selectbox("Tipo de proceso", ["Todos"] + sorted(map_df["Tipo de proceso"].dropna().unique().tolist()), key="fp_tipo")
-            
-            c4, c5, c6 = st.columns(3)
-            with c4:
-                unidad = st.selectbox("Unidad", ["Todos"] + sorted(map_df["Unidad"].dropna().unique().tolist()), key="fp_unidad")
-            with c5:
-                proceso = st.selectbox("Proceso", ["Todos"] + sorted(map_df["Proceso"].dropna().unique().tolist()), key="fp_proceso")
-            with c6:
-                subproceso = st.selectbox("Subproceso", ["Todos"] + sorted(map_df["Subproceso"].dropna().unique().tolist()), key="fp_subproceso")
+                tipo_proceso = st.selectbox(
+                    "Tipo de proceso", 
+                    ["Todos"] + TIPOS_PROCESO, 
+                    key="fp_tipo",
+                    help="Filtrar indicadores por tipo de proceso"
+                )
         
-        # Placeholder para selections (requerido por código)
-        selections = {"anio": anio, "mes": mes, "tipo_proceso": tipo_proceso, "unidad": unidad, "proceso": proceso, "subproceso": subproceso}
+        # Placeholder para selections (requerido por código downstream)
+        selections = {
+            "anio": anio, 
+            "mes": mes, 
+            "tipo_proceso": tipo_proceso,
+            "unidad": "Todos",
+            "proceso": "Todos", 
+            "subproceso": "Todos"
+        }
+        
+        # Variables para compatibilidad con código existente
+        unidad = "Todos"
+        proceso = "Todos"
+        subproceso = "Todos"
 
         # Alternativas para Mostrar subprocesos - Tipos de lista desplegable:
         # Opción 1: Selectbox (dropdown tradicional)
@@ -462,12 +553,30 @@ def render():
     # ✅ NOTA: proc_df YA ESTÁ FILTRADO por tipo_proceso, unidad, proceso, subproceso, y período
     # Todos los tabs usan proc_df → datos consistentes en TODAS las pestañas según filtro de proceso
     
-    tabs = st.tabs(["📋 Resumen General", "ℹ️ Información por proceso", "📊 Indicadores", "📋 Resumen", "✅ Calidad", "🔍 Auditoría", "💡 Propuestos", "🤖 Análisis IA"])
+    tabs = st.tabs([
+        "📋 Resumen General", 
+        "📊 Análisis por Tipo",
+        "ℹ️ Información por proceso",
+        "📊 Resumen Indicadores", 
+        "ℹ️ Info Detallada",
+        "📊 Indicadores Histórico", 
+        "📋 Resumen Stats", 
+        "✅ Calidad", 
+        "🔍 Auditoría", 
+        "💡 Propuestos", 
+        "🤖 Análisis IA"
+    ])
 
     # ---------- Tab 0: Resumen General
     with tabs[0]:
         st.markdown(f"### Resumen general — {selected_process}")
         st.caption(f"Corte consultado: {periodo_info}")
+        
+        # Tarjetas KPI por tipo de proceso (solo si hay datos)
+        if not proc_df.empty and "Tipo de proceso" in proc_df.columns:
+            st.markdown("#### Indicadores por Tipo de Proceso")
+            _render_process_type_cards(proc_df, map_df)
+            st.divider()
         
         # Debug info
         st.caption(f"Debug: df rows={len(df)}, proc_df rows={len(proc_df)}, anio={anio}, mes={mes}")
@@ -592,8 +701,122 @@ def render():
                     fig_c = px.histogram(proc_df, x="Cumplimiento", nbins=20, title="Histograma de Cumplimiento")
                     st.plotly_chart(fig_c, use_container_width=True)
 
-    # ---------- Tab 1: Información por proceso (replica Direccionamiento Estratégico)
+    # ---------- Tab 1: Análisis por Tipo de Proceso
     with tabs[1]:
+        st.markdown(f"### Análisis por Tipo de Proceso — {periodo_info}")
+        
+        if proc_df.empty or "Tipo de proceso" not in proc_df.columns:
+            st.info("No hay datos disponibles por tipo de proceso para este período.")
+        else:
+            # Gráfico 1: Distribución de Estado por Tipo de Proceso
+            if "Estado" in proc_df.columns:
+                st.markdown("#### Distribución de Estado por Tipo de Proceso")
+                
+                estado_tipo = proc_df.groupby(["Tipo de proceso", "Estado"]).size().reset_index(name="count")
+                
+                if not estado_tipo.empty:
+                    fig_estado = px.bar(
+                        estado_tipo,
+                        x="Tipo de proceso",
+                        y="count",
+                        color="Estado",
+                        title="Estado de Indicadores por Tipo de Proceso",
+                        barmode="group",
+                        color_discrete_map={
+                            "Reportado": COLORES["cumplimiento"],
+                            "Pendiente": COLORES["alerta"],
+                            "No aplica": COLORES["sin_dato"]
+                        }
+                    )
+                    fig_estado.update_layout(xaxis_tickangle=-45)
+                    st.plotly_chart(fig_estado, use_container_width=True)
+            
+            # Gráfico 2: Top 5 Procesos con Mayor % Cumplimiento por Tipo
+            if "Cumplimiento" in proc_df.columns and "Proceso" in proc_df.columns:
+                st.markdown("#### Top 5 Procesos con Mayor Cumplimiento (por Tipo)")
+                
+                tipos = proc_df["Tipo de proceso"].dropna().unique()
+                cols_tipos = st.columns(min(2, len(tipos)))
+                
+                for idx, tipo in enumerate(sorted(tipos)):
+                    df_tipo = proc_df[proc_df["Tipo de proceso"] == tipo]
+                    
+                    # Calcular cumplimiento promedio por proceso
+                    cumpl_proceso = (
+                        df_tipo.groupby("Proceso")["Cumplimiento"]
+                        .mean()
+                        .reset_index()
+                        .sort_values("Cumplimiento", ascending=False)
+                        .head(5)
+                    )
+                    
+                    if not cumpl_proceso.empty:
+                        with cols_tipos[idx % len(cols_tipos)]:
+                            st.markdown(f"**{tipo}**")
+                            
+                            fig_top = px.bar(
+                                cumpl_proceso,
+                                x="Cumplimiento",
+                                y="Proceso",
+                                orientation="h",
+                                color="Cumplimiento",
+                                color_continuous_scale=[
+                                    COLORES["peligro"],
+                                    COLORES["alerta"],
+                                    COLORES["cumplimiento"]
+                                ],
+                                range_color=[0, 100]
+                            )
+                            fig_top.update_layout(
+                                showlegend=False,
+                                height=300,
+                                yaxis={'categoryorder': 'total ascending'}
+                            )
+                            st.plotly_chart(fig_top, use_container_width=True)
+            
+            # Gráfico 3: Comparativa de Cumplimiento Promedio
+            st.markdown("#### Cumplimiento Promedio por Tipo de Proceso")
+            
+            if "Cumplimiento" in proc_df.columns:
+                cumpl_tipo = (
+                    proc_df.groupby("Tipo de proceso")["Cumplimiento"]
+                    .agg(["mean", "count"])
+                    .reset_index()
+                )
+                cumpl_tipo.columns = ["Tipo de proceso", "Cumplimiento Promedio", "N° Indicadores"]
+                cumpl_tipo["Cumplimiento Promedio"] = cumpl_tipo["Cumplimiento Promedio"].round(1)
+                
+                # Aplicar colores por tipo
+                cumpl_tipo["Color"] = cumpl_tipo["Tipo de proceso"].apply(lambda x: get_tipo_color(x, light=False))
+                
+                fig_cumpl = px.bar(
+                    cumpl_tipo,
+                    x="Tipo de proceso",
+                    y="Cumplimiento Promedio",
+                    color="Tipo de proceso",
+                    color_discrete_map={
+                        row["Tipo de proceso"]: row["Color"] 
+                        for _, row in cumpl_tipo.iterrows()
+                    },
+                    text="Cumplimiento Promedio"
+                )
+                fig_cumpl.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                fig_cumpl.update_layout(
+                    showlegend=False,
+                    yaxis_range=[0, 105],
+                    xaxis_tickangle=-45
+                )
+                st.plotly_chart(fig_cumpl, use_container_width=True)
+                
+                # Mostrar tabla resumen
+                st.dataframe(
+                    cumpl_tipo[["Tipo de proceso", "Cumplimiento Promedio", "N° Indicadores"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+    # ---------- Tab 2: Información por proceso (replica Direccionamiento Estratégico)
+    with tabs[2]:
         st.markdown("### Información por proceso")
 
         # Usar el dataset completo como fuente para Direccionamiento
@@ -797,8 +1020,8 @@ def render():
 
         _ficha()
 
-    # ── TAB 3: RESUMEN ────────────────────────────────────────────────────────
-    with tabs[0]:
+    # ── TAB 3: INDICADORES ────────────────────────────────────────────────────
+    with tabs[3]:
         st.markdown(f"### 📋 Resumen General — {selected_process}")
         st.caption(f"Corte: {periodo_info} · {len(proc_df)} indicadores")
         
@@ -833,12 +1056,12 @@ def render():
                     st.metric("🔴 % Críticos", f"{pct_crit:.1f}%")
 
     # ── TAB 1: INFORMACIÓN POR PROCESO ─ SIN MODIFICAR ──────────────────────────
-    with tabs[1]:
+    with tabs[4]:
         st.markdown(f"### ℹ️ Información por Proceso — {selected_process}")
         st.write("Datos filtrados por proceso. Haz clic en una fila para ver detalles.")
 
     # ── TAB 3: INDICADORES ─────────────────────────────────────────────────────
-    with tabs[2]:
+    with tabs[5]:
         st.markdown(f"### 📊 Indicadores — {selected_process}")
         st.caption(f"Histórico {len(proc_df)} registros")
         
@@ -855,7 +1078,7 @@ def render():
             )
 
     # ── TAB 4: RESUMEN ─────────────────────────────────────────────────────────
-    with tabs[3]:
+    with tabs[6]:
         st.markdown(f"### 📋 Resumen — {selected_process}")
         st.caption("Estadísticas consolidadas")
         
@@ -874,7 +1097,7 @@ def render():
                 st.metric("🟢 Cumple", cumpl)
 
     # ── TAB 5: CALIDAD DE DATOS ────────────────────────────────────────────────
-    with tabs[4]:
+    with tabs[7]:
         st.markdown(f"### ✅ Calidad de Datos — {selected_process}")
         st.caption("Matriz de evaluación: OPORTUNIDAD | COMPLETITUD | CONSISTENCIA | PRECISIÓN | PROTOCOLO")
         
@@ -903,7 +1126,7 @@ def render():
         st.info("⚠️ Sincronizar con `data/raw/Monitoreo/Monitoreo_Informacion_Procesos 2025.xlsx`")
 
     # ── TAB 6: AUDITORÍA ───────────────────────────────────────────────────────
-    with tabs[5]:
+    with tabs[8]:
         st.markdown(f"### 🔍 Auditoría — {selected_process}")
         st.caption("Hallazgos auditoría interna y externa asociados a este proceso")
         
@@ -922,7 +1145,7 @@ def render():
         st.text_area("Hallazgo", placeholder="Transcripto de PDF auditoría...", height=100)
 
     # ── TAB 7: INDICADORES PROPUESTOS ──────────────────────────────────────────
-    with tabs[6]:
+    with tabs[9]:
         st.markdown(f"### 💡 Indicadores Propuestos — {selected_process}")
         st.caption("Nuevos indicadores en evaluación para este proceso")
         
@@ -944,7 +1167,7 @@ def render():
                 st.success(f"✅ Indicador '{nombre}' enviado a validación")
 
     # ── TAB 8: ANÁLISIS IA ─────────────────────────────────────────────────────
-    with tabs[7]:
+    with tabs[10]:
         st.markdown(f"### 🤖 Análisis IA — {selected_process}")
         st.caption("Análisis automático de discrepancias, patrones y recomendaciones")
         
