@@ -706,7 +706,7 @@ def render():
 
     col_year, col_month, col_tipo = st.columns(3)
     with col_year:
-        selected_year = st.segmented_control("Año de análisis", options=years, default=years[-1])
+        selected_year = st.selectbox("Año de análisis", options=years, index=len(years)-1)
     with col_month:
         # Mostrar siempre los nombres completos de los meses; por defecto seleccionar
         # el último mes disponible para el año si existe, si no seleccionar Diciembre.
