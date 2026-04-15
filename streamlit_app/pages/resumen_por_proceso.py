@@ -269,7 +269,59 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
     if not processes:
         return pd.DataFrame(), "No hay procesos disponibles para buscar en los PDFs."
 
-    rows = []
+    indicator_keys = [
+        "INDICADOR",
+        "INDICADORES",
+        "CUMPLIMIENTO",
+        "META",
+        "EJECUCION",
+        "EJECUCIÓN",
+        "RESULTADO",
+        "AVANCE",
+        "HALLAZGO",
+        "RIESGO",
+    ]
+
+    def _split_sentences(text: str) -> list[str]:
+        text = re.sub(r"\s+", " ", str(text or "")).strip()
+        if not text:
+            return []
+        parts = re.split(r"(?<=[\.!\?;])\s+", text)
+        return [p.strip() for p in parts if p and len(p.strip()) > 20]
+
+    def _contains_indicator_context(text_norm: str) -> bool:
+        return any(k in text_norm for k in indicator_keys)
+
+    def _redact_summary(proc: str, fragments: list[str]) -> str:
+        if not fragments:
+            return f"No se identificó evidencia explícita de indicadores para {proc} en los documentos revisados."
+
+        clean = []
+        seen = set()
+        for frag in fragments:
+            f = re.sub(r"\s+", " ", str(frag or "")).strip()
+            if not f:
+                continue
+            key = _norm_text(f)
+            if key in seen:
+                continue
+            seen.add(key)
+            clean.append(f)
+
+        if not clean:
+            return f"No se identificó evidencia explícita de indicadores para {proc} en los documentos revisados."
+
+        top = clean[:3]
+        if len(top) == 1:
+            return f"Para el proceso {proc}, la auditoría reporta que {top[0]}"
+        if len(top) == 2:
+            return f"Para el proceso {proc}, la auditoría evidencia que {top[0]} Además, {top[1]}"
+        return f"Para el proceso {proc}, la auditoría evidencia que {top[0]} Además, {top[1]} Finalmente, {top[2]}"
+
+    proc_names = [str(p) for p in processes if str(p).strip()]
+    proc_norm_map = {_norm_text(p): p for p in proc_names}
+    collected: dict[tuple[str, str], dict] = {}
+
     for pdf_path in pdf_files:
         try:
             reader = PdfReader(str(pdf_path))
@@ -282,40 +334,68 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
             except Exception:
                 text = ""
 
+            text = re.sub(r"\s+", " ", str(text or "")).strip()
             text_norm = _norm_text(text)
-            if not text_norm:
+            if not text_norm or len(text_norm) < 30:
                 continue
 
-            for proc in processes:
-                proc_norm = _norm_text(proc)
-                if proc_norm and proc_norm in text_norm:
-                    idx = text_norm.find(proc_norm)
-                    start = max(0, idx - 120)
-                    end = min(len(text_norm), idx + len(proc_norm) + 180)
-                    snippet = re.sub(r"\s+", " ", text_norm[start:end]).strip()
-                    rows.append(
-                        {
-                            "Proceso": proc,
-                            "Fuente": pdf_path.name,
-                            "Página": page_num,
-                            "Evidencia IA": snippet[:240],
-                        }
-                    )
+            sentences = _split_sentences(text)
+            if not sentences:
+                continue
 
-    if not rows:
+            for proc_norm, proc_name in proc_norm_map.items():
+                if proc_norm not in text_norm:
+                    continue
+
+                matched_fragments = []
+                for idx, sent in enumerate(sentences):
+                    sent_norm = _norm_text(sent)
+                    if proc_norm in sent_norm:
+                        window = sentences[max(0, idx - 1): min(len(sentences), idx + 2)]
+                        for frag in window:
+                            frag_norm = _norm_text(frag)
+                            if _contains_indicator_context(frag_norm) or proc_norm in frag_norm:
+                                matched_fragments.append(frag)
+
+                if not matched_fragments:
+                    # fallback breve si aparece el proceso pero no contexto explícito de indicador
+                    fallback = [s for s in sentences if proc_norm in _norm_text(s)][:2]
+                    matched_fragments = fallback
+
+                if not matched_fragments:
+                    continue
+
+                key = (proc_name, pdf_path.name)
+                if key not in collected:
+                    collected[key] = {
+                        "Proceso": proc_name,
+                        "Fuente": pdf_path.name,
+                        "Paginas": set(),
+                        "Fragmentos": [],
+                    }
+
+                collected[key]["Paginas"].add(page_num)
+                collected[key]["Fragmentos"].extend(matched_fragments)
+
+    if not collected:
         return pd.DataFrame(), "No se encontraron menciones directas de procesos en los PDFs de auditoría."
 
-    mentions = pd.DataFrame(rows)
-    resumen = (
-        mentions.groupby(["Proceso", "Fuente"], dropna=False)
-        .agg(
-            Coincidencias=("Página", "count"),
-            Primera_pagina=("Página", "min"),
-            Evidencia_IA=("Evidencia IA", "first"),
+    rows = []
+    for (proc_name, source_name), payload in collected.items():
+        paginas = sorted(list(payload["Paginas"]))
+        fragments = payload["Fragmentos"]
+        summary = _redact_summary(proc_name, fragments)
+        rows.append(
+            {
+                "Proceso": proc_name,
+                "Fuente": source_name,
+                "Coincidencias": len(fragments),
+                "Paginas": ", ".join(str(p) for p in paginas),
+                "Resumen IA": summary,
+            }
         )
-        .reset_index()
-        .rename(columns={"Evidencia_IA": "Evidencia IA", "Primera_pagina": "Página inicial"})
-    )
+
+    resumen = pd.DataFrame(rows).sort_values(["Proceso", "Fuente"]).reset_index(drop=True)
     return resumen, None
 
 
