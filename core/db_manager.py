@@ -187,6 +187,47 @@ def _normalize_om_periodo_anio(periodo: Any, anio: Any) -> tuple[str, int]:
     return _normalize_mes_nombre(periodo_str), anio_int
 
 
+def _ensure_sqlite_unique_index(conn: sqlite3.Connection) -> None:
+    """Crea un índice único local para que ON CONFLICT funcione con la clave esperada."""
+    cur = conn.cursor()
+    cur.execute("PRAGMA index_list('registros_om')")
+    indexes = {row[1] for row in cur.fetchall() if row[2] == 1}
+    if "idx_registros_om_id_indicador_periodo_anio_unique" not in indexes:
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_registros_om_id_indicador_periodo_anio_unique "
+            "ON registros_om (id_indicador, periodo, anio)"
+        )
+        conn.commit()
+
+
+def _ensure_postgres_unique_constraint(cur) -> None:
+    """Crea la constraint única en Postgres para que ON CONFLICT ON CONSTRAINT funcione."""
+    cur.execute("""
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'registros_om_unique_key'
+          AND conrelid = 'public.registros_om'::regclass
+    """)
+    if cur.fetchone() is not None:
+        return
+
+    # Si existe un índice con ese nombre pero no es constraint, elimínalo antes de crearla.
+    cur.execute("""
+        SELECT 1
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'registros_om_unique_key'
+          AND c.relkind = 'i'
+          AND n.nspname = 'public'
+    """)
+    if cur.fetchone() is not None:
+        cur.execute("DROP INDEX IF EXISTS public.registros_om_unique_key")
+
+    cur.execute(
+        "ALTER TABLE public.registros_om ADD CONSTRAINT registros_om_unique_key UNIQUE (id_indicador, periodo, anio)"
+    )
+
+
 def _build_ipv4_retry_connect_kwargs(kwargs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Crea kwargs de reintento forzando hostaddr IPv4 cuando sea posible."""
     if "hostaddr" in kwargs:
@@ -255,6 +296,7 @@ def _init_sqlite():
         )
     """)
     conn.commit()
+    _ensure_sqlite_unique_index(conn)
     conn.close()
 
 
@@ -279,6 +321,8 @@ def _init_postgres():
             UNIQUE(id_indicador, periodo, anio)
         )
     """)
+    conn.commit()
+    _ensure_postgres_unique_constraint(cur)
     conn.commit()
     cur.close()
     conn.close()
@@ -365,7 +409,7 @@ def _upsert_postgres(d: dict) -> bool:
             (%(id_indicador)s, %(nombre_indicador)s, %(proceso)s, %(periodo)s,
              %(anio)s, %(sede)s, %(tiene_om)s, %(tipo_accion)s, %(numero_om)s, %(comentario)s,
              %(registrado_por)s, %(fecha_registro)s)
-        ON CONFLICT(id_indicador, periodo, anio) DO UPDATE SET
+        ON CONFLICT ON CONSTRAINT registros_om_unique_key DO UPDATE SET
             nombre_indicador = EXCLUDED.nombre_indicador,
             proceso          = EXCLUDED.proceso,
             tiene_om         = EXCLUDED.tiene_om,

@@ -36,6 +36,14 @@ BEGIN
         WHERE conname = 'registros_om_unique_key' 
         AND conrelid = 'public.registros_om'::regclass
     ) THEN
+        IF EXISTS (
+            SELECT 1 FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = 'registros_om_unique_key'
+              AND n.nspname = 'public'
+        ) THEN
+            EXECUTE 'DROP INDEX IF EXISTS public.registros_om_unique_key';
+        END IF;
         ALTER TABLE public.registros_om 
         ADD CONSTRAINT registros_om_unique_key UNIQUE (id_indicador, periodo, anio);
     END IF;
