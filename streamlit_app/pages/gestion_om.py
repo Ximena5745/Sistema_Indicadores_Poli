@@ -1003,14 +1003,9 @@ def render():
     avances_om = _cargar_avance_om()
     
     df_tabla = _construir_tabla_peligro(df_riesgo, registros_om, mes_sel, anio_sel, proc_sel, sub_sel, avances_om)
-    # Soporte: detalle OM por query param
-    om_detalle_q = ""
-    try:
-        params = st.experimental_get_query_params()
-        if "ver_mas" in params and params["ver_mas"]:
-            om_detalle_q = str(params["ver_mas"][0]).strip()
-    except Exception:
-        pass
+    # Estado local para expandir/cerrar detalle OM por fila (más robusto que query params)
+    if "om_expanded_row" not in st.session_state:
+        st.session_state["om_expanded_row"] = None
     # Debug: expose avances_om mapping for troubleshooting UI
     try:
         import os
@@ -1130,6 +1125,20 @@ def render():
             background:#f8fafc;
             line-height:1.15;
         }
+        .om-bar-bg {
+            height: 16px;
+            border-radius: 8px;
+            background: #F3F4F6;
+            position: relative;
+            min-width: 84px;
+        }
+        .om-bar-fill {
+            height: 16px;
+            border-radius: 8px;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
         .om-center { text-align:center; }
         .om-avance-wrap {
             min-width: 86px;
@@ -1150,19 +1159,12 @@ def render():
         .om-proy { background:#0EA5A4; }
         .om-otro { background:#6B7280; }
         .om-sin { background:#94A3B8; color:#0F172A; }
-        .om-icon-link {
-            display:inline-flex;
+        .om-icon-cell {
+            display:flex;
             align-items:center;
             justify-content:center;
-            width:18px;
-            height:18px;
-            border-radius:4px;
-            text-decoration:none;
-            font-size:0.85rem;
-            line-height:1;
-            color:inherit;
+            height:100%;
         }
-        .om-icon-link:hover { background:#e2e8f0; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1217,24 +1219,22 @@ def render():
             om_id = "" if pd.isna(row.get("OM")) else str(row.get("OM")).strip()
             tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
             if tiene_om and om_id and om_id.lower() != "nan":
-                st.markdown(
-                    f"<div class='{cell_class} om-center'><a class='om-icon-link' href='?ver_mas={om_id}' title='Ver acciones OM {om_id}'>📋</a></div>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"<div class='{cell_class} om-icon-cell'>", unsafe_allow_html=True)
+                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}", type="tertiary"):
+                    active = st.session_state.get("om_expanded_row")
+                    st.session_state["om_expanded_row"] = None if active == (ridx, om_id) else (ridx, om_id)
+                st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='{cell_class}'></div>", unsafe_allow_html=True)
 
-        if om_detalle_q and om_id and om_detalle_q == om_id:
+        if st.session_state.get("om_expanded_row") == (ridx, om_id):
             plan_df = _cargar_plan_accion_para_om(om_id)
             df_show = _normalizar_campos_plan_accion(plan_df)
             if not df_show.empty:
                 st.markdown(f"##### Acciones asociadas a OM {om_id}")
                 st.dataframe(df_show, use_container_width=True, hide_index=True)
                 if st.button("Cerrar detalle", key=f"cerrar_detalle_{om_id}"):
-                    try:
-                        st.experimental_set_query_params()
-                    except Exception:
-                        pass
+                    st.session_state["om_expanded_row"] = None
                     st.rerun()
             else:
                 st.info(f"OM {om_id} sin acciones asociadas.")
