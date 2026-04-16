@@ -271,8 +271,8 @@ def render():
         "Sobrecumplimiento": "#D0E4FF", "No aplica": "#ECEFF1", "Pendiente de reporte": "#F5F5F5",
     }
     _NIVEL_ICONS_CMI = {
-        "Peligro": "🔴", "Alerta": "🟡", "Cumplimiento": "🟢",
-        "Sobrecumplimiento": "🔵", "No aplica": "⚫", "Pendiente de reporte": "⚪",
+        "Peligro": "🚩", "Alerta": "⚑", "Cumplimiento": "🏁",
+        "Sobrecumplimiento": "🎌", "No aplica": "🏴", "Pendiente de reporte": "🏳️",
     }
     if "Nivel" in tabla.columns:
         tabla["Nivel"] = tabla["Nivel"].apply(
@@ -301,6 +301,35 @@ def render():
         cols = [c for c in ["Indicador", "Meta", "Ejecución", "Cumplimiento (%)"] if c in df_obj.columns]
         if df_obj.empty:
             return "<div style='padding:8px'>No hay indicadores para este objetivo.</div>"
+
+        nivel_flag_colors = {
+            "Peligro": "#C62828",
+            "Alerta": "#F9A825",
+            "Cumplimiento": "#2E7D32",
+            "Sobrecumplimiento": "#1565C0",
+            "No aplica": "#616161",
+            "Pendiente de reporte": "#9E9E9E",
+        }
+
+        def _nivel_limpio(raw) -> str:
+            txt = str(raw or "").strip()
+            if not txt:
+                return ""
+            # Si ya viene con icono (ej. "🏁 Cumplimiento"), remover primer token.
+            parts = txt.split(" ", 1)
+            if len(parts) == 2 and parts[0] in {"🔴", "🟡", "🟢", "🔵", "⚫", "⚪", "🚩", "⚑", "🏁", "🎌", "🏴", "🏳️"}:
+                return parts[1].strip()
+            return txt
+
+        def _cumplimiento_display(row) -> str:
+            val = pd.to_numeric(row.get("Cumplimiento (%)"), errors="coerce")
+            nivel = _nivel_limpio(row.get("Nivel", ""))
+            color = nivel_flag_colors.get(nivel, "#9E9E9E")
+            icon = f"<span style='color:{color};font-weight:700'>⚑</span>"
+            if pd.isna(val):
+                return f"{icon} -".strip()
+            return f"{icon} {float(val):.1f}%".strip()
+
         html = ["<table style='width:100%;border-collapse:collapse;font-size:0.9rem'>"]
         # header
         html.append("<tr style='background:#e9f7fb;color:#033;'><th style='padding:8px;border:1px solid #d0e9ef;text-align:left'>Indicador</th>")
@@ -312,8 +341,11 @@ def render():
             html.append("<tr>")
             html.append(f"<td style='padding:8px;border:1px solid #eef7fb'>{_escape(str(r.get('Indicador','')))}</td>")
             for c in cols[1:]:
-                val = r.get(c, "")
-                display = f"{val}" if pd.notna(val) else ""
+                if c == "Cumplimiento (%)":
+                    display = _cumplimiento_display(r)
+                else:
+                    val = r.get(c, "")
+                    display = f"{val}" if pd.notna(val) else ""
                 align = "center"
                 html.append(f"<td style='padding:8px;border:1px solid #eef7fb;text-align:{align}'>{display}</td>")
             html.append("</tr>")

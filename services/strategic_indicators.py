@@ -269,6 +269,10 @@ def load_cierres() -> pd.DataFrame:
     c_ejec = _find_col(df, ["Ejecucion", "Ejecución"])
     c_sentido = _find_col(df, ["Sentido"])
     c_tipo = _find_col(df, ["Tipo_Registro", "Tipo Registro"])
+    c_meta_s = _find_col(df, ["Meta_Signo", "Meta s", "Meta Signo", "MetaS"])
+    c_ejec_s = _find_col(df, ["Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS", "Ejecucion Signo", "Ejecución Signo"])
+    c_dec_meta = _find_col(df, ["Decimales", "Decimales_Meta", "DecMeta"])
+    c_dec_ejec = _find_col(df, ["DecimalesEje", "Decimales_Ejecucion", "DecEjec"])
 
     if not c_id:
         return pd.DataFrame()
@@ -284,6 +288,13 @@ def load_cierres() -> pd.DataFrame:
     out["Ejecucion"] = pd.to_numeric(df[c_ejec], errors="coerce") if c_ejec else pd.NA
     out["Sentido"] = df[c_sentido].astype(str).str.strip() if c_sentido else ""
     out["Tipo_Registro"] = df[c_tipo].astype(str).str.strip() if c_tipo else ""
+    out["Meta_Signo"] = df[c_meta_s].astype(str).str.strip() if c_meta_s else ""
+    out["Ejecucion_Signo"] = df[c_ejec_s].astype(str).str.strip() if c_ejec_s else ""
+    out["Decimales_Meta"] = pd.to_numeric(df[c_dec_meta], errors="coerce") if c_dec_meta else 0
+    out["Decimales_Ejecucion"] = pd.to_numeric(df[c_dec_ejec], errors="coerce") if c_dec_ejec else 0
+    # Alias esperados por la capa de presentación
+    out["Decimales"] = out["Decimales_Meta"]
+    out["DecimalesEje"] = out["Decimales_Ejecucion"]
 
     out = out[out["Id"] != ""].copy()
 
@@ -368,7 +379,10 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
 
     close = cierre_por_corte(cierres, anio, mes)
     cols_close = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
-    for _ec in ["Meta", "Ejecucion", "Sentido"]:
+    for _ec in [
+        "Meta", "Ejecucion", "Sentido",
+        "Meta_Signo", "Ejecucion_Signo", "Decimales", "DecimalesEje", "Decimales_Meta", "Decimales_Ejecucion",
+    ]:
         if _ec in close.columns:
             cols_close.append(_ec)
     merged = plan.merge(
@@ -451,7 +465,10 @@ def preparar_cna_con_cierre(anio: int, mes: int) -> pd.DataFrame:
 
     close = cierre_por_corte(cierres, anio, mes)
     cols_close_cna = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
-    for _ec in ["Meta", "Ejecucion", "Sentido"]:
+    for _ec in [
+        "Meta", "Ejecucion", "Sentido",
+        "Meta_Signo", "Ejecucion_Signo", "Decimales", "DecimalesEje", "Decimales_Meta", "Decimales_Ejecucion",
+    ]:
         if _ec in close.columns:
             cols_close_cna.append(_ec)
     merged = cna.merge(
