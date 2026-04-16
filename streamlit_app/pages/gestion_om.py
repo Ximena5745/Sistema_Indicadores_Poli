@@ -835,46 +835,100 @@ def render():
 
     total_peligro = len(df_tabla)
     st.markdown(f"### 📊 Indicadores en Peligro: {total_peligro} ({mes_sel} {anio_sel})")
+
+    # --- Visualización mejorada de la tabla ---
     df_display = _generar_tabla_html(df_tabla)
-    
-    def highlight_cumpl(row):
-        c = "Cumplimiento"
-        if pd.isna(row.get(c)):
-            return [""]
-        val = row.get(c)
-        if "🔴" in str(val):
-            return ["background-color: #FEE2E2; color: #991B1B"]
-        elif "🟡" in str(val):
-            return ["background-color: #FEF3C7; color: #92400E"]
-        elif "🟢" in str(val):
-            return ["background-color: #D1FAE5; color: #065F46"]
-        return [""]
-    
-    def highlight_tipo(row):
-        t = str(row.get("Tipo de Acción", ""))
-        if t == "OM Kawak":
-            return ["color: blue; font-weight: bold"]
-        elif t == "Reto Plan Anual":
-            return ["color: orange; font-weight: bold"]
-        elif t == "Proyecto Institucional":
-            return ["color: purple; font-weight: bold"]
-        return [""]
-    
-    def highlight_avance(row):
-        val = row.get("Avance OM", 0)
-        if pd.isna(val) or val == 0:
-            return ["background-color: #FEE2E2"]
-        elif val >= 80:
-            return ["background-color: #D1FAE5"]
-        elif val >= 50:
-            return ["background-color: #FEF3C7"]
-        return [""]
-    
-    def checkbox_om(row):
-        return "☑" if row.get("Ver más", 0) == 1 else ""
-    
-    df_display.insert(0, "☑", df_display.apply(checkbox_om, axis=1))
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+
+    # Renderizado personalizado de la tabla
+    st.markdown("""
+    <style>
+    .om-bar-bg { height: 18px; border-radius: 8px; background: #F3F4F6; position: relative; }
+    .om-bar-fill { height: 18px; border-radius: 8px; position: absolute; left: 0; top: 0; }
+    .om-badge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #fff; margin-right: 2px; }
+    .om-kawak { background: #3B82F6; }
+    .om-reto { background: #F59E0B; }
+    .om-proy { background: #8B5CF6; }
+    .om-otro { background: #6B7280; }
+    .om-sin { background: #9CA3AF; color: #222; }
+    .om-icon-btn { background: none; border: none; cursor: pointer; font-size: 18px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Mostrar expander de acciones OM si hay query param ver_mas
+    params = st.experimental_get_query_params()
+    om_id_q = params.get("ver_mas", [None])[0]
+    if om_id_q:
+        plan_df = _cargar_plan_accion_para_om(om_id_q)
+        with st.expander(f"Acciones asociadas a OM {om_id_q}", expanded=True):
+            st.subheader(f"Plan de Acción para OM {om_id_q}")
+            if plan_df is not None and not plan_df.empty:
+                st.table(plan_df)
+            else:
+                st.write("No hay actividades para mostrar.")
+            if st.button("Cerrar", key=f'cerrar_popup_{om_id_q}'):
+                st.experimental_set_query_params()  # Limpiar query param
+                st.rerun()
+
+    def barra_avance_om(pct):
+        if pd.isna(pct) or pct == 0:
+            color = "#F3F4F6"
+            icon = "⚪"
+            bar = f'''<div class=\"om-bar-bg\"><div class=\"om-bar-fill\" style=\"width:0;background:{color}\"></div><span style=\"position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;\">{icon} -</span></div>'''
+            return bar
+        color = "#F87171"  # rojo
+        icon = "🔴"
+        if pct >= 105:
+            color = "#2563EB"; icon = "🔵"
+        elif pct >= 100:
+            color = "#22C55E"; icon = "🟢"
+        elif pct >= 80:
+            color = "#FACC15"; icon = "🟡"
+        bar = f'''<div class=\"om-bar-bg\"><div class=\"om-bar-fill\" style=\"width:{min(100,pct)}%;background:{color}\"></div><span style=\"position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;\">{icon} {pct:.1f}%</span></div>'''
+        return bar
+
+    def badge_tipo_accion(tipo):
+        clases = {
+            "OM Kawak": "om-badge om-kawak",
+            "Reto Plan Anual": "om-badge om-reto",
+            "Proyecto Institucional": "om-badge om-proy",
+            "Otro": "om-badge om-otro",
+            "Sin acción": "om-badge om-sin",
+        }
+        return f'<span class="{clases.get(tipo,"om-badge om-otro")}">{tipo}</span>'
+
+    # Construir tabla HTML con barra y badges
+    table_html = "<table style='width:100%;border-collapse:collapse;font-size:15px;'>"
+    # Encabezados
+    table_html += "<tr>"
+    for col in df_display.columns:
+        table_html += f"<th style='padding:6px 4px;background:#F1F5F9;border-bottom:2px solid #E5E7EB;text-align:left;'>{col}</th>"
+    table_html += "</tr>"
+    # Filas
+    for idx, row in df_display.iterrows():
+        bg = "#fff" if idx%2==0 else "#F9FAFB"
+        table_html += f"<tr style='background:{bg};'>"
+        for col in df_display.columns:
+            val = row[col]
+            if col == "Avance OM":
+                bar = barra_avance_om(row["Avance OM"] if "Avance OM" in row else 0)
+                table_html += f"<td style='padding:4px 2px;vertical-align:middle;min-width:120px;'>{bar}</td>"
+            elif col == "Tipo de Acción":
+                badge = badge_tipo_accion(row["Tipo de Acción"] if "Tipo de Acción" in row else "")
+                table_html += f"<td style='padding:4px 2px;vertical-align:middle;'>{badge}</td>"
+            elif col == "Ver más":
+                # Si tiene OM asociada, mostrar botón para expandir acciones
+                tiene_om = row["Ver más"] if "Ver más" in row else 0
+                om_id = row["OM"] if "OM" in row else ""
+                if tiene_om == 1 and om_id:
+                    btn = f"<button class='om-icon-btn' onclick=\"window.location.search='?ver_mas={om_id}'\">📋</button>"
+                    table_html += f"<td style='text-align:center;'>{btn}</td>"
+                else:
+                    table_html += "<td></td>"
+            else:
+                table_html += f"<td style='padding:4px 2px;vertical-align:middle;'>{val}</td>"
+        table_html += "</tr>"
+    table_html += "</table>"
+    st.markdown(table_html, unsafe_allow_html=True)
 
     oms_con_om = df_tabla[df_tabla["tiene_om"] == 1][["Id", "identificador"]].dropna()
     if not oms_con_om.empty:
