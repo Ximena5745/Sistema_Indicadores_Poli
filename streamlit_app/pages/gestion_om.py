@@ -211,7 +211,25 @@ def _normalizar_campos_plan_accion(plan_df: pd.DataFrame) -> pd.DataFrame:
             renames[c] = "Estado (Oportunidad de mejora)"
 
     df_show = df_show.rename(columns=renames)
-    return df_show[[c for c in campos if c in df_show.columns]].copy()
+    df_show = df_show[[c for c in campos if c in df_show.columns]].copy()
+
+    # Deduplicar por Id Acción (si no existe, usar Acción como respaldo)
+    if "Id Acción" in df_show.columns:
+        df_show["Id Acción"] = df_show["Id Acción"].astype(str).str.strip()
+        df_show = df_show[df_show["Id Acción"] != ""]
+        df_show = df_show.drop_duplicates(subset=["Id Acción"], keep="first")
+    elif "Acción" in df_show.columns:
+        df_show["Acción"] = df_show["Acción"].astype(str).str.strip()
+        df_show = df_show[df_show["Acción"] != ""]
+        df_show = df_show.drop_duplicates(subset=["Acción"], keep="first")
+
+    # Formatear avance como porcentaje; si viene en escala 0-1, convertir a 0-100
+    if "Avance (%)" in df_show.columns:
+        avance_num = pd.to_numeric(df_show["Avance (%)"], errors="coerce")
+        avance_num = avance_num.apply(lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5 else v)
+        df_show["Avance (%)"] = avance_num.apply(lambda v: "-" if pd.isna(v) else f"{v:.1f}%")
+
+    return df_show.reset_index(drop=True)
 
 
 def _extraer_tipo_y_identificador(numero_om: str) -> tuple:
