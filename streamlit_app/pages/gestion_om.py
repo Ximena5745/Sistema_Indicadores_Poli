@@ -48,9 +48,8 @@ except (ImportError, ModuleNotFoundError):
     from streamlit_app.utils.formatting import ejecucion_his_signo, meta_his_signo
 
 
-@st.cache_data(ttl=10, show_spinner=False)
 def _cargar_registros_om() -> dict:
-    """Carga OM con cache corto para que se actualice frecuentemente."""
+    """Carga OM sin cache para reflejar cambios inmediatamente."""
     return registros_om_como_dict(anio=None)
 
 
