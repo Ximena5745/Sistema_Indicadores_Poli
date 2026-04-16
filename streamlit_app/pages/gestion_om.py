@@ -202,12 +202,7 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
     if df.empty:
         return df
 
-    if "Fecha" in df.columns:
-        df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
-        df = df.sort_values("Fecha").drop_duplicates(subset="Id", keep="last")
-    else:
-        df = df.drop_duplicates(subset="Id", keep="last")
-
+    # No hacer drop_duplicates - mantener todos los registros por indicador y período
     if "Categoria" in df.columns:
         df = df[df["Categoria"].isin(["Peligro", "Alerta"])].copy()
 
@@ -741,7 +736,7 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         "numero_om", "tipo_mitigacion", "Proceso",
     }
     cols = [c for c in cols if c not in cols_excluir]
-    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om"]
+    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om", "Ver_mas"]
     cols = [c for c in cols_orden if c in cols]
     renamed_cols = [
         c.replace("Cumplimiento_pct", "Cumplimiento")
