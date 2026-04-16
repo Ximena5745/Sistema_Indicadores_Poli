@@ -736,7 +736,7 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         "numero_om", "tipo_mitigacion", "Proceso",
     }
     cols = [c for c in cols if c not in cols_excluir]
-    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om", "Ver_mas"]
+    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om"]
     cols = [c for c in cols_orden if c in cols]
     renamed_cols = [
         c.replace("Cumplimiento_pct", "Cumplimiento")
@@ -765,14 +765,6 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         html += "<tr>"
         for col in cols:
             val = row.get(col)
-            if col == "Ver_mas":
-                om_id_for_link = str(row.get("identificador", "")).strip()
-                tengo_om = int(row.get("tiene_om", 0) or 0)
-                if tengo_om == 1 and om_id_for_link:
-                    html += f"<td style='color:#3B82F6;font-weight:bold;'>{om_id_for_link}</td>"
-                else:
-                    html += "<td></td>"
-                continue
             if col == "Cumplimiento_pct":
                 icono = _icono_cumplimiento(val)
                 html += f"<td>{icono} {val}%</td>"
@@ -883,21 +875,29 @@ def render():
     st.markdown(f"### 📊 Indicadores en Peligro: {total_peligro} ({mes_sel} {anio_sel})")
     st.markdown(_generar_tabla_html(df_tabla), unsafe_allow_html=True)
 
-    # Selector para ver Plan de Acción de OM
-    om_con_om = df_tabla[df_tabla["tiene_om"] == 1][["identificador"]].dropna().drop_duplicates()
-    if not om_con_om.empty:
-        opciones_om = [""] + sorted(om_con_om["identificador"].unique().tolist())
-        om_seleccionada = st.selectbox("Ver Plan de Acción de OM", opciones_om, index=0)
-        if om_seleccionada:
-            plan_df = _cargar_plan_accion_para_om(om_seleccionada)
-            with st.expander(f"Plan de Acción - OM {om_seleccionada}", expanded=True):
-                if plan_df is not None and not plan_df.empty:
-                    st.table(plan_df)
-                else:
-                    st.write("No hay actividades para mostrar.")
+    with st.container():
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            opciones = df_tabla.apply(_build_option_label, axis=1).tolist()
+            indicador_seleccionado = st.selectbox("Seleccionar indicador para nueva OM", opciones)
+            selected_id = indicador_seleccionado.split(" - ")[0] if indicador_seleccionado else ""
+        with c2:
+            om_con_om = df_tabla[df_tabla["tiene_om"] == 1][["identificador"]].dropna().drop_duplicates()
+            if not om_con_om.empty:
+                opciones_om = [""] + sorted(om_con_om["identificador"].unique().tolist())
+                om_seleccionada = st.selectbox("Ver Plan de Acción de OM", opciones_om, index=0)
+            else:
+                opciones_om = [""]
+                om_seleccionada = ""
 
-    opciones = df_tabla.apply(_build_option_label, axis=1).tolist()
-    indicador_seleccionado = st.selectbox("Seleccionar indicador para nueva OM", opciones)
+    if om_seleccionada:
+        plan_df = _cargar_plan_accion_para_om(om_seleccionada)
+        with st.expander(f"Plan de Acción - OM {om_seleccionada}", expanded=True):
+            if plan_df is not None and not plan_df.empty:
+                st.table(plan_df)
+            else:
+                st.write("No hay actividades para mostrar.")
+
     selected_id = indicador_seleccionado.split(" - ")[0] if indicador_seleccionado else ""
 
     if st.button("Asociar nueva OM", use_container_width=True):
