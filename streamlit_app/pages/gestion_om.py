@@ -63,6 +63,26 @@ def _cargar_avance_om() -> dict:
     if not base_path.exists():
         return {}
     
+    def _parse_avance(v):
+        if v is None:
+            return pd.NA
+        s = str(v).strip()
+        if not s or s.lower() in {"nan", "none", "-"}:
+            return pd.NA
+
+        has_percent = "%" in s
+        s = s.replace("%", "").replace(" ", "")
+        s = s.replace(".", "") if ("," in s and "." in s and s.rfind(",") > s.rfind(".")) else s
+        s = s.replace(",", ".")
+        n = pd.to_numeric(s, errors="coerce")
+        if pd.isna(n):
+            return pd.NA
+
+        # Si viene en escala 0..1 sin símbolo %, interpretarlo como fracción y convertir a 0..100
+        if not has_percent and abs(n) <= 1.5:
+            n = n * 100
+        return float(n)
+
     dfs = []
     for f in base_path.glob("*.xlsx"):
         try:
@@ -70,15 +90,24 @@ def _cargar_avance_om() -> dict:
             cols = df.columns.tolist()
             
             avance_col = next((c for c in cols if "Avance" in c and "%" in c), None)
+            if not avance_col:
+                avance_col = next((c for c in cols if "Avance" in c), None)
             
             # Buscar columna "Id Oportunidad de mejora" (no "Estado...")
             id_om_col = next((c for c in cols if "Id Oportunidad de mejora" in c), None)
             if not id_om_col:
                 id_om_col = next((c for c in cols if c.startswith("Id ") and "Oportunidad" in c), None)
+            id_accion_col = next((c for c in cols if str(c).strip().lower() in {"id acción", "id accion"}), None)
             
             if id_om_col and avance_col:
-                df_subset = df[[id_om_col, avance_col]].copy()
-                df_subset.columns = ["Id_OM", "Avance"]
+                subset_cols = [id_om_col, avance_col]
+                if id_accion_col:
+                    subset_cols.append(id_accion_col)
+                df_subset = df[subset_cols].copy()
+                if id_accion_col:
+                    df_subset.columns = ["Id_OM", "Avance", "Id_Accion"]
+                else:
+                    df_subset.columns = ["Id_OM", "Avance"]
                 dfs.append(df_subset)
         except Exception as e:
             continue
@@ -87,20 +116,21 @@ def _cargar_avance_om() -> dict:
         return {}
     
     df_all = pd.concat(dfs, ignore_index=True)
-    df_all["Avance"] = pd.to_numeric(df_all["Avance"], errors="coerce")
+    df_all["Avance"] = df_all["Avance"].apply(_parse_avance)
     df_all["Id_OM"] = df_all["Id_OM"].astype(str).str.strip()
     
     df_all = df_all.dropna(subset=["Id_OM", "Avance"])
     df_all = df_all[df_all["Id_OM"] != ""]
     df_all = df_all[df_all["Id_OM"].str.lower() != "nan"]
+
+    # Evitar sobre-representar avance por actividades repetidas
+    if "Id_Accion" in df_all.columns:
+        df_all["Id_Accion"] = df_all["Id_Accion"].astype(str).str.strip()
+        df_all = df_all.drop_duplicates(subset=["Id_OM", "Id_Accion"], keep="first")
     
     if df_all.empty:
         return {}
     
-    max_avance = df_all["Avance"].max()
-    if max_avance < 2:
-        df_all["Avance"] = df_all["Avance"] * 100
-
     # Debug: expose internal avances for quick sanity when DEBUG_OM is enabled
     try:
         import os
@@ -989,6 +1019,20 @@ def render():
         border-bottom: 1px solid #e2e8f0;
         padding: 2px 2px;
     }
+    .om-bar-bg {
+        height: 16px;
+        border-radius: 8px;
+        background: #F3F4F6;
+        position: relative;
+        min-width: 80px;
+    }
+    .om-bar-fill {
+        height: 16px;
+        border-radius: 8px;
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
     div[data-testid="stHorizontalBlock"] {
         gap: 0rem !important;
     }
@@ -1026,7 +1070,7 @@ def render():
         if pd.notna(avance_num) and avance_num != 0:
             if abs(avance_num) <= 1.5:
                 avance_num = avance_num * 100
-            avance_txt = f"{avance_num:.1f}%"
+            avance_txt = barra_avance_om(float(avance_num))
 
         valores = [
             str(row.get("Id", "")),
