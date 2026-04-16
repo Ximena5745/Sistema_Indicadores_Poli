@@ -149,8 +149,30 @@ def _cargar_avance_om() -> dict:
         pass
     
     resultado = df_all.groupby("Id_OM")["Avance"].mean().to_dict()
-    
-    return {str(k).strip(): round(float(v), 1) for k, v in resultado.items()}
+
+    # Generar llaves robustas para matchear OM (ej: "440", "440.0", "OM 440").
+    import re
+    salida = {}
+    for k, v in resultado.items():
+        try:
+            avance = round(float(v), 1)
+        except Exception:
+            continue
+
+        key_raw = str(k).strip()
+        if not key_raw:
+            continue
+        salida[key_raw] = avance
+
+        key_norm = _id_str(key_raw)
+        if key_norm:
+            salida[key_norm] = avance
+
+        nums = re.findall(r"\d+", key_raw)
+        if nums:
+            salida[nums[0]] = avance
+
+    return salida
 
 
 def _cargar_plan_accion_para_om(om_id: str) -> pd.DataFrame:
@@ -588,7 +610,11 @@ def _resumen_om_por_id(df_reg: pd.DataFrame, avances_om: dict = None) -> pd.Data
     )
     out["tiene_om"] = pd.to_numeric(out["tiene_om"], errors="coerce").fillna(0).astype(int)
     out["tipo_accion"] = out["tipo_accion"].fillna("OM Kawak")
-    out["identificador"] = out["numero_om"].fillna("")
+    # Normalizar identificador OM para facilitar cruce con avances_om
+    out["identificador"] = out["numero_om"].fillna("").apply(
+        lambda x: _extraer_tipo_y_identificador(str(x))[1] if str(x).strip() else ""
+    )
+    out["identificador"] = out["identificador"].apply(_id_str)
     
     if avances_om and isinstance(avances_om, dict) and len(avances_om) > 0:
         def buscar_avance(x):
@@ -599,6 +625,10 @@ def _resumen_om_por_id(df_reg: pd.DataFrame, avances_om: dict = None) -> pd.Data
             # Prefijo exacto
             if x_clean in avances_om:
                 return avances_om[x_clean]
+            # Forma normalizada numérica (ej. '440.0' -> '440')
+            x_norm = _id_str(x_clean)
+            if x_norm in avances_om:
+                return avances_om[x_norm]
             # Digitos puros (ej. 'OM 440' -> '440')
             m = re.findall(r"\d+", x_clean)
             if m:
@@ -1009,6 +1039,17 @@ def render():
         <style>
         div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
         div[data-testid="stColumn"] { padding-left: 0 !important; padding-right: 0 !important; }
+        div[data-testid="stButton"] > button[kind="secondary"] {
+            min-height: 1.5rem;
+            padding: 0.1rem 0.35rem;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+        }
+        div[data-testid="stButton"] > button[kind="secondary"] p {
+            font-size: 0.95rem;
+            line-height: 1;
+        }
         .om-head {
             background:#1e293b;
             color:#fff;
@@ -1100,7 +1141,7 @@ def render():
             om_id = "" if pd.isna(row.get("OM")) else str(row.get("OM")).strip()
             tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
             if tiene_om and om_id and om_id.lower() != "nan":
-                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}"):
+                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}", type="secondary"):
                     active = st.session_state.get("om_expanded_row")
                     st.session_state["om_expanded_row"] = None if active == (ridx, om_id) else (ridx, om_id)
             else:
@@ -1121,7 +1162,7 @@ def render():
     indicador_seleccionado = st.selectbox("Seleccionar indicador", opciones, index=0)
     selected_id = indicador_seleccionado.split(" - ")[0] if indicador_seleccionado else ""
 
-    if st.button("➕ Asociar nueva OM", use_container_width=True):
+    if st.button("➕ Asociar nueva OM", use_container_width=True, type="primary"):
         st.session_state["om_modal_open"] = True
         st.session_state["om_modal_indicator"] = selected_id
 
