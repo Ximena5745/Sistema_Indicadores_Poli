@@ -946,10 +946,7 @@ def render():
         df_view["Cumplimiento"] = pd.to_numeric(df_view["Cumplimiento"], errors="coerce").round(1)
 
     if "Avance OM" in df_view.columns:
-        df_view["Avance OM"] = pd.to_numeric(df_view["Avance OM"], errors="coerce").round(1)
-        df_view["Avance OM"] = df_view["Avance OM"].apply(
-            lambda v: "-" if pd.isna(v) or v == 0 else f"{v:.1f}%"
-        )
+        df_view["Avance OM"] = pd.to_numeric(df_view["Avance OM"], errors="coerce")
 
     if "OM" in df_view.columns:
         df_view["OM"] = df_view["OM"].apply(lambda v: "" if pd.isna(v) else str(v))
@@ -961,18 +958,25 @@ def render():
         color: #ffffff;
         font-weight: 700;
         border-radius: 4px 4px 0 0;
-        padding: 6px 4px;
+        padding: 4px 2px;
         margin-bottom: 0;
     }
     .om-grid-row {
         background: #ffffff;
         border-bottom: 1px solid #e2e8f0;
-        padding: 4px 4px;
+        padding: 2px 2px;
     }
     .om-grid-row-alt {
         background: #f8fafc;
         border-bottom: 1px solid #e2e8f0;
-        padding: 4px 4px;
+        padding: 2px 2px;
+    }
+    div[data-testid="stHorizontalBlock"] {
+        gap: 0rem !important;
+    }
+    div[data-testid="stColumn"] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
     }
     .om-icon-btn {
         background: #e2e8f0;
@@ -1002,6 +1006,8 @@ def render():
         avance_txt = "-"
         avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
         if pd.notna(avance_num) and avance_num != 0:
+            if abs(avance_num) <= 1.5:
+                avance_num = avance_num * 100
             avance_txt = f"{avance_num:.1f}%"
 
         valores = [
