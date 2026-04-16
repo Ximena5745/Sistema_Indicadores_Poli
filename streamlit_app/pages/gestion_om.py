@@ -837,7 +837,9 @@ def render():
     st.markdown(f"### 📊 Indicadores en Peligro: {total_peligro} ({mes_sel} {anio_sel})")
 
     # --- Visualización mejorada de la tabla ---
-    df_display = _generar_tabla_html(df_tabla)
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+    df_tabla_fmt = formatear_meta_ejecucion_df(df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion")
+    df_display = _generar_tabla_html(df_tabla_fmt)
 
     # Renderizado personalizado de la tabla
     st.markdown("""
