@@ -632,9 +632,13 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
     if "identificador" not in m.columns:
         m["identificador"] = ""
 
+    # Añadir columna de acción ver más por OM
+    if "Id" in m.columns:
+        m["Ver_mas"] = m["Id"].astype(str).str.strip().apply(lambda x: f"<a href='?ver_mas={x}'>Ver más</a>")
+
     cols = [
         "Id", "Indicador", "Proceso", "Subproceso", "Periodicidad", "Categoria",
-        "tiene_om", "numero_om", "tipo_accion", "identificador", "avance_om", "tipo_mitigacion", "Cumplimiento_pct",
+        "tiene_om", "Ver_mas", "numero_om", "tipo_accion", "identificador", "avance_om", "tipo_mitigacion", "Cumplimiento_pct",
         "Meta", "Ejecucion",
         "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
         "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
@@ -739,6 +743,7 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
          .replace("tiene_om", "Tiene OM")
          .replace("tipo_accion", "Tipo de Acción")
          .replace("identificador", "OM")
+         .replace("Ver_mas", "Ver más")
         for c in cols
     ]
     
@@ -758,8 +763,16 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
 
     for _, row in df.iterrows():
         html += "<tr>"
-        for col in cols:
+            for col in cols:
             val = row.get(col)
+            if col == "Ver_mas":
+                om_id_for_link = str(row.get("identificador", "")).strip()
+                tengo_om = int(row.get("tiene_om", 0) or 0)
+                if tengo_om == 1 and om_id_for_link:
+                    html += f"<td><a href='?ver_mas={om_id_for_link}'>Ver más</a></td>"
+                else:
+                    html += "<td></td>"
+                continue
             if col == "Cumplimiento_pct":
                 icono = _icono_cumplimiento(val)
                 html += f"<td>{icono} {val}%</td>"
@@ -843,6 +856,15 @@ def render():
     avances_om = _cargar_avance_om()
     
     df_tabla = _construir_tabla_peligro(df_riesgo, registros_om, mes_sel, anio_sel, proc_sel, sub_sel, avances_om)
+    # Soporte: abrir modal desde enlace Ver más usando query params
+    try:
+        params = st.experimental_get_query_params()
+        if "ver_mas" in params and params["ver_mas"]:
+            om_id_q = str(params["ver_mas"][0])
+            st.session_state["om_popup_open"] = True
+            st.session_state["om_popup_id"] = om_id_q
+    except Exception:
+        pass
     # Debug: expose avances_om mapping for troubleshooting UI
     try:
         import os
