@@ -1316,7 +1316,7 @@ def render():
             if guardar_registro_om(payload):
                 st.session_state["om_modal_open"] = False
                 st.session_state["om_modal_indicator"] = ""
-                st.experimental_rerun()
+                st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
 
 if st.session_state.get("om_popup_open"):
         om_id = str(st.session_state.get("om_popup_id", ""))
