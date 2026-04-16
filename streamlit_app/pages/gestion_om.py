@@ -814,8 +814,8 @@ def _construir_tabla_peligro(df_riesgo: pd.DataFrame, registros_om: dict, mes_se
 
     df_acc = pd.DataFrame()  # Por ahora vacío, se puede implementar si hay acciones
 
-    # Usar la función existente para construir la matriz
-    return _matriz_mitigacion_peligro(df_filtrado, df_reg, df_acc)
+    # Usar la función existente para construir la matriz, incluyendo avances OM
+    return _matriz_mitigacion_peligro(df_filtrado, df_reg, df_acc, avances_om)
 
 
 def _build_option_label(row) -> str:
@@ -1040,11 +1040,15 @@ def render():
         div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
         div[data-testid="stColumn"] { padding-left: 0 !important; padding-right: 0 !important; }
         div[data-testid="stButton"] > button[kind="secondary"] {
-            min-height: 1.5rem;
-            padding: 0.1rem 0.35rem;
-            border-radius: 6px;
-            border: 1px solid #cbd5e1;
-            background: #f8fafc;
+            min-height: 0 !important;
+            height: 1.2rem !important;
+            width: 1.2rem !important;
+            padding: 0 !important;
+            margin: 0 auto !important;
+            border-radius: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
         }
         div[data-testid="stButton"] > button[kind="secondary"] p {
             font-size: 0.95rem;
