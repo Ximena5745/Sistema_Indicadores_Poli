@@ -632,9 +632,15 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
     if "identificador" not in m.columns:
         m["identificador"] = ""
 
-    # Añadir columna de acción ver más por OM
+    # Añadir columna Ver más solo si hay OM registrada (tiene_om=1 y existe identificador)
     if "Id" in m.columns:
-        m["Ver_mas"] = m["Id"].astype(str).str.strip().apply(lambda x: f"<a href='?ver_mas={x}'>Ver más</a>")
+        def _link_ver_mas(row):
+            if int(row.get("tiene_om", 0) or 0) == 1:
+                om_num = str(row.get("identificador", "")).strip()
+                if om_num:
+                    return f"<a href='?ver_mas={om_num}'>Ver más</a>"
+            return ""
+        m["Ver_mas"] = m.apply(_link_ver_mas, axis=1)
 
     cols = [
         "Id", "Indicador", "Proceso", "Subproceso", "Periodicidad", "Categoria",
@@ -945,18 +951,9 @@ def render():
                         "tipo_accion": tipo_accion,
                         "numero_om": str(numero_om).strip(),
                         "comentario": str(observacion).strip(),
-                    }
+}
                     if guardar_registro_om(payload):
                         st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
-
-    # Nueva funcionalidad: columna Ver más con ventana emergente (Plan de Acción)
-    if not df_tabla.empty:
-        for idx, r in df_tabla.iterrows():
-            om_id = str(r.get("Id", ""))
-            if om_id:
-                if st.button(f"Ver más - {om_id}", key=f"ver_mas_{idx}"):
-                    st.session_state["om_popup_open"] = True
-                    st.session_state["om_popup_id"] = om_id
 
     if st.session_state.get("om_popup_open"):
         om_id = str(st.session_state.get("om_popup_id", ""))
