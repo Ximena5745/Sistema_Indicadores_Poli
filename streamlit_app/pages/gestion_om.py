@@ -839,9 +839,17 @@ def render():
     # --- Visualización mejorada de la tabla con expansión por fila ---
     from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
     df_tabla_fmt = formatear_meta_ejecucion_df(df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion")
-    # Definir columnas a mostrar
-    cols = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "Tipo de Acción", "OM", "Avance OM", "Ver más"]
-    cols = [c for c in cols if c in df_tabla_fmt.columns]
+    # Definir columnas a mostrar según las realmente presentes y renombradas
+    rename_map = {
+        "Cumplimiento_pct": "Cumplimiento",
+        "avance_om": "Avance OM",
+        "tiene_om": "Ver más",
+        "tipo_accion": "Tipo de Acción",
+        "identificador": "OM"
+    }
+    # Si el DataFrame ya está formateado, usar los nombres correctos
+    posibles = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento", "Categoria", "Tipo de Acción", "OM", "Avance OM", "Ver más"]
+    cols = [c for c in posibles if c in df_tabla_fmt.columns]
     st.markdown("""
     <style>
     .om-bar-bg { height: 18px; border-radius: 8px; background: #F3F4F6; position: relative; }
@@ -859,15 +867,19 @@ def render():
     for idx, row in df_tabla_fmt.iterrows():
         c1, c2 = st.columns([0.97, 0.03])
         with c1:
-            st.markdown("<div style='border-bottom:1px solid #E5E7EB;padding:4px 0;'>" +
-                " | ".join([
-                    str(row[c]) if c not in ["Avance OM", "Tipo de Acción"]
-                    else (barra_avance_om(row["Avance OM"]) if c=="Avance OM" else badge_tipo_accion(row["Tipo de Acción"]))
-                for c in cols]) + "</div>", unsafe_allow_html=True)
+            rendered = []
+            for c in cols:
+                if c == "Avance OM" and c in row:
+                    rendered.append(barra_avance_om(row[c]))
+                elif c == "Tipo de Acción" and c in row:
+                    rendered.append(badge_tipo_accion(row[c]))
+                else:
+                    rendered.append(str(row.get(c, "")))
+            st.markdown("<div style='border-bottom:1px solid #E5E7EB;padding:4px 0;'>" + " | ".join(rendered) + "</div>", unsafe_allow_html=True)
         with c2:
-            om_id = row["OM"] if "OM" in row else ""
-            tiene_om = row["Ver más"] if "Ver más" in row else 0
-            if tiene_om == 1 and om_id and str(om_id).lower() != "nan":
+            om_id = row.get("OM", "")
+            tiene_om = row.get("Ver más", 0)
+            if (str(tiene_om) in ["1", "True", "true"]) and om_id and str(om_id).lower() != "nan":
                 expand_key = f"expand_om_{om_id}"
                 expanded = st.toggle("", key=expand_key, label_visibility="collapsed")
                 if expanded:
