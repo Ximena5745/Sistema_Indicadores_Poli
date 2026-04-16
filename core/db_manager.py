@@ -7,6 +7,7 @@ Prioridad de detección de DATABASE_URL:
   3. Sin URL → SQLite local en data/db/registros_om.db
 """
 import os
+import re
 import sqlite3
 import datetime
 import socket
@@ -129,6 +130,63 @@ def _connect_postgres():
         raise
 
 
+def _mes_numero_a_nombre(numero: int) -> str:
+    meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    ]
+    return meses[numero - 1] if 1 <= numero <= 12 else str(numero)
+
+
+def _normalize_mes_nombre(mes: Any) -> str:
+    texto = str(mes or "").strip()
+    if not texto:
+        return ""
+    texto_lower = texto.lower()
+    meses_map = {
+        "ene": "Enero", "ene.": "Enero", "enero": "Enero",
+        "feb": "Febrero", "feb.": "Febrero", "febrero": "Febrero",
+        "mar": "Marzo", "mar.": "Marzo", "marzo": "Marzo",
+        "abr": "Abril", "abr.": "Abril", "abril": "Abril",
+        "may": "Mayo", "mayo": "Mayo",
+        "jun": "Junio", "jun.": "Junio", "junio": "Junio",
+        "jul": "Julio", "jul.": "Julio", "julio": "Julio",
+        "ago": "Agosto", "ago.": "Agosto", "agosto": "Agosto",
+        "sep": "Septiembre", "sep.": "Septiembre", "sept": "Septiembre",
+        "sept.": "Septiembre", "septiembre": "Septiembre",
+        "oct": "Octubre", "oct.": "Octubre", "octubre": "Octubre",
+        "nov": "Noviembre", "nov.": "Noviembre", "noviembre": "Noviembre",
+        "dic": "Diciembre", "dic.": "Diciembre", "diciembre": "Diciembre",
+    }
+    return meses_map.get(texto_lower, texto.capitalize())
+
+
+def _normalize_om_periodo_anio(periodo: Any, anio: Any) -> tuple[str, int]:
+    periodo_str = str(periodo or "").strip()
+    anio_int = 0
+    if isinstance(anio, int):
+        anio_int = anio
+    else:
+        anio_text = str(anio or "").strip()
+        if anio_text.isdigit():
+            anio_int = int(anio_text)
+
+    if not periodo_str:
+        return "", anio_int
+
+    match = re.match(r"^(\d{4})[-/](\d{1,2})$", periodo_str)
+    if match:
+        anio_int = int(match.group(1))
+        return _mes_numero_a_nombre(int(match.group(2))), anio_int
+
+    if periodo_str.isdigit():
+        numero = int(periodo_str)
+        if 1 <= numero <= 12:
+            return _mes_numero_a_nombre(numero), anio_int
+
+    return _normalize_mes_nombre(periodo_str), anio_int
+
+
 def _build_ipv4_retry_connect_kwargs(kwargs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Crea kwargs de reintento forzando hostaddr IPv4 cuando sea posible."""
     if "hostaddr" in kwargs:
@@ -193,7 +251,7 @@ def _init_sqlite():
             comentario        TEXT,
             registrado_por    TEXT DEFAULT '',
             fecha_registro    TEXT,
-            UNIQUE(id_indicador, periodo, anio, sede)
+            UNIQUE(id_indicador, periodo, anio)
         )
     """)
     conn.commit()
@@ -218,7 +276,7 @@ def _init_postgres():
             comentario        TEXT,
             registrado_por    TEXT DEFAULT '',
             fecha_registro    TEXT,
-            UNIQUE(id_indicador, periodo, anio, sede)
+            UNIQUE(id_indicador, periodo, anio)
         )
     """)
     conn.commit()
@@ -248,12 +306,13 @@ def guardar_registro_om(datos: dict) -> bool:
     """
     inicializar_db()
     
+    periodo, anio = _normalize_om_periodo_anio(datos.get("periodo", ""), datos.get("anio", 0))
     datos = {
         "id_indicador":     str(datos.get("id_indicador", "")),
         "nombre_indicador": str(datos.get("nombre_indicador", "")),
         "proceso":          str(datos.get("proceso", "")),
-        "periodo":          str(datos.get("periodo", "")),
-        "anio":             int(datos.get("anio", 0)),
+        "periodo":          str(periodo),
+        "anio":             int(anio),
         "sede":             "",
         "tiene_om":         int(datos.get("tiene_om", 0)),
         "tipo_accion":      str(datos.get("tipo_accion", "OM Kawak")),
@@ -281,7 +340,7 @@ def _upsert_sqlite(d: dict) -> bool:
         VALUES
             (:id_indicador, :nombre_indicador, :proceso, :periodo, :anio, :sede,
              :tiene_om, :tipo_accion, :numero_om, :comentario, :registrado_por, :fecha_registro)
-        ON CONFLICT(id_indicador, periodo, anio, sede) DO UPDATE SET
+        ON CONFLICT(id_indicador, periodo, anio) DO UPDATE SET
             nombre_indicador = excluded.nombre_indicador,
             proceso          = excluded.proceso,
             tiene_om         = excluded.tiene_om,
@@ -306,7 +365,7 @@ def _upsert_postgres(d: dict) -> bool:
             (%(id_indicador)s, %(nombre_indicador)s, %(proceso)s, %(periodo)s,
              %(anio)s, %(sede)s, %(tiene_om)s, %(tipo_accion)s, %(numero_om)s, %(comentario)s,
              %(registrado_por)s, %(fecha_registro)s)
-        ON CONFLICT(id_indicador, periodo, anio, sede) DO UPDATE SET
+        ON CONFLICT(id_indicador, periodo, anio) DO UPDATE SET
             nombre_indicador = EXCLUDED.nombre_indicador,
             proceso          = EXCLUDED.proceso,
             tiene_om         = EXCLUDED.tiene_om,

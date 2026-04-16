@@ -1184,7 +1184,11 @@ def render():
         cell_class = "om-cell" if ridx % 2 == 0 else "om-cell-alt"
 
         cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
-        cumple_txt = barra_cumplimiento(cumple_num)
+        if pd.isna(cumple_num):
+            cumple_txt = "⚪ -"
+        else:
+            icon = "🔴" if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
+            cumple_txt = f"{icon} {cumple_num:.1f}%"
 
         tipo_raw = row.get("Tipo de Acción", "Sin acción")
         if pd.isna(tipo_raw) or str(tipo_raw).strip().lower() in {"", "nan", "none"}:

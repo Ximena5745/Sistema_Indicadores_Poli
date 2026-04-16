@@ -16,7 +16,7 @@ $$;
 ALTER TABLE public.registros_om 
 ALTER COLUMN numero_om TYPE text;
 
--- 3. Agregar restricción única para evitar duplicados (id_indicador, periodo, anio, sede)
+-- 3. Ajustar restricción única para evitar duplicados por ID, año y periodo (sede ya no aplica)
 DO $$
 BEGIN
     IF EXISTS (
@@ -29,8 +29,20 @@ BEGIN
 END
 $$;
 
-ALTER TABLE public.registros_om 
-ADD CONSTRAINT registros_om_unique_key UNIQUE (id_indicador, periodo, anio, sede);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'registros_om_unique_key' 
+        AND conrelid = 'public.registros_om'::regclass
+    ) THEN
+        ALTER TABLE public.registros_om 
+        ADD CONSTRAINT registros_om_unique_key UNIQUE (id_indicador, periodo, anio);
+    END IF;
+END
+$$;
+
+COMMENT ON COLUMN public.registros_om.sede IS 'Sede ya no se utiliza en el flujo de Gestión OM; se mantiene para compatibilidad histórica.';
 
 -- 4. Permitir nulos
 ALTER TABLE public.registros_om 

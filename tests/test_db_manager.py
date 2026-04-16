@@ -86,3 +86,17 @@ def test_registros_om_como_dict(tmp_path, monkeypatch):
     assert result["200"]["numero_om"] == "OM-200"
     assert result["200"]["periodo"] == "Mayo"
     assert result["200"]["anio"] == 2026
+
+
+def test_guardar_registro_om_normaliza_periodo_yyyy_mm(tmp_path, monkeypatch):
+    tmp_db = Path(tmp_path) / "registros_om_test.db"
+    monkeypatch.setattr(db_manager, "DB_PATH", tmp_db)
+    monkeypatch.setattr(db_manager, "_use_pg", lambda: False)
+
+    db_manager._init_sqlite()
+
+    assert db_manager.guardar_registro_om(_payload_base(id_indicador="201", numero_om="OM-2025-101", periodo="2025-12", anio=0)) is True
+    rows = db_manager.leer_registros_om()
+    assert len(rows) == 1
+    assert rows[0]["periodo"] == "Diciembre"
+    assert rows[0]["anio"] == 2025
