@@ -152,7 +152,7 @@ def _cargar_plan_accion_para_om(om_id: str) -> pd.DataFrame:
             continue
         # Build plan action rows
         for _, row in subset.iterrows():
-            accion = str(row.get("Descripci\u00f3n", "")) or str(row.get("Descripcion", "")) or str(row.get("Id Acción", ""))
+            accion = str(row.get("Id Acción", "")) or str(row.get("Descripci\u00f3n", "")) or str(row.get("Descripcion", ""))
             if not accion:
                 accion = str(row.get("Acción", ""))
             resp = str(row.get("Responsable de ejecuci\u00f3n", "")) or str(row.get("Responsable", "")) or str(row.get("Fuente de Identificaci\u00f3n", ""))
@@ -736,75 +736,37 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         "numero_om", "tipo_mitigacion", "Proceso",
     }
     cols = [c for c in cols if c not in cols_excluir]
-    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om"]
+    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om", "tiene_om"]
     cols = [c for c in cols_orden if c in cols]
-    renamed_cols = [
-        c.replace("Cumplimiento_pct", "Cumplimiento")
-         .replace("avance_om", "Avance OM")
-         .replace("tiene_om", "Tiene OM")
-         .replace("tipo_accion", "Tipo de Acción")
-         .replace("identificador", "OM")
-         .replace("Ver_mas", "Ver más")
-        for c in cols
-]
     
-    html = """
-    <style>
-    .om-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-    .om-table th { background: #1f2937; color: white; padding: 10px; text-align: left; }
-    .om-table td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
-    .om-table tr:hover { background: #f3f4f6; }
-    </style>
-    <table class="om-table">
-    <thead><tr>
-    """
-    for c in renamed_cols:
-        html += f"<th>{c}</th>"
-    html += "</tr></thead><tbody>"
-    for _, row in df.iterrows():
-        html += "<tr>"
-        for col in cols:
-            val = row.get(col)
-            if col == "Cumplimiento_pct":
-                icono = _icono_cumplimiento(val)
-                html += f"<td>{icono} {val}%</td>"
-            elif col == "tipo_accion":
-                tipo_val = val if val and str(val).strip() and str(val).lower() != "nan" else "Sin acción"
-                color = _color_tipo_accion_html(tipo_val)
-                html += f"<td style='color: {color}; font-weight: bold;'>{tipo_val}</td>"
-            elif col == "identificador":
-                html += f"<td>{val}</td>"
-            elif col == "avance_om":
-                if val and val > 0:
-                    color_bar = "#22C55E" if val >= 80 else "#F59E0B" if val >= 50 else "#EF4444"
-                    html += f'''<td>
-                        <div style="width: 100px; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden;">
-                            <div style="width: {min(val, 100)}%; height: 100%; background: {color_bar};"></div>
-                        </div>
-                        <span style="font-size: 12px;">{val}%</span>
-                    </td>'''
-                elif val == 0:
-                    html += f'''<td>
-                        <div style="width: 100px; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden;">
-                            <div style="width: 0%; height: 100%; background: #EF4444;"></div>
-                        </div>
-                        <span style="font-size: 12px;">0%</span>
-                    </td>'''
-                else:
-                    html += f"<td>-</td>"
-            elif col == "Meta":
-                html += f"<td>{meta_his_signo(row)}</td>"
-            elif col == "Ejecucion":
-                html += f"<td>{ejecucion_his_signo(row)}</td>"
-            elif col == "Categoria":
-                html += f"<td>{val}</td>"
-            elif col == "Id":
-                html += f"<td><b>{val}</b></td>"
-            else:
-                html += f"<td>{val}</td>"
-        html += "</tr>"
-    html += "</tbody></table>"
-    return html
+    rename_map = {
+        "Cumplimiento_pct": "Cumplimiento",
+        "avance_om": "Avance OM",
+        "tiene_om": "Ver más",
+        "tipo_accion": "Tipo de Acción",
+        "identificador": "OM"
+    }
+    df_display = df[cols].copy()
+    df_display.columns = [rename_map.get(c, c) for c in df_display.columns]
+    
+    def _icono_cumpl(val):
+        if pd.isna(val):
+            return "⚪"
+        if val >= 105:
+            return "🔵"
+        elif val >= 100:
+            return "🟢"
+        elif val >= 80:
+            return "🟡"
+        return "🔴"
+    
+    df_display["Cumplimiento"] = df_display["Cumplimiento"].apply(lambda x: f"{_icono_cumpl(x)} {x}%" if pd.notna(x) else "-")
+    
+    def _color_tipo(t):
+        colores = {"OM Kawak": "blue", "Reto Plan Anual": "orange", "Proyecto Institucional": "purple", "Otro": "gray"}
+        return colores.get(t, "gray")
+    
+    return df_display
 
 
 def render():
@@ -873,23 +835,63 @@ def render():
 
     total_peligro = len(df_tabla)
     st.markdown(f"### 📊 Indicadores en Peligro: {total_peligro} ({mes_sel} {anio_sel})")
+    df_display = _generar_tabla_html(df_tabla)
+    
+    def highlight_cumpl(row):
+        c = "Cumplimiento"
+        if pd.isna(row.get(c)):
+            return [""]
+        val = row.get(c)
+        if "🔴" in str(val):
+            return ["background-color: #FEE2E2; color: #991B1B"]
+        elif "🟡" in str(val):
+            return ["background-color: #FEF3C7; color: #92400E"]
+        elif "🟢" in str(val):
+            return ["background-color: #D1FAE5; color: #065F46"]
+        return [""]
+    
+    def highlight_tipo(row):
+        t = str(row.get("Tipo de Acción", ""))
+        if t == "OM Kawak":
+            return ["color: blue; font-weight: bold"]
+        elif t == "Reto Plan Anual":
+            return ["color: orange; font-weight: bold"]
+        elif t == "Proyecto Institucional":
+            return ["color: purple; font-weight: bold"]
+        return [""]
+    
+    def highlight_avance(row):
+        val = row.get("Avance OM", 0)
+        if pd.isna(val) or val == 0:
+            return ["background-color: #FEE2E2"]
+        elif val >= 80:
+            return ["background-color: #D1FAE5"]
+        elif val >= 50:
+            return ["background-color: #FEF3C7"]
+        return [""]
+    
+    def checkbox_om(row):
+        return "☑" if row.get("Ver más", 0) == 1 else ""
+    
+    df_display.insert(0, "☑", df_display.apply(checkbox_om, axis=1))
+    st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-    with st.container():
-        c1, c2 = st.columns([4, 1])
-        with c1:
-            st.markdown(_generar_tabla_html(df_tabla), unsafe_allow_html=True)
-        with c2:
-            oms_con_om = df_tabla[df_tabla["tiene_om"] == 1][["identificador"]].dropna()
-            if not oms_con_om.empty:
-                opciones_ver = [""] + sorted(oms_con_om["identificador"].unique().tolist())
-                om_a_ver = st.selectbox("Ver detalle OM", opciones_ver, index=0)
-                if om_a_ver:
-                    plan_df = _cargar_plan_accion_para_om(om_a_ver)
-                    with st.expander(f"Detalle OM {om_a_ver}", expanded=True):
+    oms_con_om = df_tabla[df_tabla["tiene_om"] == 1][["Id", "identificador"]].dropna()
+    if not oms_con_om.empty:
+        st.markdown("### Ver detalle de OM")
+        cols = st.columns(3)
+        col_idx = 0
+        for idx, row in oms_con_om.iterrows():
+            id_om = str(row.get("identificador", ""))
+            with cols[col_idx % 3]:
+                if st.checkbox(f"OM {id_om}", key=f"chk_{id_om}"):
+                    plan_df = _cargar_plan_accion_para_om(id_om)
+                    with st.expander(f"Detalle OM {id_om}", expanded=True):
                         if plan_df is not None and not plan_df.empty:
                             st.table(plan_df)
                         else:
                             st.write("Sin actividades.")
+            col_idx += 1
 
     st.markdown("---")
 
