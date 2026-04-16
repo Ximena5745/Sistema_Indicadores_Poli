@@ -994,8 +994,9 @@ def render():
         cumple_txt = "-" if pd.isna(cumple_num) else f"{_icono_cumplimiento(cumple_num)} {cumple_num:.1f}%"
         tipo_badge = badge_tipo_accion(str(row.get("Tipo de Acción", "Sin acción")))
         avance_txt = "-"
-        if "Avance OM" in row and pd.notna(row.get("Avance OM")) and float(row.get("Avance OM")) != 0:
-            avance_txt = f"{float(row.get('Avance OM')):.1f}%"
+        avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
+        if pd.notna(avance_num) and avance_num != 0:
+            avance_txt = f"{avance_num:.1f}%"
 
         valores = [
             str(row.get("Id", "")),
@@ -1022,7 +1023,6 @@ def render():
                 if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}"):
                     active = st.session_state.get("om_expanded_row")
                     st.session_state["om_expanded_row"] = None if active == (ridx, om_id) else (ridx, om_id)
-                st.markdown("<div class='om-icon-btn'>detalle</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='{fila_css}'></div>", unsafe_allow_html=True)
 
