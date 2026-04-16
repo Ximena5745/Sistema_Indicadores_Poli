@@ -285,7 +285,6 @@ def _init_sqlite():
             proceso           TEXT,
             periodo           TEXT,
             anio              INTEGER,
-            sede              TEXT DEFAULT '',
             tiene_om          INTEGER DEFAULT 0,
             tipo_accion       TEXT DEFAULT 'OM Kawak',
             numero_om         TEXT,
@@ -311,7 +310,6 @@ def _init_postgres():
             proceso           TEXT,
             periodo           TEXT,
             anio              INTEGER,
-            sede              TEXT DEFAULT '',
             tiene_om          INTEGER DEFAULT 0,
             tipo_accion       TEXT DEFAULT 'OM Kawak',
             numero_om         TEXT,
@@ -357,7 +355,6 @@ def guardar_registro_om(datos: dict) -> bool:
         "proceso":          str(datos.get("proceso", "")),
         "periodo":          str(periodo),
         "anio":             int(anio),
-        "sede":             "",
         "tiene_om":         int(datos.get("tiene_om", 0)),
         "tipo_accion":      str(datos.get("tipo_accion", "OM Kawak")),
         "numero_om":        str(datos.get("numero_om", "")),
@@ -379,10 +376,10 @@ def _upsert_sqlite(d: dict) -> bool:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
         INSERT INTO registros_om
-            (id_indicador, nombre_indicador, proceso, periodo, anio, sede,
+            (id_indicador, nombre_indicador, proceso, periodo, anio,
              tiene_om, tipo_accion, numero_om, comentario, registrado_por, fecha_registro)
         VALUES
-            (:id_indicador, :nombre_indicador, :proceso, :periodo, :anio, :sede,
+            (:id_indicador, :nombre_indicador, :proceso, :periodo, :anio,
              :tiene_om, :tipo_accion, :numero_om, :comentario, :registrado_por, :fecha_registro)
         ON CONFLICT(id_indicador, periodo, anio) DO UPDATE SET
             nombre_indicador = excluded.nombre_indicador,
@@ -403,11 +400,11 @@ def _upsert_postgres(d: dict) -> bool:
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO registros_om
-            (id_indicador, nombre_indicador, proceso, periodo, anio, sede,
+            (id_indicador, nombre_indicador, proceso, periodo, anio,
              tiene_om, tipo_accion, numero_om, comentario, registrado_por, fecha_registro)
         VALUES
             (%(id_indicador)s, %(nombre_indicador)s, %(proceso)s, %(periodo)s,
-             %(anio)s, %(sede)s, %(tiene_om)s, %(tipo_accion)s, %(numero_om)s, %(comentario)s,
+             %(anio)s, %(tiene_om)s, %(tipo_accion)s, %(numero_om)s, %(comentario)s,
              %(registrado_por)s, %(fecha_registro)s)
         ON CONFLICT ON CONSTRAINT registros_om_unique_key DO UPDATE SET
             nombre_indicador = EXCLUDED.nombre_indicador,

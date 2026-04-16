@@ -1259,6 +1259,11 @@ def render():
         nombre_ind = row.iloc[0]["Indicador"] if not row.empty else ""
         ind_anio = str(row.iloc[0].get("Anio", "")) if not row.empty else ""
         ind_mes = row.iloc[0].get("Mes", "") if not row.empty else ""
+
+        if not ind_mes:
+            ind_mes = mes_sel
+        if not ind_anio or not str(ind_anio).isdigit():
+            ind_anio = anio_sel
         
         # Usar SIEMPRE el formato global pasando el dict completo de la fila
         meta_val = meta_his_signo(row.iloc[0].to_dict()) if not row.empty else ""
@@ -1297,19 +1302,19 @@ def render():
                 submitted = st.form_submit_button("💾 Guardar Oportunidad de Mejora", use_container_width=True)
 
         if submitted:
-                    payload = {
-                        "id_indicador": str(indicador),
-                        "nombre_indicador": str(nombre_ind),
-                        "proceso": str(row.iloc[0].get("Proceso", "")) if not row.empty else "",
-                        "periodo": str(ind_mes),
-                        "anio": int(ind_anio) if ind_anio.isdigit() else int(date.today().year),
-                        "tiene_om": 1,
-                        "tipo_accion": tipo_accion,
-                        "numero_om": str(numero_om).strip(),
-                        "comentario": str(observacion).strip(),
-}
-                    if guardar_registro_om(payload):
-                        st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
+            payload = {
+                "id_indicador": str(indicador),
+                "nombre_indicador": str(nombre_ind),
+                "proceso": str(row.iloc[0].get("Proceso", "")) if not row.empty else "",
+                "periodo": str(ind_mes),
+                "anio": int(ind_anio) if str(ind_anio).isdigit() else int(date.today().year),
+                "tiene_om": 1,
+                "tipo_accion": tipo_accion,
+                "numero_om": str(numero_om).strip(),
+                "comentario": str(observacion).strip(),
+            }
+            if guardar_registro_om(payload):
+                st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
 
 if st.session_state.get("om_popup_open"):
         om_id = str(st.session_state.get("om_popup_id", ""))

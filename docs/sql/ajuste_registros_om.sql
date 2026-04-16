@@ -40,6 +40,7 @@ BEGIN
             SELECT 1 FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relname = 'registros_om_unique_key'
+              AND c.relkind = 'i'
               AND n.nspname = 'public'
         ) THEN
             EXECUTE 'DROP INDEX IF EXISTS public.registros_om_unique_key';
@@ -50,7 +51,8 @@ BEGIN
 END
 $$;
 
-COMMENT ON COLUMN public.registros_om.sede IS 'Sede ya no se utiliza en el flujo de Gestión OM; se mantiene para compatibilidad histórica.';
+ALTER TABLE public.registros_om
+DROP COLUMN IF EXISTS sede;
 
 -- 4. Permitir nulos
 ALTER TABLE public.registros_om 
