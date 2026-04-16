@@ -769,7 +769,7 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
                 om_id_for_link = str(row.get("identificador", "")).strip()
                 tengo_om = int(row.get("tiene_om", 0) or 0)
                 if tengo_om == 1 and om_id_for_link:
-                    html += f"<td><a href='?ver_mas={om_id_for_link}'>Ver más</a></td>"
+                    html += f"<td><a href=\"javascript:window.location.search='?ver_mas={om_id_for_link}'\">Ver más</a></td>"
                 else:
                     html += "<td></td>"
                 continue
@@ -856,13 +856,14 @@ def render():
     avances_om = _cargar_avance_om()
     
     df_tabla = _construir_tabla_peligro(df_riesgo, registros_om, mes_sel, anio_sel, proc_sel, sub_sel, avances_om)
-    # Soporte: abrir modal desde enlace Ver más usando query params
+    # Soporte: abrir popup desde enlace Ver más usando query params
     try:
         params = st.experimental_get_query_params()
         if "ver_mas" in params and params["ver_mas"]:
             om_id_q = str(params["ver_mas"][0])
-            st.session_state["om_popup_open"] = True
-            st.session_state["om_popup_id"] = om_id_q
+            if om_id_q:
+                st.session_state["om_popup_open"] = True
+                st.session_state["om_popup_id"] = om_id_q
     except Exception:
         pass
     # Debug: expose avances_om mapping for troubleshooting UI
@@ -950,27 +951,16 @@ def render():
                     if guardar_registro_om(payload):
                         st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
 
-    if st.session_state.get("om_popup_open"):
+if st.session_state.get("om_popup_open"):
         om_id = str(st.session_state.get("om_popup_id", ""))
         plan_df = _cargar_plan_accion_para_om(om_id)
-        # Usar modal para ventana emergente con fallback a expander
-        opened = False
-        try:
-            with st.modal(f"Plan de Acción - OM {om_id}"):
-                st.subheader(f"Plan de Acción para OM {om_id}")
-                if plan_df is not None and not plan_df.empty:
-                    st.table(plan_df)
-                else:
-                    st.write("No hay actividades para mostrar.")
-                if st.button("Cerrar", key=f'cerrar_popup_{om_id}'):
-                    st.session_state["om_popup_open"] = False
-            opened = True
-        except Exception:
-            opened = False
-        if not opened:
-            with st.expander(f"Plan de Acción - OM {om_id}"):
-                if plan_df is not None and not plan_df.empty:
-                    st.table(plan_df)
-                else:
-                    st.write("No hay actividades para mostrar.")
-            st.session_state["om_popup_open"] = False
+        # Usar expander para ventana emergente
+        with st.expander(f"Plan de Acción - OM {om_id}", expanded=True):
+            st.subheader(f"Plan de Acción para OM {om_id}")
+            if plan_df is not None and not plan_df.empty:
+                st.table(plan_df)
+            else:
+                st.write("No hay actividades para mostrar.")
+            if st.button("Cerrar", key=f'cerrar_popup_{om_id}'):
+                st.session_state["om_popup_open"] = False
+                st.rerun()
