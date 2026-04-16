@@ -1051,7 +1051,9 @@ def render():
             margin: 0 !important;
         }
         div[data-testid="stButton"] > button[kind="secondary"],
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] {
+        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"],
+        div[data-testid="stButton"] > button[kind="tertiary"],
+        div[data-testid="stButton"] > button[data-testid="baseButton-tertiary"] {
             min-height: 0 !important;
             height: 18px !important;
             width: 18px !important;
@@ -1063,11 +1065,15 @@ def render():
             box-shadow: none !important;
         }
         div[data-testid="stButton"] > button[kind="secondary"]:hover,
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover {
+        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover,
+        div[data-testid="stButton"] > button[kind="tertiary"]:hover,
+        div[data-testid="stButton"] > button[data-testid="baseButton-tertiary"]:hover {
             background: #e2e8f0 !important;
         }
         div[data-testid="stButton"] > button[kind="secondary"] p,
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] p {
+        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] p,
+        div[data-testid="stButton"] > button[kind="tertiary"] p,
+        div[data-testid="stButton"] > button[data-testid="baseButton-tertiary"] p {
             font-size: 0.85rem;
             line-height: 1;
         }
@@ -1141,7 +1147,12 @@ def render():
         cell_class = "om-cell" if ridx % 2 == 0 else "om-cell-alt"
 
         cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
-        cumple_txt = barra_avance_om(float(cumple_num)) if pd.notna(cumple_num) else barra_avance_om(0)
+        if pd.isna(cumple_num):
+            cumple_txt = "⚪ -"
+        else:
+            # Regla solicitada: 0% también se muestra como círculo rojo.
+            icon = "🔴" if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
+            cumple_txt = f"{icon} {cumple_num:.1f}%"
 
         tipo_raw = row.get("Tipo de Acción", "Sin acción")
         if pd.isna(tipo_raw) or str(tipo_raw).strip().lower() in {"", "nan", "none"}:
@@ -1176,7 +1187,7 @@ def render():
             om_id = "" if pd.isna(row.get("OM")) else str(row.get("OM")).strip()
             tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
             if tiene_om and om_id and om_id.lower() != "nan":
-                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}", type="secondary"):
+                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}", type="tertiary"):
                     active = st.session_state.get("om_expanded_row")
                     st.session_state["om_expanded_row"] = None if active == (ridx, om_id) else (ridx, om_id)
             else:
