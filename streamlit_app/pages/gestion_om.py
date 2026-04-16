@@ -152,9 +152,14 @@ def _cargar_plan_accion_para_om(om_id: str) -> pd.DataFrame:
             continue
         # Build plan action rows
         for _, row in subset.iterrows():
-            accion = str(row.get("Id Acción", "")) or str(row.get("Descripci\u00f3n", "")) or str(row.get("Descripcion", ""))
+            id_accion = str(row.get("Id Acción", "")).strip()
+            if not id_accion:
+                id_accion = str(row.get("Id Accion", "")).strip()
+            accion = str(row.get("Acción", "")).strip()
             if not accion:
-                accion = str(row.get("Acción", ""))
+                accion = str(row.get("Accion", "")).strip()
+            if not accion:
+                accion = str(row.get("Descripci\u00f3n", "")).strip() or str(row.get("Descripcion", "")).strip()
             resp = str(row.get("Responsable de ejecuci\u00f3n", "")) or str(row.get("Responsable", "")) or str(row.get("Fuente de Identificaci\u00f3n", ""))
             avance = row.get("Avance (%)", row.get("Avance", ""))
             if avance is None or (isinstance(avance, float) and pd.isna(avance)):
@@ -162,6 +167,7 @@ def _cargar_plan_accion_para_om(om_id: str) -> pd.DataFrame:
             estado_plan = str(row.get("Estado (Plan de Acci\u00f3n)", "")) or str(row.get("Estado (Plan Acción)", ""))
             estado_om = str(row.get("Estado (Oportunidad de mejora)", "")) or str(row.get("Estado de Oportunidad", ""))
             rows.append({
+                "Id Acción": id_accion,
                 "Acción": accion,
                 "Responsable de ejecución": resp,
                 "Avance (%)": avance,
@@ -954,19 +960,19 @@ def render():
         background: #1e293b;
         color: #ffffff;
         font-weight: 700;
-        border-radius: 8px 8px 0 0;
-        padding: 8px 10px;
-        margin-bottom: 2px;
+        border-radius: 4px 4px 0 0;
+        padding: 6px 4px;
+        margin-bottom: 0;
     }
     .om-grid-row {
         background: #ffffff;
         border-bottom: 1px solid #e2e8f0;
-        padding: 6px 10px;
+        padding: 4px 4px;
     }
     .om-grid-row-alt {
         background: #f8fafc;
         border-bottom: 1px solid #e2e8f0;
-        padding: 6px 10px;
+        padding: 4px 4px;
     }
     .om-icon-btn {
         background: #e2e8f0;
@@ -981,14 +987,14 @@ def render():
 
     encabezados = cols_orden + ["Ver más"]
     anchos = [0.55, 4.2, 2.9, 1.25, 1.0, 1.0, 1.25, 1.1, 1.45, 0.8, 1.1, 0.65]
-    header_cols = st.columns(anchos)
+    header_cols = st.columns(anchos, gap="small")
     for i, h in enumerate(encabezados):
         with header_cols[i]:
             st.markdown(f"<div class='om-grid-header'>{h}</div>", unsafe_allow_html=True)
 
     for ridx, row in df_view.iterrows():
         fila_css = "om-grid-row" if ridx % 2 == 0 else "om-grid-row-alt"
-        row_cols = st.columns(anchos)
+        row_cols = st.columns(anchos, gap="small")
 
         cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
         cumple_txt = "-" if pd.isna(cumple_num) else f"{_icono_cumplimiento(cumple_num)} {cumple_num:.1f}%"
