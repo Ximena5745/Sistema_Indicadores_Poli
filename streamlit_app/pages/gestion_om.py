@@ -999,42 +999,86 @@ def render():
     if "OM" in df_view.columns:
         df_view["OM"] = df_view["OM"].apply(lambda v: "" if pd.isna(v) else str(v))
 
-    # Cumplimiento y Avance OM en texto plano (sin resaltado ni barras)
-    if "Cumplimiento" in df_view.columns:
-        df_view["Cumplimiento"] = df_view["Cumplimiento"].apply(
-            lambda v: "-" if pd.isna(v) else f"{float(v):.1f}%"
-        )
+    st.markdown(
+        """
+        <style>
+        .om-head {
+            background:#1e293b;color:#fff;font-weight:700;padding:6px 6px;border-radius:4px 4px 0 0;
+            border-right:1px solid #334155;
+        }
+        .om-cell {
+            padding:6px 6px;border-bottom:1px solid #e2e8f0;
+        }
+        .om-cell-alt {
+            padding:6px 6px;border-bottom:1px solid #e2e8f0;background:#f8fafc;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    if "Avance OM" in df_view.columns:
-        avance_num = pd.to_numeric(df_view["Avance OM"], errors="coerce")
-        avance_num = avance_num.apply(lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5 else v)
-        df_view["Avance OM"] = avance_num.apply(
-            lambda v: "-" if pd.isna(v) else f"{float(v):.1f}%"
-        )
+    # Encabezado visual
+    encabezados = cols_orden + ["Ver más"]
+    anchos = [0.55, 4.2, 2.9, 1.25, 1.0, 1.0, 1.25, 1.1, 1.45, 0.8, 1.1, 0.65]
+    head_cols = st.columns(anchos)
+    for i, h in enumerate(encabezados):
+        with head_cols[i]:
+            st.markdown(f"<div class='om-head'>{h}</div>", unsafe_allow_html=True)
 
-    if "Tipo de Acción" in df_view.columns:
-        df_view["Tipo de Acción"] = df_view["Tipo de Acción"].fillna("Sin acción")
+    # Filas con estilo + expansión por icono
+    for ridx, row in df_view.iterrows():
+        row_cols = st.columns(anchos)
+        cell_class = "om-cell" if ridx % 2 == 0 else "om-cell-alt"
 
-    if "OM" in df_view.columns:
-        df_view["OM"] = df_view["OM"].apply(lambda v: "" if pd.isna(v) or str(v).lower() == "nan" else str(v))
+        cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
+        cumple_txt = "-" if pd.isna(cumple_num) else f"{_icono_cumplimiento(cumple_num)} {cumple_num:.1f}%"
 
-    if "Ver más" in df_view.columns:
-        df_view["Ver más"] = df_view["Ver más"].apply(lambda v: "📋" if str(v) in {"1", "True", "true"} else "")
+        tipo_raw = row.get("Tipo de Acción", "Sin acción")
+        if pd.isna(tipo_raw) or str(tipo_raw).strip().lower() in {"", "nan", "none"}:
+            tipo_raw = "Sin acción"
+        tipo_badge = badge_tipo_accion(str(tipo_raw))
 
-    st.dataframe(df_view, use_container_width=True, hide_index=True)
+        avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
+        if pd.notna(avance_num) and abs(avance_num) <= 1.5:
+            avance_num = avance_num * 100
+        avance_txt = "-" if pd.isna(avance_num) else f"{avance_num:.1f}%"
 
-    # Detalle de acciones OM en bloque estable (sin desalinear filas de la tabla principal)
-    oms_con_om = df_tabla[df_tabla["tiene_om"] == 1][["Id", "identificador"]].dropna()
-    if not oms_con_om.empty:
-        st.markdown("### Ver detalle de OM")
-        om_options = [str(x) for x in sorted(oms_con_om["identificador"].astype(str).unique().tolist()) if x and x.lower() != "nan"]
-        om_sel = st.selectbox("Seleccionar OM", om_options, index=0)
-        plan_df = _cargar_plan_accion_para_om(om_sel)
-        df_show = _normalizar_campos_plan_accion(plan_df)
-        if not df_show.empty:
-            st.dataframe(df_show, use_container_width=True, hide_index=True)
-        else:
-            st.info(f"OM {om_sel} sin acciones asociadas.")
+        valores = [
+            str(row.get("Id", "")),
+            str(row.get("Indicador", "")),
+            str(row.get("Subproceso", "")),
+            str(row.get("Periodicidad", "")),
+            str(row.get("Meta", "")),
+            str(row.get("Ejecucion", "")),
+            cumple_txt,
+            str(row.get("Categoria", "")),
+            tipo_badge,
+            "" if pd.isna(row.get("OM")) or str(row.get("OM")).lower() == "nan" else str(row.get("OM")),
+            avance_txt,
+        ]
+
+        for i, val in enumerate(valores):
+            with row_cols[i]:
+                st.markdown(f"<div class='{cell_class}'>{val}</div>", unsafe_allow_html=True)
+
+        with row_cols[11]:
+            om_id = "" if pd.isna(row.get("OM")) else str(row.get("OM")).strip()
+            tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
+            if tiene_om and om_id and om_id.lower() != "nan":
+                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}"):
+                    active = st.session_state.get("om_expanded_row")
+                    st.session_state["om_expanded_row"] = None if active == (ridx, om_id) else (ridx, om_id)
+            else:
+                st.markdown(f"<div class='{cell_class}'></div>", unsafe_allow_html=True)
+
+        if st.session_state.get("om_expanded_row") == (ridx, om_id):
+            plan_df = _cargar_plan_accion_para_om(om_id)
+            df_show = _normalizar_campos_plan_accion(plan_df)
+            if not df_show.empty:
+                st.markdown(f"##### Acciones asociadas a OM {om_id}")
+                st.dataframe(df_show, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"OM {om_id} sin acciones asociadas.")
 
     st.markdown("---")
 
