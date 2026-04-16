@@ -933,14 +933,15 @@ def render():
         for idx, r in df_tabla.iterrows():
             om_id = str(r.get("Id", ""))
             if om_id:
-                if st.button(f"Ver más - {om_id}", key=f'ver_mas_{idx}'):
+                if st.button(f"Ver más - {om_id}", key=f"ver_mas_{idx}"):
                     st.session_state["om_popup_open"] = True
                     st.session_state["om_popup_id"] = om_id
 
     if st.session_state.get("om_popup_open"):
         om_id = str(st.session_state.get("om_popup_id", ""))
         plan_df = _cargar_plan_accion_para_om(om_id)
-        # Usar modal para ventana emergente
+        # Usar modal para ventana emergente con fallback a expander
+        opened = False
         try:
             with st.modal(f"Plan de Acción - OM {om_id}"):
                 st.subheader(f"Plan de Acción para OM {om_id}")
@@ -950,16 +951,13 @@ def render():
                     st.write("No hay actividades para mostrar.")
                 if st.button("Cerrar", key=f'cerrar_popup_{om_id}'):
                     st.session_state["om_popup_open"] = False
+            opened = True
         except Exception:
-            # Fallback: usar un expander si modal no está disponible
+            opened = False
+        if not opened:
             with st.expander(f"Plan de Acción - OM {om_id}"):
                 if plan_df is not None and not plan_df.empty:
                     st.table(plan_df)
                 else:
                     st.write("No hay actividades para mostrar.")
             st.session_state["om_popup_open"] = False
-                        st.session_state["om_modal_open"] = False
-                        st.session_state["om_indicador_seleccionado"] = None
-                        st.rerun()
-                    else:
-                        st.error("❌ No fue posible guardar la acción. Intenta nuevamente.")
