@@ -100,6 +100,18 @@ def _cargar_avance_om() -> dict:
     max_avance = df_all["Avance"].max()
     if max_avance < 2:
         df_all["Avance"] = df_all["Avance"] * 100
+
+    # Debug: expose internal avances for quick sanity when DEBUG_OM is enabled
+    try:
+        import os
+        if os.getenv("DEBUG_OM", "0") == "1":
+            import json
+            print("DEBUG_OM avances:", json.dumps(
+                df_all.groupby("Id_OM")["Avance"].mean().round(1).to_dict(),
+                indent=2,
+            ))
+    except Exception:
+        pass
     
     resultado = df_all.groupby("Id_OM")["Avance"].mean().to_dict()
     
