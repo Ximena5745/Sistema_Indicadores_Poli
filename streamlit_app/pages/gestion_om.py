@@ -97,6 +97,10 @@ def _cargar_avance_om() -> dict:
     if df_all.empty:
         return {}
     
+    max_avance = df_all["Avance"].max()
+    if max_avance < 2:
+        df_all["Avance"] = df_all["Avance"] * 100
+    
     resultado = df_all.groupby("Id_OM")["Avance"].mean().to_dict()
     
     return {str(k).strip(): round(float(v), 1) for k, v in resultado.items()}

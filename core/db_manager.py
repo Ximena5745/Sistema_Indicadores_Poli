@@ -12,7 +12,7 @@ import datetime
 import socket
 from pathlib import Path
 from typing import Any, Dict, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 try:
     from dotenv import load_dotenv
@@ -36,8 +36,21 @@ def _get_database_url() -> str:
     """Lee DATABASE_URL desde st.secrets o variable de entorno."""
     db_url = _safe_st_secrets_get("DATABASE_URL")
     if db_url:
-        return db_url
-    return os.getenv("DATABASE_URL", "").strip()
+        return _sanitize_postgres_dsn(db_url)
+    return _sanitize_postgres_dsn(os.getenv("DATABASE_URL", "").strip())
+
+
+def _sanitize_postgres_dsn(dsn: str) -> str:
+    """Elimina parámetros de query no soportados por psycopg2 en URIs PostgreSQL."""
+    raw = str(dsn or "").strip()
+    if not raw or not raw.startswith("postgresql://"):
+        return raw
+
+    parsed = urlparse(raw)
+    unsupported = {"pgbouncer"}
+    cleaned_qs = [(k, v) for (k, v) in parse_qsl(parsed.query, keep_blank_values=True) if k.lower() not in unsupported]
+    new_query = urlencode(cleaned_qs, doseq=True)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
 
 
 def _extract_supabase_project_ref(supabase_url: str) -> str:
@@ -62,7 +75,7 @@ def _get_postgres_connect_kwargs() -> Optional[Dict[str, Any]]:
 
     pooler_url = _safe_st_secrets_get("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_POOLER_URL", "").strip()
     if pooler_url:
-        return {"dsn": pooler_url}
+        return {"dsn": _sanitize_postgres_dsn(pooler_url)}
 
     supabase_url = _safe_st_secrets_get("SUPABASE_URL") or os.getenv("SUPABASE_URL", "").strip()
     supabase_db_password = _safe_st_secrets_get("SUPABASE_DB_PASSWORD") or os.getenv("SUPABASE_DB_PASSWORD", "").strip()
@@ -103,6 +116,13 @@ def _connect_postgres():
         msg = str(exc)
         # Entornos sin salida IPv6 pueden fallar con hostnames que resuelven primero AAAA.
         if "Cannot assign requested address" in msg or "Network is unreachable" in msg:
+            # Si hay pooler configurado, priorizarlo como fallback incluso cuando DATABASE_URL sea directa.
+            pooler_url = _safe_st_secrets_get("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_POOLER_URL", "").strip()
+            if pooler_url:
+                try:
+                    return psycopg2.connect(dsn=pooler_url)
+                except Exception:
+                    pass
             retry_kwargs = _build_ipv4_retry_connect_kwargs(kwargs)
             if retry_kwargs:
                 return psycopg2.connect(**retry_kwargs)
