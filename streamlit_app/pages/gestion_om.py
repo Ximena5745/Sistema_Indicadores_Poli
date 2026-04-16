@@ -1063,7 +1063,7 @@ def render():
         row_cols = st.columns(anchos, gap="small")
 
         cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
-        cumple_txt = "-" if pd.isna(cumple_num) else f"{_icono_cumplimiento(cumple_num)} {cumple_num:.1f}%"
+        cumple_txt = barra_avance_om(float(cumple_num)) if pd.notna(cumple_num) else barra_avance_om(0)
         tipo_badge = badge_tipo_accion(str(row.get("Tipo de Acción", "Sin acción")))
         avance_txt = "-"
         avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
