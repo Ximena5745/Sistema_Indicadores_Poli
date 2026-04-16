@@ -12,6 +12,7 @@ try:
         get_color_for_cumplimiento, get_icon_for_estado
     )
     from ..styles.design_system import get_line_color, get_palette_for_chart
+    from ..utils.formatting import ejecucion_his_signo, meta_his_signo
 except ImportError:
     import sys
     from pathlib import Path
@@ -21,6 +22,7 @@ except ImportError:
         get_color_for_cumplimiento, get_icon_for_estado
     )
     from styles.design_system import get_line_color, get_palette_for_chart
+    from utils.formatting import ejecucion_his_signo, meta_his_signo
 
 
 def render_metric_card(
@@ -190,6 +192,23 @@ def render_indicator_status_card(indicator_data, show_sparkline=True):
     ejecucion = indicator_data.get('ejecucion', 0)
     estado = indicator_data.get('estado', 'Sin dato')
     tendencia = indicator_data.get('tendencia', [])
+    meta_fmt = meta_his_signo(
+        {
+            "Meta": meta,
+            "Meta_Signo": indicator_data.get("meta_signo", ""),
+            "Decimales": indicator_data.get("decimales", 0),
+            "Decimales_Meta": indicator_data.get("decimales_meta", indicator_data.get("decimales", 0)),
+            "DecimalesEje": indicator_data.get("decimales_ejec", 0),
+        }
+    )
+    ejec_fmt = ejecucion_his_signo(
+        {
+            "Ejecucion": ejecucion,
+            "Ejecucion_Signo": indicator_data.get("ejec_signo", ""),
+            "Decimales": indicator_data.get("decimales", 0),
+            "DecimalesEje": indicator_data.get("decimales_ejec", 0),
+        }
+    )
     
     # Determinar color e icono según estado
     # Si el indicador tiene una 'linea' asociada, priorizamos el color de línea
@@ -247,12 +266,12 @@ def render_indicator_status_card(indicator_data, show_sparkline=True):
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
             <div>
                 <div style="font-size: 0.75rem; color: {COLORS['text_secondary']}; margin-bottom: 0.25rem;">Meta</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']};">{meta:,.0f}</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']};">{meta_fmt}</div>
             </div>
             
             <div>
                 <div style="font-size: 0.75rem; color: {COLORS['text_secondary']}; margin-bottom: 0.25rem;">Ejecución</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']};">{ejecucion:,.0f}</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']};">{ejec_fmt}</div>
             </div>
             
             <div>

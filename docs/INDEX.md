@@ -21,7 +21,8 @@ docs/
 │
 ├── 02-CALCULOS/                 ─── Lógica y cálculos específicos
 │   ├── calculos_actualizar_consolidado.md   Fórmulas y cálculos en actualizar_consolidado.py
-│   └── logica_actualizar_consolidado.md     Flujo lógico del proceso de consolidación
+│   ├── logica_actualizar_consolidado.md     Flujo lógico del proceso de consolidación
+│   └── formato_meta_ejecucion_global.md     Estándar global de formato Meta/Ejecución
 │
 ├── 03-CONFIG/                   ─── Configuración y decisiones técnicas
 │   ├── CI_CD_SETUP.md                     GitHub Actions, pipelines, automation
@@ -84,6 +85,14 @@ docs/
    - Dónde se gasta el tiempo
    - Oportunidades de mejora
 
+### Si necesitas validar formato de Meta/Ejecución
+
+**Lectura puntual (10 min):**
+1. [02-CALCULOS/formato_meta_ejecucion_global.md](02-CALCULOS/formato_meta_ejecucion_global.md)
+   - Reglas oficiales de formato por signo
+   - Script base aprobado
+   - Cobertura global en páginas, tablas, fichas y gráficas
+
 ### Si configuras CI/CD o despliegue
 
 **Lectura operativa (20 min):**
@@ -118,12 +127,13 @@ docs/
 | [DATA_CONTRACTS_VALIDATION_REPORT.md](01-ANALISIS/DATA_CONTRACTS_VALIDATION_REPORT.md) | 10 min | Validación de contratos de datos |
 | [PIPELINE_PROFILING.md](01-ANALISIS/PIPELINE_PROFILING.md) | 15 min | Performance profiling detallado |
 
-### Categoría: CALCULOS (2 documentos)
+### Categoría: CALCULOS (3 documentos)
 
 | Documento | Duración | Propósito |
 |-----------|----------|----------|
 | [logica_actualizar_consolidado.md](02-CALCULOS/logica_actualizar_consolidado.md) | 20 min | Flujo lógico ETL |
 | [calculos_actualizar_consolidado.md](02-CALCULOS/calculos_actualizar_consolidado.md) | 15 min | Fórmulas exactas |
+| [formato_meta_ejecucion_global.md](02-CALCULOS/formato_meta_ejecucion_global.md) | 10 min | Estándar global de formato Meta/Ejecución |
 
 ### Categoría: CONFIG (5 documentos)
 
@@ -187,6 +197,7 @@ docs/
 | **¿Cuál es el flujo ETL?** | [logica_actualizar_consolidado.md](02-CALCULOS/logica_actualizar_consolidado.md) | "Pasos" |
 | **¿Cuáles son las fórmulas?** | [calculos_actualizar_consolidado.md](02-CALCULOS/calculos_actualizar_consolidado.md) | Todo |
 | **¿Cómo se normaliza?** | [calculos_actualizar_consolidado.md](02-CALCULOS/calculos_actualizar_consolidado.md) | "Normalización" |
+| **¿Cómo se formatea Meta/Ejecución globalmente?** | [formato_meta_ejecucion_global.md](02-CALCULOS/formato_meta_ejecucion_global.md) | "Regla operativa global" |
 
 ### CONFIG (¿Cómo se configura?)
 
@@ -212,7 +223,7 @@ docs/
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de documentos en docs/** | 23 |
+| **Total de documentos en docs/** | 24 |
 | **Carpetas temáticas** | 7 |
 | **Duración de lectura completa** | ~4.5 horas |
 | **Duración mínima (overview)** | ~30 minutos |

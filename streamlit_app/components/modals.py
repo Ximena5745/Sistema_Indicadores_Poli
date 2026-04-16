@@ -9,10 +9,12 @@ from pathlib import Path
 
 try:
     from styles.design_system import COLORS, SHADOWS, ICONS, get_line_color
+    from ..utils.formatting import ejecucion_his_signo, meta_his_signo
 except (ImportError, ModuleNotFoundError):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from styles.design_system import COLORS, SHADOWS, ICONS, get_line_color
+    from utils.formatting import ejecucion_his_signo, meta_his_signo
 
 
 def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
@@ -38,6 +40,23 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
     proceso = indicator_data.get('proceso', '')
     linea = indicator_data.get('linea', '')
     acciones = indicator_data.get('acciones', [])
+    meta_fmt = meta_his_signo(
+        {
+            "Meta": meta,
+            "Meta_Signo": indicator_data.get("meta_signo", ""),
+            "Decimales": indicator_data.get("decimales", 0),
+            "Decimales_Meta": indicator_data.get("decimales_meta", indicator_data.get("decimales", 0)),
+            "DecimalesEje": indicator_data.get("decimales_ejec", 0),
+        }
+    )
+    ejec_fmt = ejecucion_his_signo(
+        {
+            "Ejecucion": ejecucion,
+            "Ejecucion_Signo": indicator_data.get("ejec_signo", ""),
+            "Decimales": indicator_data.get("decimales", 0),
+            "DecimalesEje": indicator_data.get("decimales_ejec", 0),
+        }
+    )
     
     # Color según línea si existe, sino por cumplimiento
     if linea:
@@ -120,13 +139,13 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
                     
                     <div class="metric-box">
                         <div class="metric-label">Meta</div>
-                        <div class="metric-value">{meta:,.0f}</div>
+                        <div class="metric-value">{meta_fmt}</div>
                         <div class="metric-unit">{unidad}</div>
                     </div>
                     
                     <div class="metric-box">
                         <div class="metric-label">Ejecución</div>
-                        <div class="metric-value">{ejecucion:,.0f}</div>
+                        <div class="metric-value">{ejec_fmt}</div>
                         <div class="metric-unit">{unidad}</div>
                     </div>
                     

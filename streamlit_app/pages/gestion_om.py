@@ -35,6 +35,7 @@ try:
     from services.data_loader import cargar_acciones_mejora, cargar_dataset
     from core.config import CACHE_TTL
     from core.db_manager import registros_om_como_dict, guardar_registro_om
+    from streamlit_app.utils.formatting import ejecucion_his_signo, meta_his_signo
 except (ImportError, ModuleNotFoundError):
     import sys
     from pathlib import Path
@@ -44,6 +45,7 @@ except (ImportError, ModuleNotFoundError):
     from data_loader import cargar_acciones_mejora, cargar_dataset
     from core.config import CACHE_TTL
     from core.db_manager import registros_om_como_dict, guardar_registro_om
+    from streamlit_app.utils.formatting import ejecucion_his_signo, meta_his_signo
 
 
 @st.cache_data(ttl=10, show_spinner=False)
@@ -92,7 +94,11 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
 
     cols = [
         c
-        for c in ["Id", "Indicador", "Proceso", "Categoria", "Cumplimiento", "Cumplimiento_pct", "Periodicidad", "Anio", "Mes", "Meta", "Ejecucion"]
+        for c in [
+            "Id", "Indicador", "Proceso", "Categoria", "Cumplimiento", "Cumplimiento_pct", "Periodicidad", "Anio", "Mes",
+            "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+        ]
         if c in df.columns
     ]
     return df[cols].reset_index(drop=True)
@@ -487,6 +493,8 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
         "Id", "Indicador", "Proceso", "Periodicidad", "Categoria",
         "tiene_om", "numero_om", "tipo_accion", "identificador", "avance_om", "tipo_mitigacion", "Cumplimiento_pct",
         "Meta", "Ejecucion",
+        "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+        "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
     ]
     cols = [c for c in cols if c in m.columns]
     m = m[cols]
@@ -572,7 +580,11 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         return colores.get(tipo, "#6B7280")
 
     cols = list(df.columns)
-    cols_excluir = {"accion_creada", "mitiga_reto", "mitiga_proyecto", "avance_mitigacion_pct"}
+    cols_excluir = {
+        "accion_creada", "mitiga_reto", "mitiga_proyecto", "avance_mitigacion_pct",
+        "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+        "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+    }
     cols = [c for c in cols if c not in cols_excluir]
     renamed_cols = [
         c.replace("Cumplimiento_pct", "Cumplimiento")
@@ -618,6 +630,10 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
                 html += f"<td>{'✅' if val == 1 else '❌'}</td>"
             elif col == "avance_om":
                 html += f"<td>{val}%</td>"
+            elif col == "Meta":
+                html += f"<td>{meta_his_signo(row)}</td>"
+            elif col == "Ejecucion":
+                html += f"<td>{ejecucion_his_signo(row)}</td>"
             else:
                 html += f"<td>{val}</td>"
         html += "</tr>"
@@ -691,8 +707,8 @@ def render():
         ind_anio = str(row.iloc[0].get("Anio", "")) if not row.empty else ""
         ind_mes = row.iloc[0].get("Mes", "") if not row.empty else ""
         
-        meta_val = row.iloc[0].get("Meta", "") if not row.empty else ""
-        ejec_val = row.iloc[0].get("Ejecucion", "") if not row.empty else ""
+        meta_val = meta_his_signo(row.iloc[0]) if not row.empty else ""
+        ejec_val = ejecucion_his_signo(row.iloc[0]) if not row.empty else ""
         cumpl_val = row.iloc[0].get("Cumplimiento_pct", "") if not row.empty else ""
 
         with st.expander("Asociar Oportunidad de mejora", expanded=True):

@@ -3,6 +3,10 @@ from datetime import date as _date
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+try:
+    from ..utils.formatting import formatear_meta_ejecucion_df
+except ImportError:
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
 try:
     from services.data_loader import cargar_acciones_mejora
@@ -306,6 +310,13 @@ def render():
         _cols_cna.append("Ejecucion")
     if "Sentido" in df.columns:
         _cols_cna.append("Sentido")
+    for extra_col in [
+        "Meta_Signo", "Meta s", "MetaS", "Decimales_Meta", "Decimales", "DecMeta",
+        "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "Ejecucion_s", "EjecS",
+        "Decimales_Ejecucion", "DecimalesEje", "DecEjec",
+    ]:
+        if extra_col in df.columns:
+            _cols_cna.append(extra_col)
     _cols_cna += ["Anio", "Mes", "Fecha"]
     tabla = df[[c for c in _cols_cna if c in df.columns]].copy()
     tabla = tabla.rename(columns={
@@ -318,10 +329,7 @@ def render():
         "Ejecucion": "Ejecución",
     })
     tabla["Cumplimiento (%)"] = pd.to_numeric(tabla["Cumplimiento (%)"], errors="coerce").round(1)
-    if "Meta" in tabla.columns:
-        tabla["Meta"] = pd.to_numeric(tabla["Meta"], errors="coerce").round(2)
-    if "Ejecución" in tabla.columns:
-        tabla["Ejecución"] = pd.to_numeric(tabla["Ejecución"], errors="coerce").round(2)
+    tabla = formatear_meta_ejecucion_df(tabla, meta_col="Meta", ejec_col="Ejecución")
     _NIVEL_ICONS_CNA = {
         "Peligro": "🔴", "Alerta": "🟡", "Cumplimiento": "🟢",
         "Sobrecumplimiento": "🔵", "No aplica": "⚫", "Pendiente de reporte": "⚪",
@@ -339,8 +347,8 @@ def render():
         "Característica":  st.column_config.TextColumn("Característica", width="medium"),
         "Nivel":           st.column_config.TextColumn("Nivel",       width="medium"),
         "Cumplimiento (%)": st.column_config.NumberColumn("Cumplimiento %", format="%.1f", width="small"),
-        "Meta":            st.column_config.NumberColumn("Meta",      format="%.2f", width="small"),
-        "Ejecución":       st.column_config.NumberColumn("Ejecución", format="%.2f", width="small"),
+        "Meta":            st.column_config.TextColumn("Meta",        width="small"),
+        "Ejecución":       st.column_config.TextColumn("Ejecución",   width="small"),
         "Sentido":         st.column_config.TextColumn("Sentido",     width="small"),
         "Año cierre":      st.column_config.NumberColumn("Año",       format="%d",   width="small"),
         "Mes cierre":      st.column_config.NumberColumn("Mes",       format="%d",   width="small"),

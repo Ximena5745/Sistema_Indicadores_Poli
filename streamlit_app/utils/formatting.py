@@ -79,3 +79,113 @@ def fmt_valor(v, signo, decimales) -> str:
     if su in ("NO APLICA", "SIN REPORTE", "NA"):
         return f"{n:,.{d}f}" if d > 0 else f"{int(round(n)):,}"
     return f"{n:,.{d}f} {s}"
+
+
+def _to_non_negative_int(v, default: int = 0) -> int:
+    n = to_num(v)
+    if n is None:
+        return default
+    try:
+        return max(0, int(float(n)))
+    except (ValueError, TypeError):
+        return default
+
+
+def _pick_first(row, candidates, default=None):
+    for key in candidates:
+        if key in row:
+            return row.get(key)
+    return default
+
+
+def _formatear_valor_por_signo(signo_raw, valor_raw, dec_eje_raw, dec_raw) -> str:
+    signo = "" if is_null(signo_raw) else str(signo_raw).strip()
+    valor = to_num(valor_raw)
+    if valor is None:
+        valor = 0.0
+
+    dec_eje = _to_non_negative_int(dec_eje_raw, default=0)
+    dec = _to_non_negative_int(dec_raw, default=0)
+
+    # 1. Estados base
+    if signo == "Sin reporte":
+        return "Pendiente"
+
+    if signo == "Linea Base":
+        return "Linea Base"
+
+    # 2. Enteros
+    if signo == "ENT":
+        if valor == 0:
+            return "0"
+        return f"{round(valor):,}"
+
+    # 3. Porcentaje o unidades tipo kWh
+    if signo in ["%", "kWh"]:
+        if dec_eje > 0:
+            value = round(valor, dec_eje)
+            return f"{value:,.{dec_eje}f}{signo}"
+        return f"{round(valor):,}{signo}"
+
+    # 4. Moneda
+    if signo == "$":
+        if dec > 0:
+            value = round(valor, dec_eje)
+            return f"${value:,.{dec_eje}f}"
+        return f"${round(valor):,}"
+
+    # 5. Decimal puro
+    if signo == "DEC":
+        if dec > 0:
+            value = round(valor, dec_eje)
+            return f"{value:,.{dec_eje}f}"
+        return f"{round(valor):,}"
+
+    # 6. Unidades con sufijo separado
+    if signo in ["m3", "Kg", "tCO2e"]:
+        return f"{round(valor):,} {signo}"
+
+    # 7. Default
+    if dec > 0:
+        value = round(valor, dec_eje)
+        return f"{value:,.{dec_eje}f}"
+
+    return f"{round(valor):,}"
+
+
+def ejecucion_his_signo(row):
+    ejec_s = _pick_first(
+        row,
+        ["Ejecución s", "Ejecucion s", "Ejecucion_s", "Ejecucion_Signo", "EjecS", "ejec_signo"],
+        default="",
+    )
+    ejec = _pick_first(row, ["Ejecución", "Ejecucion"], default=0)
+    dec_eje = _pick_first(row, ["DecimalesEje", "Decimales_Ejecucion", "DecEjec"], default=0)
+    dec = _pick_first(row, ["Decimales", "Decimales_Meta", "DecMeta"], default=0)
+    return _formatear_valor_por_signo(ejec_s, ejec, dec_eje, dec)
+
+
+def meta_his_signo(row):
+    meta_s = _pick_first(row, ["Meta s", "Meta_Signo", "MetaS", "meta_signo"], default="")
+    meta = _pick_first(row, ["Meta"], default=0)
+    dec_meta = _pick_first(row, ["Decimales", "Decimales_Meta", "DecMeta"], default=0)
+    dec_eje = _pick_first(row, ["DecimalesEje", "Decimales_Ejecucion", "DecEjec"], default=0)
+    return _formatear_valor_por_signo(meta_s, meta, dec_eje, dec_meta)
+
+
+def formatear_meta_ejecucion_df(df: pd.DataFrame, meta_col: str = "Meta", ejec_col: str = "Ejecucion") -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+
+    out = df.copy()
+    if meta_col in out.columns:
+        out[meta_col] = out.apply(
+            lambda r: meta_his_signo({**r.to_dict(), "Meta": r.get(meta_col)}),
+            axis=1,
+        )
+    if ejec_col in out.columns:
+        out[ejec_col] = out.apply(
+            lambda r: ejecucion_his_signo({**r.to_dict(), "Ejecucion": r.get(ejec_col), "Ejecución": r.get(ejec_col)}),
+            axis=1,
+        )
+    return out

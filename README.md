@@ -17,6 +17,10 @@ Consolidación de visión completa: 3 Fases + 15 Pilares + roadmap semanal + mé
 🟢 **[Resultado Refactorización Sprint 1-2](05-OPERATIVO/RESULTADO_REFACTORIZACION_SPRINT1-2.md)** — ✅ 8,034 líneas dead code eliminadas, 105 tests pasando  
 📄 **[Plan Fase 2 Detallado](02-PLANIFICACION/FASE_2_PLAN.md)** — Semanas 1-8 (refactorización incluida)
 
+📐 **[Estándar Global Meta/Ejecución](docs/02-CALCULOS/formato_meta_ejecucion_global.md)** — Regla única de formato para fichas, tablas y gráficas
+
+🗂️ **[Fuentes oficiales Meta/Ejecución](docs/02-CALCULOS/formato_meta_ejecucion_global.md#fuentes-oficiales-de-meta-y-ejecucion)** — Consideraciones de Consolidado Histórico/Semestral/Cierres por vista
+
 ---
 
 ## 📋 Descripción General

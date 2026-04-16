@@ -10,6 +10,10 @@ from openpyxl.styles import PatternFill, Font
 from core.config import COLOR_CATEGORIA, COLOR_CATEGORIA_CLARO
 from services.data_loader import cargar_analisis_usuarios
 from services.ai_analysis import analizar_texto_indicador
+try:
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+except ImportError:
+    from utils.formatting import formatear_meta_ejecucion_df
 
 # Alias para compatibilidad interna — fuente única en core/config.py
 COLOR_CAT = COLOR_CATEGORIA
@@ -184,21 +188,11 @@ def tabla_historica_indicador(df_ind: pd.DataFrame) -> pd.DataFrame:
     if "Año" in df_t.columns:
         df_t = df_t.sort_values("Año")
 
-    _SIGNOS_NO_CONCAT = {"ENT", "DEC", "N", "METRICA", "MÉTRICA", "NO APLICA",
-                         "SIN REPORTE", "NA", ""}
-    for col, signo in (("Meta", _signo_meta), ("Ejecucion", _signo_ejec)):
-        if col in df_t.columns:
-            def _fmt_val(v, s=signo):
-                if pd.isna(v): return ""
-                num = f"{v:,.0f}" if float(v) == int(float(v)) else f"{v:,.2f}"
-                s_clean = str(s).strip()
-                if s_clean.upper() in _SIGNOS_NO_CONCAT:
-                    return num
-                if s_clean == "$":
-                    formatted = num.replace(",", "X").replace(".", ",").replace("X", ".")
-                    return f"${formatted}"
-                return f"{num}{s_clean}" if s_clean else num
-            df_t[col] = pd.to_numeric(df_t[col], errors="coerce").apply(_fmt_val)
+    if "Meta" in df_t.columns:
+        df_t["Meta_Signo"] = _signo_meta
+    if "Ejecucion" in df_t.columns:
+        df_t["Ejecucion_Signo"] = _signo_ejec
+    df_t = formatear_meta_ejecucion_df(df_t, meta_col="Meta", ejec_col="Ejecucion")
 
     if "Cumplimiento_norm" in df_t.columns:
         def _fmt_cumpl(v):
@@ -255,6 +249,17 @@ def grafico_detalle_indicador(df_ind: pd.DataFrame) -> go.Figure:
 
     meta_vals = pd.to_numeric(df.get("Meta", pd.Series(dtype=float)), errors="coerce")
     ejec_vals = pd.to_numeric(df.get("Ejecucion", pd.Series(dtype=float)), errors="coerce")
+    fmt_cols = [
+        c
+        for c in [
+            "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+        ]
+        if c in df.columns
+    ]
+    fmt_df = formatear_meta_ejecucion_df(df[fmt_cols].copy(), meta_col="Meta", ejec_col="Ejecucion") if fmt_cols else pd.DataFrame(index=df.index)
+    meta_hover = fmt_df.get("Meta", pd.Series([""] * len(df), index=df.index)).astype(str).tolist()
+    ejec_hover = fmt_df.get("Ejecucion", pd.Series([""] * len(df), index=df.index)).astype(str).tolist()
 
     fig = go.Figure()
 
@@ -263,13 +268,15 @@ def grafico_detalle_indicador(df_ind: pd.DataFrame) -> go.Figure:
         fig.add_trace(go.Bar(
             x=periodos, y=meta_vals.tolist(),
             name="Meta", marker_color="#90CAF9", opacity=0.85, yaxis="y1",
-            hovertemplate="<b>%{x}</b><br>Meta: %{y:,.2f}<extra></extra>",
+            customdata=meta_hover,
+            hovertemplate="<b>%{x}</b><br>Meta: %{customdata}<extra></extra>",
         ))
     if ejec_vals.notna().any():
         fig.add_trace(go.Bar(
             x=periodos, y=ejec_vals.tolist(),
             name="Ejecución", marker_color="#1A3A5C", opacity=0.85, yaxis="y1",
-            hovertemplate="<b>%{x}</b><br>Ejecución: %{y:,.2f}<extra></extra>",
+            customdata=ejec_hover,
+            hovertemplate="<b>%{x}</b><br>Ejecución: %{customdata}<extra></extra>",
         ))
 
     # Línea Cumplimiento%

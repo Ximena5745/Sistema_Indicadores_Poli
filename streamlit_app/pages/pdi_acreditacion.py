@@ -16,10 +16,12 @@ except (ImportError, ModuleNotFoundError):
 # Importes desde streamlit_app
 try:
     from ..components.filters import render_filters
+    from ..utils.formatting import formatear_meta_ejecucion_df
 except ImportError:
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from components.filters import render_filters
+    from utils.formatting import formatear_meta_ejecucion_df
 
 def _brecha(row):
     try:
@@ -220,7 +222,15 @@ def render():
 
     # --- Matriz de acreditación ---
     st.markdown("#### Matriz de acreditación")
-    cols = [c for c in ["Id", "Indicador", "Linea", "Objetivo", "cumplimiento_pct", "Meta", "Ejecucion", "Estado"] if c in df.columns]
+    cols = [
+        c
+        for c in [
+            "Id", "Indicador", "Linea", "Objetivo", "cumplimiento_pct", "Meta", "Ejecucion", "Estado",
+            "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+        ]
+        if c in df.columns
+    ]
     tabla = df[cols].copy()
     tabla = tabla.rename(columns={
         "cumplimiento_pct": "% Cumplimiento",
@@ -228,4 +238,5 @@ def render():
         "Ejecucion": "Ejecución",
         "Linea": "Macrolinea",
     })
+    tabla = formatear_meta_ejecucion_df(tabla, meta_col="Meta", ejec_col="Ejecución")
     st.dataframe(tabla, use_container_width=True, hide_index=True, height=420)

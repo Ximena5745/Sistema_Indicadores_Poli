@@ -4,6 +4,10 @@ import unicodedata
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+try:
+    from ..utils.formatting import formatear_meta_ejecucion_df
+except ImportError:
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
 try:
     from services.strategic_indicators import (
@@ -58,12 +62,28 @@ def _linea_color(linea: str) -> str:
     return "#1f4e79"
 
 
-def _default_corte(anios: list[int]) -> tuple[int, str]:
+def _default_anio(anios: list[int]) -> int:
     if 2025 in anios:
-        return 2025, "Diciembre"
+        return 2025
     if anios:
-        return anios[-1], "Diciembre"
-    return _date.today().year, "Diciembre"
+        return anios[-1]
+    return _date.today().year
+
+
+def _default_corte(anio: int | None) -> str:
+    if anio is None:
+        return "Diciembre"
+
+    today = _date.today()
+    # Años cerrados: siempre corte de diciembre.
+    if int(anio) < today.year:
+        return "Diciembre"
+
+    # Año no finalizado: usar junio cuando ya pasó el 20 de julio.
+    if today > _date(today.year, 7, 20):
+        return "Junio"
+
+    return "Diciembre"
 
 
 def render():
@@ -90,11 +110,12 @@ def render():
                     del st.session_state[k]
             st.rerun()
 
-        _anio_default, _corte_default = _default_corte(anios)
+        _anio_default = _default_anio(anios)
         _fc1, _fc2 = st.columns(2)
         with _fc1:
             anio = st.segmented_control("Año de corte", options=anios, default=_anio_default, key="cmi_pdi_anio")
         with _fc2:
+            _corte_default = _default_corte(int(anio) if anio is not None else None)
             corte = st.selectbox(
                 "Corte semestral",
                 list(CORTE_SEMESTRAL.keys()),
@@ -223,6 +244,13 @@ def render():
         _cols_pdi.append("Ejecucion")
     if "Sentido" in df.columns:
         _cols_pdi.append("Sentido")
+    for extra_col in [
+        "Meta_Signo", "Meta s", "MetaS", "Decimales_Meta", "Decimales", "DecMeta",
+        "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "Ejecucion_s", "EjecS",
+        "Decimales_Ejecucion", "DecimalesEje", "DecEjec",
+    ]:
+        if extra_col in df.columns:
+            _cols_pdi.append(extra_col)
     _cols_pdi += ["Anio", "Mes", "Fecha"]
     tabla = df[[c for c in _cols_pdi if c in df.columns]].copy()
     tabla = tabla.rename(columns={
@@ -234,10 +262,7 @@ def render():
         "Ejecucion": "Ejecución",
     })
     tabla["Cumplimiento (%)"] = pd.to_numeric(tabla["Cumplimiento (%)"], errors="coerce").round(1)
-    if "Meta" in tabla.columns:
-        tabla["Meta"] = pd.to_numeric(tabla["Meta"], errors="coerce").round(2)
-    if "Ejecución" in tabla.columns:
-        tabla["Ejecución"] = pd.to_numeric(tabla["Ejecución"], errors="coerce").round(2)
+    tabla = formatear_meta_ejecucion_df(tabla, meta_col="Meta", ejec_col="Ejecución")
     tabla = tabla.sort_values(["Linea", "Objetivo", "Id"] if all(c in tabla.columns for c in ["Linea", "Objetivo"]) else ["Id"], na_position="last")
 
     # Color de fondo por Nivel en columna Nivel
@@ -263,8 +288,8 @@ def render():
         "Objetivo":  st.column_config.TextColumn("Objetivo",    width="large"),
         "Nivel":     st.column_config.TextColumn("Nivel",       width="medium"),
         "Cumplimiento (%)": st.column_config.NumberColumn("Cumplimiento %", format="%.1f", width="small"),
-        "Meta":      st.column_config.NumberColumn("Meta",      format="%.2f", width="small"),
-        "Ejecución": st.column_config.NumberColumn("Ejecución", format="%.2f", width="small"),
+        "Meta":      st.column_config.TextColumn("Meta",        width="small"),
+        "Ejecución": st.column_config.TextColumn("Ejecución",   width="small"),
         "Sentido":   st.column_config.TextColumn("Sentido",     width="small"),
         "Año cierre": st.column_config.NumberColumn("Año",      format="%d",   width="small"),
         "Mes cierre": st.column_config.NumberColumn("Mes",      format="%d",   width="small"),

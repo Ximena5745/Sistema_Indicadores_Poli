@@ -35,6 +35,34 @@ def test_formatting_valores():
     assert formatting.fmt_valor(10.2, "kg", 1) == "10.2 kg"
 
 
+def test_formato_global_ejecucion_his_signo():
+    row_pct = {"Ejecución s": "%", "Ejecución": 95.126, "DecimalesEje": 1, "Decimales": 1}
+    assert formatting.ejecucion_his_signo(row_pct) == "95.1%"
+
+    row_estado = {"Ejecución s": "Sin reporte", "Ejecución": 0}
+    assert formatting.ejecucion_his_signo(row_estado) == "Pendiente"
+
+    row_ent = {"Ejecución s": "ENT", "Ejecución": 1234.2}
+    assert formatting.ejecucion_his_signo(row_ent) == "1,234"
+
+
+def test_formato_global_meta_y_df():
+    row_meta = {"Meta s": "$", "Meta": 1234.5, "Decimales": 2, "DecimalesEje": 2}
+    assert formatting.meta_his_signo(row_meta) == "$1,234.50"
+
+    df = pd.DataFrame(
+        [
+            {"Meta": 1000, "Ejecucion": 950, "Meta_Signo": "%", "Ejecucion_Signo": "%", "DecimalesEje": 0},
+            {"Meta": 0, "Ejecucion": 0, "Meta_Signo": "Sin reporte", "Ejecucion_Signo": "Sin reporte"},
+        ]
+    )
+    out = formatting.formatear_meta_ejecucion_df(df, meta_col="Meta", ejec_col="Ejecucion")
+    assert out.loc[0, "Meta"] == "1,000%"
+    assert out.loc[0, "Ejecucion"] == "950%"
+    assert out.loc[1, "Meta"] == "Pendiente"
+    assert out.loc[1, "Ejecucion"] == "Pendiente"
+
+
 def test_cargar_indicadores_riesgo_filtra_y_ultima_fecha(monkeypatch):
     _clear_cache(gestion_om._cargar_indicadores_riesgo)
 

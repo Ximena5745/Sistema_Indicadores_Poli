@@ -41,7 +41,7 @@ SGIND/
 └── docs/INDEX.md                ─── 📚 DOCUMENTACIÓN TÉCNICA COMPLEMENTARIA
     │
     ├── 01-ANALISIS/             Análisis, reportes, profiling (4 docs)
-    ├── 02-CALCULOS/             Lógica de cálculos (2 docs)
+    ├── 02-CALCULOS/             Lógica de cálculos (3 docs)
     ├── 03-CONFIG/               Configuración y decisiones (5 docs)
     ├── 04-FASE1/                Fase 1 (1 doc)
     ├── 05-FASE2/                Fase 2 (2 docs)
@@ -60,7 +60,7 @@ Complementa la estructura principal con **documentación específica por tema:**
 | Carpeta | Docs | Propósito |
 |---------|------|----------|
 | **docs/01-ANALISIS/** | 4 | Análisis del sistema, bottlenecks, profiling |
-| **docs/02-CALCULOS/** | 2 | Lógica de cálculos y consolidación |
+| **docs/02-CALCULOS/** | 3 | Lógica de cálculos, consolidación y formato global Meta/Ejecución |
 | **docs/03-CONFIG/** | 5 | CI/CD, contratos de datos, decisiones técnicas |
 | **docs/04-FASE1/** | 1 | Documentación Fase 1 completada |
 | **docs/05-FASE2/** | 2 | Documentación Fase 2 en ejecución |

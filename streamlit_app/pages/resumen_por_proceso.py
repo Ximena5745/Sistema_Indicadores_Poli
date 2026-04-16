@@ -8,11 +8,13 @@ import streamlit as st
 
 try:
     from ..services.data_service import DataService
+    from ..utils.formatting import formatear_meta_ejecucion_df
 except ImportError:
     import sys
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from services.data_service import DataService
+    from utils.formatting import formatear_meta_ejecucion_df
 
 
 MESES_OPCIONES = [
@@ -429,25 +431,50 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
 
 
 def _build_info_table(df_latest: pd.DataFrame) -> pd.DataFrame:
-    out = pd.DataFrame()
-    out["Indicador"] = df_latest.get("Indicador", "")
-    out["Meta"] = df_latest.get("Meta", pd.NA)
-    out["Ejecución"] = df_latest.get("Ejecucion", pd.NA)
+    base_cols = [
+        c
+        for c in [
+            "Indicador", "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+        ]
+        if c in df_latest.columns
+    ]
+    out = df_latest[base_cols].copy() if base_cols else pd.DataFrame(index=df_latest.index)
+    if "Indicador" not in out.columns:
+        out["Indicador"] = ""
+    if "Meta" not in out.columns:
+        out["Meta"] = pd.NA
+    if "Ejecucion" not in out.columns:
+        out["Ejecucion"] = pd.NA
+    out = formatear_meta_ejecucion_df(out, meta_col="Meta", ejec_col="Ejecucion")
+    out = out.rename(columns={"Ejecucion": "Ejecución"})
     out["Cumplimiento"] = df_latest.get("Cumplimiento_pct", pd.NA).apply(_cumpl_label)
-    return out
+    return out[[c for c in ["Indicador", "Meta", "Ejecución", "Cumplimiento"] if c in out.columns]]
 
 
 def _build_indicadores_table(df_latest: pd.DataFrame) -> pd.DataFrame:
-    out = pd.DataFrame()
+    base_cols = [
+        c
+        for c in [
+            "Subproceso_final", "Indicador", "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+        ]
+        if c in df_latest.columns
+    ]
+    out = df_latest[base_cols].copy() if base_cols else pd.DataFrame(index=df_latest.index)
     out["Subproceso - Indicador"] = (
-        df_latest.get("Subproceso_final", "Sin subproceso").astype(str)
+        out.get("Subproceso_final", pd.Series(["Sin subproceso"] * len(out), index=out.index)).astype(str)
         + " - "
-        + df_latest.get("Indicador", "").astype(str)
+        + out.get("Indicador", pd.Series([""] * len(out), index=out.index)).astype(str)
     )
-    out["Meta"] = df_latest.get("Meta", pd.NA)
-    out["Ejecución"] = df_latest.get("Ejecucion", pd.NA)
+    if "Meta" not in out.columns:
+        out["Meta"] = pd.NA
+    if "Ejecucion" not in out.columns:
+        out["Ejecucion"] = pd.NA
+    out = formatear_meta_ejecucion_df(out, meta_col="Meta", ejec_col="Ejecucion")
+    out = out.rename(columns={"Ejecucion": "Ejecución"})
     out["Cumplimiento"] = df_latest.get("Cumplimiento_pct", pd.NA).apply(_cumpl_label)
-    return out
+    return out[[c for c in ["Subproceso - Indicador", "Meta", "Ejecución", "Cumplimiento"] if c in out.columns]]
 
 
 def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFrame:

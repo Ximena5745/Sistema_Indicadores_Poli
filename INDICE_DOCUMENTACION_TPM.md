@@ -242,6 +242,7 @@ Divida en 5 carpetas temáticas:
 | **[RESULTADO_REFACTORIZACION_SPRINT1-2.md](RESULTADO_REFACTORIZACION_SPRINT1-2.md)** | Técnicos, Desarrolladores | 30 min | 1.0 ✨ NEW | Resumen ejecutivo: 8,034 líneas dead code eliminadas, arquitectura limpia, 105 tests ✅ |
 | **[REFACTORIZACION_ARQUITECTURA_SGIND.md](REFACTORIZACION_ARQUITECTURA_SGIND.md)** | Arquitectos, Seniors, Técnicos | 120 min | 1.0 ✨ NEW | Auditoría 135 archivos, plan refactorización, Sprint 1-2 resultados detallados (FASE 1-7) |
 | **[DATA_MODEL_SGIND.md](DATA_MODEL_SGIND.md)** | Desarrolladores, Analistas, DBAs | 80 min | 1.0 ✨ NEW | Modelo conceptual, fuentes, esquemas, cálculos, validaciones |
+| **[docs/02-CALCULOS/formato_meta_ejecucion_global.md](docs/02-CALCULOS/formato_meta_ejecucion_global.md)** | Técnicos, Frontend, BI | 10 min | 1.0 ✨ NEW | Estándar global de formato de Meta/Ejecución (tablas, fichas, gráficas) |
 | [ARQUITECTURA_TECNICA_DETALLADA.md](ARQUITECTURA_TECNICA_DETALLADA.md) | Arquitectos, Seniors | 90 min | 2.0 | Detalle técnico: módulos, flujos, ETL |
 | [GUIA_INSTALACION_EJECUCION.md](GUIA_INSTALACION_EJECUCION.md) | DevOps, Desarrolladores | 45 min | 1.0 | Instalación, config, deployment |
 | [ANALISIS_ARQUITECTONICO_SGIND.md](ANALISIS_ARQUITECTONICO_SGIND.md) | Arquitectos, Líderes | 30 min | 1.0 | Análisis de decisiones, post-processing paradigm |
