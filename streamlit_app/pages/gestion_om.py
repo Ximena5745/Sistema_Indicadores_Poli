@@ -982,12 +982,11 @@ def render():
         df_riesgo["Mes"] = ""
 
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-    anios = []
+    anios = ["2026"]
     if "Anio" in df_riesgo.columns:
         available = [str(int(x)) for x in sorted(df_riesgo["Anio"].dropna().astype(int).unique())]
-        anios = [y for y in ["2025", "2026"] if y in available]
-    if not anios:
-        anios = ["2025", "2026"]
+        if "2025" in available:
+            anios.insert(0, "2025")
 
     procesos = ["Todos"]
     if "Proceso" in df_riesgo.columns:
