@@ -984,7 +984,8 @@ def render():
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     anios = []
     if "Anio" in df_riesgo.columns:
-        anios = [str(int(x)) for x in sorted(df_riesgo["Anio"].dropna().astype(int).unique())]
+        available = [str(int(x)) for x in sorted(df_riesgo["Anio"].dropna().astype(int).unique())]
+        anios = [y for y in ["2025", "2026"] if y in available]
     if not anios:
         anios = ["2025", "2026"]
 
