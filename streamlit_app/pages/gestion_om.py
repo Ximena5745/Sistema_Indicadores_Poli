@@ -705,16 +705,13 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
     if df_riesgo.empty:
         return pd.DataFrame()
 
-    df_peligro = df_riesgo[df_riesgo.get("Categoria", "").astype(str).str.lower() == "peligro"].copy()
-    if df_peligro.empty:
-        return pd.DataFrame()
-
-    df_peligro["Id"] = df_peligro["Id"].apply(_id_str)
+    # Ya no filtrar por 'Peligro' aquí, aceptar el DataFrame tal como viene (puede incluir 'Alerta')
+    df_riesgo["Id"] = df_riesgo["Id"].apply(_id_str)
 
     om = _resumen_om_por_id(df_reg, avances_om)
     acc = _resumen_acciones_por_id(df_acc)
 
-    m = df_peligro.merge(om, on="Id", how="left").merge(acc, on="Id", how="left")
+    m = df_riesgo.merge(om, on="Id", how="left").merge(acc, on="Id", how="left")
     for c in ["tiene_om", "tiene_accion"]:
         m[c] = pd.to_numeric(m.get(c), errors="coerce").fillna(0).astype(int)
     for c in ["mitiga_reto", "mitiga_proyecto"]:
