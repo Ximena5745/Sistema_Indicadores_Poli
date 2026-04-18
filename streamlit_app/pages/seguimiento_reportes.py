@@ -5,23 +5,9 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-# Importes desde root
-try:
-    from components.charts import exportar_excel
-    from core.config import CACHE_TTL
-except (ImportError, ModuleNotFoundError):
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from components.charts import exportar_excel
-    from core.config import CACHE_TTL
 
-# Importes desde streamlit_app
-try:
-    from ..utils.formatting import id_limpio
-except ImportError:
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from utils.formatting import id_limpio
+from streamlit_app.components.charts import exportar_excel
+from streamlit_app.utils.formatting import id_limpio
 
 
 RUTA_SEGUIMIENTO = Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
