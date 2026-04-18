@@ -8,6 +8,9 @@ import plotly.express as px
 import streamlit as st
 
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
