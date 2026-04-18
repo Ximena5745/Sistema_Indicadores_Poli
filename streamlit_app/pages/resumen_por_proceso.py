@@ -15,7 +15,9 @@ except ImportError:
     import sys
     from pathlib import Path
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    # Asegurar que el directorio raíz del proyecto esté en sys.path para poder importar
+    # el paquete `components` desde el módulo `streamlit_app.pages.resumen_por_proceso`.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from components.charts import grafico_historico_indicador, tabla_historica_indicador
     try:
         from services.data_service import DataService
