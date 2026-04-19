@@ -307,10 +307,33 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
 
     norm_cols = {_norm_text(c): c for c in df.columns}
     proc_col = next((v for k, v in norm_cols.items() if "PROCESO" in k), None)
+    subproc_col = next((v for k, v in norm_cols.items() if "SUBPROCESO" in k), None)
     tem_col = next((v for k, v in norm_cols.items() if "TEMATICA" in k), None)
 
+    # Si no hay columna Proceso, intentar mapear desde Subproceso
+    if proc_col is None and subproc_col is not None:
+        # Cargar mapeo oficial YAML
+        import yaml
+        mapeo_path = Path(__file__).resolve().parents[2] / "config" / "mapeos_procesos.yaml"
+        with open(mapeo_path, "r", encoding="utf-8") as f:
+            mapeo_yaml = yaml.safe_load(f)
+        # Construir DataFrame de mapeo
+        mapeo = []
+        for proc, subs in mapeo_yaml.items():
+            for sub in subs:
+                mapeo.append({"Proceso": proc.strip(), "Subproceso": sub.strip()})
+        df_mapeo = pd.DataFrame(mapeo)
+        # Normalizar textos para merge
+        df_mapeo["sub_norm"] = df_mapeo["Subproceso"].str.upper().str.normalize('NFKD').str.encode('ascii', 'ignore').str.decode('utf-8')
+        df["sub_norm"] = df[subproc_col].astype(str).str.upper().str.normalize('NFKD').str.encode('ascii', 'ignore').str.decode('utf-8')
+        # Merge
+        df = df.merge(df_mapeo[["sub_norm", "Proceso"]], on="sub_norm", how="left")
+        proc_col = "Proceso"
+        # Si no se encuentra el proceso, dejar como "Sin Proceso"
+        df[proc_col] = df[proc_col].fillna("Sin Proceso")
+
     if proc_col is None:
-        return pd.DataFrame(), "No se encontró la columna Proceso en el archivo de calidad."
+        return pd.DataFrame(), "No se encontró la columna Proceso ni Subproceso en el archivo de calidad."
     if tem_col is None:
         return pd.DataFrame(), "No se encontró la columna Temática en el archivo de calidad."
 
