@@ -298,7 +298,12 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
         return pd.DataFrame(), f"No existe el archivo: {excel_path}"
 
     try:
-        df = pd.read_excel(excel_path, skiprows=4, engine="openpyxl")
+        df = pd.read_excel(
+            excel_path,
+            skiprows=4,  # Encabezados reales en fila 5 (índice 4)
+            engine="openpyxl",
+            sheet_name="LISTA DE CHEQUEO"
+        )
     except Exception as exc:
         return pd.DataFrame(), f"No se pudo leer el Excel de calidad: {exc}"
 
