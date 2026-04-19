@@ -1,4 +1,50 @@
-﻿from pathlib import Path
+﻿import yaml
+import unicodedata
+from pypdf import PdfReader
+# Utilidad: cruzar procesos entre Excel de calidad y PDFs de auditoría
+def cruzar_procesos_calidad_auditoria():
+    # 1. Extraer procesos únicos del Excel de calidad
+    excel_path = Path("data") / "raw" / "Monitoreo" / "Monitoreo_Informacion_Procesos 2025.xlsx"
+    df_calidad = pd.read_excel(
+        excel_path,
+        skiprows=4,
+        engine="openpyxl",
+        sheet_name="LISTA DE CHEQUEO"
+    )
+    procesos_calidad = df_calidad['PROCESO'].dropna().unique()
+    procesos_calidad = [str(p).strip().upper() for p in procesos_calidad]
+
+    def norm_txt(x):
+        return unicodedata.normalize('NFKD', str(x or '').strip().upper()).replace(' ', '').replace('_', '').encode('ascii', 'ignore').decode('utf-8')
+
+    procesos_norm = [norm_txt(p) for p in procesos_calidad]
+
+    # 2. Buscar esos procesos en todos los PDFs de auditoría
+    pdf_dir = Path("data/raw/Auditoria")
+    pdf_files = sorted(pdf_dir.glob("*.pdf"))
+    procesos_encontrados = set()
+    detalles = []
+    for pdf_path in pdf_files:
+        reader = PdfReader(str(pdf_path))
+        for page_num, page in enumerate(reader.pages, 1):
+            text = page.extract_text() or ""
+            text_norm = norm_txt(text)
+            for proc, proc_norm in zip(procesos_calidad, procesos_norm):
+                if proc_norm in text_norm:
+                    procesos_encontrados.add(proc)
+                    detalles.append({
+                        "Proceso": proc,
+                        "PDF": pdf_path.name,
+                        "Pagina": page_num
+                    })
+
+    df_cruce = pd.DataFrame(detalles)
+    if df_cruce.empty:
+        print("No se encontraron procesos del Excel en los PDFs de auditoría.")
+    else:
+        print(df_cruce)
+    return df_cruce
+from pathlib import Path
 import importlib
 import re
 import unicodedata
@@ -428,8 +474,13 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
     if PdfReader is None:
         return pd.DataFrame(), "No está instalado pypdf ni PyPDF2. Instala uno de esos paquetes para extraer texto de auditoría."
 
-    if not processes:
-        return pd.DataFrame(), "No hay procesos disponibles para buscar en los PDFs."
+    # Usar lista oficial de procesos desde mapeo YAML
+    mapeo_path = Path(__file__).resolve().parents[2] / "config" / "mapeos_procesos.yaml"
+    with open(mapeo_path, "r", encoding="utf-8") as f:
+        mapeo_yaml = yaml.safe_load(f)
+    procesos_oficiales = list(mapeo_yaml.keys())
+    if not procesos_oficiales:
+        return pd.DataFrame(), "No hay procesos oficiales disponibles para buscar en los PDFs."
 
     indicator_keys = [
         "INDICADOR",
@@ -506,9 +557,18 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
             return f"Para el proceso {proc}, la auditoría evidencia que {top[0]} Además, {top[1]}"
         return f"Para el proceso {proc}, la auditoría evidencia que {top[0]} Además, {top[1]} Finalmente, {top[2]}"
 
-    proc_names = [str(p) for p in processes if str(p).strip()]
+    proc_names = [str(p) for p in procesos_oficiales if str(p).strip()]
     proc_norm_map = {_norm_text(p): p for p in proc_names}
     collected: dict[tuple[str, str], dict] = {}
+
+    # Palabras clave para resumen estratégico
+    claves = {
+        "Fortalezas": ["FORTALEZA", "FORTALEZAS"],
+        "Aspectos por mejorar": ["ASPECTO POR MEJORAR", "OPORTUNIDAD DE MEJORA", "DEBILIDAD", "DEBILIDADES"],
+        "Conformidades": ["CONFORMIDAD", "CONFORMIDADES"],
+        "Mejoras": ["MEJORA", "MEJORAS"],
+        "No conformidades": ["NO CONFORMIDAD", "NO CONFORMIDADES", "NO CONFORME"]
+    }
 
     for pdf_path in pdf_files:
         try:
@@ -536,6 +596,7 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
                     continue
 
                 matched_fragments = []
+                resumen_estrategico = {k: [] for k in claves}
                 for idx, sent in enumerate(sentences):
                     sent_norm = _norm_text(sent)
                     if proc_norm in sent_norm:
@@ -544,9 +605,12 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
                             frag_norm = _norm_text(frag)
                             if _contains_indicator_context(frag_norm) or proc_norm in frag_norm:
                                 matched_fragments.append(frag)
+                            # Clasificación por palabra clave
+                            for cat, palabras in claves.items():
+                                if any(pal in frag_norm for pal in palabras):
+                                    resumen_estrategico[cat].append(frag)
 
                 if not matched_fragments:
-                    # fallback breve si aparece el proceso pero no contexto explícito de indicador
                     fallback = [s for s in sentences if proc_norm in _norm_text(s)][:2]
                     matched_fragments = fallback
 
@@ -561,12 +625,16 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
                         "Paginas": set(),
                         "Fragmentos": [],
                         "Terminos": set(),
+                        "Resumen Estrategico": {k: [] for k in claves}
                     }
 
                 collected[key]["Paginas"].add(page_num)
                 collected[key]["Fragmentos"].extend(matched_fragments)
                 for frag in matched_fragments:
                     collected[key]["Terminos"].update(_extract_detected_terms(_norm_text(frag)))
+                # Guardar resumen estratégico
+                for cat in claves:
+                    collected[key]["Resumen Estrategico"][cat].extend(resumen_estrategico[cat])
 
     if not collected:
         return pd.DataFrame(), "No se encontraron menciones directas de procesos en los PDFs de auditoría."
@@ -576,15 +644,17 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
         paginas = sorted(list(payload["Paginas"]))
         fragments = payload["Fragmentos"]
         summary = _redact_summary(proc_name, fragments)
-        rows.append(
-            {
-                "Proceso": proc_name,
-                "Fuente": source_name,
-                "Coincidencias": len(fragments),
-                "Paginas": ", ".join(str(p) for p in paginas),
-                "Resumen IA": summary,
-            }
-        )
+        fila = {
+            "Proceso": proc_name,
+            "Fuente": source_name,
+            "Coincidencias": len(fragments),
+            "Paginas": ", ".join(str(p) for p in paginas),
+            "Resumen IA": summary,
+        }
+        # Agregar resumen estratégico por categoría
+        for cat in ["Fortalezas", "Aspectos por mejorar", "Conformidades", "Mejoras", "No conformidades"]:
+            fila[cat] = " | ".join(set(payload["Resumen Estrategico"][cat])) if payload["Resumen Estrategico"][cat] else ""
+        rows.append(fila)
 
     resumen = pd.DataFrame(rows).sort_values(["Proceso", "Fuente"]).reset_index(drop=True)
     return resumen, None
@@ -881,9 +951,22 @@ def render() -> None:
         if auditoria_msg:
             st.warning(auditoria_msg)
         else:
-            if proceso_sel != "Todos":
-                auditoria_df = auditoria_df[auditoria_df["Proceso"].astype(str) == proceso_sel]
-            st.dataframe(auditoria_df, use_container_width=True, hide_index=True)
+            # Separar por fuente
+            if not auditoria_df.empty:
+                df_interna = auditoria_df[auditoria_df['Fuente'].str.contains('INTERNA', case=False, na=False)]
+                df_externa = auditoria_df[auditoria_df['Fuente'].str.contains('EXTERNA', case=False, na=False)]
+                if not df_interna.empty:
+                    st.subheader('Informe de Auditoría Interna')
+                    st.dataframe(df_interna, use_container_width=True, hide_index=True)
+                else:
+                    st.info('No hay resultados para Informe de Auditoría Interna.')
+                if not df_externa.empty:
+                    st.subheader('Informe de Auditoría Externa')
+                    st.dataframe(df_externa, use_container_width=True, hide_index=True)
+                else:
+                    st.info('No hay resultados para Informe de Auditoría Externa.')
+            else:
+                st.info('No hay resultados de auditoría para mostrar.')
 
     with tabs[6]:
         st.markdown("### Propuestos")
