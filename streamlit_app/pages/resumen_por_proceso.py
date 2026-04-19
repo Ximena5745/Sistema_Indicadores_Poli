@@ -356,9 +356,52 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     if len(metric_cols) < 5:
         return pd.DataFrame(), "No se identificaron 5 características evaluadas en el archivo de calidad."
 
-    out = df[[proc_col, tem_col] + metric_cols[:5]].copy()
-    out = out.rename(columns={proc_col: "Proceso", tem_col: "Temática"})
-    out = out.dropna(subset=["Proceso"]).reset_index(drop=True)
+    out = df.copy()
+    # Selección de campos clave para visualización
+    campos_valor = [
+        'SUBPROCESO',
+        'Tematica',
+        'Informe de gestión',
+        'Informe de sostenibilidad',
+        'I. OPORTUNIDAD\n(Entrega en tiempo )',
+        'II. COMPLETITUD\n(Todos los campos )',
+        'III. CONSISTENCIA\n(Coherencia interna)',
+        'IV. PRECISI�N\n(C�lculo correcto )',
+        'V. PROTOCOLO\n(Conforme a ficha)',
+        'OBSERVACIONES / HALLAZGOS DETECTADOS'
+    ]
+    campos_valor = [c for c in campos_valor if c in out.columns]
+    out = out[campos_valor].copy()
+    out = out.dropna(subset=[campos_valor[0]]).reset_index(drop=True)
+
+    # Cálculo de resultado por temática (%)
+    def puntaje(valor):
+        valor = str(valor).upper()
+        if 'CUMPLE' in valor and 'PARCIAL' not in valor:
+            return 1
+        elif 'PARCIAL' in valor:
+            return 0.5
+        elif 'NO CUMPLE' in valor:
+            return 0
+        else:
+            return None
+
+    indicadores = [
+        'I. OPORTUNIDAD\n(Entrega en tiempo )',
+        'II. COMPLETITUD\n(Todos los campos )',
+        'III. CONSISTENCIA\n(Coherencia interna)',
+        'IV. PRECISI�N\n(C�lculo correcto )',
+        'V. PROTOCOLO\n(Conforme a ficha)'
+    ]
+
+    def resultado_tematica(row):
+        puntos = [puntaje(row[ind]) for ind in indicadores if ind in row and puntaje(row[ind]) is not None]
+        if puntos:
+            return round(sum(puntos) / len(puntos) * 100, 1)
+        else:
+            return None
+
+    out['Resultado Temática (%)'] = out.apply(resultado_tematica, axis=1)
     return out, None
 
 
@@ -827,8 +870,9 @@ def render() -> None:
         if calidad_msg:
             st.warning(calidad_msg)
         else:
-            if proceso_sel != "Todos":
-                calidad_df = calidad_df[calidad_df["Proceso"].astype(str) == proceso_sel]
+            valor_global = calidad_df['Resultado Temática (%)'].mean() if not calidad_df.empty else None
+            if valor_global is not None:
+                st.metric("Valor Global Calidad (%)", f"{valor_global:.1f}%")
             st.dataframe(calidad_df, use_container_width=True, hide_index=True)
 
     with tabs[5]:
