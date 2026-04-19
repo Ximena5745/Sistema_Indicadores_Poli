@@ -451,93 +451,94 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     return out, None
 
 
+# ── Auditoría desde Excel preprocesado ───────────────────────────────────────
+_AUDITORIA_XLSX = Path(__file__).resolve().parents[2] / "data" / "raw" / "Auditoria" / "auditoria_resultado.xlsx"
+
+_LABELS = {
+    "fortalezas":              "Fortalezas",
+    "oportunidades_mejora":    "Oportunidades de Mejora",
+    "hallazgos":               "Hallazgos",
+    "no_conformidades":        "No Conformidades",
+    "recomendacion_desempeno": "Recomendación Desempeño",
+}
+
+@st.cache_data(show_spinner=False)
+def _load_auditoria_excel() -> tuple[pd.DataFrame, str | None]:
+    if not _AUDITORIA_XLSX.exists():
+        return pd.DataFrame(), f"No existe el archivo: {_AUDITORIA_XLSX.name}. Ejecuta scripts/generar_auditoria_csv.py primero."
+    try:
+        df = pd.read_excel(_AUDITORIA_XLSX, sheet_name="Auditoria", engine="openpyxl")
+        df = df.fillna("")
+        return df, None
+    except Exception as e:
+        return pd.DataFrame(), f"Error leyendo Excel de auditoría: {e}"
+
+
+def _render_auditoria_tab(proceso_filtro: str) -> None:
+    """Renderiza la pestaña Auditoría leyendo el Excel preprocesado."""
+    st.markdown("### Auditoría")
+    df, msg = _load_auditoria_excel()
+    if msg:
+        st.warning(msg)
+        return
+    if df.empty:
+        st.info("No hay datos de auditoría disponibles.")
+        return
+
+    # Filtrar por proceso si se seleccionó uno específico
+    if proceso_filtro and proceso_filtro.upper() != "TODOS":
+        mask = df["proceso"].str.upper().str.contains(proceso_filtro.upper(), na=False)
+        df_filtrado = df[mask]
+    else:
+        df_filtrado = df
+
+    # ── Columnas renombradas para mostrar ─────────────────────────────────────
+    col_rename = {}
+    for campo, label in _LABELS.items():
+        for sufijo in ("_interna", "_externa"):
+            col = f"{campo}{sufijo}"
+            if col in df_filtrado.columns:
+                tipo = "Interna" if sufijo == "_interna" else "Externa"
+                col_rename[col] = f"{label} ({tipo})"
+
+    df_display = df_filtrado.rename(columns={"proceso": "Proceso", **col_rename})
+
+    # ── Auditoría Interna ─────────────────────────────────────────────────────
+    cols_interna = ["Proceso"] + [v for k, v in col_rename.items() if "Interna" in v]
+    df_int = df_display[cols_interna]
+    df_int_filtrado = df_int[df_int.iloc[:, 1:].apply(lambda r: r.str.strip().ne("").any(), axis=1)]
+
+    st.subheader("📋 Auditoría Interna")
+    if df_int_filtrado.empty:
+        st.info("No hay hallazgos de auditoría interna para el proceso seleccionado.")
+    else:
+        st.dataframe(df_int_filtrado, use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+    # ── Auditoría Externa ─────────────────────────────────────────────────────
+    cols_externa = ["Proceso"] + [v for k, v in col_rename.items() if "Externa" in v]
+    df_ext = df_display[cols_externa]
+    df_ext_filtrado = df_ext[df_ext.iloc[:, 1:].apply(lambda r: r.str.strip().ne("").any(), axis=1)]
+
+    st.subheader("🏛️ Auditoría Externa (Icontec 2025)")
+    if df_ext_filtrado.empty:
+        st.info("No hay hallazgos de auditoría externa para el proceso seleccionado.")
+    else:
+        st.dataframe(df_ext_filtrado, use_container_width=True, hide_index=True)
+
+
 @st.cache_data(show_spinner=False)
 def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | None]:
-    raw_dir = Path("data") / "raw" / "auditoria"
-    if not raw_dir.exists():
-        return pd.DataFrame(), f"No existe la carpeta: {raw_dir}"
-
-    pdf_files = sorted(raw_dir.glob("*.pdf"))
-    if not pdf_files:
-        return pd.DataFrame(), "No hay PDFs en data/raw/auditoria."
-
-    PdfReader = None
-    for package in ("pypdf", "PyPDF2"):
-        try:
-            module = importlib.import_module(package)
-            PdfReader = getattr(module, "PdfReader", None)
-            if PdfReader is not None:
-                break
-        except Exception:
-            continue
-
-    if PdfReader is None:
-        return pd.DataFrame(), "No está instalado pypdf ni PyPDF2. Instala uno de esos paquetes para extraer texto de auditoría."
-
-    # Usar lista oficial de procesos desde mapeo YAML
-    mapeo_path = Path(__file__).resolve().parents[2] / "config" / "mapeos_procesos.yaml"
-    with open(mapeo_path, "r", encoding="utf-8") as f:
-        mapeo_yaml = yaml.safe_load(f)
-    procesos_oficiales = list(mapeo_yaml.keys())
-    if not procesos_oficiales:
-        return pd.DataFrame(), "No hay procesos oficiales disponibles para buscar en los PDFs."
-
-    indicator_keys = [
-        "INDICADOR",
-        "INDICADORES",
-        "CUMPLIMIENTO",
-        "DESEMPENO",
-        "DESEMPEÑO",
-        "MEDICION",
-        "MEDICIÓN",
-        "METRICA",
-        "MÉTRICA",
-        "KPI",
-        "OBJETIVO",
-        "OBJETIVOS",
-        "LINEA BASE",
-        "LÍNEA BASE",
-        "VARIACION",
-        "VARIACIÓN",
-        "TENDENCIA",
-        "BRECHA",
-        "META",
-        "EJECUCION",
-        "EJECUCIÓN",
-        "RESULTADO",
-        "AVANCE",
-        "HALLAZGO",
-        "RIESGO",
-        "CONTROL",
-        "VERIFICACION",
-        "VERIFICACIÓN",
-        "EVIDENCIA",
-        "SEGUIMIENTO",
-        "PLAN DE MEJORAMIENTO",
-    ]
-    indicator_keys_norm = {_norm_text(k) for k in indicator_keys}
-
-    def _split_sentences(text: str) -> list[str]:
-        text = re.sub(r"\s+", " ", str(text or "")).strip()
-        if not text:
-            return []
-        parts = re.split(r"(?<=[\.!\?;])\s+", text)
-        return [p.strip() for p in parts if p and len(p.strip()) > 20]
-
-    def _contains_indicator_context(text_norm: str) -> bool:
-        return any(k in text_norm for k in indicator_keys_norm)
-
-    def _extract_detected_terms(text_norm: str) -> list[str]:
-        found = [k for k in indicator_keys_norm if k in text_norm]
-        return sorted(found)
-
-    def _redact_summary(proc: str, fragments: list[str]) -> str:
-        if not fragments:
-            return f"No se identificó evidencia explícita de indicadores para {proc} en los documentos revisados."
-
-        clean = []
-        seen = set()
-        for frag in fragments:
+    # Leer DataFrame resultado desde archivo CSV preprocesado
+    resultado_path = Path("data") / "raw" / "auditoria_resultado.csv"
+    if not resultado_path.exists():
+        return pd.DataFrame(), f"No existe el archivo de resultados: {resultado_path}"
+    try:
+        df = pd.read_csv(resultado_path)
+    except Exception as e:
+        return pd.DataFrame(), f"Error al leer auditoria_resultado.csv: {e}"
+    return df, None
             f = re.sub(r"\s+", " ", str(frag or "")).strip()
             if not f:
                 continue
@@ -947,26 +948,7 @@ def render() -> None:
 
     with tabs[5]:
         st.markdown("### Auditoría")
-        auditoria_df, auditoria_msg = _load_auditoria_mentions(procesos_all)
-        if auditoria_msg:
-            st.warning(auditoria_msg)
-        else:
-            # Separar por fuente
-            if not auditoria_df.empty:
-                df_interna = auditoria_df[auditoria_df['Fuente'].str.contains('INTERNA', case=False, na=False)]
-                df_externa = auditoria_df[auditoria_df['Fuente'].str.contains('EXTERNA', case=False, na=False)]
-                if not df_interna.empty:
-                    st.subheader('Informe de Auditoría Interna')
-                    st.dataframe(df_interna, use_container_width=True, hide_index=True)
-                else:
-                    st.info('No hay resultados para Informe de Auditoría Interna.')
-                if not df_externa.empty:
-                    st.subheader('Informe de Auditoría Externa')
-                    st.dataframe(df_externa, use_container_width=True, hide_index=True)
-                else:
-                    st.info('No hay resultados para Informe de Auditoría Externa.')
-            else:
-                st.info('No hay resultados de auditoría para mostrar.')
+        _render_auditoria_tab(selected_process_label)
 
     with tabs[6]:
         st.markdown("### Propuestos")
