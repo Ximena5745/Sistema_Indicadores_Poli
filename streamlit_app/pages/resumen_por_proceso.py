@@ -220,7 +220,7 @@ def _latest_per_indicator(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
-    sort_cols = [c for c in ["Año", "Mes", "Fecha", "Periodo"] if c in df.columns]
+    sort_cols = [c for c in ["Anio", "Año", "Mes", "Fecha", "Periodo"] if c in df.columns]
     out = df.sort_values(sort_cols) if sort_cols else df.copy()
 
     if "Id" in out.columns:
@@ -687,6 +687,235 @@ def _build_info_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     return out[[c for c in ["Indicador", "Meta", "Ejecución", "Cumplimiento"] if c in out.columns]]
 
 
+def _fmt_short_value(value: object) -> str:
+    num = _to_float(value)
+    if num is None:
+        return "Sin dato"
+    if abs(num) >= 100:
+        return f"{num:.0f}"
+    return f"{num:.2f}".rstrip("0").rstrip(".")
+
+
+def _resumir_analisis_texto(texto: object, max_chars: int = 260) -> str:
+    if texto is None or (isinstance(texto, float) and pd.isna(texto)):
+        return "Sin análisis disponible."
+    raw = str(texto).strip()
+    if not raw:
+        return "Sin análisis disponible."
+
+    # Resumen simple y robusto: tomar hasta 2 frases útiles.
+    frases = [f.strip() for f in re.split(r"[.!?]\s+", raw) if f.strip()]
+    if not frases:
+        return raw[:max_chars]
+    resumen = ". ".join(frases[:2]).strip()
+    if len(resumen) > max_chars:
+        resumen = resumen[: max_chars - 3].rstrip() + "..."
+    return resumen
+
+
+@st.cache_data(show_spinner=False)
+def _load_analisis_indicadores() -> dict[str, str]:
+    source = Path(__file__).parents[2] / "data" / "raw" / "Fuentes Consolidadas" / "Consolidado_API_Kawak.xlsx"
+    if not source.exists():
+        return {}
+
+    try:
+        df = pd.read_excel(source, engine="openpyxl")
+    except Exception:
+        return {}
+
+    ind_col = _first_col(df, ["Indicador", "Nombre Indicador", "Indicador Nombre"])
+    ana_col = _first_col(df, ["analisis", "análisis"])
+    if ind_col is None or ana_col is None:
+        return {}
+
+    out: dict[str, str] = {}
+    for _, row in df[[ind_col, ana_col]].dropna(how="all").iterrows():
+        indicador = str(row.get(ind_col, "")).strip()
+        analisis = str(row.get(ana_col, "")).strip()
+        if not indicador:
+            continue
+        key = _norm_text(indicador)
+        if key and analisis:
+            out[key] = analisis
+    return out
+
+
+def _latest_year_rows(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "Anio" not in df.columns:
+        return df.copy()
+
+    out = df.copy()
+    if "Mes" in out.columns:
+        out["Mes_num"] = out["Mes"].apply(_mes_to_num)
+    else:
+        out["Mes_num"] = pd.NA
+
+    sort_cols = [c for c in ["Anio", "Mes_num", "Fecha", "Periodo"] if c in out.columns]
+    out = out.sort_values(sort_cols) if sort_cols else out
+    return out.groupby("Anio", dropna=True, as_index=False).tail(1).reset_index(drop=True)
+
+
+def _build_indicator_yearly(
+    indicador: str,
+    base_df: pd.DataFrame,
+    subproceso: str | None = None,
+    month_num: int | None = None,
+) -> pd.DataFrame:
+    if base_df.empty or "Indicador" not in base_df.columns:
+        return pd.DataFrame()
+
+    work = base_df[base_df["Indicador"].astype(str) == str(indicador)].copy()
+    if subproceso and "Subproceso_final" in work.columns:
+        work = work[work["Subproceso_final"].astype(str) == str(subproceso)]
+    if month_num is not None and "Mes" in work.columns:
+        work = work[work["Mes"].apply(_mes_to_num) == float(month_num)]
+    if work.empty:
+        return work
+
+    if "Cumplimiento_pct" not in work.columns:
+        work["Cumplimiento_pct"] = _cumplimiento_pct(work)
+    return _latest_year_rows(work)
+
+
+def _cumpl_delta(actual: object, previo: object) -> tuple[str, str]:
+    a = _to_float(actual)
+    p = _to_float(previo)
+    if a is None or p is None:
+        return "vs año anterior: N/A", "#6E7781"
+    delta = a - p
+    if delta > 0:
+        return f"vs año anterior: +{delta:.1f} pts", "#2E7D32"
+    if delta < 0:
+        return f"vs año anterior: {delta:.1f} pts", "#C62828"
+    return "vs año anterior: 0.0 pts", "#6E7781"
+
+
+def _render_indicadores_subproceso_cards(
+    filtered: pd.DataFrame,
+    historic_df: pd.DataFrame,
+    anio: int | None,
+    month_num: int | None,
+) -> None:
+    if filtered.empty:
+        st.info("Sin indicadores para el filtro actual.")
+        return
+
+    analisis_map = _load_analisis_indicadores()
+    subprocesos = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist()) if "Subproceso_final" in filtered.columns else []
+    if not subprocesos:
+        st.info("No hay subprocesos para mostrar en este filtro.")
+        return
+
+    sub_tabs = st.tabs([f"{sp}" for sp in subprocesos])
+    for tab, sub in zip(sub_tabs, subprocesos):
+        with tab:
+            sub_df = filtered[filtered["Subproceso_final"].astype(str) == str(sub)].copy()
+            sub_df = _latest_per_indicator(sub_df)
+            if sub_df.empty:
+                st.info("Sin indicadores para este subproceso.")
+                continue
+
+            sub_df = sub_df.sort_values("Indicador") if "Indicador" in sub_df.columns else sub_df
+            indicadores_total = len(sub_df)
+            items_per_page = 15
+            total_pages = max(1, (indicadores_total + items_per_page - 1) // items_per_page)
+
+            page_key = f"ind_page_{_norm_text(sub)}"
+            selected_key = f"ind_selected_{_norm_text(sub)}"
+            if page_key not in st.session_state:
+                st.session_state[page_key] = 0
+
+            st.session_state[page_key] = min(max(st.session_state[page_key], 0), total_pages - 1)
+            page = st.session_state[page_key]
+
+            start = page * items_per_page
+            end = start + items_per_page
+            page_df = sub_df.iloc[start:end].copy()
+
+            st.caption(f"Mostrando indicadores {start + 1} a {min(end, indicadores_total)} de {indicadores_total}.")
+
+            cols = st.columns(3)
+            for idx, (_, row) in enumerate(page_df.iterrows()):
+                indicador = str(row.get("Indicador", "")).strip() or "Indicador sin nombre"
+                meta = _fmt_short_value(row.get("Meta"))
+                ejec = _fmt_short_value(row.get("Ejecucion"))
+                cumpl = _to_float(row.get("Cumplimiento_pct"))
+                categoria = _categoria_por_pct(cumpl)
+
+                previo = None
+                if anio is not None and "Anio" in historic_df.columns:
+                    hist_prev = historic_df[
+                        (historic_df["Indicador"].astype(str) == indicador)
+                        & (pd.to_numeric(historic_df["Anio"], errors="coerce") == int(anio) - 1)
+                    ]
+                    if "Subproceso_final" in hist_prev.columns:
+                        hist_prev = hist_prev[hist_prev["Subproceso_final"].astype(str) == str(sub)]
+                    if month_num is not None and "Mes" in hist_prev.columns:
+                        hist_prev = hist_prev[hist_prev["Mes"].apply(_mes_to_num) == float(month_num)]
+                    if not hist_prev.empty:
+                        previo = _to_float(_latest_per_indicator(hist_prev).iloc[-1].get("Cumplimiento_pct"))
+
+                delta_txt, delta_color = _cumpl_delta(cumpl, previo)
+                analisis_txt = _resumir_analisis_texto(analisis_map.get(_norm_text(indicador), ""))
+                color = NIVELES_COLORS.get(categoria.lower(), "#6E7781")
+
+                with cols[idx % 3]:
+                    st.markdown(
+                        f"""
+                        <div style='background:#f9fbff;border:1px solid #dbe5f1;border-left:6px solid {color};border-radius:10px;padding:12px 12px 10px 12px;margin-bottom:8px;min-height:170px;'>
+                            <div style='font-weight:700;color:#1a237e;margin-bottom:6px;line-height:1.25;'>{indicador}</div>
+                            <div style='font-size:0.9rem;color:#263238;'>Meta: <b>{meta}</b></div>
+                            <div style='font-size:0.9rem;color:#263238;'>Ejecución: <b>{ejec}</b></div>
+                            <div style='font-size:0.9rem;color:#263238;'>Cumplimiento: <b>{_cumpl_label(cumpl)}</b></div>
+                            <div style='font-size:0.85rem;color:{delta_color};margin-top:4px;'><b>{delta_txt}</b></div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    if st.button("Ver detalle", key=f"btn_det_{_norm_text(sub)}_{_norm_text(indicador)}_{idx}", use_container_width=True):
+                        st.session_state[selected_key] = indicador
+
+            nav1, nav2, nav3 = st.columns([1, 2, 1])
+            with nav1:
+                if st.button("< Anterior", key=f"btn_prev_{_norm_text(sub)}", disabled=page == 0, use_container_width=True):
+                    st.session_state[page_key] = page - 1
+                    st.rerun()
+            with nav2:
+                st.markdown(f"<div style='text-align:center;padding-top:6px;'>Página <b>{page + 1}</b> de <b>{total_pages}</b></div>", unsafe_allow_html=True)
+            with nav3:
+                if st.button("Siguiente >", key=f"btn_next_{_norm_text(sub)}", disabled=page >= total_pages - 1, use_container_width=True):
+                    st.session_state[page_key] = page + 1
+                    st.rerun()
+
+            selected_indicator = st.session_state.get(selected_key)
+            if selected_indicator:
+                st.markdown(f"#### Detalle del indicador: {selected_indicator}")
+                yearly_df = _build_indicator_yearly(selected_indicator, historic_df, subproceso=sub, month_num=month_num)
+                if yearly_df.empty:
+                    st.info("No hay histórico para el indicador seleccionado.")
+                else:
+                    chart_df = yearly_df.copy()
+                    if "Anio" in chart_df.columns:
+                        chart_df["Año"] = pd.to_numeric(chart_df["Anio"], errors="coerce").astype("Int64").astype(str)
+                    cols_to_plot = [c for c in ["Meta", "Ejecucion", "Cumplimiento_pct"] if c in chart_df.columns]
+                    if cols_to_plot and "Año" in chart_df.columns:
+                        long_df = chart_df.melt(id_vars=["Año"], value_vars=cols_to_plot, var_name="Métrica", value_name="Valor")
+                        fig = px.line(long_df, x="Año", y="Valor", color="Métrica", markers=True, title="Comparativo anual")
+                        st.plotly_chart(fig, use_container_width=True)
+
+                    table = chart_df[[c for c in ["Anio", "Meta", "Ejecucion", "Cumplimiento_pct"] if c in chart_df.columns]].copy()
+                    table = table.rename(columns={"Anio": "Año", "Ejecucion": "Ejecución", "Cumplimiento_pct": "Cumplimiento (%)"})
+                    if "Cumplimiento (%)" in table.columns:
+                        table["Cumplimiento (%)"] = pd.to_numeric(table["Cumplimiento (%)"], errors="coerce").round(1)
+                    st.dataframe(table, use_container_width=True, hide_index=True)
+
+                analisis_raw = analisis_map.get(_norm_text(selected_indicator), "")
+                st.markdown("##### Análisis del indicador")
+                st.write(_resumir_analisis_texto(analisis_raw, max_chars=420))
+
+
 def _build_indicadores_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     base_cols = [
         c
@@ -785,7 +1014,7 @@ def render() -> None:
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=selected_month_num)
     base_filtered = snapshot_df.copy()
 
-    if anio is not None and "Año" in base_filtered.columns:
+    if anio is not None and "Anio" in base_filtered.columns:
         base_filtered = base_filtered[pd.to_numeric(base_filtered["Anio"], errors="coerce") == int(anio)]
 
     if mes and "Mes" in base_filtered.columns:
@@ -819,7 +1048,7 @@ def render() -> None:
     selected_subprocess_label = subproceso_sel if subproceso_sel != "Todos" else "Todos los subprocesos"
 
     historic_base = full_work_df.copy()
-    if anio is not None and "Año" in historic_base.columns:
+    if anio is not None and "Anio" in historic_base.columns:
         historic_base = historic_base[pd.to_numeric(historic_base["Anio"], errors="coerce") == int(anio)]
     if proceso_sel != "Todos":
         historic_base = historic_base[historic_base["Proceso_padre"].astype(str) == proceso_sel]
@@ -907,11 +1136,7 @@ def render() -> None:
 
     with tabs[2]:
         st.markdown("### Indicadores")
-        ind_df = _build_indicadores_table(latest)
-        if ind_df.empty:
-            st.info("Sin indicadores para el filtro actual.")
-        else:
-            st.dataframe(ind_df, use_container_width=True, hide_index=True)
+        _render_indicadores_subproceso_cards(latest, full_work_df, anio, selected_month_num)
 
     with tabs[3]:
         st.markdown("### Evolución de indicadores")
@@ -954,7 +1179,7 @@ def render() -> None:
         _render_auditoria_tab(selected_process_label)
 
 
-    def _load_indicadores_propuestos():
+    def _load_indicadores_propuestos(proceso_actual: str = "Todos", subproceso_actual: str = "Todos"):
         import pandas as pd
         EXCEL_PATH = (
             Path(__file__).parents[2]
@@ -997,6 +1222,15 @@ def render() -> None:
                 calidad_filtrados
             ], ignore_index=True)
             df_final = df_final.drop_duplicates()
+
+            if proceso_actual != "Todos" and "Proceso" in df_final.columns:
+                proceso_norm = _norm_text(proceso_actual)
+                df_final = df_final[df_final["Proceso"].astype(str).map(_norm_text) == proceso_norm]
+
+            if subproceso_actual != "Todos" and "Subproceso" in df_final.columns:
+                sub_norm = _norm_text(subproceso_actual)
+                df_final = df_final[df_final["Subproceso"].astype(str).map(_norm_text) == sub_norm]
+
             return df_final, None
         except Exception as e:
             return pd.DataFrame(), f"Error leyendo indicadores propuestos: {e}"
@@ -1028,7 +1262,7 @@ def render() -> None:
     with tabs[6]:
         st.markdown("### Indicadores propuestos por proceso y subproceso")
         st.caption("Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos.")
-        df_prop, msg_prop = _load_indicadores_propuestos()
+        df_prop, msg_prop = _load_indicadores_propuestos(proceso_sel, subproceso_sel)
         if msg_prop:
             st.warning(msg_prop)
         else:
