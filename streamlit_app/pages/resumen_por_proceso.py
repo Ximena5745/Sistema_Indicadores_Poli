@@ -343,6 +343,56 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     return out, None
 
 
+def _build_calidad_metrics(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    work = df.copy()
+    if "Temática" not in work.columns:
+        work["Temática"] = ""
+    if "Subproceso" not in work.columns:
+        work["Subproceso"] = "Sin subproceso"
+
+    work["Proceso"] = work["Proceso"].astype(str).str.strip()
+    work["Subproceso"] = work["Subproceso"].astype(str).str.strip()
+    work["Temática"] = work["Temática"].astype(str).str.strip()
+
+    total_registros = max(len(work), 1)
+
+    proc = (
+        work.groupby("Proceso", dropna=False)
+        .agg(
+            Subprocesos=("Subproceso", "nunique"),
+            Registros=("Temática", "size"),
+            Temáticas_únicas=("Temática", lambda s: s[s.astype(str).str.strip() != ""].nunique()),
+        )
+        .reset_index()
+    )
+    proc["Cobertura (%)"] = (proc["Registros"] / total_registros * 100).round(1)
+    proc["Índice Calidad (%)"] = (
+        (proc["Temáticas_únicas"] / proc["Registros"].replace({0: pd.NA})) * 100
+    ).round(1).fillna(0)
+
+    sub = (
+        work.groupby(["Proceso", "Subproceso"], dropna=False)
+        .agg(
+            Registros=("Temática", "size"),
+            Temáticas_únicas=("Temática", lambda s: s[s.astype(str).str.strip() != ""].nunique()),
+        )
+        .reset_index()
+    )
+
+    total_por_proceso = sub.groupby("Proceso")["Registros"].transform("sum")
+    sub["Peso en proceso (%)"] = (sub["Registros"] / total_por_proceso.replace({0: pd.NA}) * 100).round(1).fillna(0)
+    sub["Índice Calidad (%)"] = (
+        (sub["Temáticas_únicas"] / sub["Registros"].replace({0: pd.NA})) * 100
+    ).round(1).fillna(0)
+
+    proc = proc.sort_values(["Registros", "Proceso"], ascending=[False, True]).reset_index(drop=True)
+    sub = sub.sort_values(["Proceso", "Registros", "Subproceso"], ascending=[True, False, True]).reset_index(drop=True)
+    return proc, sub
+
+
 @st.cache_data(show_spinner=False)
 def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | None]:
     raw_dir = Path("data") / "raw" / "auditoria"
@@ -1403,7 +1453,31 @@ def render() -> None:
                 if filtro.empty:
                     filtro = calidad_df[calidad_df["_proc_norm"].apply(lambda x: proc_norm in x or x in proc_norm)]
                 calidad_df = filtro.drop(columns=["_proc_norm"], errors="ignore")
-            st.dataframe(calidad_df, use_container_width=True, hide_index=True)
+
+            if subproceso_sel != "Todos" and "Subproceso" in calidad_df.columns:
+                sub_norm = _norm_text(subproceso_sel)
+                calidad_df = calidad_df[calidad_df["Subproceso"].astype(str).map(_norm_text) == sub_norm]
+
+            if calidad_df.empty:
+                st.info("Sin datos de calidad para el filtro seleccionado.")
+            else:
+                proc_m, sub_m = _build_calidad_metrics(calidad_df)
+
+                k1, k2, k3 = st.columns(3)
+                k1.metric("Procesos evaluados", int(proc_m["Proceso"].nunique()) if not proc_m.empty else 0)
+                k2.metric("Subprocesos evaluados", int(sub_m["Subproceso"].nunique()) if not sub_m.empty else 0)
+                k3.metric("Registros evaluados", int(len(calidad_df)))
+
+                t1, t2, t3 = st.tabs(["Resumen por proceso", "Resumen por subproceso", "Detalle temáticas"])
+                with t1:
+                    proc_view = proc_m.drop(columns=["Proceso"], errors="ignore")
+                    st.dataframe(proc_view, use_container_width=True, hide_index=True)
+                with t2:
+                    sub_view = sub_m.drop(columns=["Proceso"], errors="ignore")
+                    st.dataframe(sub_view, use_container_width=True, hide_index=True)
+                with t3:
+                    detalle_cols = [c for c in ["Subproceso", "Temática"] if c in calidad_df.columns]
+                    st.dataframe(calidad_df[detalle_cols], use_container_width=True, hide_index=True)
 
     with tabs[5]:
         st.markdown("### Auditoría")
@@ -1506,44 +1580,49 @@ def render() -> None:
         for tab, proceso in zip(proc_tabs, procesos):
             with tab:
                 proc_df = df[df["Proceso"].astype(str) == proceso].copy()
-                col_blocks = st.columns(4)
-                for i, fuente in enumerate(source_order):
-                    with col_blocks[i]:
-                        style = source_style[fuente]
-                        st.markdown(
-                            f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
-                            unsafe_allow_html=True,
-                        )
-                        src_df = proc_df[proc_df["Fuente"].astype(str) == fuente].copy()
-                        if src_df.empty:
-                            st.caption("Sin propuestas")
-                            continue
+                subps = sorted(proc_df["Subproceso"].dropna().astype(str).unique().tolist())
+                if not subps:
+                    st.info("Sin subprocesos con propuestas para este proceso.")
+                    continue
 
-                        subps = sorted(src_df["Subproceso"].dropna().astype(str).unique().tolist())
-                        for sp in subps:
-                            st.markdown(f"<div style='font-size:0.84rem;font-weight:600;margin:8px 0 4px 0;color:#37474f;'>{sp}</div>", unsafe_allow_html=True)
-                            sp_df = src_df[src_df["Subproceso"].astype(str) == sp]
-                            for _, r in sp_df.iterrows():
-                                ind = str(r.get("Indicador Propuesto", "")).strip()
-                                fac = str(r.get("Factor", "")).strip()
-                                car = str(r.get("Característica", "")).strip()
-                                extra = ""
-                                if fuente == "Plan de mejoramiento":
-                                    tags = []
-                                    if fac and fac.lower() != "nan":
-                                        tags.append(f"Factor: {fac}")
-                                    if car and car.lower() != "nan":
-                                        tags.append(f"Característica: {car}")
-                                    extra = "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>" + " | ".join(tags) + "</div>" if tags else ""
+                sub_tabs = st.tabs(subps)
+                for sub_tab, sp in zip(sub_tabs, subps):
+                    with sub_tab:
+                        sp_df_all = proc_df[proc_df["Subproceso"].astype(str) == sp].copy()
+                        col_blocks = st.columns(4)
+                        for i, fuente in enumerate(source_order):
+                            with col_blocks[i]:
+                                style = source_style[fuente]
                                 st.markdown(
-                                    f"""
-                                    <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
-                                        <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
-                                        {extra}
-                                    </div>
-                                    """,
+                                    f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
                                     unsafe_allow_html=True,
                                 )
+                                src_df = sp_df_all[sp_df_all["Fuente"].astype(str) == fuente].copy()
+                                if src_df.empty:
+                                    st.caption("Sin propuestas")
+                                    continue
+
+                                for _, r in src_df.iterrows():
+                                    ind = str(r.get("Indicador Propuesto", "")).strip()
+                                    fac = str(r.get("Factor", "")).strip()
+                                    car = str(r.get("Característica", "")).strip()
+                                    extra = ""
+                                    if fuente == "Plan de mejoramiento":
+                                        tags = []
+                                        if fac and fac.lower() != "nan":
+                                            tags.append(f"Factor: {fac}")
+                                        if car and car.lower() != "nan":
+                                            tags.append(f"Característica: {car}")
+                                        extra = "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>" + " | ".join(tags) + "</div>" if tags else ""
+                                    st.markdown(
+                                        f"""
+                                        <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
+                                            <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
+                                            {extra}
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
 
     with tabs[6]:
         st.markdown("### Indicadores propuestos por proceso y subproceso")
