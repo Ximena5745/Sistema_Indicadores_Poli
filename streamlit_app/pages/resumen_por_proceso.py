@@ -541,14 +541,31 @@ def _load_auditoria_excel() -> tuple:
 
 
 def _render_ficha_html(row: dict, tipo: str) -> str:
-    """Genera HTML completamente inline (sin clases CSS externas) para una tarjeta de auditoría."""
+    """Genera HTML inline con diseño visual ejecutivo: badges, bullets circulares y jerarquía de color."""
     es_interna = tipo.lower() == "interna"
-    grad = "linear-gradient(135deg,#1b3f72 0%,#2563a8 100%)" if es_interna else "linear-gradient(135deg,#5a3000 0%,#b06000 100%)"
+    if es_interna:
+        hdr_grad = "linear-gradient(90deg,#0f2d5c 0%,#1e4fa3 100%)"
+        proc_border = "#1e4fa3"
+        proc_bg = "#f0f4ff"
+    else:
+        hdr_grad = "linear-gradient(90deg,#4a1f00 0%,#a04500 100%)"
+        proc_border = "#a04500"
+        proc_bg = "#fff8f0"
     tipo_label = "AUDITORÍA INTERNA" if es_interna else "AUDITORÍA EXTERNA – ICONTEC 2025"
-    proceso = str(row.get("proceso", "")).upper().strip()
+    proceso = str(row.get("proceso", "")).strip()
+
+    # campo → (label, pill_bg, pill_text, dot_color, icono_texto)
+    _CAT_STYLE = {
+        "fortalezas":              ("Fortalezas",              "#d1f5e0", "#0a5c36", "#1aaa6b", "&#10003;"),
+        "oportunidades_mejora":    ("Oportunidades de Mejora", "#fff0c2", "#7a5000", "#e6a800", "&#8594;"),
+        "hallazgos":               ("Hallazgos",               "#dbeeff", "#003d8f", "#1a6fdb", "&#9679;"),
+        "no_conformidades":        ("No Conformidades",        "#fde0e0", "#7a0000", "#e63535", "&#9650;"),
+        "recomendacion_desempeno": ("Recomendacion Desempeno", "#ede0ff", "#3d0080", "#7c3aed", "&#9670;"),
+    }
 
     secciones = ""
-    for campo, (label, accent, sym) in _AUD_LABELS.items():
+    total_items = 0
+    for campo, (label, pill_bg, pill_text, dot_color, icono) in _CAT_STYLE.items():
         col = f"{campo}_{tipo.lower()}"
         valor = str(row.get(col, "")).strip()
         if not valor:
@@ -556,34 +573,39 @@ def _render_ficha_html(row: dict, tipo: str) -> str:
         items = [v.strip() for v in valor.replace("\n", " | ").split(" | ") if v.strip()]
         if not items:
             continue
+        total_items += len(items)
+        count_badge = f'<span style="background:{pill_text};color:#fff;font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px;">{len(items)}</span>'
         items_html = "".join(
-            f'<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;">'
-            f'<span style="color:{accent};font-size:0.9rem;flex-shrink:0;">{sym}</span>'
-            f'<span style="font-size:0.82rem;color:#2d2d2d;line-height:1.45;">{item}</span></div>'
+            f'<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f2f4f7;">'
+            f'<span style="width:7px;height:7px;min-width:7px;background:{dot_color};border-radius:50%;margin-top:5px;"></span>'
+            f'<span style="font-size:0.82rem;color:#2c2c3e;line-height:1.5;word-break:break-word;max-width:620px;">{item}</span>'
+            f'</div>'
             for item in items
         )
         secciones += (
-            f'<div style="margin:10px 0 4px 0;padding:0 16px;">'
-            f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
-            f'<div style="width:3px;height:14px;background:{accent};border-radius:2px;flex-shrink:0;"></div>'
-            f'<span style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:{accent};text-transform:uppercase;">{label}</span>'
-            f'</div>{items_html}</div>'
+            f'<div style="padding:12px 18px 6px 18px;">'
+            f'<div style="display:inline-flex;align-items:center;background:{pill_bg};color:{pill_text};'
+            f'font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
+            f'padding:4px 10px;border-radius:20px;margin-bottom:8px;">'
+            f'<span style="margin-right:5px;">{icono}</span><span>{label}</span>{count_badge}</div>'
+            f'{items_html}</div>'
         )
 
     if not secciones:
         return ""
 
+    total_badge = f'<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:0.65rem;font-weight:600;padding:2px 9px;border-radius:12px;white-space:nowrap;">{total_items} hallazgos</span>'
     return (
-        f'<div style="background:#ffffff;border:1px solid #e0e4ea;border-radius:10px;'
-        f'box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;">'
-        f'<div style="background:{grad};padding:10px 16px;">'
-        f'<span style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#ffffff;">{tipo_label}</span>'
-        f'</div>'
-        f'<div style="padding:10px 16px 4px 16px;border-bottom:1px solid #f0f0f0;">'
-        f'<span style="font-size:0.85rem;font-weight:700;color:#1a1a2e;">{proceso}</span>'
+        f'<div style="background:#ffffff;border-radius:14px;overflow:hidden;max-width:720px;'
+        f'box-shadow:0 4px 20px rgba(0,0,0,0.09);margin-bottom:22px;border:1px solid #e4e8f0;">'
+        f'<div style="background:{hdr_grad};padding:13px 18px;display:flex;justify-content:space-between;align-items:center;">'
+        f'<span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#ffffff;">{tipo_label}</span>'
+        f'{total_badge}</div>'
+        f'<div style="padding:11px 18px 9px 18px;background:{proc_bg};border-left:4px solid {proc_border};border-bottom:1px solid #eaedf3;">'
+        f'<span style="font-size:0.78rem;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:0.03em;">{proceso}</span>'
         f'</div>'
         f'{secciones}'
-        f'<div style="height:8px;"></div>'
+        f'<div style="height:10px;"></div>'
         f'</div>'
     )
 
