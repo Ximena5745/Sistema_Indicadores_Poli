@@ -57,11 +57,9 @@ class DataService:
             if df.empty:
                 return pd.DataFrame()
             
-            # Asegurar tipos de datos correctos
-            if "Año" in df.columns:
-                df["Año"] = pd.to_numeric(df["Año"], errors="coerce").astype("Int64")
-            if "Mes" in df.columns:
-                df["Mes"] = pd.to_numeric(df["Mes"], errors="coerce").astype("Int64")
+            # Asegurar tipos de datos correctos (columnas vienen de cargar_dataset)
+            # Ya vienen con tipos correctos: Anio=Int64, Mes=string
+            # No necesita conversión adicional
             
             return df
         except Exception:

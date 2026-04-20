@@ -171,11 +171,13 @@ def _ensure_historic_tracking(df: pd.DataFrame) -> pd.DataFrame:
     out["Cumplimiento_pct"] = _cumplimiento_pct(out)
     out["Cumplimiento_norm"] = pd.to_numeric(out["Cumplimiento_pct"], errors="coerce") / 100
     out["Categoria"] = out["Cumplimiento_pct"].apply(_categoria_por_pct)
-    if "Año" in out.columns and "Mes" in out.columns:
+    if "Anio" in out.columns and "Mes" in out.columns:
+        # Convertir mes string a número (Enero->01, Febrero->02, etc.)
+        out["Mes_num"] = out["Mes"].apply(lambda x: _mes_to_num(x) if pd.notna(x) else None)
         out["Fecha"] = pd.to_datetime(
-            out["Año"].astype(str).str.replace("<NA>", "NaN", regex=False)
+            out["Anio"].astype(str).str.replace("<NA>", "NaN", regex=False)
             + "-"
-            + out["Mes"].astype(str).str.replace("<NA>", "NaN", regex=False).str.zfill(2)
+            + out["Mes_num"].astype(str).str.replace("None", "NaN", regex=False).str.zfill(2)
             + "-01",
             errors="coerce",
         )
@@ -754,13 +756,13 @@ def render() -> None:
     map_df = ds.get_process_map()
 
     if tracking_df.empty:
-        st.warning("No se encontró data de seguimiento en data/output/Seguimiento_Reporte.xlsx.")
+        st.warning("No se encontró data de seguimiento en data/output/Resultados Consolidados.xlsx (Consolidado Semestral).")
         return
     if map_df.empty:
         st.warning("No se encontró el mapeo de procesos en data/raw/Subproceso-Proceso-Area.xlsx.")
         return
 
-    years = sorted([int(y) for y in pd.to_numeric(tracking_df["Año"], errors="coerce").dropna().unique().tolist()]) if "Año" in tracking_df.columns else []
+    years = sorted([int(y) for y in pd.to_numeric(tracking_df["Anio"], errors="coerce").dropna().unique().tolist()]) if "Anio" in tracking_df.columns else []
     default_month_num = _default_month_num(tracking_df)
     default_month = MESES_OPCIONES[default_month_num - 1]
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
@@ -784,7 +786,7 @@ def render() -> None:
     base_filtered = snapshot_df.copy()
 
     if anio is not None and "Año" in base_filtered.columns:
-        base_filtered = base_filtered[pd.to_numeric(base_filtered["Año"], errors="coerce") == int(anio)]
+        base_filtered = base_filtered[pd.to_numeric(base_filtered["Anio"], errors="coerce") == int(anio)]
 
     if mes and "Mes" in base_filtered.columns:
         mes_num = MESES_OPCIONES.index(mes) + 1
@@ -818,7 +820,7 @@ def render() -> None:
 
     historic_base = full_work_df.copy()
     if anio is not None and "Año" in historic_base.columns:
-        historic_base = historic_base[pd.to_numeric(historic_base["Año"], errors="coerce") == int(anio)]
+        historic_base = historic_base[pd.to_numeric(historic_base["Anio"], errors="coerce") == int(anio)]
     if proceso_sel != "Todos":
         historic_base = historic_base[historic_base["Proceso_padre"].astype(str) == proceso_sel]
     if subproceso_sel != "Todos":
