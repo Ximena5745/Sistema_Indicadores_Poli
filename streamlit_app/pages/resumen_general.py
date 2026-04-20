@@ -1180,32 +1180,32 @@ def render():
             for _, row in lineas_resumen.iterrows():
                 norm_to_row[_norm_key(str(row["Linea"]))] = row
 
-            visual_left, visual_right = st.columns([0.9, 2.1])
-            with visual_left:
-                for i in range(0, len(strategic_defs), 2):
-                    row_cols = st.columns(2)
-                    for idx, card_def in enumerate(strategic_defs[i:i+2]):
-                        row = norm_to_row.get(card_def["key"])
-                        if row is None:
-                            alt_keys = [card_def["key"]] + card_def.get("alt", [])
-                            matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
-                            row = norm_to_row.get(matched[0]) if matched else None
 
-                        n_ind = int(row["N_Indicadores"]) if row is not None else 0
-                        cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
-                        with row_cols[idx]:
-                            _render_strategy_card(
-                                title=card_def["label"],
-                                indicators=n_ind,
-                                cumplimiento=cumpl,
-                                color=card_def["color"],
-                                icon=card_def["icon"],
-                            )
+            # Layout mejorado: hasta 6 fichas por fila, responsivo
+            st.markdown("<div style='margin-bottom:0.5rem;'><b>Métricas Clave de Negocio</b></div>", unsafe_allow_html=True)
+            ficha_cols = st.columns(6)
+            for idx, card_def in enumerate(strategic_defs):
+                row = norm_to_row.get(card_def["key"])
+                if row is None:
+                    alt_keys = [card_def["key"]] + card_def.get("alt", [])
+                    matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
+                    row = norm_to_row.get(matched[0]) if matched else None
 
-            with visual_right:
-                st.markdown("##### Alineacion de Objetivos Estrategicos")
-                sunburst = _build_sunburst(pdi_estrategico)
-                st.plotly_chart(sunburst, use_container_width=True)
+                n_ind = int(row["N_Indicadores"]) if row is not None else 0
+                cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
+                with ficha_cols[idx % 6]:
+                    _render_strategy_card(
+                        title=card_def["label"],
+                        indicators=n_ind,
+                        cumplimiento=cumpl,
+                        color=card_def["color"],
+                        icon=card_def["icon"],
+                    )
+
+            # Gráfica alineación de objetivos estratégicos
+            st.markdown("<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>", unsafe_allow_html=True)
+            sunburst = _build_sunburst(pdi_estrategico)
+            st.plotly_chart(sunburst, use_container_width=True)
 
             # Perspectivas IA estrategicas: linea resumen + 2 columnas
             prev_year_e = year_estrategico - 1
