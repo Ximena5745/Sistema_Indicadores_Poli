@@ -1,62 +1,242 @@
-# Documentación Funcional - SGIND
 
-## Casos de Uso y Procesos Clave
+# Documentación Técnica y Funcional — SGIND
 
-**Documento:** DOCUMENTACION_FUNCIONAL.md  
-**Versión:** 1.0  
-**Última actualización:** 11 de abril de 2026  
-**Audiencia:** Directivos, líderes de proceso, analistas de datos
+## Tabla de Contenidos
 
----
-
-## 📑 Tabla de Contenidos
-
-1. [Resumen Ejecutivo](#resumen-ejecutivo)
-2. [Casos de Uso Principales](#casos-de-uso-principales)
-3. [Procesos Clave del Sistema](#procesos-clave-del-sistema)
-4. [Conceptos de Negocio](#conceptos-de-negocio)
-5. [Guías por Rol](#guías-por-rol)
-6. [Preguntas Frecuentes](#preguntas-frecuentes)
+1. Entendimiento general
+2. Lógica del modelo de datos
+3. Fuentes de información
+4. Inventario de artefactos
+5. Documentación de cada visual
+6. Evaluación UX/UI
+7. Diagnóstico general
+8. Propuesta de mejora (TO BE)
 
 ---
 
-## Resumen Ejecutivo
+## 1. Entendimiento General
 
-### ¿Qué es SGIND?
+### Objetivo del Proyecto
+El Sistema de Gestión Integral de Indicadores Institucionales (SGIND) es una plataforma centralizada para la consolidación, análisis, reporte y monitoreo de más de 1,000 indicadores de desempeño institucional del Politécnico Grancolombiano. Su propósito es automatizar la recolección de datos desde múltiples fuentes (APIs, Excel, bases de datos), calcular métricas clave, categorizar riesgos y facilitar la toma de decisiones mediante dashboards interactivos y reportería automática.
 
-**Sistema de Gestión Integral de Indicadores Institucionales** es una plataforma centralizada para:
+### Usuarios Objetivo
+- **Directivos:** Seguimiento de KPIs estratégicos y alertas institucionales.
+- **Líderes de Proceso:** Monitoreo y comparación de indicadores por área.
+- **Equipo de Calidad:** Gestión de Oportunidades de Mejora (OM) y planes de acción.
+- **Analistas de BI:** Exportación y análisis avanzado de datos.
 
-1. **Consolidar** datos de múltiples fuentes (Kawak, API, reportes manuales)
-2. **Analizar** cumplimiento de 1000+ indicadores institucionales
-3. **Alertar** sobre incumplimientos y riesgos en tiempo real
-4. **Actuar** mediante planes de mejora vinculados a indicadores
-
-### Beneficios Clave
-
-| Beneficio | Impacto |
-|-----------|---------|
-| **Visibilidad centralizada** | 1 lugar para consultar status de todos los indicadores |
-| **Alertas tempranas** | Semáforo rojo (🔴) permite intervención ANTES del vencimiento |
-| **Trazabilidad de acciones** | Registro de Oportunidades de Mejora vinculadas a cada indicador |
-| **Reportería automática** | Tracking mensual sin trabajo manual |
-| **Benchmarking** | Comparativa por proceso, área, sede |
-
-### Cobertura Actual
-
-```
-📊 Indicadores: 1,000+ activos
-📅 Períodos: Histórico 2022-2026
-📍 Sedes: Matriz + extensiones
-🎯 Dimensiones: Procesos, Subprocesos, Áreas
-
-Próximo: 🚀 Predicción de incumplimientos (IA)
-         🔌 Integración PowerApps
-         📱 App móvil
-```
+### Casos de Uso Principales
+- Consulta centralizada del estado de indicadores.
+- Detección temprana de riesgos mediante semáforos y alertas.
+- Generación automática de reportes y benchmarking.
+- Registro y trazabilidad de acciones de mejora.
+- Análisis histórico y drill-down por proceso, subproceso y área.
 
 ---
 
-## Casos de Uso Principales
+## 2. Lógica del Modelo de Datos
+
+### Métricas Calculadas
+- **Cumplimiento (%)**: $(\text{Ejecución} / \text{Meta}) \times 100$.
+- **Tendencia**: Variación porcentual respecto a periodos anteriores.
+- **Categorización de riesgo**: Clasificación automática en Peligro, Alerta, Cumplimiento, Sobrecumplimiento según umbrales definidos.
+- **Alertas**: Detección de incumplimientos y generación de notificaciones.
+- **Benchmarking**: Comparativas por proceso, área, sede y periodo.
+
+### Dimensiones y Jerarquías
+- **Jerarquía institucional**: Área → Proceso → Subproceso → Indicador.
+- **Dimensiones adicionales**: Periodo (mes, año), Sede, Tipo de indicador, Estado de OM.
+
+### Reglas de Negocio Implícitas
+- Solo se consideran indicadores activos y validados.
+- La hoja “Consolidado Semestral” es la fuente oficial para reportería.
+- Los indicadores de Gestión OM usan “Consolidado Histórico”.
+- Validaciones de integridad y consistencia mediante contratos de datos (data contracts YAML).
+
+### Supuestos y Validaciones
+- Todas las fuentes deben cumplir el esquema definido en config/data_contracts.yaml.
+- El procesamiento es batch diario (no real-time).
+- Los datos históricos se mantienen para análisis de tendencias y auditoría.
+
+---
+
+## 3. Fuentes de Información
+
+### Origen de Datos
+- **Excel**: Resultados Consolidados, API Kawak, Catálogo Kawak, Indicadores por CMI, Ficha Técnica, Acciones de mejora, OM histórica, Plan de acción, Jerarquía procesos, LMI reporte, Salidas no conformes.
+- **Bases de datos**: SQLite local (registros OM), PostgreSQL/Supabase (registros OM remoto).
+- **Archivos de configuración**: TOML y YAML para parámetros, contratos y mapeos.
+
+### Tipo de Carga
+- **Automática**: Scripts ETL consolidan y validan fuentes diariamente.
+- **Manual**: Actualización de archivos Excel por responsables de área.
+- **Sincronización**: Registros OM sincronizados entre SQLite local y PostgreSQL remoto.
+
+### Frecuencia de Actualización
+- **Diaria**: Consolidado de indicadores y reportería.
+- **Eventual**: Actualización de catálogos, jerarquías y fichas técnicas.
+
+### Problemas Potenciales de Calidad
+- Inconsistencias entre fuentes (versiones, formatos).
+- Errores de digitación en archivos Excel.
+- Retrasos en la actualización manual de fuentes.
+- Falta de validación previa a la carga (mitigado con data contracts).
+
+---
+
+## 4. Inventario de Artefactos
+
+### Dashboards / Páginas Principales (Streamlit)
+- **Resumen General:** Vista 360° de indicadores, semáforo de riesgos, drill-down institucional.
+- **CMI Estratégico:** Seguimiento de indicadores alineados al Plan de Desarrollo Institucional.
+- **Plan de Mejoramiento:** Registro y seguimiento de acciones de mejora.
+- **Gestión OM:** Administración de Oportunidades de Mejora, vinculación con indicadores en riesgo.
+- **Resumen por Proceso:** Análisis detallado por proceso/subproceso.
+- **Tablero Operativo:** Control operativo, calidad de datos y trazabilidad.
+
+### Visuales por Página
+- Tablas dinámicas de indicadores.
+- Semáforos de riesgo (colores).
+- Gráficos de tendencia y benchmarking.
+- Listados de acciones de mejora y OM.
+- Filtros jerárquicos (área, proceso, subproceso, periodo).
+
+### Tablas, Scripts y Modelos
+- **Tablas Excel:** Resultados Consolidados, Indicadores por CMI, Acciones de mejora, OM histórica, Plan de acción.
+- **Bases de datos:** registros_om.db (SQLite), public.registros_om (PostgreSQL/Supabase).
+- **Scripts ETL:** actualizar_consolidado.py, generar_reporte.py, consolidar_indicadores_propuestos.py, diagnose_niveles_proceso.py.
+- **Componentes Python:** core/calculos.py, core/db_manager.py, services/data_loader.py.
+
+### Flujos ETL/ELT
+- Consolidación diaria de fuentes Excel.
+- Validación y transformación de datos.
+- Cálculo de métricas y categorización de riesgos.
+- Generación de artefactos para dashboards y reportería.
+
+---
+
+## 5. Documentación de Cada Visual
+
+### 5.1 Resumen General (`resumen_general.py`)
+- **Objetivo analítico:** Proveer una visión ejecutiva 360° del estado de los indicadores institucionales, con énfasis en riesgos y cumplimiento.
+- **Métricas mostradas:** Cumplimiento promedio, total de indicadores, semáforo de riesgo (porcentaje en peligro/alerta/cumplimiento/sobrecumplimiento), tendencias históricas.
+- **Dimensiones usadas:** Línea estratégica, objetivo, meta PDI, indicador, periodo.
+- **Tipo de gráfico y justificación:** 
+   - Tablas jerárquicas (drill-down) para navegación institucional.
+   - Semáforo de colores para riesgos (intuitivo y rápido).
+   - Gráficos de barras y líneas para tendencias.
+- **Insight esperado:** Identificación rápida de áreas críticas y focos de mejora.
+- **Riesgos de interpretación:** 
+   - Sobreinterpretación de variaciones menores.
+   - Falta de contexto sobre causas de bajo desempeño.
+
+### 5.2 CMI Estratégico (`cmi_estrategico.py`)
+- **Objetivo analítico:** Monitorear el avance de los indicadores alineados al Plan de Desarrollo Institucional (PDI).
+- **Métricas mostradas:** Cumplimiento por línea, objetivo y meta PDI; total de indicadores; benchmarking entre líneas.
+- **Dimensiones usadas:** Línea, objetivo, meta PDI, periodo.
+- **Tipo de gráfico y justificación:** 
+   - Barras apiladas y tablas para comparar líneas y metas.
+   - Colores institucionales para reforzar la identidad visual.
+- **Insight esperado:** Detección de líneas estratégicas rezagadas y oportunidades de mejora.
+- **Riesgos de interpretación:** 
+   - Comparaciones sin considerar diferencias de volumen entre líneas.
+   - Posible sesgo por indicadores atípicos.
+
+### 5.3 Gestión OM (`gestion_om.py`)
+- **Objetivo analítico:** Gestionar y monitorear Oportunidades de Mejora (OM) asociadas a indicadores en riesgo.
+- **Métricas mostradas:** Número de OM abiertas/cerradas, avance de planes de acción, cumplimiento de indicadores asociados.
+- **Dimensiones usadas:** Indicador, periodo, estado OM, responsable.
+- **Tipo de gráfico y justificación:** 
+   - Tablas de seguimiento, gráficos de avance y semáforos de estado.
+- **Insight esperado:** Seguimiento puntual de la efectividad de acciones correctivas.
+- **Riesgos de interpretación:** 
+   - Falta de actualización manual puede distorsionar el estado real.
+   - Riesgo de duplicidad de OM si no hay control de unicidad.
+
+### 5.4 Plan de Mejoramiento (`plan_mejoramiento.py`)
+- **Objetivo analítico:** Monitorear el cumplimiento de indicadores CNA y la efectividad de acciones de mejora asociadas.
+- **Métricas mostradas:** Cumplimiento por factor y característica CNA, número de acciones de mejora, avance de cierre.
+- **Dimensiones usadas:** Año, factor, característica, indicador, periodo.
+- **Tipo de gráfico y justificación:** 
+   - Tablas filtrables por año/factor/característica.
+   - Barras y gráficos de avance para visualizar cumplimiento y progreso.
+- **Insight esperado:** Identificación de factores críticos y seguimiento puntual de acciones de mejora.
+- **Riesgos de interpretación:** 
+   - Filtros mal aplicados pueden ocultar problemas relevantes.
+   - Avance reportado depende de la actualización manual de acciones.
+
+### 5.5 Resumen por Proceso (`resumen_por_proceso.py`)
+- **Objetivo analítico:** Analizar el desempeño de indicadores a nivel de proceso y subproceso.
+- **Métricas mostradas:** Cumplimiento promedio, tendencia histórica, distribución de riesgos por proceso.
+- **Dimensiones usadas:** Proceso, subproceso, indicador, periodo.
+- **Tipo de gráfico y justificación:** 
+   - Gráficos de barras y líneas para tendencias y comparativos.
+   - Tablas detalladas para análisis granular.
+- **Insight esperado:** Detección de procesos críticos y patrones de desempeño.
+- **Riesgos de interpretación:** 
+   - Comparaciones sin normalizar pueden inducir a error.
+   - Falta de contexto sobre causas de bajo desempeño.
+
+### 5.6 Tablero Operativo (`tablero_operativo.py`)
+- **Objetivo analítico:** Proveer una visión operativa de los indicadores, calidad de datos y trazabilidad de acciones.
+- **Métricas mostradas:** KPIs globales, distribución de indicadores por estado, alertas de frecuencia, calidad de datos (QC).
+- **Dimensiones usadas:** Proceso, indicador, estado, periodicidad, fecha.
+- **Tipo de gráfico y justificación:** 
+   - Donut y barras para distribución de estados.
+   - Kanban para seguimiento de acciones/OM.
+   - Paneles de calidad de datos y trazabilidad.
+- **Insight esperado:** Control operativo y detección de cuellos de botella o problemas de calidad.
+- **Riesgos de interpretación:** 
+   - Alertas pueden generar ruido si no se ajustan umbrales.
+   - Panel de calidad depende de la correcta ingesta de artefactos.
+
+---
+
+## 6. Evaluación UX/UI
+
+- **Uso de colores:** Paleta institucional y semáforos intuitivos (verde, amarillo, rojo, azul). Colores consistentes para líneas estratégicas y estados.
+- **Jerarquía visual:** Títulos claros, paneles principales destacados, navegación jerárquica (drill-down), uso de pestañas y expanders para filtros.
+- **Storytelling:** Flujo lógico desde visión general hasta detalle, permitiendo identificar focos críticos y navegar hasta la causa raíz.
+- **Consistencia de estilos:** Tipografía, botones y tablas homogéneas. Gráficos y tablas alineados con la identidad visual institucional.
+- **Problemas de legibilidad:** 
+   - Tablas extensas pueden requerir scroll horizontal.
+   - Algunos gráficos pueden saturarse si hay demasiados indicadores.
+   - Filtros avanzados pueden no ser evidentes para usuarios nuevos.
+
+---
+
+## 7. Diagnóstico General
+
+- **Qué está bien:**
+   - Arquitectura modular y escalable.
+   - Consolidación automática y validación de datos.
+   - Reporterías y visuales alineados a necesidades institucionales.
+   - Trazabilidad de acciones de mejora y OM.
+- **Qué falta:**
+   - Mayor automatización en la actualización de fuentes manuales.
+   - Mejor documentación inline y tooltips en la interfaz.
+   - Narrativa automática de insights clave.
+   - Integración de analítica predictiva.
+- **Qué sobra:**
+   - Algunas tablas y filtros redundantes.
+   - Visuales duplicados entre páginas.
+- **Riesgos críticos:**
+   - Dependencia de actualización manual de Excel.
+   - Posibles inconsistencias entre fuentes.
+   - Riesgo de interpretación errónea por falta de contexto en visuales complejos.
+
+---
+
+## 8. Propuesta de Mejora (TO BE)
+
+- **Rediseño estructural:** Unificar filtros y navegación, simplificar visuales redundantes, mejorar onboarding de usuarios.
+- **Nuevos visuales:** Incorporar gráficos de dispersión para análisis de correlaciones, mapas de calor para riesgos, y paneles de insights automáticos.
+- **Automatización:** Integrar conectores directos a bases de datos y APIs, reducir carga manual, implementar validaciones automáticas previas a la carga.
+- **Uso de IA:** 
+   - Predicción de incumplimientos y generación de alertas proactivas.
+   - Detección automática de anomalías en tendencias.
+   - Narrativa automática de insights clave en cada dashboard.
+   - Sugerencias de acciones de mejora basadas en patrones históricos.
 
 ### CU-1: Directivo Consulta Status Institucional
 
