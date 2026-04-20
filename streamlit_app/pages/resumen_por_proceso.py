@@ -445,6 +445,102 @@ def _build_calidad_metrics(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
     return proc, sub
 
 
+def _calif_style_token(value: object) -> tuple[str, str, str]:
+    t = _norm_text(value)
+    if "NO CUMPLE" in t:
+        return "NO CUMPLE", "#ffebee", "#b71c1c"
+    if "CUMPLE PARCIAL" in t:
+        return "CUMPLE PARCIALMENTE", "#fff8e1", "#e65100"
+    if "CUMPLE" in t:
+        return "CUMPLE", "#e8f5e9", "#1b5e20"
+    return str(value), "#eceff1", "#37474f"
+
+
+def _render_calidad_kpis_cards(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+
+    work = df.copy()
+    work["% Calidad"] = pd.to_numeric(work.get("% Calidad"), errors="coerce")
+    work["Estado calidad"] = work.get("Estado calidad", "SIN DATO").astype(str)
+
+    total_sub = work["Subproceso"].astype(str).nunique() if "Subproceso" in work.columns else 0
+    avg = float(work["% Calidad"].mean()) if not work["% Calidad"].dropna().empty else 0.0
+    c_ok = int((work["Estado calidad"].astype(str) == "CUMPLE").sum())
+    c_mid = int((work["Estado calidad"].astype(str) == "CUMPLE PARCIALMENTE").sum())
+    c_bad = int((work["Estado calidad"].astype(str) == "NO CUMPLE").sum())
+
+    st.markdown(
+        f"""
+        <div style='display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;margin:8px 0 14px 0;'>
+            <div style='background:linear-gradient(135deg,#0d47a1,#1565c0);color:#fff;border-radius:12px;padding:12px;border:1px solid #0b3c8a;'>
+                <div style='font-size:0.8rem;opacity:0.9;'>General</div>
+                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{avg:.1f}%</div>
+                <div style='font-size:0.78rem;opacity:0.9;'>Calidad promedio</div>
+            </div>
+            <div style='background:#e8f5e9;color:#1b5e20;border-radius:12px;padding:12px;border:1px solid #81c784;'>
+                <div style='font-size:0.8rem;'>CUMPLE</div>
+                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{c_ok}</div>
+                <div style='font-size:0.78rem;'>registros</div>
+            </div>
+            <div style='background:#fff8e1;color:#e65100;border-radius:12px;padding:12px;border:1px solid #ffcc80;'>
+                <div style='font-size:0.8rem;'>CUMPLE PARCIALMENTE</div>
+                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{c_mid}</div>
+                <div style='font-size:0.78rem;'>registros</div>
+            </div>
+            <div style='background:#ffebee;color:#b71c1c;border-radius:12px;padding:12px;border:1px solid #ef9a9a;'>
+                <div style='font-size:0.8rem;'>NO CUMPLE</div>
+                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{c_bad}</div>
+                <div style='font-size:0.78rem;'>registros | {total_sub} subprocesos</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if "Subproceso" not in work.columns:
+        return
+
+    sub = (
+        work.groupby("Subproceso", dropna=False)
+        .agg(
+            Registros=("Subproceso", "size"),
+            Calidad=("% Calidad", "mean"),
+            Cumple=("Estado calidad", lambda s: (s == "CUMPLE").sum()),
+            Parcial=("Estado calidad", lambda s: (s == "CUMPLE PARCIALMENTE").sum()),
+            NoCumple=("Estado calidad", lambda s: (s == "NO CUMPLE").sum()),
+        )
+        .reset_index()
+    )
+    sub["Calidad"] = sub["Calidad"].round(1)
+    sub = sub.sort_values(["Calidad", "Subproceso"], ascending=[False, True]).reset_index(drop=True)
+
+    rows = []
+    for _, r in sub.iterrows():
+        sc = _to_float(r.get("Calidad")) or 0.0
+        if sc >= 90:
+            bg, fg = "#e8f5e9", "#1b5e20"
+        elif sc >= 70:
+            bg, fg = "#fff8e1", "#e65100"
+        else:
+            bg, fg = "#ffebee", "#b71c1c"
+        rows.append(
+            f"<div style='background:{bg};color:{fg};border:1px solid {fg}33;border-radius:12px;padding:10px 12px;'>"
+            f"<div style='font-size:0.78rem;opacity:0.85;'>Subproceso</div>"
+            f"<div style='font-size:0.95rem;font-weight:700;line-height:1.2;margin-bottom:4px;'>{str(r.get('Subproceso',''))}</div>"
+            f"<div style='font-size:1.35rem;font-weight:700;line-height:1.1;'>{sc:.1f}%</div>"
+            f"<div style='font-size:0.75rem;margin-top:4px;'>Reg: {int(r.get('Registros',0))} | C:{int(r.get('Cumple',0))} P:{int(r.get('Parcial',0))} N:{int(r.get('NoCumple',0))}</div>"
+            f"</div>"
+        )
+
+    if rows:
+        st.markdown("<div style='font-weight:700;margin:2px 0 8px 0;color:#0f172a;'>KPIs por subproceso</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;'>" + "".join(rows) + "</div>",
+            unsafe_allow_html=True,
+        )
+
+
 @st.cache_data(show_spinner=False)
 def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | None]:
     raw_dir = Path("data") / "raw" / "auditoria"
@@ -1513,38 +1609,51 @@ def render() -> None:
             if calidad_df.empty:
                 st.info("Sin datos de calidad para el filtro seleccionado.")
             else:
-                proc_m, sub_m = _build_calidad_metrics(calidad_df)
+                _render_calidad_kpis_cards(calidad_df)
 
-                k1, k2, k3 = st.columns(3)
-                k1.metric("Procesos evaluados", int(proc_m["Proceso"].nunique()) if not proc_m.empty else 0)
-                k2.metric("Subprocesos evaluados", int(sub_m["Subproceso"].nunique()) if not sub_m.empty else 0)
-                avg_calidad = pd.to_numeric(calidad_df.get("% Calidad"), errors="coerce")
-                k3.metric("% Calidad promedio", f"{float(avg_calidad.mean()):.1f}%" if not avg_calidad.dropna().empty else "Sin dato")
+                view = calidad_df.copy()
+                if "Estado calidad" in view.columns:
+                    view = view.rename(columns={"Estado calidad": "Calificación"})
 
-                t1, t2, t3 = st.tabs(["Resumen por proceso", "Resumen por subproceso", "Detalle temáticas"])
-                with t1:
-                    proc_view = proc_m.drop(columns=["Proceso"], errors="ignore")
-                    st.dataframe(proc_view, use_container_width=True, hide_index=True)
-                with t2:
-                    sub_view = sub_m.drop(columns=["Proceso"], errors="ignore")
-                    st.dataframe(sub_view, use_container_width=True, hide_index=True)
-                with t3:
-                    detalle_cols = [
-                        c
-                        for c in [
-                            "Subproceso",
-                            "Temática",
-                            "I. OPORTUNIDAD",
-                            "II. COMPLETITUD",
-                            "III. CONSISTENCIA",
-                            "IV. PRECISIÓN",
-                            "V. PROTOCOLO",
-                            "% Calidad",
-                            "Estado calidad",
-                        ]
-                        if c in calidad_df.columns
+                detalle_cols = [
+                    c
+                    for c in [
+                        "Subproceso",
+                        "Temática",
+                        "I. OPORTUNIDAD",
+                        "II. COMPLETITUD",
+                        "III. CONSISTENCIA",
+                        "IV. PRECISIÓN",
+                        "V. PROTOCOLO",
+                        "Calificación",
                     ]
-                    st.dataframe(calidad_df[detalle_cols], use_container_width=True, hide_index=True)
+                    if c in view.columns
+                ]
+
+                view = view[detalle_cols].copy()
+
+                def _style_cell(val: object) -> str:
+                    label, bg, fg = _calif_style_token(val)
+                    _ = label
+                    return f"background-color: {bg}; color: {fg}; font-weight: 700;"
+
+                style_cols = [
+                    c
+                    for c in [
+                        "I. OPORTUNIDAD",
+                        "II. COMPLETITUD",
+                        "III. CONSISTENCIA",
+                        "IV. PRECISIÓN",
+                        "V. PROTOCOLO",
+                        "Calificación",
+                    ]
+                    if c in view.columns
+                ]
+                styled = view.style
+                for c in style_cols:
+                    styled = styled.map(_style_cell, subset=[c])
+
+                st.dataframe(styled, use_container_width=True, hide_index=True)
 
     with tabs[5]:
         st.markdown("### Auditoría")
