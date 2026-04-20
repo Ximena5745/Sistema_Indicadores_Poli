@@ -5,7 +5,9 @@ import unicodedata
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 
 import sys
@@ -284,6 +286,9 @@ def _prepare_tracking(df: pd.DataFrame, map_df: pd.DataFrame, month_num: int | N
             return _to_float(row.get(col_name)) if col_name is not None and col_name in row else None
 
         out["Ejecucion"] = out.apply(_row_ejec, axis=1)
+        if ejec_col is not None:
+            # Fallback para fuentes que no traen columnas Periodo N pero sí Ejecución directa.
+            out["Ejecucion"] = out["Ejecucion"].fillna(out[ejec_col].apply(_to_float))
     elif ejec_col is not None:
         out["Ejecucion"] = out[ejec_col].apply(_to_float)
     else:
@@ -299,18 +304,27 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     if not excel_path.exists():
         return pd.DataFrame(), f"No existe el archivo: {excel_path}"
 
-    try:
-        # Usar header=4 para que los nombres de columna sean correctos (fila 5)
-        df = pd.read_excel(excel_path, header=4, engine="openpyxl")
-    except Exception as exc:
-        return pd.DataFrame(), f"No se pudo leer el Excel de calidad: {exc}"
+    def _try_parse(header_idx: int) -> tuple[pd.DataFrame, str | None, str | None]:
+        try:
+            local_df = pd.read_excel(excel_path, header=header_idx, engine="openpyxl")
+        except Exception:
+            return pd.DataFrame(), None, None
 
-    df = df.dropna(how="all")
-    df.columns = [str(c).strip() for c in df.columns]
+        local_df = local_df.dropna(how="all")
+        local_df.columns = [str(c).strip() for c in local_df.columns]
+        norm_cols = {_norm_text(c): c for c in local_df.columns}
+        local_proc_col = next((v for k, v in norm_cols.items() if "PROCESO" in k), None)
+        local_tem_col = next((v for k, v in norm_cols.items() if "TEMATICA" in k or "TEMATICA" in k.replace("Á", "A")), None)
+        return local_df, local_proc_col, local_tem_col
 
-    norm_cols = {_norm_text(c): c for c in df.columns}
-    proc_col = next((v for k, v in norm_cols.items() if "PROCESO" in k), None)
-    tem_col = next((v for k, v in norm_cols.items() if "TEMATICA" in k), None)
+    # Prioridad esperada: header=4; fallback a otros encabezados frecuentes.
+    df, proc_col, tem_col = _try_parse(4)
+    if proc_col is None or tem_col is None:
+        for h in [3, 2, 1, 0, 5, 6]:
+            df_tmp, proc_tmp, tem_tmp = _try_parse(h)
+            if proc_tmp is not None and tem_tmp is not None:
+                df, proc_col, tem_col = df_tmp, proc_tmp, tem_tmp
+                break
 
     if proc_col is None:
         return pd.DataFrame(), "No se encontró la columna Proceso en el archivo de calidad."
@@ -703,6 +717,14 @@ def _resumir_analisis_texto(texto: object, max_chars: int = 260) -> str:
     if not raw:
         return "Sin análisis disponible."
 
+    # Formato típico API Kawak: fecha | usuario | análisis
+    if "|" in raw:
+        parts = [p.strip() for p in raw.split("|") if p.strip()]
+        if len(parts) >= 3:
+            raw = " | ".join(parts[2:]).strip()
+        elif len(parts) >= 2:
+            raw = parts[-1]
+
     # Resumen simple y robusto: tomar hasta 2 frases útiles.
     frases = [f.strip() for f in re.split(r"[.!?]\s+", raw) if f.strip()]
     if not frases:
@@ -711,6 +733,20 @@ def _resumir_analisis_texto(texto: object, max_chars: int = 260) -> str:
     if len(resumen) > max_chars:
         resumen = resumen[: max_chars - 3].rstrip() + "..."
     return resumen
+
+
+def _buscar_analisis_indicador(indicador: str, analisis_map: dict[str, str]) -> str:
+    key = _norm_text(indicador)
+    if not key or not analisis_map:
+        return ""
+    if key in analisis_map:
+        return analisis_map[key]
+
+    # Fallback aproximado: útil cuando el nombre en una base trae sufijos/prefijos.
+    for map_key, val in analisis_map.items():
+        if key in map_key or map_key in key:
+            return val
+    return ""
 
 
 @st.cache_data(show_spinner=False)
@@ -724,13 +760,21 @@ def _load_analisis_indicadores() -> dict[str, str]:
     except Exception:
         return {}
 
-    ind_col = _first_col(df, ["Indicador", "Nombre Indicador", "Indicador Nombre"])
+    ind_col = _first_col(df, ["nombre", "Indicador", "Nombre Indicador", "Indicador Nombre"])
     ana_col = _first_col(df, ["analisis", "análisis"])
+    fecha_col = _first_col(df, ["fecha_corte", "fecha", "Fecha corte", "Fecha"])
     if ind_col is None or ana_col is None:
         return {}
 
+    work = df[[c for c in [ind_col, ana_col, fecha_col] if c is not None]].copy()
+    if fecha_col is not None:
+        work["_fecha_sort"] = pd.to_datetime(work[fecha_col], errors="coerce")
+    else:
+        work["_fecha_sort"] = pd.NaT
+    work = work.sort_values("_fecha_sort")
+
     out: dict[str, str] = {}
-    for _, row in df[[ind_col, ana_col]].dropna(how="all").iterrows():
+    for _, row in work.dropna(how="all").iterrows():
         indicador = str(row.get(ind_col, "")).strip()
         analisis = str(row.get(ana_col, "")).strip()
         if not indicador:
@@ -796,13 +840,32 @@ def _render_indicadores_subproceso_cards(
     historic_df: pd.DataFrame,
     anio: int | None,
     month_num: int | None,
+    map_df: pd.DataFrame,
+    proceso_sel: str,
 ) -> None:
     if filtered.empty:
         st.info("Sin indicadores para el filtro actual.")
         return
 
     analisis_map = _load_analisis_indicadores()
-    subprocesos = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist()) if "Subproceso_final" in filtered.columns else []
+    subprocesos_datos = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist()) if "Subproceso_final" in filtered.columns else []
+    subprocesos = subprocesos_datos.copy()
+
+    # Tabulación oficial por jerarquía Proceso-Subproceso del maestro.
+    if (
+        proceso_sel != "Todos"
+        and not map_df.empty
+        and {"Proceso", "Subproceso"}.issubset(map_df.columns)
+    ):
+        proceso_norm = _norm_text(proceso_sel)
+        map_work = map_df.copy()
+        map_work["_proc_norm"] = map_work["Proceso"].astype(str).map(_norm_text)
+        map_work["_sub_val"] = map_work["Subproceso"].astype(str).str.strip()
+        oficiales = sorted(map_work[map_work["_proc_norm"] == proceso_norm]["_sub_val"].dropna().unique().tolist())
+
+        if oficiales:
+            datos_map = {_norm_text(s): s for s in subprocesos_datos}
+            subprocesos = [datos_map[_norm_text(s)] for s in oficiales if _norm_text(s) in datos_map]
     if not subprocesos:
         st.info("No hay subprocesos para mostrar en este filtro.")
         return
@@ -857,7 +920,7 @@ def _render_indicadores_subproceso_cards(
                         previo = _to_float(_latest_per_indicator(hist_prev).iloc[-1].get("Cumplimiento_pct"))
 
                 delta_txt, delta_color = _cumpl_delta(cumpl, previo)
-                analisis_txt = _resumir_analisis_texto(analisis_map.get(_norm_text(indicador), ""))
+                analisis_txt = _resumir_analisis_texto(_buscar_analisis_indicador(indicador, analisis_map))
                 color = NIVELES_COLORS.get(categoria.lower(), "#6E7781")
 
                 with cols[idx % 3]:
@@ -869,6 +932,7 @@ def _render_indicadores_subproceso_cards(
                             <div style='font-size:0.9rem;color:#263238;'>Ejecución: <b>{ejec}</b></div>
                             <div style='font-size:0.9rem;color:#263238;'>Cumplimiento: <b>{_cumpl_label(cumpl)}</b></div>
                             <div style='font-size:0.85rem;color:{delta_color};margin-top:4px;'><b>{delta_txt}</b></div>
+                            <div style='font-size:0.78rem;color:#455a64;margin-top:6px;line-height:1.25;'>{analisis_txt}</div>
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -899,10 +963,35 @@ def _render_indicadores_subproceso_cards(
                     chart_df = yearly_df.copy()
                     if "Anio" in chart_df.columns:
                         chart_df["Año"] = pd.to_numeric(chart_df["Anio"], errors="coerce").astype("Int64").astype(str)
-                    cols_to_plot = [c for c in ["Meta", "Ejecucion", "Cumplimiento_pct"] if c in chart_df.columns]
-                    if cols_to_plot and "Año" in chart_df.columns:
-                        long_df = chart_df.melt(id_vars=["Año"], value_vars=cols_to_plot, var_name="Métrica", value_name="Valor")
-                        fig = px.line(long_df, x="Año", y="Valor", color="Métrica", markers=True, title="Comparativo anual")
+                    if "Año" in chart_df.columns:
+                        fig = make_subplots(specs=[[{"secondary_y": True}]])
+                        if "Meta" in chart_df.columns:
+                            fig.add_trace(
+                                go.Bar(name="Meta", x=chart_df["Año"], y=pd.to_numeric(chart_df["Meta"], errors="coerce")),
+                                secondary_y=False,
+                            )
+                        if "Ejecucion" in chart_df.columns:
+                            fig.add_trace(
+                                go.Bar(name="Ejecución", x=chart_df["Año"], y=pd.to_numeric(chart_df["Ejecucion"], errors="coerce")),
+                                secondary_y=False,
+                            )
+                        if "Cumplimiento_pct" in chart_df.columns:
+                            fig.add_trace(
+                                go.Scatter(
+                                    name="Cumplimiento (%)",
+                                    x=chart_df["Año"],
+                                    y=pd.to_numeric(chart_df["Cumplimiento_pct"], errors="coerce"),
+                                    mode="lines+markers",
+                                ),
+                                secondary_y=True,
+                            )
+                        fig.update_layout(
+                            barmode="group",
+                            title="Comparativo anual (Meta/Ejecución + Cumplimiento)",
+                            legend_title_text="Métrica",
+                        )
+                        fig.update_yaxes(title_text="Meta/Ejecución", secondary_y=False)
+                        fig.update_yaxes(title_text="Cumplimiento (%)", secondary_y=True)
                         st.plotly_chart(fig, use_container_width=True)
 
                     table = chart_df[[c for c in ["Anio", "Meta", "Ejecucion", "Cumplimiento_pct"] if c in chart_df.columns]].copy()
@@ -911,7 +1000,7 @@ def _render_indicadores_subproceso_cards(
                         table["Cumplimiento (%)"] = pd.to_numeric(table["Cumplimiento (%)"], errors="coerce").round(1)
                     st.dataframe(table, use_container_width=True, hide_index=True)
 
-                analisis_raw = analisis_map.get(_norm_text(selected_indicator), "")
+                analisis_raw = _buscar_analisis_indicador(selected_indicator, analisis_map)
                 st.markdown("##### Análisis del indicador")
                 st.write(_resumir_analisis_texto(analisis_raw, max_chars=420))
 
@@ -1136,7 +1225,7 @@ def render() -> None:
 
     with tabs[2]:
         st.markdown("### Indicadores")
-        _render_indicadores_subproceso_cards(latest, full_work_df, anio, selected_month_num)
+        _render_indicadores_subproceso_cards(latest, full_work_df, anio, selected_month_num, map_df, proceso_sel)
 
     with tabs[3]:
         st.markdown("### Evolución de indicadores")
@@ -1171,7 +1260,13 @@ def render() -> None:
             st.warning(calidad_msg)
         else:
             if proceso_sel != "Todos":
-                calidad_df = calidad_df[calidad_df["Proceso"].astype(str) == proceso_sel]
+                proc_norm = _norm_text(proceso_sel)
+                calidad_df = calidad_df.copy()
+                calidad_df["_proc_norm"] = calidad_df["Proceso"].astype(str).map(_norm_text)
+                filtro = calidad_df[calidad_df["_proc_norm"] == proc_norm]
+                if filtro.empty:
+                    filtro = calidad_df[calidad_df["_proc_norm"].apply(lambda x: proc_norm in x or x in proc_norm)]
+                calidad_df = filtro.drop(columns=["_proc_norm"], errors="ignore")
             st.dataframe(calidad_df, use_container_width=True, hide_index=True)
 
     with tabs[5]:
@@ -1193,6 +1288,7 @@ def render() -> None:
             retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][["Proceso", "Subproceso", "Indicador Propuesto"]]
             retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
             retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(str)
+            retos_filtrados["Fuente"] = "Retos"
 
             # Proyectos
             proyectos = pd.read_excel(EXCEL_PATH, sheet_name="Proyectos")
@@ -1200,6 +1296,7 @@ def render() -> None:
             proyectos_filtrados = proyectos_filtrados.rename(columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"})
             proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
             proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados["Indicador Propuesto"].astype(str)
+            proyectos_filtrados["Fuente"] = "Proyectos"
 
             # Plan de mejoramiento
             plan = pd.read_excel(EXCEL_PATH, sheet_name="Plan de mejoramiento", header=1)
@@ -1207,6 +1304,7 @@ def render() -> None:
             plan_filtrados = plan_filtrados.rename(columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"})
             plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
             plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(str)
+            plan_filtrados["Fuente"] = "Plan de mejoramiento"
 
             # Calidad
             calidad = pd.read_excel(EXCEL_PATH, sheet_name="Calidad")
@@ -1214,6 +1312,7 @@ def render() -> None:
             calidad_filtrados = calidad_filtrados.rename(columns={"Subroceso": "Subproceso", "Propuesta SGC (Indicadores)": "Indicador Propuesto"})
             calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
             calidad_filtrados["Indicador Propuesto"] = calidad_filtrados["Indicador Propuesto"].astype(str)
+            calidad_filtrados["Fuente"] = "Calidad"
 
             df_final = pd.concat([
                 retos_filtrados,
@@ -1221,7 +1320,7 @@ def render() -> None:
                 plan_filtrados,
                 calidad_filtrados
             ], ignore_index=True)
-            df_final = df_final.drop_duplicates()
+            df_final = df_final.drop_duplicates(subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"])
 
             if proceso_actual != "Todos" and "Proceso" in df_final.columns:
                 proceso_norm = _norm_text(proceso_actual)
@@ -1246,16 +1345,29 @@ def render() -> None:
             subprocesos = sub_df["Subproceso"].dropna().unique()
             for subproceso in sorted(subprocesos):
                 ind_df = sub_df[sub_df["Subproceso"] == subproceso]
-                indicadores = ind_df["Indicador Propuesto"].dropna().unique().tolist()
-                if not indicadores:
+                if ind_df.empty:
                     continue
                 st.markdown(f"<div style='margin-bottom:6px; font-size:1rem; font-weight:600; color:#3949ab; letter-spacing:0.01em;'>{subproceso}</div>", unsafe_allow_html=True)
-                cols = st.columns(min(3, len(indicadores)))
-                for idx, indicador in enumerate(indicadores):
+                agg = (
+                    ind_df.groupby("Indicador Propuesto", dropna=True)["Fuente"]
+                    .apply(lambda s: sorted(set(s.dropna().astype(str).tolist())))
+                    .reset_index(name="Fuentes")
+                )
+                if agg.empty:
+                    continue
+                cols = st.columns(min(3, len(agg)))
+                for idx, (_, row) in enumerate(agg.iterrows()):
+                    indicador = str(row.get("Indicador Propuesto", "")).strip()
+                    fuentes = row.get("Fuentes", [])
+                    fuentes_html = "".join([
+                        f"<span style='display:inline-block;background:#eef3ff;color:#1a237e;border:1px solid #c9d7ff;border-radius:999px;padding:2px 8px;font-size:0.72rem;margin:0 4px 4px 0;'>{f}</span>"
+                        for f in fuentes
+                    ])
                     with cols[idx % len(cols)]:
                         st.markdown(f"""
                         <div style='background:linear-gradient(90deg,#e3f2fd 0%,#f3e5f5 100%);border-radius:12px;padding:18px 14px 14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(80,80,120,0.07);border:1px solid #e0e0e0;'>
                             <span style='font-size:1.25rem;color:#1a237e;font-weight:700;line-height:1.3;word-break:break-word;'>{indicador}</span>
+                            <div style='margin-top:10px;'>{fuentes_html}</div>
                         </div>
                         """, unsafe_allow_html=True)
 
