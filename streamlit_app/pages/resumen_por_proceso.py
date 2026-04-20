@@ -454,108 +454,14 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
 # ── Auditoría desde Excel preprocesado ───────────────────────────────────────
 _AUDITORIA_XLSX = Path(__file__).resolve().parents[2] / "data" / "raw" / "Auditoria" / "auditoria_resultado.xlsx"
 
-# campo → (label, accent_color, icon_svg_path_data)
-# Paleta ejecutiva: slate, teal, ámbar oscuro, carmín, índigo
-_LABELS = {
-    "fortalezas":              ("Fortalezas",               "#0d6e55", "✦"),
-    "oportunidades_mejora":    ("Oportunidades de Mejora",  "#7a5c00", "◈"),
-    "hallazgos":               ("Hallazgos",                "#1b4f8a", "◉"),
-    "no_conformidades":        ("No Conformidades",         "#8b1a1a", "▲"),
-    "recomendacion_desempeno": ("Recomendación Desempeño",  "#3d2b8e", "◆"),
+# campo → (label, color_acento, simbolo)
+_AUD_LABELS = {
+    "fortalezas":              ("Fortalezas",              "#0d6e55", "✦"),
+    "oportunidades_mejora":    ("Oportunidades de Mejora", "#7a5c00", "◈"),
+    "hallazgos":               ("Hallazgos",               "#1b4f8a", "◉"),
+    "no_conformidades":        ("No Conformidades",        "#8b1a1a", "▲"),
+    "recomendacion_desempeno": ("Recomendacion Desempeno", "#3d2b8e", "◆"),
 }
-
-_CARD_CSS = """
-<style>
-/* ── Contenedor de fichas ────────────────────────────────────── */
-.aud-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
-    gap: 20px;
-    margin: 8px 0 24px 0;
-}
-/* ── Tarjeta ─────────────────────────────────────────────────── */
-.aud-card {
-    background: #fafafa;
-    border: 1px solid #e4e4e4;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-    transition: box-shadow .2s;
-    font-family: 'Segoe UI', sans-serif;
-}
-.aud-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
-/* ── Encabezado de tarjeta ───────────────────────────────────── */
-.aud-card-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 18px;
-    color: #fff;
-    font-size: 0.88rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-}
-.aud-card-header-int { background: linear-gradient(135deg, #1b3f72 0%, #2563a8 100%); }
-.aud-card-header-ext { background: linear-gradient(135deg, #5a3000 0%, #b06000 100%); }
-.aud-card-header-badge {
-    background: rgba(255,255,255,0.18);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-}
-/* ── Título del proceso ──────────────────────────────────────── */
-.aud-proceso {
-    padding: 14px 18px 6px 18px;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1a1a2e;
-    border-bottom: 2px solid #f0f0f0;
-    margin-bottom: 2px;
-}
-/* ── Sección de campo ────────────────────────────────────────── */
-.aud-section {
-    padding: 8px 18px;
-    border-bottom: 1px solid #f0f0f0;
-}
-.aud-section:last-child { border-bottom: none; padding-bottom: 14px; }
-.aud-section-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 5px;
-}
-.aud-accent-dot {
-    width: 8px; height: 8px;
-    border-radius: 2px;
-    display: inline-block;
-    flex-shrink: 0;
-}
-/* ── Ítem de contenido ───────────────────────────────────────── */
-.aud-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 5px 0;
-    font-size: 0.86rem;
-    color: #333;
-    line-height: 1.55;
-}
-.aud-item-bullet {
-    font-size: 0.65rem;
-    margin-top: 5px;
-    flex-shrink: 0;
-}
-</style>
-"""
-
 
 
 @st.cache_data(show_spinner=False)
@@ -570,62 +476,58 @@ def _load_auditoria_excel() -> tuple:
         return pd.DataFrame(), f"Error leyendo Excel de auditoria: {e}"
 
 
-def _render_ficha(row: dict, tipo: str) -> str:
-    """Genera HTML de una ficha ejecutiva individual de auditoría."""
-    header_cls  = "aud-card-header-int" if tipo == "Interna" else "aud-card-header-ext"
-    tipo_label  = "Auditoría Interna" if tipo == "Interna" else "Auditoría Externa · Icontec 2025"
-    proceso     = row.get("proceso", "").upper()
+def _render_ficha_html(row: dict, tipo: str) -> str:
+    """HTML completamente inline (sin clases CSS) para evitar issues con st.markdown."""
+    es_interna = tipo.lower() == "interna"
+    grad = "linear-gradient(135deg,#1b3f72 0%,#2563a8 100%)" if es_interna else "linear-gradient(135deg,#5a3000 0%,#b06000 100%)"
+    tipo_label = "Auditoria Interna" if es_interna else "Auditoria Externa - Icontec 2025"
+    proceso = str(row.get("proceso", "")).upper()
 
-    body = ""
-    for campo, (label, accent, sym) in _LABELS.items():
-        valor = row.get(f"{campo}_{tipo.lower()}", "").strip()
+    secciones = ""
+    for campo, (label, accent, sym) in _AUD_LABELS.items():
+        valor = str(row.get(f"{campo}_{tipo.lower()}", "")).strip()
         if not valor:
             continue
         items = [v.strip() for v in valor.replace("\n", " | ").split(" | ") if v.strip()]
         items_html = "".join(
-            f'<div class="aud-item">'
-            f'<span class="aud-item-bullet" style="color:{accent};">{sym}</span>'
+            f'<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:0.86rem;color:#333;line-height:1.5;">'
+            f'<span style="color:{accent};font-size:0.65rem;margin-top:5px;flex-shrink:0;">{sym}</span>'
             f'<span>{item}</span></div>'
             for item in items
         )
-        body += f"""
-        <div class="aud-section">
-            <div class="aud-section-label" style="color:{accent};">
-                <span class="aud-accent-dot" style="background:{accent};"></span>
-                {label}
-            </div>
-            {items_html}
-        </div>"""
+        secciones += (
+            f'<div style="padding:8px 18px;border-bottom:1px solid #f0f0f0;">'
+            f'<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:700;'
+            f'letter-spacing:0.08em;text-transform:uppercase;color:{accent};margin-bottom:5px;">'
+            f'<span style="width:8px;height:8px;border-radius:2px;background:{accent};display:inline-block;flex-shrink:0;"></span>'
+            f'{label}</div>{items_html}</div>'
+        )
 
-    return f"""
-    <div class="aud-card">
-        <div class="aud-card-header {header_cls}">
-            <span>{tipo_label}</span>
-        </div>
-        <div class="aud-proceso">{proceso}</div>
-        {body}
-    </div>"""
+    if not secciones:
+        return ""
+
+    return (
+        f'<div style="background:#fafafa;border:1px solid #e4e4e4;border-radius:12px;overflow:hidden;'
+        f'box-shadow:0 1px 4px rgba(0,0,0,0.06);margin-bottom:16px;">'
+        f'<div style="background:{grad};padding:12px 18px;color:#fff;font-size:0.88rem;'
+        f'font-weight:700;letter-spacing:0.03em;text-transform:uppercase;">{tipo_label}</div>'
+        f'<div style="padding:14px 18px 6px 18px;font-size:1rem;font-weight:700;color:#1a1a2e;'
+        f'border-bottom:2px solid #f0f0f0;margin-bottom:2px;">{proceso}</div>'
+        f'{secciones}'
+        f'</div>'
+    )
 
 
 def _render_auditoria_tab(proceso_filtro: str) -> None:
-    """Renderiza la pestaña Auditoría como fichas ejecutivas por proceso."""
-    st.markdown(_CARD_CSS, unsafe_allow_html=True)
-    st.markdown(
-        '<p style="font-size:0.82rem;color:#888;margin-bottom:16px;">'
-        'Resultados estructurados a partir de informes de auditoría. '
-        'Solo se muestran campos con contenido registrado.</p>',
-        unsafe_allow_html=True,
-    )
-
+    """Renderiza la pestana Auditoria como fichas ejecutivas por proceso."""
     df, msg = _load_auditoria_excel()
     if msg:
         st.warning(msg)
         return
     if df.empty:
-        st.info("No hay datos de auditoría disponibles.")
+        st.info("No hay datos de auditoria disponibles.")
         return
 
-    # Filtrar por proceso
     if proceso_filtro and proceso_filtro.upper() != "TODOS":
         mask = df["proceso"].str.upper().str.contains(proceso_filtro.upper(), na=False)
         df_filtrado = df[mask]
@@ -633,11 +535,11 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
         df_filtrado = df
 
     if df_filtrado.empty:
-        st.info(f"No hay hallazgos de auditoría para el proceso: {proceso_filtro}")
+        st.info(f"No hay hallazgos de auditoria para el proceso: {proceso_filtro}")
         return
 
-    def _seccion(tipo: str, titulo: str, subtitulo: str, header_color: str) -> None:
-        cols_check = [f"{c}_{tipo}" for c in _LABELS]
+    def _seccion(tipo: str, titulo: str, header_color: str) -> None:
+        cols_check = [f"{c}_{tipo}" for c in _AUD_LABELS]
         df_tipo = df_filtrado[
             df_filtrado[[c for c in cols_check if c in df_filtrado.columns]]
             .apply(lambda r: r.str.strip().ne("").any(), axis=1)
@@ -646,31 +548,22 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
             f'<div style="display:flex;align-items:center;gap:12px;margin:24px 0 10px 0;">'
             f'<div style="width:4px;height:32px;border-radius:2px;background:{header_color};flex-shrink:0;"></div>'
             f'<div><div style="font-size:1rem;font-weight:700;color:#1a1a2e;">{titulo}</div>'
-            f'<div style="font-size:0.75rem;color:#888;">{subtitulo}</div></div>'
-            f'</div>',
+            f'<div style="font-size:0.75rem;color:#888;">{len(df_tipo)} proceso(s)</div></div></div>',
             unsafe_allow_html=True,
         )
         if df_tipo.empty:
             st.info(f"No hay hallazgos de {titulo.lower()} para el proceso seleccionado.")
             return
-        cards_html = '<div class="aud-grid">' + "".join(
-            _render_ficha(r.to_dict(), tipo.capitalize()) for _, r in df_tipo.iterrows()
-        ) + "</div>"
-        st.markdown(cards_html, unsafe_allow_html=True)
+        for _, row in df_tipo.iterrows():
+            html = _render_ficha_html(row.to_dict(), tipo)
+            if html:
+                st.markdown(html, unsafe_allow_html=True)
 
-    _seccion(
-        "interna",
-        "Auditoría Interna",
-        f"{len(df_filtrado)} proceso(s) · Ciclo vigente",
-        "#1b3f72",
-    )
+    _seccion("interna", "Auditoria Interna", "#1b3f72")
     st.markdown('<hr style="border:none;border-top:1px solid #e8e8e8;margin:8px 0;">', unsafe_allow_html=True)
-    _seccion(
-        "externa",
-        "Auditoría Externa — Icontec 2025",
-        "Certificación ISO · Hallazgos oficiales",
-        "#b06000",
-    )
+    _seccion("externa", "Auditoria Externa - Icontec 2025", "#b06000")
+
+
 
 
 @st.cache_data(show_spinner=False)
