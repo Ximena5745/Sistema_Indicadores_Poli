@@ -306,13 +306,13 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
         return pd.DataFrame(), f"No existe el archivo: {excel_path}"
 
     try:
-        # Fuente confiable con columnas normalizadas para el resumen de calidad.
-        df = pd.read_excel(excel_path, sheet_name="CONSOLIDADO", engine="openpyxl")
+        # Fuente oficial solicitada por negocio: hoja LISTA DE CHEQUEO (encabezados fila 5).
+        df = pd.read_excel(excel_path, sheet_name="LISTA DE CHEQUEO", header=4, engine="openpyxl")
     except Exception as exc:
-        return pd.DataFrame(), f"No se pudo leer la hoja CONSOLIDADO de calidad: {exc}"
+        return pd.DataFrame(), f"No se pudo leer la hoja LISTA DE CHEQUEO de calidad: {exc}"
 
     if df.empty:
-        return pd.DataFrame(), "La hoja CONSOLIDADO de calidad está vacía."
+        return pd.DataFrame(), "La hoja LISTA DE CHEQUEO de calidad está vacía."
 
     df = df.dropna(how="all")
     df.columns = [str(c).strip() for c in df.columns]
@@ -320,25 +320,69 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     proc_col = _first_col(df, ["PROCESO", "Proceso"])
     sub_col = _first_col(df, ["SUBPROCESO", "Subproceso"])
     tem_col = _first_col(df, ["Tematica", "Temática"])
-    unidad_col = _first_col(df, ["Unidad"])
-    linea_col = _first_col(df, ["Linea", "Línea"])
+
+    c1_col = _first_col(df, ["I. OPORTUNIDAD", "OPORTUNIDAD"])
+    c2_col = _first_col(df, ["II. COMPLETITUD", "COMPLETITUD"])
+    c3_col = _first_col(df, ["III. CONSISTENCIA", "CONSISTENCIA"])
+    c4_col = _first_col(df, ["IV. PRECISIÓN", "IV. PRECISION", "PRECISIÓN", "PRECISION"])
+    c5_col = _first_col(df, ["V. PROTOCOLO", "PROTOCOLO"])
 
     if proc_col is None:
-        return pd.DataFrame(), "No se encontró columna Proceso en CONSOLIDADO de calidad."
+        return pd.DataFrame(), "No se encontró columna Proceso en LISTA DE CHEQUEO de calidad."
+    if any(c is None for c in [c1_col, c2_col, c3_col, c4_col, c5_col]):
+        return pd.DataFrame(), "No se encontraron las 5 columnas de criterios de calidad en LISTA DE CHEQUEO."
 
-    out_cols = [c for c in [linea_col, unidad_col, proc_col, sub_col, tem_col] if c is not None]
+    out_cols = [c for c in [proc_col, sub_col, tem_col, c1_col, c2_col, c3_col, c4_col, c5_col] if c is not None]
     out = df[out_cols].copy()
-    rename_map = {}
-    if linea_col is not None:
-        rename_map[linea_col] = "Línea"
-    if unidad_col is not None:
-        rename_map[unidad_col] = "Unidad"
-    rename_map[proc_col] = "Proceso"
+    rename_map = {proc_col: "Proceso"}
     if sub_col is not None:
         rename_map[sub_col] = "Subproceso"
     if tem_col is not None:
         rename_map[tem_col] = "Temática"
+    rename_map[c1_col] = "I. OPORTUNIDAD"
+    rename_map[c2_col] = "II. COMPLETITUD"
+    rename_map[c3_col] = "III. CONSISTENCIA"
+    rename_map[c4_col] = "IV. PRECISIÓN"
+    rename_map[c5_col] = "V. PROTOCOLO"
+
     out = out.rename(columns=rename_map)
+
+    for col in ["I. OPORTUNIDAD", "II. COMPLETITUD", "III. CONSISTENCIA", "IV. PRECISIÓN", "V. PROTOCOLO"]:
+        out[col] = out[col].astype(str).str.replace("✔", "", regex=False).str.replace("⚠", "", regex=False).str.replace("✘", "", regex=False).str.strip().str.upper()
+
+    def _score_calidad(v: object) -> float | None:
+        t = _norm_text(v)
+        if not t:
+            return None
+        if "CUMPLE PARCIAL" in t:
+            return 0.5
+        if "NO CUMPLE" in t:
+            return 0.0
+        if "CUMPLE" in t:
+            return 1.0
+        return None
+
+    crit_cols = ["I. OPORTUNIDAD", "II. COMPLETITUD", "III. CONSISTENCIA", "IV. PRECISIÓN", "V. PROTOCOLO"]
+    score_cols = []
+    for c in crit_cols:
+        sc = f"{c}__score"
+        out[sc] = out[c].apply(_score_calidad)
+        score_cols.append(sc)
+
+    out["% Calidad"] = (out[score_cols].mean(axis=1, skipna=True) * 100).round(1)
+
+    def _estado(p: object) -> str:
+        n = _to_float(p)
+        if n is None:
+            return "SIN DATO"
+        if n >= 90:
+            return "CUMPLE"
+        if n >= 70:
+            return "CUMPLE PARCIALMENTE"
+        return "NO CUMPLE"
+
+    out["Estado calidad"] = out["% Calidad"].apply(_estado)
+    out = out.drop(columns=score_cols, errors="ignore")
     out = out.dropna(subset=["Proceso"]).reset_index(drop=True)
     return out, None
 
@@ -348,48 +392,56 @@ def _build_calidad_metrics(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
         return pd.DataFrame(), pd.DataFrame()
 
     work = df.copy()
-    if "Temática" not in work.columns:
-        work["Temática"] = ""
     if "Subproceso" not in work.columns:
         work["Subproceso"] = "Sin subproceso"
+    if "% Calidad" not in work.columns:
+        work["% Calidad"] = pd.NA
+    if "Estado calidad" not in work.columns:
+        work["Estado calidad"] = "SIN DATO"
 
     work["Proceso"] = work["Proceso"].astype(str).str.strip()
     work["Subproceso"] = work["Subproceso"].astype(str).str.strip()
-    work["Temática"] = work["Temática"].astype(str).str.strip()
-
-    total_registros = max(len(work), 1)
+    work["% Calidad"] = pd.to_numeric(work["% Calidad"], errors="coerce")
 
     proc = (
         work.groupby("Proceso", dropna=False)
         .agg(
             Subprocesos=("Subproceso", "nunique"),
-            Registros=("Temática", "size"),
-            Temáticas_únicas=("Temática", lambda s: s[s.astype(str).str.strip() != ""].nunique()),
+            Registros=("Subproceso", "size"),
+            Calidad_promedio=("% Calidad", "mean"),
+            Cumple=("Estado calidad", lambda s: (s == "CUMPLE").sum()),
+            Cumple_parcialmente=("Estado calidad", lambda s: (s == "CUMPLE PARCIALMENTE").sum()),
+            No_cumple=("Estado calidad", lambda s: (s == "NO CUMPLE").sum()),
         )
         .reset_index()
     )
-    proc["Cobertura (%)"] = (proc["Registros"] / total_registros * 100).round(1)
-    proc["Índice Calidad (%)"] = (
-        (proc["Temáticas_únicas"] / proc["Registros"].replace({0: pd.NA})) * 100
-    ).round(1).fillna(0)
+    proc["Calidad_promedio"] = proc["Calidad_promedio"].round(1)
+    proc["% Cumple"] = (proc["Cumple"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    proc["% Parcial"] = (proc["Cumple_parcialmente"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    proc["% No cumple"] = (proc["No_cumple"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
 
     sub = (
         work.groupby(["Proceso", "Subproceso"], dropna=False)
         .agg(
-            Registros=("Temática", "size"),
-            Temáticas_únicas=("Temática", lambda s: s[s.astype(str).str.strip() != ""].nunique()),
+            Registros=("Subproceso", "size"),
+            Calidad_promedio=("% Calidad", "mean"),
+            Cumple=("Estado calidad", lambda s: (s == "CUMPLE").sum()),
+            Cumple_parcialmente=("Estado calidad", lambda s: (s == "CUMPLE PARCIALMENTE").sum()),
+            No_cumple=("Estado calidad", lambda s: (s == "NO CUMPLE").sum()),
         )
         .reset_index()
     )
 
-    total_por_proceso = sub.groupby("Proceso")["Registros"].transform("sum")
-    sub["Peso en proceso (%)"] = (sub["Registros"] / total_por_proceso.replace({0: pd.NA}) * 100).round(1).fillna(0)
-    sub["Índice Calidad (%)"] = (
-        (sub["Temáticas_únicas"] / sub["Registros"].replace({0: pd.NA})) * 100
-    ).round(1).fillna(0)
+    sub["Calidad_promedio"] = sub["Calidad_promedio"].round(1)
+    sub["% Cumple"] = (sub["Cumple"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    sub["% Parcial"] = (sub["Cumple_parcialmente"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    sub["% No cumple"] = (sub["No_cumple"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
 
-    proc = proc.sort_values(["Registros", "Proceso"], ascending=[False, True]).reset_index(drop=True)
-    sub = sub.sort_values(["Proceso", "Registros", "Subproceso"], ascending=[True, False, True]).reset_index(drop=True)
+    proc = proc.sort_values(["Calidad_promedio", "Proceso"], ascending=[False, True]).reset_index(drop=True)
+    sub = sub.sort_values(["Proceso", "Calidad_promedio", "Subproceso"], ascending=[True, False, True]).reset_index(drop=True)
+
+    proc = proc.rename(columns={"Calidad_promedio": "% Calidad"})
+    sub = sub.rename(columns={"Calidad_promedio": "% Calidad"})
     return proc, sub
 
 
@@ -1466,7 +1518,8 @@ def render() -> None:
                 k1, k2, k3 = st.columns(3)
                 k1.metric("Procesos evaluados", int(proc_m["Proceso"].nunique()) if not proc_m.empty else 0)
                 k2.metric("Subprocesos evaluados", int(sub_m["Subproceso"].nunique()) if not sub_m.empty else 0)
-                k3.metric("Registros evaluados", int(len(calidad_df)))
+                avg_calidad = pd.to_numeric(calidad_df.get("% Calidad"), errors="coerce")
+                k3.metric("% Calidad promedio", f"{float(avg_calidad.mean()):.1f}%" if not avg_calidad.dropna().empty else "Sin dato")
 
                 t1, t2, t3 = st.tabs(["Resumen por proceso", "Resumen por subproceso", "Detalle temáticas"])
                 with t1:
@@ -1476,7 +1529,21 @@ def render() -> None:
                     sub_view = sub_m.drop(columns=["Proceso"], errors="ignore")
                     st.dataframe(sub_view, use_container_width=True, hide_index=True)
                 with t3:
-                    detalle_cols = [c for c in ["Subproceso", "Temática"] if c in calidad_df.columns]
+                    detalle_cols = [
+                        c
+                        for c in [
+                            "Subproceso",
+                            "Temática",
+                            "I. OPORTUNIDAD",
+                            "II. COMPLETITUD",
+                            "III. CONSISTENCIA",
+                            "IV. PRECISIÓN",
+                            "V. PROTOCOLO",
+                            "% Calidad",
+                            "Estado calidad",
+                        ]
+                        if c in calidad_df.columns
+                    ]
                     st.dataframe(calidad_df[detalle_cols], use_container_width=True, hide_index=True)
 
     with tabs[5]:
