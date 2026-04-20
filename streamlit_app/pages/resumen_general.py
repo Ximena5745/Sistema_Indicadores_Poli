@@ -1335,11 +1335,32 @@ def render():
     # Cargar datos y aplicar filtro CMI por Procesos
     pdi_procesos = preparar_pdi_con_cierre(int(year_procesos), int(month_procesos))
     pdi_procesos = filter_df_for_cmi_procesos(pdi_procesos, id_column="Id")
-    
+
     # Merge con tipos de proceso
     data_service = DataService()
     map_df = data_service.get_process_map()
-    
+
+    # --- INICIO FILTRO SUBPROCESOS VÁLIDOS Y RELEVANTES ---
+    # Cargar Indicadores CMI para filtrar solo subprocesos relevantes
+    try:
+        indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+        if indicadores_cmi_path.exists():
+            df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
+            df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
+            # Solo subprocesos donde columna 'Subprocesos' == 1
+            subprocesos_cmi = set(df_cmi.loc[df_cmi["Subprocesos"] == 1, "Subproceso"].dropna().astype(str).unique())
+        else:
+            subprocesos_cmi = set()
+    except Exception:
+        subprocesos_cmi = set()
+
+    # Obtener lista de subprocesos válidos desde el mapeo
+    subprocesos_validos = set(map_df["Subproceso"].dropna().unique()) if not map_df.empty else set()
+
+    # Filtrar el DataFrame principal para omitir subprocesos no válidos y no relevantes
+    if not pdi_procesos.empty and "Subproceso" in pdi_procesos.columns:
+        pdi_procesos = pdi_procesos[pdi_procesos["Subproceso"].isin(subprocesos_validos & subprocesos_cmi)]
+
     if not pdi_procesos.empty and not map_df.empty and "Subproceso" in pdi_procesos.columns and "Tipo de proceso" in map_df.columns:
         pdi_procesos = pdi_procesos.merge(
             map_df[[c for c in ["Subproceso", "Proceso", "Tipo de proceso"] if c in map_df.columns]].drop_duplicates(),
@@ -1348,10 +1369,10 @@ def render():
         )
         pdi_procesos = _ensure_tipo_proceso_column(pdi_procesos)
         pdi_procesos = _ensure_proceso_column(pdi_procesos)
-        
+
         # Aplicar filtro de tipo si seleccionaron uno específico
         pdi_procesos = _filter_by_tipo_proceso(pdi_procesos, tipo_proceso_seleccionado)
-        
+
         # Mostrar tarjetas KPI para CMI por Procesos
         if not pdi_procesos.empty and "Tipo de proceso" in pdi_procesos.columns:
             st.markdown("##### Monitoreo de Procesos Clave")
