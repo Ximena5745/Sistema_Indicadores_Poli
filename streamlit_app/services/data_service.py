@@ -9,6 +9,11 @@ if str(ROOT) not in sys.path:
 
 from data.mock.mock_data import timeseries_fixture, semaforo_fixture
 
+try:
+    from services.data_loader import cargar_dataset
+except (ImportError, ModuleNotFoundError):
+    from ..services.data_loader import cargar_dataset
+
 
 class DataService:
     """Simple data service to provide fixtures. Replace with real connectors later."""
@@ -35,20 +40,29 @@ class DataService:
             return pd.DataFrame()
 
     def get_tracking_data(self) -> pd.DataFrame:
-        source = Path(__file__).parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
-        if not source.exists():
-            return pd.DataFrame()
-
+        """
+        Carga datos de seguimiento desde Resultados Consolidados.xlsx - Consolidado Semestral.
+        
+        Según documentación oficial (FUENTES_POR_PAGINA.md):
+        - Resumen por Proceso debe usar "Consolidado Semestral"
+        - No usar "Seguimiento_Reporte.xlsx" para Meta/Ejecución/Cumplimiento
+        
+        Returns:
+            DataFrame con: Id, Indicador, Proceso, Meta, Ejecucion, Cumplimiento, Año, Mes
+        """
         try:
-            xl = pd.ExcelFile(str(source), engine="openpyxl")
-            if "Tracking Mensual" not in xl.sheet_names:
+            # Usar la función oficial que lee Consolidado Semestral
+            df = cargar_dataset()
+            
+            if df.empty:
                 return pd.DataFrame()
-            df = xl.parse("Tracking Mensual")
-            df.columns = [str(c).strip() for c in df.columns]
+            
+            # Asegurar tipos de datos correctos
             if "Año" in df.columns:
                 df["Año"] = pd.to_numeric(df["Año"], errors="coerce").astype("Int64")
             if "Mes" in df.columns:
                 df["Mes"] = pd.to_numeric(df["Mes"], errors="coerce").astype("Int64")
+            
             return df
         except Exception:
             return pd.DataFrame()
