@@ -556,6 +556,20 @@ _CARD_CSS = """
 </style>
 """
 
+
+
+@st.cache_data(show_spinner=False)
+def _load_auditoria_excel() -> tuple:
+    if not _AUDITORIA_XLSX.exists():
+        return pd.DataFrame(), f"No existe el archivo: {_AUDITORIA_XLSX.name}. Ejecuta scripts/generar_auditoria_csv.py primero."
+    try:
+        df = pd.read_excel(_AUDITORIA_XLSX, sheet_name="Auditoria", engine="openpyxl")
+        df = df.fillna("")
+        return df, None
+    except Exception as e:
+        return pd.DataFrame(), f"Error leyendo Excel de auditoria: {e}"
+
+
 def _render_ficha(row: dict, tipo: str) -> str:
     """Genera HTML de una ficha ejecutiva individual de auditoría."""
     header_cls  = "aud-card-header-int" if tipo == "Interna" else "aud-card-header-ext"
