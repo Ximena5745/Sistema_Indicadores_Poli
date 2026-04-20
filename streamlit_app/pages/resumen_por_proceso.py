@@ -1,49 +1,3 @@
-import yaml
-import unicodedata
-from pypdf import PdfReader
-# Utilidad: cruzar procesos entre Excel de calidad y PDFs de auditoría
-def cruzar_procesos_calidad_auditoria():
-    # 1. Extraer procesos únicos del Excel de calidad
-    excel_path = Path("data") / "raw" / "Monitoreo" / "Monitoreo_Informacion_Procesos 2025.xlsx"
-    df_calidad = pd.read_excel(
-        excel_path,
-        skiprows=4,
-        engine="openpyxl",
-        sheet_name="LISTA DE CHEQUEO"
-    )
-    procesos_calidad = df_calidad['PROCESO'].dropna().unique()
-    procesos_calidad = [str(p).strip().upper() for p in procesos_calidad]
-
-    def norm_txt(x):
-        return unicodedata.normalize('NFKD', str(x or '').strip().upper()).replace(' ', '').replace('_', '').encode('ascii', 'ignore').decode('utf-8')
-
-    procesos_norm = [norm_txt(p) for p in procesos_calidad]
-
-    # 2. Buscar esos procesos en todos los PDFs de auditoría
-    pdf_dir = Path("data/raw/Auditoria")
-    pdf_files = sorted(pdf_dir.glob("*.pdf"))
-    procesos_encontrados = set()
-    detalles = []
-    for pdf_path in pdf_files:
-        reader = PdfReader(str(pdf_path))
-        for page_num, page in enumerate(reader.pages, 1):
-            text = page.extract_text() or ""
-            text_norm = norm_txt(text)
-            for proc, proc_norm in zip(procesos_calidad, procesos_norm):
-                if proc_norm in text_norm:
-                    procesos_encontrados.add(proc)
-                    detalles.append({
-                        "Proceso": proc,
-                        "PDF": pdf_path.name,
-                        "Pagina": page_num
-                    })
-
-    df_cruce = pd.DataFrame(detalles)
-    if df_cruce.empty:
-        print("No se encontraron procesos del Excel en los PDFs de auditoría.")
-    else:
-        print(df_cruce)
-    return df_cruce
 from pathlib import Path
 import importlib
 import re
@@ -344,12 +298,7 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
         return pd.DataFrame(), f"No existe el archivo: {excel_path}"
 
     try:
-        df = pd.read_excel(
-            excel_path,
-            skiprows=4,  # Encabezados reales en fila 5 (índice 4)
-            engine="openpyxl",
-            sheet_name="LISTA DE CHEQUEO"
-        )
+        df = pd.read_excel(excel_path, skiprows=4, engine="openpyxl")
     except Exception as exc:
         return pd.DataFrame(), f"No se pudo leer el Excel de calidad: {exc}"
 
@@ -357,42 +306,13 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     df.columns = [str(c).strip() for c in df.columns]
 
     norm_cols = {_norm_text(c): c for c in df.columns}
-    # Buscar columna Proceso
     proc_col = next((v for k, v in norm_cols.items() if "PROCESO" in k), None)
-    # Buscar columna Subproceso con variantes
-    subproc_col = next((v for k, v in norm_cols.items() if "SUBPROCESO" in k or "SUB PROCESO" in k or "SUB-PROCESO" in k), None)
-    # Buscar columna Temática con variantes
-    tem_col = next((v for k, v in norm_cols.items() if "TEMATICA" in k or "TEMÁTICA" in k or "TEMAT" in k), None)
-
-    # Si no hay columna Proceso, intentar mapear desde Subproceso
-    if proc_col is None and subproc_col is not None:
-        # Cargar mapeo oficial YAML
-        import yaml
-        mapeo_path = Path(__file__).resolve().parents[2] / "config" / "mapeos_procesos.yaml"
-        with open(mapeo_path, "r", encoding="utf-8") as f:
-            mapeo_yaml = yaml.safe_load(f)
-        # Construir DataFrame de mapeo
-        mapeo = []
-        for proc, subs in mapeo_yaml.items():
-            for sub in subs:
-                mapeo.append({"Proceso": proc.strip(), "Subproceso": sub.strip()})
-        df_mapeo = pd.DataFrame(mapeo)
-        # Normalizar textos para merge
-        def norm_txt(x):
-            import unicodedata
-            return unicodedata.normalize('NFKD', str(x or '').strip().upper()).encode('ascii', 'ignore').decode('utf-8')
-        df_mapeo["sub_norm"] = df_mapeo["Subproceso"].map(norm_txt)
-        df["sub_norm"] = df[subproc_col].map(norm_txt)
-        # Merge
-        df = df.merge(df_mapeo[["sub_norm", "Proceso"]], on="sub_norm", how="left")
-        proc_col = "Proceso"
-        # Si no se encuentra el proceso, dejar como "Sin Proceso"
-        df[proc_col] = df[proc_col].fillna("Sin Proceso")
+    tem_col = next((v for k, v in norm_cols.items() if "TEMATICA" in k), None)
 
     if proc_col is None:
-        return pd.DataFrame(), "No se encontró la columna Proceso ni Subproceso en el archivo de calidad."
+        return pd.DataFrame(), "No se encontró la columna Proceso en el archivo de calidad."
     if tem_col is None:
-        return pd.DataFrame(), f"No se encontró la columna Temática (ni variantes) en el archivo de calidad. Columnas detectadas: {list(df.columns)}"
+        return pd.DataFrame(), "No se encontró la columna Temática en el archivo de calidad."
 
     metric_cols = [
         c
@@ -402,65 +322,209 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     if len(metric_cols) < 5:
         return pd.DataFrame(), "No se identificaron 5 características evaluadas en el archivo de calidad."
 
-    out = df.copy()
-    # Selección de campos clave para visualización
-    campos_valor = [
-        'SUBPROCESO',
-        'Tematica',
-        'Informe de gestión',
-        'Informe de sostenibilidad',
-        'I. OPORTUNIDAD\n(Entrega en tiempo )',
-        'II. COMPLETITUD\n(Todos los campos )',
-        'III. CONSISTENCIA\n(Coherencia interna)',
-        'IV. PRECISI�N\n(C�lculo correcto )',
-        'V. PROTOCOLO\n(Conforme a ficha)',
-        'OBSERVACIONES / HALLAZGOS DETECTADOS'
-    ]
-    campos_valor = [c for c in campos_valor if c in out.columns]
-    out = out[campos_valor].copy()
-    out = out.dropna(subset=[campos_valor[0]]).reset_index(drop=True)
-
-    # Cálculo de resultado por temática (%)
-    def puntaje(valor):
-        valor = str(valor).upper()
-        if 'CUMPLE' in valor and 'PARCIAL' not in valor:
-            return 1
-        elif 'PARCIAL' in valor:
-            return 0.5
-        elif 'NO CUMPLE' in valor:
-            return 0
-        else:
-            return None
-
-    indicadores = [
-        'I. OPORTUNIDAD\n(Entrega en tiempo )',
-        'II. COMPLETITUD\n(Todos los campos )',
-        'III. CONSISTENCIA\n(Coherencia interna)',
-        'IV. PRECISI�N\n(C�lculo correcto )',
-        'V. PROTOCOLO\n(Conforme a ficha)'
-    ]
-
-    def resultado_tematica(row):
-        puntos = [puntaje(row[ind]) for ind in indicadores if ind in row and puntaje(row[ind]) is not None]
-        if puntos:
-            return round(sum(puntos) / len(puntos) * 100, 1)
-        else:
-            return None
-
-    out['Resultado Temática (%)'] = out.apply(resultado_tematica, axis=1)
+    out = df[[proc_col, tem_col] + metric_cols[:5]].copy()
+    out = out.rename(columns={proc_col: "Proceso", tem_col: "Temática"})
+    out = out.dropna(subset=["Proceso"]).reset_index(drop=True)
     return out, None
 
 
-# ── Auditoría desde Excel preprocesado ───────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | None]:
+    raw_dir = Path("data") / "raw" / "auditoria"
+    if not raw_dir.exists():
+        return pd.DataFrame(), f"No existe la carpeta: {raw_dir}"
+
+    pdf_files = sorted(raw_dir.glob("*.pdf"))
+    if not pdf_files:
+        return pd.DataFrame(), "No hay PDFs en data/raw/auditoria."
+
+    PdfReader = None
+    for package in ("pypdf", "PyPDF2"):
+        try:
+            module = importlib.import_module(package)
+            PdfReader = getattr(module, "PdfReader", None)
+            if PdfReader is not None:
+                break
+        except Exception:
+            continue
+
+    if PdfReader is None:
+        return pd.DataFrame(), "No está instalado pypdf ni PyPDF2. Instala uno de esos paquetes para extraer texto de auditoría."
+
+    if not processes:
+        return pd.DataFrame(), "No hay procesos disponibles para buscar en los PDFs."
+
+    indicator_keys = [
+        "INDICADOR",
+        "INDICADORES",
+        "CUMPLIMIENTO",
+        "DESEMPENO",
+        "DESEMPEÑO",
+        "MEDICION",
+        "MEDICIÓN",
+        "METRICA",
+        "MÉTRICA",
+        "KPI",
+        "OBJETIVO",
+        "OBJETIVOS",
+        "LINEA BASE",
+        "LÍNEA BASE",
+        "VARIACION",
+        "VARIACIÓN",
+        "TENDENCIA",
+        "BRECHA",
+        "META",
+        "EJECUCION",
+        "EJECUCIÓN",
+        "RESULTADO",
+        "AVANCE",
+        "HALLAZGO",
+        "RIESGO",
+        "CONTROL",
+        "VERIFICACION",
+        "VERIFICACIÓN",
+        "EVIDENCIA",
+        "SEGUIMIENTO",
+        "PLAN DE MEJORAMIENTO",
+    ]
+    indicator_keys_norm = {_norm_text(k) for k in indicator_keys}
+
+    def _split_sentences(text: str) -> list[str]:
+        text = re.sub(r"\s+", " ", str(text or "")).strip()
+        if not text:
+            return []
+        parts = re.split(r"(?<=[\.!\?;])\s+", text)
+        return [p.strip() for p in parts if p and len(p.strip()) > 20]
+
+    def _contains_indicator_context(text_norm: str) -> bool:
+        return any(k in text_norm for k in indicator_keys_norm)
+
+    def _extract_detected_terms(text_norm: str) -> list[str]:
+        found = [k for k in indicator_keys_norm if k in text_norm]
+        return sorted(found)
+
+    def _redact_summary(proc: str, fragments: list[str]) -> str:
+        if not fragments:
+            return f"No se identificó evidencia explícita de indicadores para {proc} en los documentos revisados."
+
+        clean = []
+        seen = set()
+        for frag in fragments:
+            f = re.sub(r"\s+", " ", str(frag or "")).strip()
+            if not f:
+                continue
+            key = _norm_text(f)
+            if key in seen:
+                continue
+            seen.add(key)
+            clean.append(f)
+
+        if not clean:
+            return f"No se identificó evidencia explícita de indicadores para {proc} en los documentos revisados."
+
+        top = clean[:3]
+        if len(top) == 1:
+            return f"Para el proceso {proc}, la auditoría reporta que {top[0]}"
+        if len(top) == 2:
+            return f"Para el proceso {proc}, la auditoría evidencia que {top[0]} Además, {top[1]}"
+        return f"Para el proceso {proc}, la auditoría evidencia que {top[0]} Además, {top[1]} Finalmente, {top[2]}"
+
+    proc_names = [str(p) for p in processes if str(p).strip()]
+    proc_norm_map = {_norm_text(p): p for p in proc_names}
+    collected: dict[tuple[str, str], dict] = {}
+
+    for pdf_path in pdf_files:
+        try:
+            reader = PdfReader(str(pdf_path))
+        except Exception:
+            continue
+
+        for page_num, page in enumerate(reader.pages, start=1):
+            try:
+                text = page.extract_text() or ""
+            except Exception:
+                text = ""
+
+            text = re.sub(r"\s+", " ", str(text or "")).strip()
+            text_norm = _norm_text(text)
+            if not text_norm or len(text_norm) < 30:
+                continue
+
+            sentences = _split_sentences(text)
+            if not sentences:
+                continue
+
+            for proc_norm, proc_name in proc_norm_map.items():
+                if proc_norm not in text_norm:
+                    continue
+
+                matched_fragments = []
+                for idx, sent in enumerate(sentences):
+                    sent_norm = _norm_text(sent)
+                    if proc_norm in sent_norm:
+                        window = sentences[max(0, idx - 1): min(len(sentences), idx + 2)]
+                        for frag in window:
+                            frag_norm = _norm_text(frag)
+                            if _contains_indicator_context(frag_norm) or proc_norm in frag_norm:
+                                matched_fragments.append(frag)
+
+                if not matched_fragments:
+                    # fallback breve si aparece el proceso pero no contexto explícito de indicador
+                    fallback = [s for s in sentences if proc_norm in _norm_text(s)][:2]
+                    matched_fragments = fallback
+
+                if not matched_fragments:
+                    continue
+
+                key = (proc_name, pdf_path.name)
+                if key not in collected:
+                    collected[key] = {
+                        "Proceso": proc_name,
+                        "Fuente": pdf_path.name,
+                        "Paginas": set(),
+                        "Fragmentos": [],
+                        "Terminos": set(),
+                    }
+
+                collected[key]["Paginas"].add(page_num)
+                collected[key]["Fragmentos"].extend(matched_fragments)
+                for frag in matched_fragments:
+                    collected[key]["Terminos"].update(_extract_detected_terms(_norm_text(frag)))
+
+    if not collected:
+        return pd.DataFrame(), "No se encontraron menciones directas de procesos en los PDFs de auditoría."
+
+    rows = []
+    for (proc_name, source_name), payload in collected.items():
+        paginas = sorted(list(payload["Paginas"]))
+        fragments = payload["Fragmentos"]
+        summary = _redact_summary(proc_name, fragments)
+        rows.append(
+            {
+                "Proceso": proc_name,
+                "Fuente": source_name,
+                "Coincidencias": len(fragments),
+                "Paginas": ", ".join(str(p) for p in paginas),
+                "Resumen IA": summary,
+            }
+        )
+
+    resumen = pd.DataFrame(rows).sort_values(["Proceso", "Fuente"]).reset_index(drop=True)
+    return resumen, None
+
+
+# ---------------------------------------------------------------------------
+# Auditoría estructurada desde Excel (auditoria_resultado.xlsx)
+# ---------------------------------------------------------------------------
+
 _AUDITORIA_XLSX = Path(__file__).resolve().parents[2] / "data" / "raw" / "Auditoria" / "auditoria_resultado.xlsx"
 
-# campo → (label, color_acento, simbolo)
 _AUD_LABELS = {
     "fortalezas":              ("Fortalezas",              "#0d6e55", "✦"),
     "oportunidades_mejora":    ("Oportunidades de Mejora", "#7a5c00", "◈"),
     "hallazgos":               ("Hallazgos",               "#1b4f8a", "◉"),
     "no_conformidades":        ("No Conformidades",        "#8b1a1a", "▲"),
-    "recomendacion_desempeno": ("Recomendacion Desempeno", "#3d2b8e", "◆"),
+    "recomendacion_desempeno": ("Recomendación de Desempeño", "#3d2b8e", "◆"),
 }
 
 
@@ -473,59 +537,72 @@ def _load_auditoria_excel() -> tuple:
         df = df.fillna("")
         return df, None
     except Exception as e:
-        return pd.DataFrame(), f"Error leyendo Excel de auditoria: {e}"
+        return pd.DataFrame(), f"Error leyendo Excel de auditoría: {e}"
 
 
 def _render_ficha_html(row: dict, tipo: str) -> str:
-    """HTML completamente inline (sin clases CSS) para evitar issues con st.markdown."""
+    """Genera HTML completamente inline (sin clases CSS externas) para una tarjeta de auditoría."""
     es_interna = tipo.lower() == "interna"
     grad = "linear-gradient(135deg,#1b3f72 0%,#2563a8 100%)" if es_interna else "linear-gradient(135deg,#5a3000 0%,#b06000 100%)"
-    tipo_label = "Auditoria Interna" if es_interna else "Auditoria Externa - Icontec 2025"
-    proceso = str(row.get("proceso", "")).upper()
+    tipo_label = "AUDITORÍA INTERNA" if es_interna else "AUDITORÍA EXTERNA – ICONTEC 2025"
+    proceso = str(row.get("proceso", "")).upper().strip()
 
     secciones = ""
     for campo, (label, accent, sym) in _AUD_LABELS.items():
-        valor = str(row.get(f"{campo}_{tipo.lower()}", "")).strip()
+        col = f"{campo}_{tipo.lower()}"
+        valor = str(row.get(col, "")).strip()
         if not valor:
             continue
         items = [v.strip() for v in valor.replace("\n", " | ").split(" | ") if v.strip()]
+        if not items:
+            continue
         items_html = "".join(
-            f'<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:0.86rem;color:#333;line-height:1.5;">'
-            f'<span style="color:{accent};font-size:0.65rem;margin-top:5px;flex-shrink:0;">{sym}</span>'
-            f'<span>{item}</span></div>'
+            f'<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;">'
+            f'<span style="color:{accent};font-size:0.9rem;flex-shrink:0;">{sym}</span>'
+            f'<span style="font-size:0.82rem;color:#2d2d2d;line-height:1.45;">{item}</span></div>'
             for item in items
         )
         secciones += (
-            f'<div style="padding:8px 18px;border-bottom:1px solid #f0f0f0;">'
-            f'<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:700;'
-            f'letter-spacing:0.08em;text-transform:uppercase;color:{accent};margin-bottom:5px;">'
-            f'<span style="width:8px;height:8px;border-radius:2px;background:{accent};display:inline-block;flex-shrink:0;"></span>'
-            f'{label}</div>{items_html}</div>'
+            f'<div style="margin:10px 0 4px 0;padding:0 16px;">'
+            f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+            f'<div style="width:3px;height:14px;background:{accent};border-radius:2px;flex-shrink:0;"></div>'
+            f'<span style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;color:{accent};text-transform:uppercase;">{label}</span>'
+            f'</div>{items_html}</div>'
         )
 
     if not secciones:
         return ""
 
     return (
-        f'<div style="background:#fafafa;border:1px solid #e4e4e4;border-radius:12px;overflow:hidden;'
-        f'box-shadow:0 1px 4px rgba(0,0,0,0.06);margin-bottom:16px;">'
-        f'<div style="background:{grad};padding:12px 18px;color:#fff;font-size:0.88rem;'
-        f'font-weight:700;letter-spacing:0.03em;text-transform:uppercase;">{tipo_label}</div>'
-        f'<div style="padding:14px 18px 6px 18px;font-size:1rem;font-weight:700;color:#1a1a2e;'
-        f'border-bottom:2px solid #f0f0f0;margin-bottom:2px;">{proceso}</div>'
+        f'<div style="background:#ffffff;border:1px solid #e0e4ea;border-radius:10px;'
+        f'box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;">'
+        f'<div style="background:{grad};padding:10px 16px;">'
+        f'<span style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#ffffff;">{tipo_label}</span>'
+        f'</div>'
+        f'<div style="padding:10px 16px 4px 16px;border-bottom:1px solid #f0f0f0;">'
+        f'<span style="font-size:0.85rem;font-weight:700;color:#1a1a2e;">{proceso}</span>'
+        f'</div>'
         f'{secciones}'
+        f'<div style="height:8px;"></div>'
         f'</div>'
     )
 
 
 def _render_auditoria_tab(proceso_filtro: str) -> None:
-    """Renderiza la pestana Auditoria como fichas ejecutivas por proceso."""
+    """Renderiza la pestaña Auditoría como fichas ejecutivas por proceso."""
+    st.markdown(
+        '<p style="font-size:0.82rem;color:#888;margin-bottom:16px;">'
+        'Resultados estructurados a partir de informes de auditoría. '
+        'Solo se muestran campos con contenido registrado.</p>',
+        unsafe_allow_html=True,
+    )
+
     df, msg = _load_auditoria_excel()
     if msg:
         st.warning(msg)
         return
     if df.empty:
-        st.info("No hay datos de auditoria disponibles.")
+        st.info("No hay datos de auditoría disponibles.")
         return
 
     if proceso_filtro and proceso_filtro.upper() != "TODOS":
@@ -535,48 +612,36 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
         df_filtrado = df
 
     if df_filtrado.empty:
-        st.info(f"No hay hallazgos de auditoria para el proceso: {proceso_filtro}")
+        st.info(f"No hay hallazgos de auditoría para el proceso: {proceso_filtro}")
         return
 
-    def _seccion(tipo: str, titulo: str, header_color: str) -> None:
+    def _seccion(tipo: str, titulo: str, color_titulo: str) -> None:
         cols_check = [f"{c}_{tipo}" for c in _AUD_LABELS]
-        df_tipo = df_filtrado[
-            df_filtrado[[c for c in cols_check if c in df_filtrado.columns]]
-            .apply(lambda r: r.str.strip().ne("").any(), axis=1)
-        ]
+        cols_present = [c for c in cols_check if c in df_filtrado.columns]
+        if not cols_present:
+            return
+        df_tipo = df_filtrado[df_filtrado[cols_present].apply(lambda r: r.str.strip().ne("").any(), axis=1)]
+
         st.markdown(
-            f'<div style="display:flex;align-items:center;gap:12px;margin:24px 0 10px 0;">'
-            f'<div style="width:4px;height:32px;border-radius:2px;background:{header_color};flex-shrink:0;"></div>'
-            f'<div><div style="font-size:1rem;font-weight:700;color:#1a1a2e;">{titulo}</div>'
-            f'<div style="font-size:0.75rem;color:#888;">{len(df_tipo)} proceso(s)</div></div></div>',
+            f'<div style="display:flex;align-items:center;gap:10px;margin:20px 0 8px 0;">'
+            f'<div style="width:4px;height:28px;border-radius:2px;background:{color_titulo};flex-shrink:0;"></div>'
+            f'<span style="font-size:0.95rem;font-weight:700;color:#1a1a2e;">{titulo}</span>'
+            f'</div>',
             unsafe_allow_html=True,
         )
+
         if df_tipo.empty:
             st.info(f"No hay hallazgos de {titulo.lower()} para el proceso seleccionado.")
             return
+
         for _, row in df_tipo.iterrows():
             html = _render_ficha_html(row.to_dict(), tipo)
             if html:
                 st.markdown(html, unsafe_allow_html=True)
 
-    _seccion("interna", "Auditoria Interna", "#1b3f72")
+    _seccion("interna", "Auditoría Interna", "#1b3f72")
     st.markdown('<hr style="border:none;border-top:1px solid #e8e8e8;margin:8px 0;">', unsafe_allow_html=True)
-    _seccion("externa", "Auditoria Externa - Icontec 2025", "#b06000")
-
-
-
-
-@st.cache_data(show_spinner=False)
-def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | None]:
-    # Leer DataFrame resultado desde archivo CSV preprocesado
-    resultado_path = Path("data") / "raw" / "auditoria_resultado.csv"
-    if not resultado_path.exists():
-        return pd.DataFrame(), f"No existe el archivo de resultados: {resultado_path}"
-    try:
-        df = pd.read_csv(resultado_path)
-    except Exception as e:
-        return pd.DataFrame(), f"Error al leer auditoria_resultado.csv: {e}"
-    return df, None
+    _seccion("externa", "Auditoría Externa – Icontec 2025", "#b06000")
 
 
 def _build_info_table(df_latest: pd.DataFrame) -> pd.DataFrame:
@@ -859,9 +924,8 @@ def render() -> None:
         if calidad_msg:
             st.warning(calidad_msg)
         else:
-            valor_global = calidad_df['Resultado Temática (%)'].mean() if not calidad_df.empty else None
-            if valor_global is not None:
-                st.metric("Valor Global Calidad (%)", f"{valor_global:.1f}%")
+            if proceso_sel != "Todos":
+                calidad_df = calidad_df[calidad_df["Proceso"].astype(str) == proceso_sel]
             st.dataframe(calidad_df, use_container_width=True, hide_index=True)
 
     with tabs[5]:
