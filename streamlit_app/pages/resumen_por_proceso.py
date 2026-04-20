@@ -950,9 +950,86 @@ def render() -> None:
         st.markdown("### Auditoría")
         _render_auditoria_tab(selected_process_label)
 
+
+    def _load_indicadores_propuestos():
+        import pandas as pd
+        EXCEL_PATH = (
+            Path(__file__).parents[2]
+            / "data" / "raw" / "Propuesta Indicadores" / "Indicadores Propuestos.xlsx"
+        )
+        if not EXCEL_PATH.exists():
+            return pd.DataFrame(), f"No existe el archivo: {EXCEL_PATH}"
+        try:
+            # Retos
+            retos = pd.read_excel(EXCEL_PATH, sheet_name="Retos")
+            retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][["Proceso", "Subproceso", "Indicador Propuesto"]]
+            retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
+            retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(str)
+
+            # Proyectos
+            proyectos = pd.read_excel(EXCEL_PATH, sheet_name="Proyectos")
+            proyectos_filtrados = proyectos[proyectos["Propuesta"].str.upper() == "SI"][["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]]
+            proyectos_filtrados = proyectos_filtrados.rename(columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"})
+            proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
+            proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados["Indicador Propuesto"].astype(str)
+
+            # Plan de mejoramiento
+            plan = pd.read_excel(EXCEL_PATH, sheet_name="Plan de mejoramiento", header=1)
+            plan_filtrados = plan[plan["Propuesta Indicador"].str.upper() == "SI"][ ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"] ]
+            plan_filtrados = plan_filtrados.rename(columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"})
+            plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
+            plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(str)
+
+            # Calidad
+            calidad = pd.read_excel(EXCEL_PATH, sheet_name="Calidad")
+            calidad_filtrados = calidad[["Proceso", "Subroceso", "Propuesta SGC (Indicadores)"]]
+            calidad_filtrados = calidad_filtrados.rename(columns={"Subroceso": "Subproceso", "Propuesta SGC (Indicadores)": "Indicador Propuesto"})
+            calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
+            calidad_filtrados["Indicador Propuesto"] = calidad_filtrados["Indicador Propuesto"].astype(str)
+
+            df_final = pd.concat([
+                retos_filtrados,
+                proyectos_filtrados,
+                plan_filtrados,
+                calidad_filtrados
+            ], ignore_index=True)
+            df_final = df_final.drop_duplicates()
+            return df_final, None
+        except Exception as e:
+            return pd.DataFrame(), f"Error leyendo indicadores propuestos: {e}"
+
+    def _render_tarjetas_propuestos(df):
+        if df.empty:
+            st.info("No hay indicadores propuestos para mostrar.")
+            return
+        procesos = df["Proceso"].dropna().unique()
+        for proceso in sorted(procesos):
+            sub_df = df[df["Proceso"] == proceso]
+            st.markdown(f"<div style='margin-top:24px; margin-bottom:8px; font-size:1.1rem; font-weight:700; color:#1a237e; letter-spacing:0.03em; text-transform:uppercase;'>{proceso}</div>", unsafe_allow_html=True)
+            subprocesos = sub_df["Subproceso"].dropna().unique()
+            for subproceso in sorted(subprocesos):
+                ind_df = sub_df[sub_df["Subproceso"] == subproceso]
+                indicadores = ind_df["Indicador Propuesto"].dropna().unique().tolist()
+                if not indicadores:
+                    continue
+                st.markdown(f"<div style='margin-bottom:6px; font-size:1rem; font-weight:600; color:#3949ab; letter-spacing:0.01em;'>{subproceso}</div>", unsafe_allow_html=True)
+                cols = st.columns(min(3, len(indicadores)))
+                for idx, indicador in enumerate(indicadores):
+                    with cols[idx % len(cols)]:
+                        st.markdown(f"""
+                        <div style='background:linear-gradient(90deg,#e3f2fd 0%,#f3e5f5 100%);border-radius:12px;padding:18px 14px 14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(80,80,120,0.07);border:1px solid #e0e0e0;'>
+                            <span style='font-size:1.25rem;color:#1a237e;font-weight:700;line-height:1.3;word-break:break-word;'>{indicador}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
     with tabs[6]:
-        st.markdown("### Propuestos")
-        st.dataframe(_build_propuestos(latest, selected_process_label), use_container_width=True, hide_index=True)
+        st.markdown("### Indicadores propuestos por proceso y subproceso")
+        st.caption("Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos.")
+        df_prop, msg_prop = _load_indicadores_propuestos()
+        if msg_prop:
+            st.warning(msg_prop)
+        else:
+            _render_tarjetas_propuestos(df_prop)
 
     with tabs[7]:
         st.markdown("### Análisis IA")
