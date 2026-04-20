@@ -540,72 +540,28 @@ def _load_auditoria_excel() -> tuple:
         return pd.DataFrame(), f"Error leyendo Excel de auditoría: {e}"
 
 
-def _render_ficha_html(row: dict, tipo: str) -> str:
-    """Genera HTML inline con diseño visual ejecutivo: badges, bullets circulares y jerarquía de color."""
-    es_interna = tipo.lower() == "interna"
-    if es_interna:
-        hdr_grad = "linear-gradient(90deg,#0f2d5c 0%,#1e4fa3 100%)"
-        proc_border = "#1e4fa3"
-        proc_bg = "#f0f4ff"
-    else:
-        hdr_grad = "linear-gradient(90deg,#4a1f00 0%,#a04500 100%)"
-        proc_border = "#a04500"
-        proc_bg = "#fff8f0"
-    tipo_label = "AUDITORÍA INTERNA" if es_interna else "AUDITORÍA EXTERNA – ICONTEC 2025"
-    proceso = str(row.get("proceso", "")).strip()
-
-    # campo → (label, pill_bg, pill_text, dot_color, icono_texto)
-    _CAT_STYLE = {
-        "fortalezas":              ("Fortalezas",              "#d1f5e0", "#0a5c36", "#1aaa6b", "&#10003;"),
-        "oportunidades_mejora":    ("Oportunidades de Mejora", "#fff0c2", "#7a5000", "#e6a800", "&#8594;"),
-        "hallazgos":               ("Hallazgos",               "#dbeeff", "#003d8f", "#1a6fdb", "&#9679;"),
-        "no_conformidades":        ("No Conformidades",        "#fde0e0", "#7a0000", "#e63535", "&#9650;"),
-        "recomendacion_desempeno": ("Recomendacion Desempeno", "#ede0ff", "#3d0080", "#7c3aed", "&#9670;"),
-    }
-
-    secciones = ""
-    total_items = 0
-    for campo, (label, pill_bg, pill_text, dot_color, icono) in _CAT_STYLE.items():
-        col = f"{campo}_{tipo.lower()}"
-        valor = str(row.get(col, "")).strip()
-        if not valor:
-            continue
-        items = [v.strip() for v in valor.replace("\n", " | ").split(" | ") if v.strip()]
-        if not items:
-            continue
-        total_items += len(items)
-        count_badge = f'<span style="background:{pill_text};color:#fff;font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px;">{len(items)}</span>'
-        items_html = "".join(
-            f'<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f2f4f7;">'
-            f'<span style="width:7px;height:7px;min-width:7px;background:{dot_color};border-radius:50%;margin-top:5px;"></span>'
-            f'<span style="font-size:0.82rem;color:#2c2c3e;line-height:1.5;word-break:break-word;max-width:620px;">{item}</span>'
-            f'</div>'
-            for item in items
-        )
-        secciones += (
-            f'<div style="padding:12px 18px 6px 18px;">'
-            f'<div style="display:inline-flex;align-items:center;background:{pill_bg};color:{pill_text};'
-            f'font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
-            f'padding:4px 10px;border-radius:20px;margin-bottom:8px;">'
-            f'<span style="margin-right:5px;">{icono}</span><span>{label}</span>{count_badge}</div>'
-            f'{items_html}</div>'
-        )
-
-    if not secciones:
-        return ""
-
-    total_badge = f'<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:0.65rem;font-weight:600;padding:2px 9px;border-radius:12px;white-space:nowrap;">{total_items} hallazgos</span>'
-    return (
-        f'<div style="background:#ffffff;border-radius:14px;overflow:hidden;max-width:720px;'
-        f'box-shadow:0 4px 20px rgba(0,0,0,0.09);margin-bottom:22px;border:1px solid #e4e8f0;">'
-        f'<div style="background:{hdr_grad};padding:13px 18px;display:flex;justify-content:space-between;align-items:center;">'
-        f'<span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#ffffff;">{tipo_label}</span>'
-        f'{total_badge}</div>'
-        f'<div style="padding:11px 18px 9px 18px;background:{proc_bg};border-left:4px solid {proc_border};border-bottom:1px solid #eaedf3;">'
-        f'<span style="font-size:0.78rem;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:0.03em;">{proceso}</span>'
+def _render_categoria_card(proceso: str, label: str, items: list, pill_bg: str, pill_text: str, dot_color: str, icono: str, hdr_color: str) -> str:
+    """Una tarjeta por categoría: header con color de categoría, nombre de proceso, lista de items."""
+    count_badge = f'<span style="background:rgba(255,255,255,0.3);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:8px;">{len(items)}</span>'
+    items_html = "".join(
+        f'<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f3f4f7;">'
+        f'<span style="width:7px;height:7px;min-width:7px;background:{dot_color};border-radius:50%;margin-top:5px;flex-shrink:0;"></span>'
+        f'<span style="font-size:0.81rem;color:#2c2c3e;line-height:1.55;word-break:break-word;">{item}</span>'
         f'</div>'
-        f'{secciones}'
-        f'<div style="height:10px;"></div>'
+        for item in items
+    )
+    return (
+        f'<div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e8f0;'
+        f'box-shadow:0 3px 14px rgba(0,0,0,0.08);margin-bottom:18px;">'
+        f'<div style="background:{hdr_color};padding:10px 16px;display:flex;align-items:center;justify-content:space-between;">'
+        f'<div style="display:flex;align-items:center;gap:7px;">'
+        f'<span style="font-size:1rem;line-height:1;">{icono}</span>'
+        f'<span style="font-size:0.71rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#ffffff;">{label}</span>'
+        f'</div>{count_badge}</div>'
+        f'<div style="padding:8px 16px 6px 16px;background:{pill_bg};border-bottom:1px solid #eaedf3;">'
+        f'<span style="font-size:0.75rem;font-weight:600;color:{pill_text};text-transform:uppercase;letter-spacing:0.04em;">{proceso}</span>'
+        f'</div>'
+        f'<div style="padding:4px 16px 10px 16px;">{items_html}</div>'
         f'</div>'
     )
 
@@ -637,15 +593,24 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
         st.info(f"No hay hallazgos de auditoría para el proceso: {proceso_filtro}")
         return
 
+    # campo → (label, pill_bg, pill_text, dot_color, emoji, hdr_color)
+    _CAT_STYLE = {
+        "fortalezas":              ("Fortalezas",              "#d1f5e0", "#0a5c36", "#1aaa6b", "✅", "#1aaa6b"),
+        "oportunidades_mejora":    ("Oportunidades de Mejora", "#fff3cd", "#7a5000", "#e6a800", "🔄", "#e6a800"),
+        "hallazgos":               ("Hallazgos",               "#dbeeff", "#003d8f", "#1a6fdb", "🔍", "#1a6fdb"),
+        "no_conformidades":        ("No Conformidades",        "#fde0e0", "#7a0000", "#e63535", "⚠️", "#e63535"),
+        "recomendacion_desempeno": ("Recomendación Desempeño", "#ede0ff", "#3d0080", "#7c3aed", "💡", "#7c3aed"),
+    }
+
     def _seccion(tipo: str, titulo: str, color_titulo: str) -> None:
-        cols_check = [f"{c}_{tipo}" for c in _AUD_LABELS]
+        cols_check = [f"{c}_{tipo}" for c in _CAT_STYLE]
         cols_present = [c for c in cols_check if c in df_filtrado.columns]
         if not cols_present:
             return
         df_tipo = df_filtrado[df_filtrado[cols_present].apply(lambda r: r.str.strip().ne("").any(), axis=1)]
 
         st.markdown(
-            f'<div style="display:flex;align-items:center;gap:10px;margin:20px 0 8px 0;">'
+            f'<div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px 0;">'
             f'<div style="width:4px;height:28px;border-radius:2px;background:{color_titulo};flex-shrink:0;"></div>'
             f'<span style="font-size:0.95rem;font-weight:700;color:#1a1a2e;">{titulo}</span>'
             f'</div>',
@@ -657,9 +622,40 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
             return
 
         for _, row in df_tipo.iterrows():
-            html = _render_ficha_html(row.to_dict(), tipo)
-            if html:
-                st.markdown(html, unsafe_allow_html=True)
+            proceso = str(row.get("proceso", "")).strip()
+
+            # Recolectar categorías con contenido
+            cats_con_datos = []
+            for campo, estilo in _CAT_STYLE.items():
+                col_name = f"{campo}_{tipo.lower()}"
+                valor = str(row.get(col_name, "")).strip()
+                if not valor:
+                    continue
+                items = [v.strip() for v in valor.replace("\n", " | ").split(" | ") if v.strip()]
+                if items:
+                    cats_con_datos.append((estilo, items))
+
+            if not cats_con_datos:
+                continue
+
+            # Mostrar nombre del proceso
+            st.markdown(
+                f'<div style="font-size:0.8rem;font-weight:700;color:#1a1a2e;text-transform:uppercase;'
+                f'letter-spacing:0.04em;padding:8px 0 4px 2px;border-bottom:2px solid {color_titulo};'
+                f'margin-bottom:12px;">{proceso}</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Columnas dinámicas: 1 si hay 1, 2 si hay 2-4, 3 si hay 5+
+            n = len(cats_con_datos)
+            n_cols = 1 if n == 1 else (2 if n <= 4 else 3)
+            columnas = st.columns(n_cols)
+
+            for idx, (estilo, items) in enumerate(cats_con_datos):
+                label, pill_bg, pill_text, dot_color, emoji, hdr_color = estilo
+                html = _render_categoria_card(proceso, label, items, pill_bg, pill_text, dot_color, emoji, hdr_color)
+                with columnas[idx % n_cols]:
+                    st.markdown(html, unsafe_allow_html=True)
 
     _seccion("interna", "Auditoría Interna", "#1b3f72")
     st.markdown('<hr style="border:none;border-top:1px solid #e8e8e8;margin:8px 0;">', unsafe_allow_html=True)
