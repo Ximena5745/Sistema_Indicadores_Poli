@@ -760,7 +760,7 @@ def render() -> None:
         st.warning("No se encontró el mapeo de procesos en data/raw/Subproceso-Proceso-Area.xlsx.")
         return
 
-    years = sorted([int(y) for y in pd.to_numeric(tracking_df.get("Año"), errors="coerce").dropna().unique().tolist()])
+    years = sorted([int(y) for y in pd.to_numeric(tracking_df["Año"], errors="coerce").dropna().unique().tolist()]) if "Año" in tracking_df.columns else []
     default_month_num = _default_month_num(tracking_df)
     default_month = MESES_OPCIONES[default_month_num - 1]
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
