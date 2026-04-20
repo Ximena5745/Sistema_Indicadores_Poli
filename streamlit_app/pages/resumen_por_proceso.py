@@ -466,32 +466,14 @@ def _render_calidad_kpis_cards(df: pd.DataFrame) -> None:
 
     total_sub = work["Subproceso"].astype(str).nunique() if "Subproceso" in work.columns else 0
     avg = float(work["% Calidad"].mean()) if not work["% Calidad"].dropna().empty else 0.0
-    c_ok = int((work["Estado calidad"].astype(str) == "CUMPLE").sum())
-    c_mid = int((work["Estado calidad"].astype(str) == "CUMPLE PARCIALMENTE").sum())
-    c_bad = int((work["Estado calidad"].astype(str) == "NO CUMPLE").sum())
 
     st.markdown(
         f"""
-        <div style='display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;margin:8px 0 14px 0;'>
+        <div style='display:grid;grid-template-columns:minmax(260px,420px);gap:10px;margin:8px 0 14px 0;'>
             <div style='background:linear-gradient(135deg,#0d47a1,#1565c0);color:#fff;border-radius:12px;padding:12px;border:1px solid #0b3c8a;'>
                 <div style='font-size:0.8rem;opacity:0.9;'>General</div>
                 <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{avg:.1f}%</div>
-                <div style='font-size:0.78rem;opacity:0.9;'>Calidad promedio</div>
-            </div>
-            <div style='background:#e8f5e9;color:#1b5e20;border-radius:12px;padding:12px;border:1px solid #81c784;'>
-                <div style='font-size:0.8rem;'>CUMPLE</div>
-                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{c_ok}</div>
-                <div style='font-size:0.78rem;'>registros</div>
-            </div>
-            <div style='background:#fff8e1;color:#e65100;border-radius:12px;padding:12px;border:1px solid #ffcc80;'>
-                <div style='font-size:0.8rem;'>CUMPLE PARCIALMENTE</div>
-                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{c_mid}</div>
-                <div style='font-size:0.78rem;'>registros</div>
-            </div>
-            <div style='background:#ffebee;color:#b71c1c;border-radius:12px;padding:12px;border:1px solid #ef9a9a;'>
-                <div style='font-size:0.8rem;'>NO CUMPLE</div>
-                <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{c_bad}</div>
-                <div style='font-size:0.78rem;'>registros | {total_sub} subprocesos</div>
+                <div style='font-size:0.78rem;opacity:0.9;'>Calidad promedio | {total_sub} subprocesos</div>
             </div>
         </div>
         """,
@@ -515,21 +497,31 @@ def _render_calidad_kpis_cards(df: pd.DataFrame) -> None:
     sub["Calidad"] = sub["Calidad"].round(1)
     sub = sub.sort_values(["Calidad", "Subproceso"], ascending=[False, True]).reset_index(drop=True)
 
+    palette = [
+        ("#e8f5e9", "#1b5e20", "#66bb6a"),
+        ("#e3f2fd", "#0d47a1", "#42a5f5"),
+        ("#fff8e1", "#e65100", "#ffb74d"),
+        ("#f3e5f5", "#4a148c", "#ba68c8"),
+        ("#e0f2f1", "#004d40", "#4db6ac"),
+        ("#fce4ec", "#880e4f", "#f48fb1"),
+    ]
+
     rows = []
-    for _, r in sub.iterrows():
+    for idx, (_, r) in enumerate(sub.iterrows()):
         sc = _to_float(r.get("Calidad")) or 0.0
-        if sc >= 90:
-            bg, fg = "#e8f5e9", "#1b5e20"
-        elif sc >= 70:
-            bg, fg = "#fff8e1", "#e65100"
-        else:
-            bg, fg = "#ffebee", "#b71c1c"
+        bg, fg, br = palette[idx % len(palette)]
+        cumple = int(r.get("Cumple", 0))
+        parcial = int(r.get("Parcial", 0))
+        no_cumple = int(r.get("NoCumple", 0))
         rows.append(
-            f"<div style='background:{bg};color:{fg};border:1px solid {fg}33;border-radius:12px;padding:10px 12px;'>"
+            f"<div style='background:{bg};color:{fg};border:1px solid {br};border-radius:12px;padding:10px 12px;'>"
             f"<div style='font-size:0.78rem;opacity:0.85;'>Subproceso</div>"
             f"<div style='font-size:0.95rem;font-weight:700;line-height:1.2;margin-bottom:4px;'>{str(r.get('Subproceso',''))}</div>"
             f"<div style='font-size:1.35rem;font-weight:700;line-height:1.1;'>{sc:.1f}%</div>"
-            f"<div style='font-size:0.75rem;margin-top:4px;'>Reg: {int(r.get('Registros',0))} | C:{int(r.get('Cumple',0))} P:{int(r.get('Parcial',0))} N:{int(r.get('NoCumple',0))}</div>"
+            f"<div style='font-size:0.75rem;margin-top:6px;line-height:1.25;'>"
+            f"CUMPLE: <b>{cumple}</b> | CUMPLE PARCIALMENTE: <b>{parcial}</b> | NO CUMPLE: <b>{no_cumple}</b>"
+            f"</div>"
+            f"<div style='font-size:0.72rem;margin-top:2px;opacity:0.9;'>Registros: {int(r.get('Registros',0))}</div>"
             f"</div>"
         )
 
