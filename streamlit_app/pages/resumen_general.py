@@ -326,10 +326,10 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
       - Colores oficiales por línea
       - Tooltip y zoom jerárquico
     """
-    # Exportar las columnas del DataFrame procesado tras normalización y agrupación
+    # Exportar las columnas del DataFrame de entrada (diagnóstico)
     try:
         with open("artifacts/sunburst_columnas_generadas.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(df.columns))
+            f.write("\n".join([str(c) for c in pdi_df.columns]))
     except Exception as e:
         print(f"No se pudo exportar columnas: {e}")
 
