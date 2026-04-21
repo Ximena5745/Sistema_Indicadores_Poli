@@ -1,5 +1,5 @@
 # 📊 Diagnóstico de Efectividad SGIND
-## Baseline de Métricas Actuales (Fase 2- Semana 2)
+## Baseline de Métricas Actuales (Fase 2, Semana 2)
 
 **Documento:** DIAGNOSTICO_EFECTIVIDAD_SGIND.md  
 **Versión:** 1.0  
