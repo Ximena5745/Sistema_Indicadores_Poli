@@ -82,41 +82,39 @@ def main():
                 # Bloque de navegación
                 st.markdown("<div class='sidebar-nav-card'>", unsafe_allow_html=True)
                 # Menú personalizado HTML/CSS controlado por query param `page`
-                options = [
-                    ("Nuestro Impacto", "M", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='18' height='18' rx='3' fill='none' stroke='currentColor' stroke-width='1.5'/></svg>"),
-                    ("OPEX Financiero", "F", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='9' cy='9' r='6' fill='none' stroke='currentColor' stroke-width='1.5'/></svg>"),
-                    ("Base Normativa", "B", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M4 6h16M4 12h16M4 18h16' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>"),
-                    ("Auditoría (CSVs)", "A", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6v6l4 2' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"),
-                ]
-
-                # Compatibilidad: si la API de query params no existe, usar selectbox como fallback
-                if hasattr(st, "experimental_get_query_params"):
-                    params = st.experimental_get_query_params()
-                    selected = params.get("page", ["Nuestro Impacto"])[0]
-
-                    menu_items = []
-                    for label, short, icon in options:
-                        is_active = "active" if label == selected else ""
-                        href = f"?page={label}"
-                        item_html = f"<a href='{href}' class='nav-link {is_active}'><span class='nav-icon'>{icon}</span><span class='nav-label'>{label}</span></a>"
-                        menu_items.append(item_html)
-
-                    menu_html = "<div class='custom-sidebar-menu'>" + "".join(menu_items) + "</div>"
-                    st.markdown(menu_html, unsafe_allow_html=True)
-                    menu = selected
-                else:
-                    # Fallback: usar widget nativo para navegación (compatible con todas las versiones)
-                    labels = [opt[0] for opt in options]
-                    sel = st.selectbox("", labels, index=0)
-                    # Render simple HTML list to keep visual similar
-                    menu_items = []
-                    for label, short, icon in options:
-                        is_active = "active" if label == sel else ""
-                        item_html = f"<div class='nav-link {is_active}'><span class='nav-icon'>{icon}</span><span class='nav-label'>{label}</span></div>"
-                        menu_items.append(item_html)
-                    menu_html = "<div class='custom-sidebar-menu'>" + "".join(menu_items) + "</div>"
-                    st.markdown(menu_html, unsafe_allow_html=True)
-                    menu = sel
+                # Usar streamlit-option-menu para navegación (visual personalizado via CSS)
+                menu = option_menu(
+                    menu_title=None,
+                    options=["Nuestro Impacto", "OPEX Financiero", "Base Normativa", "Auditoría (CSVs)"],
+                    icons=["globe", "graph-up", "scale", "folder"],
+                    menu_icon="cast",
+                    default_index=0,
+                    orientation="vertical",
+                    styles={
+                        "container": {
+                            "background": "transparent",
+                            "padding": "0",
+                        },
+                        "nav-link": {
+                            "font-size": "16px",
+                            "font-weight": "600",
+                            "color": "#e2e8f0",
+                            "background": "transparent",
+                            "border-radius": "10px",
+                            "padding": "14px 16px",
+                            "margin": "4px 0",
+                        },
+                        "nav-link-selected": {
+                            "background": "#0b3a70",
+                            "color": "#ffffff",
+                            "border-radius": "10px",
+                        },
+                        "icon": {
+                            "font-size": "20px",
+                            "margin-right": "12px",
+                        },
+                    },
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 # Footer
