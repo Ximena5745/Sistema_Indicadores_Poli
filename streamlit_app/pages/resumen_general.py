@@ -1094,7 +1094,7 @@ def render():
     col_year_e, col_month_e, col_linea = st.columns(3)
     
     with col_year_e:
-        year_estrategico = st.selectbox(
+        year_estrategico = st.segmented_control(
             "Año de análisis",
             options=years,
             index=len(years)-1,
