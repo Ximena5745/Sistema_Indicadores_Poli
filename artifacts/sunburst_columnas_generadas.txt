@@ -1,0 +1,12 @@
+Id
+FlagPlanEstrategico
+Linea
+Objetivo
+Indicador
+Cumplimiento
+Mes
+Meta
+Ejecucion
+Sentido
+cumplimiento_pct
+Nivel de cumplimiento
