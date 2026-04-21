@@ -1136,7 +1136,7 @@ def render():
 
 
             # Layout mejorado: hasta 6 fichas por fila, responsivo
-            st.markdown("<div style='margin-bottom:0.5rem;'><b>Cumplimiento por Línea Estratégica PDI 2022-2026</b></div>", unsafe_allow_html=True)
+            # st.markdown("<div style='margin-bottom:0.5rem;'><b>Cumplimiento por Línea Estratégica PDI 2022-2026</b></div>", unsafe_allow_html=True)
             ficha_cols = st.columns(6)
             for idx, card_def in enumerate(strategic_defs):
                 row = norm_to_row.get(card_def["key"])
