@@ -1107,22 +1107,8 @@ def render():
     
     # Filtro adicional por línea estratégica
     pdi_catalog = load_pdi_catalog()
-    lineas_disponibles = sorted(
-        pdi_catalog["Linea"].dropna().astype(str).unique().tolist()
-        if not pdi_catalog.empty else pdi_estrategico["Linea"].dropna().astype(str).unique().tolist()
-    ) if not pdi_estrategico.empty else []
-    
-    with col_linea:
-        linea_seleccionada = st.selectbox(
-            "Línea Estratégica",
-            options=["Todas"] + lineas_disponibles,
-            key="cmi_estrategico_linea"
-        )
-    
-    # Aplicar filtro de línea si seleccionaron una específica
-    if linea_seleccionada != "Todas" and not pdi_estrategico.empty:
-        pdi_estrategico = pdi_estrategico[pdi_estrategico["Linea"] == linea_seleccionada]
-    
+    # lineas_disponibles and linea_seleccionada logic removed
+
     # Mostrar tarjetas KPI para CMI Estrategico
     if not pdi_estrategico.empty:
         st.markdown("##### Cumplimiento por Línea Estratégica PDI 2022-2026")
