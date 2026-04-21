@@ -85,7 +85,7 @@ def main():
 
     # Configuración del sidebar
 
-        menu = None
+        menu = "Resumen general"  # Valor seguro por defecto
         try:
             with st.sidebar:
                 logo_html = _load_sidebar_logo_html()
@@ -155,7 +155,6 @@ def main():
                 st.markdown("<style>.sidebar-status-card{display:none!important;}.version-box{display:none!important;}</style>", unsafe_allow_html=True)
         except Exception as e:
             st.error("No se pudo cargar el menú de navegación. Por favor revisa la configuración del sidebar.")
-            menu = "Resumen general"  # fallback seguro
 
     # Routing simple a páginas
     if menu == "Resumen Estratégico":
