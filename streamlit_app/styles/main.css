@@ -90,6 +90,45 @@ section[data-testid="stSidebar"] .stTextInput>div>div>input { background: rgba(2
 /* Force remove any light backgrounds from auto-generated containers */
 section[data-testid="stSidebar"] div[class*="css-"] { background: transparent !important }
 
+/* RESET agresivo: eliminar cualquier fondo claro que pueda entrar desde reglas externas */
+section[data-testid="stSidebar"] * {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+/* Reaplicar componentes que deben tener fondo explícito */
+.sidebar-header { background: rgba(1,20,40,0.12) !important; border:1px solid rgba(255,255,255,0.03) !important; }
+.sidebar-profile { background: rgba(255,255,255,0.02) !important; border:1px solid rgba(255,255,255,0.03) !important; }
+.streamlit-option-menu .nav-link.active { background: linear-gradient(90deg,#0b3a70,#022457) !important; box-shadow:0 6px 16px rgba(2,36,87,0.22) !important; }
+
+/* Agresivo: anular contenedores generados (listas, menús, grupos) que puedan tener fondo blanco */
+section[data-testid="stSidebar"] div[role="list"],
+section[data-testid="stSidebar"] div[role="group"],
+section[data-testid="stSidebar"] div[role="menu"],
+section[data-testid="stSidebar"] div[role="presentation"],
+section[data-testid="stSidebar"] div[role="listbox"] {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* Forzar que cualquier contenedor directo dentro de la tarjeta de navegación sea transparente */
+.sidebar-nav-card > div,
+.sidebar-nav-card > section,
+.sidebar-nav-card > ul,
+.sidebar-nav-card > div > div {
+    background: transparent !important;
+}
+
+/* Si hay popovers o overlays con fondo, anulamos específicamente dentro del sidebar */
+section[data-testid="stSidebar"] [data-baseweb="popover"],
+section[data-testid="stSidebar"] [data-baseweb="menu"],
+section[data-testid="stSidebar"] [data-baseweb="menu"] * {
+    background: transparent !important;
+}
+
 /* ─── SELECTORES Y CONTROLES — Streamlit widgets (BaseWeb) ───────────────────── */
 /*
    NOTAS DE IMPLEMENTACIÓN:
