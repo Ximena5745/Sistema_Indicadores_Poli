@@ -45,276 +45,50 @@ body {
     --muted-on-dark: rgba(230,240,255,0.6);
 }
 
-/* ─── SIDEBAR ─────────────────────────────────────────────────────────────────── */
-
-/* Sidebar fondo principal - Azul oscuro #022457 */
-[data-testid="stSidebar"] {
-    background: #022457 !important;
+/* ===== SIDEBAR (reconstruido) ===== */
+[data-testid="stSidebar"], section[data-testid="stSidebar"], aside[data-testid="stSidebar"] {
+    background: #022457 !important; /* color principal */
+    color: #e6f0ff !important;
+    padding: 20px !important;
     min-width: 280px;
-    padding: 0 !important;
 }
 
-[data-testid="stSidebar"] > div:first-child {
-    background: #022457 !important;
-    padding: 24px 16px !important;
-}
+/* Header */
+.sidebar-header { display:flex; gap:12px; align-items:center; padding:18px; border-radius:12px; background: rgba(1,20,40,0.12); border:1px solid rgba(255,255,255,0.03); }
+.sidebar-logo { width:48px; height:48px; border-radius:10px; background:linear-gradient(135deg,#7c3aed,#60a5fa); display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800 }
+.sidebar-header-text { display:flex;flex-direction:column }
+.sidebar-title-main { font-size:16px; font-weight:800; color:#fff }
+.sidebar-title-main span { color:#cfe6ff }
+.sidebar-subtitle { font-size:10px; color:rgba(230,240,255,0.7); text-transform:uppercase }
 
-[data-testid="stSidebar"] * {
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
+/* Search */
+.sidebar-search { margin:14px 0 }
+section[data-testid="stSidebar"] .stTextInput>div>div>input { background: rgba(255,255,255,0.02) !important; border:1px solid rgba(255,255,255,0.04) !important; color:#cfe6ff !important; padding:10px; border-radius:10px }
 
-/* Header con logo y título */
-.sidebar-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 8px 20px 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.15);
-}
+/* Sections */
+.sidebar-section-title { margin-top:18px; margin-bottom:8px; color:rgba(230,240,255,0.6); font-size:11px; font-weight:700; text-transform:uppercase }
 
-.sidebar-logo {
-    width: 48px;
-    height: 48px;
-    background: #ffffff;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
+/* Option menu visuals */
+.sidebar-nav-card { margin:0; padding:0 }
+.streamlit-option-menu { background:transparent !important; padding:0 !important; border:none !important }
+.streamlit-option-menu .nav-link { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:10px; color:#dbeeff !important; font-weight:700 !important; margin-bottom:8px !important }
+.streamlit-option-menu .nav-link .bi, .streamlit-option-menu .nav-link i { color: rgba(200,220,255,0.7) !important; font-size:18px }
+.streamlit-option-menu .nav-link:hover { background: rgba(11,58,112,0.12) !important; color:#fff !important }
+.streamlit-option-menu .nav-link.active { background: linear-gradient(90deg,#0b3a70,#022457) !important; color:#fff !important; box-shadow:0 6px 16px rgba(2,36,87,0.22) !important; border-left:4px solid #60a5fa !important }
 
-.sidebar-logo img, .sidebar-logo svg {
-    width: 40px;
-    height: 40px;
-    border-radius: 6px;
-}
+/* Alerts badges */
+.sidebar-badge { margin-left:auto; font-size:12px; font-weight:700; padding:4px 8px; border-radius:999px; color:#fff }
+.badge-blue { background:#2563eb }
+.badge-red { background:#ef4444 }
+.badge-yellow { background:#f59e0b }
 
-.sidebar-header-text {
-    display: flex;
-    flex-direction: column;
-}
+/* Profile */
+.sidebar-profile { margin-top:18px; padding:12px; border-radius:12px; background:rgba(255,255,255,0.02); display:flex; gap:12px; align-items:center; border:1px solid rgba(255,255,255,0.03) }
+.sidebar-profile .avatar { width:36px;height:36px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#60a5fa);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700 }
+.sidebar-profile .meta { font-size:12px; color:rgba(230,240,255,0.9) }
 
-.sidebar-title-main {
-    font-size: 18px;
-    font-weight: 700;
-    color: #ffffff;
-    line-height: 1.2;
-}
-
-.sidebar-title-main span {
-    color: var(--primary-600);
-    font-weight: 700;
-}
-
-.sidebar-subtitle {
-    font-size: 11px;
-    color: rgba(255,255,255,0.5);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 2px;
-}
-
-/* Sección de navegación */
-.sidebar-section-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--primary-600);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 24px 8px 16px 8px;
-}
-
-/* Contenedor de navegación tipo tarjeta - color oscuro */
-.sidebar-nav-card {
-    background: var(--surface-dark);
-    border-radius: 12px;
-    padding: 8px;
-    margin: 0 8px;
-    border: 1px solid rgba(255,255,255,0.08);
-}
-
-/* Estilos para streamlit-option-menu generador de links */
-.option-menu, .option-menu * {
-    color: var(--text-on-dark) !important;
-}
-.option-menu .nav-link {
-    background: transparent !important;
-    color: var(--text-on-dark) !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
-    margin: 6px 0 !important;
-}
-.option-menu .nav-link.active {
-    background: var(--primary-600) !important;
-    color: #ffffff !important;
-    box-shadow: 0 6px 16px rgba(2,36,87,0.25) !important;
-}
-.option-menu .nav-link .bi, .option-menu .nav-link i {
-    color: var(--muted-on-dark) !important;
-    margin-right: 12px;
-}
-
-/* Fuerza total: anular tonos claros aplicados por styles.css a streamlit-option-menu */
-section[data-testid="stSidebar"] .streamlit-option-menu,
-[data-testid="stSidebar"] .streamlit-option-menu,
-.streamlit-option-menu {
-    background: var(--surface-dark) !important;
-    border-radius: 12px !important;
-    padding: 8px !important;
-    border: 1px solid rgba(255,255,255,0.04) !important;
-    box-shadow: none !important;
-}
-.streamlit-option-menu .nav-link {
-    background: transparent !important;
-    color: var(--text-on-dark) !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
-    margin: 6px 0 !important;
-    box-shadow: none !important;
-}
-.streamlit-option-menu .nav-link:hover {
-    background: rgba(11,58,112,0.12) !important;
-    color: #ffffff !important;
-}
-.streamlit-option-menu .nav-link.active {
-    background: linear-gradient(90deg, rgba(2,36,87,0.95), rgba(11,58,112,0.95)) !important;
-    color: #ffffff !important;
-    box-shadow: 0 8px 18px rgba(2,36,87,0.22) !important;
-}
-
-/* Selectores para menú personalizado HTML en sidebar */
-.custom-sidebar-menu {
-    display: flex;
-    flex-direction: column;
-}
-.custom-sidebar-menu .nav-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    margin: 6px 0;
-    border-radius: 10px;
-    text-decoration: none;
-    color: var(--text-on-dark);
-    background: transparent;
-    transition: background 0.15s, color 0.15s;
-}
-.custom-sidebar-menu .nav-link .nav-icon svg { color: var(--muted-on-dark); }
-.custom-sidebar-menu .nav-link.active {
-    background: var(--primary-600);
-    color: #ffffff;
-    box-shadow: 0 6px 16px rgba(2,36,87,0.22);
-}
-.custom-sidebar-menu .nav-link:hover {
-    background: rgba(11,58,112,0.12);
-    color: #ffffff;
-}
-.custom-sidebar-menu .nav-label { font-weight: 700; font-size: 15px; }
-
-.sidebar-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: var(--sidebar-active, #fff);
-    margin-bottom: 2px;
-    text-align: center;
-}
-.sidebar-subtitle {
-    font-size: 13px;
-    color: #e0e7ef;
-    text-align: center;
-    font-weight: 500;
-}
-
-.sidebar-divider {
-    height: 1px;
-    background: #1e293b33;
-    margin: 18px 0 18px 0;
-    border: none;
-}
-
-.sidebar-section-title {
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: #b6c6e6;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 12px;
-    font-weight: 700;
-    padding-left: 6px;
-}
-
-/* Bloque de navegación tipo tarjeta — variante oscura (sin tonos claros) */
-.sidebar-nav-card {
-    background: var(--surface-dark);
-    border-radius: 12px;
-    padding: 16px 12px;
-    margin-bottom: 18px;
-    border: 1px solid rgba(255,255,255,0.06);
-}
-
-.sidebar-nav-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-on-dark);
-    background: transparent;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    transition: background 0.15s, color 0.15s;
-    cursor: pointer;
-}
-.sidebar-nav-link.active, .sidebar-nav-link:active {
-    background: var(--primary-600);
-    color: #ffffff;
-    box-shadow: 0 6px 16px rgba(2,36,87,0.22);
-}
-.sidebar-nav-link:hover {
-    background: rgba(11,58,112,0.14);
-    color: #ffffff;
-}
-.sidebar-nav-link .nav-icon {
-    font-size: 20px;
-    margin-right: 10px;
-    color: var(--muted-on-dark);
-}
-
-.sidebar-logo {
-    width: 40px;
-    height: 40px;
-}
-
-.sidebar-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.sidebar-subtitle {
-    font-size: 10px;
-    color: rgba(255,255,255,0.7);
-}
-
-.sidebar-divider {
-    height: 1px;
-    background: rgba(255,255,255,0.14);
-    margin: 10px 0;
-}
-
-.sidebar-section-title {
-    margin-top: 10px;
-    margin-bottom: 6px;
-    color: rgba(255,255,255,0.78);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 10px;
-    font-weight: 700;
-}
+/* Force remove any light backgrounds from auto-generated containers */
+section[data-testid="stSidebar"] div[class*="css-"] { background: transparent !important }
 
 /* ─── SELECTORES Y CONTROLES — Streamlit widgets (BaseWeb) ───────────────────── */
 /*

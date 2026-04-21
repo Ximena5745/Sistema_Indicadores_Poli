@@ -58,241 +58,75 @@ h1, h2, h3, h4, h5 {
     margin-bottom: 10px !important;
 }
 
-/* Sidebar - mantener layout por defecto de Streamlit */
-aside[data-testid="stSidebar"],
+/* ===== SIDEBAR: diseño limpio y corporativo (reemplazo completo) ===== */
+/* Paleta: fondo oscuro para el sidebar, acento primario: #022457, texto claro */
+[data-testid="stSidebar"],
 section[data-testid="stSidebar"],
-div[data-testid="stSidebar"],
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #020f23 0%, #071b38 100%) !important;
-    color: var(--sidebar-text) !important;
-    padding: 16px !important;
-    border-right: 1px solid rgba(255,255,255,0.1);
+aside[data-testid="stSidebar"] {
+    background: #071732 !important; /* muy oscuro para contraste */
+    color: #e6f0ff !important;
+    padding: 20px !important;
+    min-width: 280px;
 }
 
-aside[data-testid="stSidebar"] > div,
-section[data-testid="stSidebar"] > div,
-div[data-testid="stSidebar"] > div,
-[data-testid="stSidebar"] > div {
-    background: transparent !important;
-}
-
-section[data-testid="stSidebar"] .css-1d391kg,
-[data-testid="stSidebar"] .css-1d391kg,
-section[data-testid="stSidebar"] .css-1lcbmhc,
-[data-testid="stSidebar"] .css-1lcbmhc,
-section[data-testid="stSidebar"] .css-k1vhr4,
-[data-testid="stSidebar"] .css-k1vhr4,
-section[data-testid="stSidebar"] div[class*="css-"] {
-    background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
-}
-
-section[data-testid="stSidebar"] > div,
-[data-testid="stSidebar"] > div,
-section[data-testid="stSidebar"] > div > div,
-[data-testid="stSidebar"] > div > div,
-section[data-testid="stSidebar"] > div > div > div,
-[data-testid="stSidebar"] > div > div > div {
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    border: none !important;
-}
-
-section[data-testid="stSidebar"] *,
-[data-testid="stSidebar"] * {
-    color: inherit !important;
-}
-
-aside[data-testid="stSidebar"] input,
-section[data-testid="stSidebar"] input,
-[data-testid="stSidebar"] input,
-aside[data-testid="stSidebar"] select,
-section[data-testid="stSidebar"] select,
-[data-testid="stSidebar"] select,
-aside[data-testid="stSidebar"] button,
-section[data-testid="stSidebar"] button,
-[data-testid="stSidebar"] button,
-aside[data-testid="stSidebar"] textarea,
-section[data-testid="stSidebar"] textarea,
-[data-testid="stSidebar"] textarea {
-    background: rgba(255,255,255,0.08) !important;
-    color: #ffffff !important;
-    border-color: rgba(255,255,255,0.18) !important;
-}
-
-aside[data-testid="stSidebar"] .stTextInput>div>div>input,
-section[data-testid="stSidebar"] .stTextInput>div>div>input,
-[data-testid="stSidebar"] .stTextInput>div>div>input,
-aside[data-testid="stSidebar"] .stTextInput>div>div>textarea,
-section[data-testid="stSidebar"] .stTextInput>div>div>textarea,
-[data-testid="stSidebar"] .stTextInput>div>div>textarea,
-aside[data-testid="stSidebar"] .stSelectbox>div>div>div>div,
-section[data-testid="stSidebar"] .stSelectbox>div>div>div>div,
-[data-testid="stSidebar"] .stSelectbox>div>div>div>div,
-aside[data-testid="stSidebar"] .stMultiSelectbox>div>div>div>div,
-section[data-testid="stSidebar"] .stMultiSelectbox>div>div>div>div,
-[data-testid="stSidebar"] .stMultiSelectbox>div>div>div>div,
-aside[data-testid="stSidebar"] .stNumberInput>div>div>input,
-section[data-testid="stSidebar"] .stNumberInput>div>div>input,
-[data-testid="stSidebar"] .stNumberInput>div>div>input,
-aside[data-testid="stSidebar"] .stDateInput>div>div>input,
-section[data-testid="stSidebar"] .stDateInput>div>div>input,
-[data-testid="stSidebar"] .stDateInput>div>div>input {
-    background: rgba(255,255,255,0.08) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255,255,255,0.18) !important;
-}
-
-section[data-testid="stSidebar"] .streamlit-option-menu,
-[data-testid="stSidebar"] .streamlit-option-menu {
-    width: 100% !important;
-}
-
-section[data-testid="stSidebar"] .streamlit-option-menu .nav-link {
-    min-width: 100% !important;
-}
-
-section[data-testid="stSidebar"] .stSelectbox,
-[data-testid="stSidebar"] .stSelectbox,
-section[data-testid="stSidebar"] .stTextInput,
-[data-testid="stSidebar"] .stTextInput {
-    margin-bottom: 8px !important;
-}
-
+/* Header */
 .sidebar-header {
-    padding: 22px 18px;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 22px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 26px;
-    box-shadow: 0 22px 48px rgba(0,0,0,0.18);
-}
-
-.sidebar-logo {
-    width: 88px;
-    height: 88px;
-    border-radius: 22px;
-    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    background: rgba(255,255,255,0.16);
-    color: #ffffff;
-    font-weight: 700;
-    overflow: hidden;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(2,36,87,0.12), rgba(2,36,87,0.06));
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.sidebar-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: linear-gradient(135deg,#4f46e5,#60a5fa);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;
+}
+.sidebar-header-text { display:flex;flex-direction:column; }
+.sidebar-title-main { font-size:16px;font-weight:800;color:#ffffff; }
+.sidebar-subtitle { font-size:10px;color:rgba(230,240,255,0.65);text-transform:uppercase;letter-spacing:1px; }
+
+/* Search input (unstyled Streamlit input overridden) */
+.sidebar-search { margin: 14px 0 8px 0; }
+section[data-testid="stSidebar"] .stTextInput>div>div>input,
+section[data-testid="stSidebar"] .stTextInput>div>div>textarea {
+    background: rgba(255,255,255,0.02) !important;
+    border: 1px solid rgba(255,255,255,0.04) !important;
+    color: #cfe6ff !important;
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
 }
 
-.sidebar-logo-img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+/* Section titles */
+.sidebar-section-title { margin-top: 18px; margin-bottom:8px;color:rgba(230,240,255,0.6);font-size:11px;font-weight:700;text-transform:uppercase; }
 
-.sidebar-title {
-    color: #ffffff;
-    font-weight: 800;
-    font-size: 18px;
-    line-height: 1.2;
-}
+/* Option menu container */
+.sidebar-nav-card { background: transparent; padding: 0; margin: 0; }
+.streamlit-option-menu { background: transparent !important; padding: 0 !important; border: none !important; }
+.streamlit-option-menu .nav-link { display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;color:#dbeeff !important;margin-bottom:8px !important;font-weight:700 !important; }
+.streamlit-option-menu .nav-link .bi, .streamlit-option-menu .nav-link i { color: rgba(200,220,255,0.7) !important; font-size:18px !important; }
+.streamlit-option-menu .nav-link:hover { background: rgba(11,58,112,0.12) !important; color:#ffffff !important; }
+.streamlit-option-menu .nav-link.active { background: linear-gradient(90deg,#022457,#0b3a70) !important; color:#ffffff !important; box-shadow: 0 6px 18px rgba(2,36,87,0.24) !important; border-left:4px solid #60a5fa !important; }
 
-.sidebar-subtitle {
-    color: rgba(255,255,255,0.72);
-    font-size: 12px;
-    line-height: 1.4;
-    margin-top: 2px;
-}
+/* Badges */
+.sidebar-badge { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:2px 6px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;margin-left:auto; }
+.badge-blue { background:#2563eb; }
+.badge-red { background:#ef4444; }
+.badge-yellow { background:#f59e0b; }
 
-.sidebar-divider {
-    height: 1px;
-    background: rgba(255,255,255,0.14);
-    margin: 20px 0;
-    border-radius: 1px;
-}
+/* Footer profile */
+.sidebar-profile { margin-top:18px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);display:flex;gap:12px;align-items:center;border:1px solid rgba(255,255,255,0.04); }
+.sidebar-profile .avatar { width:36px;height:36px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#60a5fa);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700 }
+.sidebar-profile .meta { font-size:12px;color:rgba(230,240,255,0.9); }
 
-.sidebar-section-title {
-    margin-top: 18px;
-    margin-bottom: 10px;
-    color: rgba(255,255,255,0.78);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-size: 11px;
-}
+/* Ensure no light backgrounds leak from generated CSS */
+section[data-testid="stSidebar"] div[class*="css-"] { background: transparent !important; }
 
-.sidebar-menu-note {
-    font-size: 12px;
-    color: rgba(255,255,255,0.68);
-    margin-bottom: 10px;
-}
-
-.sidebar-status-card {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 18px;
-    padding: 16px 14px;
-    margin-top: 14px;
-}
-
-.sidebar-status-title {
-    color: #ffffff;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 11px;
-    margin-bottom: 8px;
-}
-
-.sidebar-status-value {
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-
-.sidebar-status-meta {
-    color: rgba(255,255,255,0.72);
-    font-size: 12px;
-}
-
-/* Sidebar menu */
-.streamlit-option-menu {
-    background: rgba(15,32,64,0.95);
-    border-radius: 22px;
-    padding: 10px 8px 10px 8px;
-    border: 1px solid rgba(255,255,255,0.16);
-}
-
-.streamlit-option-menu .nav-link {
-    color: #f3f7ff !important;
-    border-radius: 14px !important;
-    padding: 12px 16px !important;
-    margin-bottom: 8px !important;
-    font-weight: 700 !important;
-    border: 1px solid rgba(255,255,255,0.08) !important;
-    background: rgba(255,255,255,0.06) !important;
-    box-shadow: none !important;
-}
-
-.streamlit-option-menu .nav-link:hover {
-    background: rgba(255,255,255,0.14) !important;
-    color: #ffffff !important;
-    border-color: rgba(255,255,255,0.22) !important;
-}
-
-.streamlit-option-menu .nav-link.active {
-    background: rgba(255,255,255,0.18) !important;
-    color: #ffffff !important;
-    border-color: rgba(255,255,255,0.24) !important;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18) !important;
-}
-
-.streamlit-option-menu .nav-link.active:hover {
-    background: rgba(255,255,255,0.28) !important;
-}
+/* End sidebar replacement */
 
 /* Navigation tabs */
 [role="tablist"] {
