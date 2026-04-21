@@ -407,7 +407,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             linea_name = line["Linea"]
             labels.append(linea_name)
             parents.append("")
-            values.append(int(line_counts.get(linea_name, 0)) or 1)
+            values.append(0)  # branchvalues='remainder': parent=0 → tamaño definido por hijos
             customdata.append([line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0])
             colors.append(normalized_color_map.get(_norm_key(linea_name), "#6B728E"))
 
@@ -425,7 +425,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 continue
             labels.append(str(obj_name).strip())
             parents.append(str(parent_name).strip())
-            values.append(max(1, int(count)))
+            values.append(1)  # valor uniforme → distribución igualitaria sin gaps
             customdata.append([float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0])
             colors.append(normalized_color_map.get(_norm_key(parent_name), "#6B728E"))
 
@@ -528,124 +528,14 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     all_custom = customdata
     all_text = text
 
-    # Adjust sizes: amplify 'Educación para toda la vida' and reduce 'Sostenibilidad'
-    try:
-        edu_key = _norm_key('Educación para toda la vida')
-        sus_key = _norm_key('Sostenibilidad')
-        for i, lab in enumerate(all_labels):
-            try:
-                nk = _norm_key(lab)
-                parent_label = all_parents[i] if i < len(all_parents) else ""
-                parent_nk = _norm_key(parent_label) if parent_label else ""
-                # Amplify Educación more and reduce Sostenibilidad further
-                if nk == edu_key and (not parent_label):
-                    all_values[i] = max(1, int(all_values[i] * 5))
-                # If a node is a child of Educación, enlarge it as well
-                elif parent_nk == edu_key:
-                    all_values[i] = max(1, int(all_values[i] * 3))
-                # reduce Sostenibilidad further
-                if nk == sus_key:
-                    all_values[i] = max(1, int(all_values[i] * 0.25))
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    # Ensure parent nodes have values >= sum(children) to satisfy branchvalues='total'
-    try:
-        # build index map
-        label_to_index = {lbl: idx for idx, lbl in enumerate(all_labels)}
-        # compute children sums
-        children_sum = {lbl: 0 for lbl in all_labels}
-        for idx, parent in enumerate(all_parents):
-            if parent and parent in label_to_index:
-                children_sum[parent] += int(all_values[idx]) if idx < len(all_values) else 0
-        # adjust parent values if needed
-        for parent, s in children_sum.items():
-            if s <= 0:
-                continue
-            pidx = label_to_index.get(parent)
-            if pidx is None or pidx >= len(all_values):
-                continue
-            try:
-                if int(all_values[pidx]) < s:
-                    all_values[pidx] = int(s)
-            except Exception:
-                all_values[pidx] = int(s)
-    except Exception:
-        pass
-
-    # Expand objective nodes more to make outer text more visible (multiply nodes with a parent)
-    try:
-        sus_key = _norm_key('Sostenibilidad')
-        for i, p in enumerate(all_parents):
-            if p and i < len(all_values):
-                # avoid expanding children of Sostenibilidad to keep it smaller
-                try:
-                    parent_nk = _norm_key(p)
-                    if parent_nk == sus_key:
-                        continue
-                except Exception:
-                    pass
-                # Increase outer ring (objetivos) so labels fit better
-                all_values[i] = max(1, int(all_values[i] * 2.5))
-    except Exception:
-        pass
-
-    # Prepare per-label text using newlines
-
-    # Final enforcement: ensure parent nodes have values >= sum(children)
-    try:
-        label_to_index = {lbl: idx for idx, lbl in enumerate(all_labels)}
-        children_sum = {lbl: 0 for lbl in all_labels}
-        for idx, parent in enumerate(all_parents):
-            if parent and parent in label_to_index and idx < len(all_values):
-                children_sum[parent] += int(all_values[idx])
-        for parent, s in children_sum.items():
-            if s <= 0:
-                continue
-            pidx = label_to_index.get(parent)
-            if pidx is None or pidx >= len(all_values):
-                continue
-            try:
-                if int(all_values[pidx]) < s:
-                    all_values[pidx] = int(s)
-            except Exception:
-                all_values[pidx] = int(s)
-    except Exception:
-        pass
-
-    # Customize Sostenibilidad text to be slightly larger and bold
-    # Keep Sostenibilidad styling consistent with other labels; centering applied above
-
-    # Equalize objective sizes under 'Transformación organizacional' so children share same value
-    try:
-        transform_key = _norm_key('Transformación organizacional')
-        # find parent label matching transform
-        parent_label = None
-        for lbl in all_labels:
-            if _norm_key(lbl) == transform_key:
-                parent_label = lbl
-                break
-        if parent_label:
-            child_idxs = [i for i, p in enumerate(all_parents) if p == parent_label]
-            if child_idxs:
-                parent_idx = all_labels.index(parent_label)
-                parent_val = int(all_values[parent_idx]) if parent_idx < len(all_values) else None
-                if parent_val and len(child_idxs) > 0:
-                    equal_val = max(1, int(parent_val / len(child_idxs)))
-                    for i in child_idxs:
-                        all_values[i] = equal_val
-    except Exception:
-        pass
-
-    # Do not uppercase labels; instead make label text bold using HTML when building `all_text`.
+    # branchvalues='remainder': padres con valor 0 → su tamaño es exactamente la suma de hijos.
+    # Objetivos con valor 1 → distribución uniforme. No quedan gaps blancos.
 
     fig.add_trace(go.Sunburst(
         labels=all_labels,
         parents=all_parents,
         values=all_values,
-        branchvalues="total",
+        branchvalues="remainder",
         marker=dict(colors=all_colors, line=dict(color="#ffffff", width=1)),
         customdata=all_custom,
         text=all_text,
@@ -666,7 +556,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 textfont=dict(family='Inter, sans-serif', size=14, color='#062A4F'),
                 insidetextfont=dict(family='Inter, sans-serif', size=20, color='#0B5FFF'),
                 marker=dict(line=dict(color='#FFFFFF', width=1)),
-                branchvalues='total',
+                branchvalues='remainder',
                 separation=0,
                 texttemplate='%{text}',
                 hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
