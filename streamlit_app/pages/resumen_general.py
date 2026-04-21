@@ -1172,12 +1172,35 @@ def render():
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
                 # Detectar columna de año automáticamente
                 historico = None
+                # --- HISTÓRICO SOLO CIERRE ANUAL: un valor por año y línea ---
                 if row is not None and "Linea" in row:
                     linea_hist = row["Linea"]
-                    df_hist = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist]
+                    df_hist = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist].copy()
+                    # Detectar columna de año
                     year_col = next((c for c in df_hist.columns if c.lower() in ["año", "anio", "year"]), None)
                     if year_col and "cumplimiento_pct" in df_hist.columns:
-                        historico = df_hist[[year_col, "cumplimiento_pct"]].rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
+                        # Agrupar por año y calcular cumplimiento promedio SOLO para el mes 12 (cierre anual)
+                        if "Mes" in df_hist.columns:
+                            df_hist = df_hist[df_hist["Mes"] == 12]
+                        elif "Mes_num" in df_hist.columns:
+                            df_hist = df_hist[df_hist["Mes_num"] == 12]
+                        # Si no hay columna de mes, asumir que ya es cierre anual
+                        historico = (
+                            df_hist.groupby(year_col, dropna=False)["cumplimiento_pct"]
+                            .mean()
+                            .reset_index()
+                            .rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
+                        )
+                        # Ordenar por año ascendente
+                        historico = historico.sort_values("Año")
+                    # --- DOCUMENTACIÓN DE FÓRMULA GLOBAL DE CUMPLIMIENTO ---
+                    # Cumplimiento (%) por línea estratégica = promedio de cumplimiento_pct de todos los indicadores de la línea en el cierre anual.
+                    # Fórmula por indicador:
+                    #   - Si sentido es ASCENDENTE: cumplimiento = ejecucion / meta
+                    #   - Si sentido es DESCENDENTE: cumplimiento = meta / ejecucion
+                    #   - Se aplica tope según tipo de indicador (1.0 o 1.3)
+                    #   - El valor final se multiplica por 100 para porcentaje.
+                    #   - El promedio de todos los indicadores de la línea para el año de cierre es el valor mostrado en la tarjeta.
                 with ficha_cols[idx % 6]:
                     _render_strategy_card(
                         title=card_def["label"],
