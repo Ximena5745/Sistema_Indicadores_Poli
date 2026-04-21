@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 
 import streamlit as st
 
@@ -107,21 +108,20 @@ def main():
             )
             menu = menu_map[selected_menu]
 
+            updated_at = datetime.now().strftime("%d/%m/%Y %H:%M")
+
             st.markdown(
-                """
-                <div class='sidebar-v2-profile'>
-                  <div class='avatar'>AG</div>
-                  <div class='meta'>
-                    <div class='name'>Admin General</div>
-                    <div class='role'>Rectoría · 2025</div>
-                  </div>
+                f"""
+                <div class='sidebar-v2-update'>
+                    <div class='title'>Fecha de actualización</div>
+                    <div class='value'>{updated_at}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
     except Exception as e:
-                with st.sidebar:
-                        st.error(f"Error en sidebar: {e}")
+        with st.sidebar:
+            st.error(f"Error en sidebar: {e}")
 
     # Routing
     if menu == "Resumen General":
