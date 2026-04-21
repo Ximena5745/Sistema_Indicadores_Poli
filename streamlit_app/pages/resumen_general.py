@@ -473,13 +473,19 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             cleaned = [re.sub(r"\s+", " ", ln).strip() for ln in wrapped_lines]
             return "\n".join(cleaned)
 
+        # Overrides de salto de línea para labels específicos (ajuste visual manual)
+        LABEL_WRAP_OVERRIDES = {
+            _norm_key("Educación para toda la vida"): "Educación para\ntoda la vida",
+        }
+
         # Build wrapped text lines; include percentage
         text = []
-        edu_key = _norm_key('Educación para toda la vida')
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
-            # Todas las líneas: mismo ancho de wrap y mismo tamaño de fuente
-            if parent == "":
+            lab_key = _norm_key(lab)
+            if lab_key in LABEL_WRAP_OVERRIDES:
+                wrapped = LABEL_WRAP_OVERRIDES[lab_key]
+            elif parent == "":
                 wrapped = wrap_label(lab, width=12)
             else:
                 wrapped = wrap_label(lab, width=26)
