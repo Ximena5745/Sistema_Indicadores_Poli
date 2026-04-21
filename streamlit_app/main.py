@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import streamlit as st
-from streamlit_option_menu import option_menu
 
 st.set_page_config(page_title="Sistema de Indicadores", layout="wide")
 
@@ -82,48 +81,38 @@ def main():
             )
 
             st.markdown("<div class='sidebar-v2-section'>PRINCIPAL</div>", unsafe_allow_html=True)
-            menu = option_menu(
-                menu_title=None,
-                options=[
-                    "Resumen General",
-                    "Resumen Estratégico",
-                    "Resumen por Procesos",
-                    "Seguimiento Operativo",
-                    "Indicadores en Riesgo",
-                    "Alertas Activas",
-                    "Configuración",
-                ],
-                icons=["grid", "house", "clock-history", "file-earmark", "bell", "exclamation-triangle", "gear"],
-                menu_icon=None,
-                default_index=0,
-                orientation="vertical",
-                styles={
-                    "container": {
-                        "background-color": "transparent",
-                        "background": "transparent",
-                        "padding": "0",
-                        "border": "none",
-                        "box-shadow": "none",
-                    },
-                    "nav-link": {
-                        "font-size": "19px",
-                        "font-weight": "500",
-                        "color": "#7f9ac3",
-                        "background-color": "transparent",
-                        "background": "transparent",
-                        "border-radius": "12px",
-                        "padding": "12px 14px",
-                        "margin": "2px 0",
-                    },
-                    "nav-link-selected": {
-                        "background-color": "#112646",
-                        "background": "#112646",
-                        "color": "#4c90ff",
-                        "border-radius": "12px",
-                    },
-                    "icon": {"font-size": "18px", "margin-right": "12px", "color": "#7f9ac3"},
-                },
+
+            menu_labels = [
+                "◫  Resumen General",
+                "⌂  Resumen Estratégico",
+                "◷  Resumen por Procesos",
+                "◧  Seguimiento Operativo",
+                "◌  Indicadores en Riesgo",
+                "△  Alertas Activas",
+                "⚙  Configuración",
+            ]
+            menu_map = {
+                "◫  Resumen General": "Resumen General",
+                "⌂  Resumen Estratégico": "Resumen Estratégico",
+                "◷  Resumen por Procesos": "Resumen por Procesos",
+                "◧  Seguimiento Operativo": "Seguimiento Operativo",
+                "◌  Indicadores en Riesgo": "Indicadores en Riesgo",
+                "△  Alertas Activas": "Alertas Activas",
+                "⚙  Configuración": "Configuración",
+            }
+
+            current_index = menu_labels.index("◫  Resumen General")
+            if menu in menu_map.values():
+                current_index = list(menu_map.values()).index(menu)
+
+            selected_menu = st.radio(
+                "Navegación principal",
+                options=menu_labels,
+                index=current_index,
+                key="sidebar_main_nav",
+                label_visibility="collapsed",
             )
+            menu = menu_map[selected_menu]
 
             st.markdown(
                 """

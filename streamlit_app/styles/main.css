@@ -126,6 +126,63 @@ body {
     margin-top: 8px;
 }
 
+[data-testid="stSidebar"] [data-testid="stRadio"] {
+    margin-top: 2px;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] > div {
+    gap: 4px;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] > div > div {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 11px 14px !important;
+    border-radius: 12px !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: #7d95bb !important;
+    font-size: 17px !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    transition: all 0.18s ease;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+    background: rgba(18, 38, 70, 0.75) !important;
+    color: #b6cff5 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input[type="radio"]:checked) {
+    background: linear-gradient(90deg, rgba(18, 38, 70, 0.95) 0%, rgba(11, 28, 55, 0.95) 100%) !important;
+    border: 1px solid rgba(62, 122, 214, 0.35) !important;
+    color: #4b8fff !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] input[type="radio"] {
+    display: none !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label div[role="radiogroup"] {
+    width: 100% !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] p {
+    margin: 0 !important;
+    color: inherit !important;
+    font-size: 17px !important;
+    font-weight: inherit !important;
+}
+
 [data-testid="stSidebar"] .streamlit-option-menu {
     background: transparent !important;
 }
