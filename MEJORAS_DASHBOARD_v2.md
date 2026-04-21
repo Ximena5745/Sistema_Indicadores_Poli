@@ -40,14 +40,47 @@ Dashboard profesional completamente rediseñado con paleta de colores **azul pre
 ## 📊 Gráficos Agregados (Propuestos en Diagnóstico)
 
 ### 1. **Gráfico Sunburst** - Jerarquía Línea → Objetivo
-- **Ubicación**: Tab "Inicio" → Sección "Análisis de Desempeño"
-- **Propósito**: Visualizar jerárquicamente líneas académicas, objetivos y cumplimiento
-- **Datos**: 
-  - 4 Líneas principales
-  - 12 objetivos (3-4 por línea)
-  - Cumplimiento promedio por objetivo (70-95%)
-- **Interactividad**: Click para zoom, hover para detalles
-- **Paleta**: Degradados azul #0c63e4 → #7dd3fc
+
+#### Lógica oficial implementada (CMI Estratégico)
+
+**Jerarquía:**
+- **Centro:** Línea Estratégica
+- **Anillo exterior:** Objetivos Estratégicos
+
+**Filtro aplicado:**  
+Solo se incluyen indicadores **CMI Estratégico** (según `services/cmi_filters.py`):
+- `Indicadores Plan estrategico == 1`
+- **Y** `Proyecto != 1`
+
+**Cálculo de valores:**
+- Para cada **Objetivo** (por cada Línea):
+   - Se calcula el **promedio del cumplimiento** de los indicadores asociados, usando la columna `cumplimiento_pct` en la fecha de corte.
+- Para cada **Línea**:
+   - Se calcula el **promedio del cumplimiento** de todos sus objetivos.
+
+**Reglas de exclusión:**
+- **Omitir** indicadores que:
+   - Son de tipo **métrica** (no son indicadores de cumplimiento)
+   - No tienen valor de cumplimiento (`cumplimiento_pct` vacío o nulo)
+
+**Visualización:**
+- Cada segmento muestra:  
+   - Nombre del objetivo  
+   - Porcentaje de cumplimiento promedio
+- **Colores:**  
+   - Cada Línea Estratégica tiene color oficial (ver sección de colores)
+- **Interactividad:**  
+   - Tooltip con detalle de cumplimiento  
+   - Zoom y navegación jerárquica
+
+**Ubicación:** Tab "Inicio" → Sección "Análisis de Desempeño"
+**Propósito:** Visualizar jerárquicamente líneas académicas, objetivos y cumplimiento
+**Datos:** 
+   - 4 Líneas principales
+   - 12 objetivos (3-4 por línea)
+   - Cumplimiento promedio por objetivo (70-95%)
+**Interactividad:** Click para zoom, hover para detalles
+**Paleta:** Degradados azul #0c63e4 → #7dd3fc
 
 ### 2. **Gráfico Treemap** - Mapa de Indicadores CNA
 - **Ubicación**: Tab "Inicio" → Sección "Análisis de Desempeño"

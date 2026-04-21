@@ -137,12 +137,24 @@ def _load_consolidado_cierres() -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
     df = _normalize_columns(df)
-    if "Ao" in df.columns:
-        df["Ao"] = pd.to_numeric(df["Ao"], errors="coerce")
+    # Exportar columnas originales del consolidado para inspección
+    try:
+        df_cols = pd.DataFrame({'columnas': df.columns})
+        df_cols.to_excel("artifacts/consolidado_columnas_originales.xlsx", index=False)
+        # Exportar valores únicos por columna útil para mapeo
+        cols_interes = [c for c in df.columns if any(x in c.lower() for x in ["linea", "objetivo", "meta", "indicador", "cumplimiento", "categoria"])]
+        with pd.ExcelWriter("artifacts/consolidado_valores_unicos_mapeo.xlsx") as writer:
+            for col in cols_interes:
+                uniques = pd.DataFrame({col: df[col].unique()})
+                uniques.to_excel(writer, sheet_name=col[:30], index=False)
+    except Exception as e:
+        print(f"No se pudo exportar columnas/valores únicos: {e}")
+    if "A\x1fo" in df.columns:
+        df["A\x1fo"] = pd.to_numeric(df["A\x1fo"], errors="coerce")
     elif "Anio" in df.columns:
-        df["Ao"] = pd.to_numeric(df["Anio"], errors="coerce")
+        df["A\x1fo"] = pd.to_numeric(df["Anio"], errors="coerce")
     else:
-        df["Ao"] = pd.NA
+        df["A\x1fo"] = pd.NA
 
     if "Mes" in df.columns:
         df["Mes_num"] = df["Mes"].apply(_parse_month)
@@ -289,11 +301,42 @@ def _available_months_for_year(df: pd.DataFrame, year: int) -> list[int]:
 
 
 def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
+    """
+    Gráfica Sunburst oficial CMI Estratégico
+    ----------------------------------------
+    Jerarquía:
+      - Centro: Línea Estratégica
+      - Anillo exterior: Objetivos Estratégicos
+    Filtro aplicado:
+      - Solo indicadores CMI Estratégico (Indicadores Plan estrategico == 1 y Proyecto != 1)
+    Cálculo:
+      - Promedio de cumplimiento (cumplimiento_pct) por objetivo y por línea
+    Exclusiones:
+      - Omitir métricas y filas sin cumplimiento
+    Visualización:
+      - Cada segmento: nombre objetivo y % cumplimiento promedio
+      - Colores oficiales por línea
+      - Tooltip y zoom jerárquico
+    """
+    # Exportar las columnas del DataFrame procesado tras normalización y agrupación
+    try:
+        with open("artifacts/sunburst_columnas_generadas.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(df.columns))
+    except Exception as e:
+        print(f"No se pudo exportar columnas: {e}")
+
     df = pdi_df.copy()
     # Eliminar nodos vacíos o en blanco en la jerarquía
     for col in ["Linea", "Objetivo"]:
         df = df[df[col].notnull() & (df[col].astype(str).str.strip() != "")]
     df = df[df["cumplimiento_pct"].notna()]
+
+    # Exportar a Excel la información filtrada para el gráfico (solo Linea y Objetivo)
+    try:
+        df_export = df[["Linea", "Objetivo"]].drop_duplicates().sort_values(["Linea", "Objetivo"])
+        df_export.to_excel("artifacts/sunburst_linea_objetivo.xlsx", index=False)
+    except Exception as e:
+        print(f"No se pudo exportar Excel de sunburst: {e}")
 
     # Si no hay datos válidos, crear un nodo dummy con 0%
     if df.empty:
@@ -1414,8 +1457,7 @@ def render():
                 )
                 process_variation_df = curr_proc.merge(prev_proc, on=process_display_col, how="left")
                 process_variation_df["change"] = process_variation_df["actual"] - process_variation_df["prev"]
-
-            if process_variation_df.empty:
+            else:
                 process_variation_df = (
                     base_df.groupby(process_display_col, dropna=False)
                     .agg(indicadores=("Indicador", "count"), actual=("cumplimiento_pct", "mean"))
