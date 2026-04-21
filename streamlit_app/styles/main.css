@@ -533,3 +533,27 @@ div[data-baseweb="menu"] {
     background: linear-gradient(90deg, rgba(18, 38, 70, 0.95) 0%, rgba(11, 28, 55, 0.95) 100%) !important;
     border: 1px solid rgba(62, 122, 214, 0.35) !important;
 }
+
+/* ─── OVERRIDE FINAL: navegación st.radio del sidebar ─────────────────────── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label {
+    color: #7d95bb !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #7d95bb !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label p,
+[data-testid="stSidebar"] [data-testid="stRadio"] label span {
+    color: inherit !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: inherit !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input[type="radio"]:checked) {
+    color: #4b8fff !important;
+    -webkit-text-fill-color: #4b8fff !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] input[type="radio"],
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] > div:first-child {
+    display: none !important;
+}
