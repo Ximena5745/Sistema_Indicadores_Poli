@@ -952,9 +952,27 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 
 
 def _render_strategy_card(title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None):
-    spark = _sparkline_svg(color, up=True)
-    # Si se pasa un DataFrame de histórico, mostrar gráfico Plotly con tooltip
-    chart_html = ""
+    # --- Renderizado de tarjeta con gráfico integrado ---
+    import streamlit as st
+    from streamlit.components.v1 import html as st_html
+    card_html = f"""
+    <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%); padding-bottom:0.5rem;'>
+        <div class='rg-card-head'>
+            <div class='rg-icon' style='color:{color};'>{icon}</div>
+            <div style='text-align:right;'>
+                <p class='rg-main-value' style='color:{color}; margin-bottom:0.2rem;'>{cumplimiento:.1f}%</p>
+                <p class='rg-meta'>{indicators} indicadores</p>
+            </div>
+        </div>
+        <p class='rg-card-title' style='margin-bottom:0.5rem;'>{title}</p>
+        <div id='minichart' style='margin-top:-0.5rem;'>
+            <!-- Aquí va el gráfico -->
+        </div>
+    </div>
+    """
+    # Renderizar la tarjeta HTML primero
+    st.markdown(card_html, unsafe_allow_html=True)
+    # Insertar el gráfico Plotly justo después, usando CSS negativo para integrarlo visualmente
     if historico is not None and not historico.empty:
         import plotly.graph_objects as go
         fig = go.Figure()
@@ -974,24 +992,10 @@ def _render_strategy_card(title: str, indicators: int, cumplimiento: float, colo
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)'
         )
-        chart_html = st.plotly_chart(fig, use_container_width=True, height=80)
-    st.markdown(
-        f"""
-        <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%);'>
-            <div class='rg-card-head'>
-                <div class='rg-icon' style='color:{color};'>{icon}</div>
-                <div style='text-align:right;'>
-                    <p class='rg-main-value' style='color:{color};'>{cumplimiento:.1f}%</p>
-                    <p class='rg-meta'>{indicators} indicadores</p>
-                </div>
-            </div>
-            <p class='rg-card-title'>{title}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if chart_html:
-        st.markdown("<div style='margin-top:-1.2rem;'></div>", unsafe_allow_html=True)
+        # Usar un contenedor con margen negativo para que el gráfico quede "dentro" de la tarjeta visualmente
+        st.markdown(f"<div style='margin-top:-3.2rem; margin-bottom:0.2rem;'>", unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True, height=80)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_chip(value: int, label: str, color: str):
@@ -1172,27 +1176,30 @@ def render():
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
                 # Detectar columna de año automáticamente
                 historico = None
-                # --- HISTÓRICO SOLO CIERRE ANUAL: un valor por año y línea ---
+                # --- HISTÓRICO SOLO CIERRE ANUAL: un punto por año y línea, usando todo el consolidado ---
                 if row is not None and "Linea" in row:
                     linea_hist = row["Linea"]
-                    df_hist = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist].copy()
+                    # Usar el consolidado completo para obtener todos los años disponibles
+                    df_hist = consolidado[consolidado["Linea"] == linea_hist].copy()
                     # Detectar columna de año
                     year_col = next((c for c in df_hist.columns if c.lower() in ["año", "anio", "year"]), None)
+                    # Filtrar solo mes 12 (cierre anual)
                     if year_col and "cumplimiento_pct" in df_hist.columns:
-                        # Agrupar por año y calcular cumplimiento promedio SOLO para el mes 12 (cierre anual)
                         if "Mes" in df_hist.columns:
                             df_hist = df_hist[df_hist["Mes"] == 12]
                         elif "Mes_num" in df_hist.columns:
                             df_hist = df_hist[df_hist["Mes_num"] == 12]
-                        # Si no hay columna de mes, asumir que ya es cierre anual
+                        # Agrupar por año y calcular cumplimiento promedio
                         historico = (
                             df_hist.groupby(year_col, dropna=False)["cumplimiento_pct"]
                             .mean()
                             .reset_index()
                             .rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
                         )
-                        # Ordenar por año ascendente
                         historico = historico.sort_values("Año")
+                        # Si solo hay un año, no mostrar gráfico
+                        if historico.shape[0] <= 1:
+                            historico = None
                     # --- DOCUMENTACIÓN DE FÓRMULA GLOBAL DE CUMPLIMIENTO ---
                     # Cumplimiento (%) por línea estratégica = promedio de cumplimiento_pct de todos los indicadores de la línea en el cierre anual.
                     # Fórmula por indicador:
