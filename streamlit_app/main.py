@@ -57,7 +57,6 @@ def main():
     # Configuración del sidebar
     try:
         with st.sidebar:
-            st.markdown("<div class='sidebar-v2'>", unsafe_allow_html=True)
             st.markdown(
                 """
                 <div class='sidebar-v2-header'>
@@ -75,7 +74,12 @@ def main():
                 unsafe_allow_html=True,
             )
 
-            st.text_input("", placeholder="Buscar indicador...", key="sidebar_search", label_visibility="collapsed")
+            st.text_input(
+                "Buscar indicador",
+                placeholder="Buscar indicador...",
+                key="sidebar_search",
+                label_visibility="collapsed",
+            )
 
             st.markdown("<div class='sidebar-v2-section'>PRINCIPAL</div>", unsafe_allow_html=True)
             menu = option_menu(
@@ -122,12 +126,12 @@ def main():
                     <div class='role'>Rectoría · 2025</div>
                   </div>
                 </div>
-                </div>
                 """,
                 unsafe_allow_html=True,
             )
     except Exception as e:
-        st.error(f"Error en sidebar: {e}")
+                with st.sidebar:
+                        st.error(f"Error en sidebar: {e}")
 
     # Routing
     if menu == "Resumen General":
