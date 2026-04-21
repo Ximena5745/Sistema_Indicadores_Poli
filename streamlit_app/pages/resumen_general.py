@@ -118,6 +118,13 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     # Normaliza la columna de cumplimiento
     if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
+    # Reemplazar guiones bajos por espacios en columnas de texto clave
+    _TEXT_COLS = ["Linea", "Objetivo", "Meta_PDI", "Indicador", "Clasificacion",
+                  "Proceso", "Subproceso", "Area", "tipo", "Estado"]
+    for col in _TEXT_COLS:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.replace('_', ' ', regex=False).str.strip()
+            df[col] = df[col].replace('nan', pd.NA)
     return df
 
 
@@ -404,7 +411,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
         # --- AJUSTE: El centro serán las líneas estratégicas ---
         for _, line in lines.iterrows():
-            linea_name = str(line["Linea"]).replace('_', ' ')
+            linea_name = str(line["Linea"])
             labels.append(linea_name)
             parents.append("")
             values.append(0)  # branchvalues='remainder': parent=0 → tamaño definido por hijos
@@ -423,8 +430,8 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             count = obj_counts.get((parent_name, obj_name), 0)
             if not count or int(count) <= 0:
                 continue
-            labels.append(str(obj_name).strip().replace('_', ' '))
-            parents.append(str(parent_name).strip().replace('_', ' '))
+            labels.append(str(obj_name).strip())
+            parents.append(str(parent_name).strip())
             values.append(1)  # valor uniforme → distribución igualitaria sin gaps
             customdata.append([float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0])
             colors.append(normalized_color_map.get(_norm_key(parent_name), "#6B728E"))
