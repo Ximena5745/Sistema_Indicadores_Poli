@@ -85,29 +85,31 @@ def main():
 
     # Configuración del sidebar
 
-        with st.sidebar:
+        menu = None
+        try:
+            with st.sidebar:
                 logo_html = _load_sidebar_logo_html()
                 if logo_html:
-                        logo_block = f"<div class='sidebar-logo'>{logo_html}</div>"
+                    logo_block = f"<div class='sidebar-logo'>{logo_html}</div>"
                 else:
-                        logo_block = """
-        <div class='sidebar-logo'>
-            <svg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                    logo_block = """
+            <div class='sidebar-logo'>
+              <svg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'>
                 <rect width='64' height='64' rx='32' fill='#ffffff'/>
                 <text x='32' y='40' font-size='28' text-anchor='middle' fill='#0c63e4' font-family='Arial' font-weight='700'>PG</text>
-            </svg>
-        </div>
-"""
+              </svg>
+            </div>
+        """
 
                 header_html = f"""
-<div class='sidebar-header'>
-    {logo_block}
-    <div>
-        <div class='sidebar-title'>Sistema de Indicadores</div>
-        <div class='sidebar-subtitle'>Politécnico Grancolombiano</div>
-    </div>
-</div>
-"""
+        <div class='sidebar-header'>
+          {logo_block}
+          <div>
+            <div class='sidebar-title'>Sistema de Indicadores</div>
+            <div class='sidebar-subtitle'>Politécnico Grancolombiano</div>
+          </div>
+        </div>
+        """
                 st.markdown(header_html, unsafe_allow_html=True)
                 st.markdown("<div class='sidebar-divider'></div>", unsafe_allow_html=True)
                 st.markdown("<div class='sidebar-section-title'>Navegación</div>", unsafe_allow_html=True)
@@ -115,42 +117,45 @@ def main():
                 # Bloque de navegación tipo tarjeta
                 st.markdown("<div class='sidebar-nav-card'>", unsafe_allow_html=True)
                 menu = option_menu(
-                        menu_title=None,
-                        options=["Resumen general", "Resumen Estratégico", "Resumen por procesos", "Seguimiento operativo"],
-                        icons=["file-text", "house", "layers", "clipboard-check"],
-                        menu_icon="cast",
-                        default_index=0,
-                        orientation="vertical",
-                        styles={
-                                "container": {
-                                        "background": "transparent",
-                                        "padding": "0",
-                                        "box-shadow": "none",
-                                },
-                                "nav-link": {
-                                        "font-size": "18px",
-                                        "font-weight": "700",
-                                        "color": "#183B56",
-                                        "background": "none",
-                                        "border-radius": "12px",
-                                        "padding": "12px 16px",
-                                        "margin-bottom": "10px",
-                                        "transition": "background 0.15s, color 0.15s",
-                                },
-                                "nav-link-selected": {
-                                        "background": "var(--primary, #0c63e4)",
-                                        "color": "#fff",
-                                        "box-shadow": "0 2px 8px 0 rgba(12,99,228,0.10)",
-                                },
-                                "icon": {
-                                        "font-size": "22px",
-                                        "margin-right": "8px",
-                                },
+                    menu_title=None,
+                    options=["Resumen general", "Resumen Estratégico", "Resumen por procesos", "Seguimiento operativo"],
+                    icons=["file-text", "house", "layers", "clipboard-check"],
+                    menu_icon="cast",
+                    default_index=0,
+                    orientation="vertical",
+                    styles={
+                        "container": {
+                            "background": "transparent",
+                            "padding": "0",
+                            "box-shadow": "none",
                         },
+                        "nav-link": {
+                            "font-size": "18px",
+                            "font-weight": "700",
+                            "color": "#183B56",
+                            "background": "none",
+                            "border-radius": "12px",
+                            "padding": "12px 16px",
+                            "margin-bottom": "10px",
+                            "transition": "background 0.15s, color 0.15s",
+                        },
+                        "nav-link-selected": {
+                            "background": "var(--primary, #0c63e4)",
+                            "color": "#fff",
+                            "box-shadow": "0 2px 8px 0 rgba(12,99,228,0.10)",
+                        },
+                        "icon": {
+                            "font-size": "22px",
+                            "margin-right": "8px",
+                        },
+                    },
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
                 # Mantener sidebar limpio: el foco es la navegación y el encabezado.
                 st.markdown("<style>.sidebar-status-card{display:none!important;}.version-box{display:none!important;}</style>", unsafe_allow_html=True)
+        except Exception as e:
+            st.error("No se pudo cargar el menú de navegación. Por favor revisa la configuración del sidebar.")
+            menu = "Resumen general"  # fallback seguro
 
     # Routing simple a páginas
     if menu == "Resumen Estratégico":
