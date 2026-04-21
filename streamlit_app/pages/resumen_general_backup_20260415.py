@@ -765,7 +765,7 @@ def render():
     
     # Mostrar tarjetas KPI para CMI Estratégico
     if not pdi_estrategico.empty:
-        st.markdown("##### Métricas Clave de Negocio")
+        st.markdown("##### Cumplimiento por Línea Estratégica PDI 2022-2026")
         
         # Agrupar por línea y calcular métricas
         if "Linea" in pdi_estrategico.columns:
