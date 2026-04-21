@@ -3,9 +3,16 @@ gatherUsageStats = false
 
 [theme]
 # ── Paleta institucional · Sistema de Indicadores · Politécnico Grancolombiano ──
-base                     = "light"
-primaryColor             = "#0f3a6d"
-backgroundColor          = "#eff4fb"
-secondaryBackgroundColor = "#f7f9fe"
-textColor                = "#0f2137"
-font                     = "sans serif"
+base = "dark"
+primaryColor = "#022457"
+backgroundColor = "#011221"
+secondaryBackgroundColor = "#011638"
+textColor = "#E6F0FF"
+font = "Segoe UI"
+
+[server]
+headless = true
+enableCORS = false
+
+[global]
+hideStreamlitLogo = true
