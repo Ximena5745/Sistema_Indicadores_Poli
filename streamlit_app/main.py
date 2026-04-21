@@ -56,81 +56,70 @@ def main():
 
     # Configuración del sidebar
     try:
-        with st.sidebar:
-            # Logo cuadrado con P
-            logo_html = """
-            <div class='sidebar-logo'>
-              <svg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg'>
-                <rect width='40' height='40' rx='6' fill='#ffffff'/>
-                <text x='20' y='28' font-size='24' text-anchor='middle' fill='#0f385a' font-family='Arial' font-weight='800'>P</text>
-              </svg>
-            </div>
-            """
-
-            header_html = f"""
-            <div class='sidebar-header'>
-              {logo_html}
-              <div class='sidebar-header-text'>
-                <div class='sidebar-title-main'>Sistema de <span>Indicadores</span></div>
-                <div class='sidebar-subtitle'>Inteligencia de Datos</div>
-              </div>
-            </div>
-            """
-            st.markdown(header_html, unsafe_allow_html=True)
-            st.markdown("<div class='sidebar-section-title'>Módulos del Sistema</div>", unsafe_allow_html=True)
-
-            # Bloque de navegación
-            st.markdown("<div class='sidebar-nav-card'>", unsafe_allow_html=True)
-            menu = option_menu(
-                menu_title=None,
-                options=["Nuestro Impacto", "OPEX Financiero", "Base Normativa", "Auditoría (CSVs)"],
-                icons=["globe", "graph-up", "scale", "folder"],
-                menu_icon="cast",
-                default_index=0,
-                orientation="vertical",
-                styles={
-                    "container": {
-                        "background": "transparent",
-                        "padding": "0",
-                    },
-                    "nav-link": {
-                        "font-size": "16px",
-                        "font-weight": "600",
-                        "color": "#e2e8f0",
-                        "background": "transparent",
-                        "border-radius": "10px",
-                        "padding": "14px 16px",
-                        "margin": "4px 0",
-                    },
-                    "nav-link-selected": {
-                        "background": "#0c63e4",
-                        "color": "#ffffff",
-                        "border-radius": "10px",
-                    },
-                    "icon": {
-                        "font-size": "20px",
-                        "margin-right": "12px",
-                    },
-                },
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            # Footer
-            st.markdown("""
-            <div style='margin-top: 40px; text-align: center; padding: 20px 0;'>
-                <div style='font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 4px;'>
-                    Politécnico Grancolombiano
+            with st.sidebar:
+                # Logo cuadrado con P (fondo oscuro para evitar tonos claros)
+                logo_html = """
+                <div class='sidebar-logo'>
+                  <svg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                    <rect width='40' height='40' rx='6' fill='#011638'/>
+                    <text x='20' y='27' font-size='20' text-anchor='middle' fill='#ffffff' font-family='Arial' font-weight='800'>SI</text>
+                  </svg>
                 </div>
-                <div style='font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 12px;'>
-                    Institución Universitaria
+                """
+
+                header_html = f"""
+                <div class='sidebar-header'>
+                  {logo_html}
+                  <div class='sidebar-header-text'>
+                    <div class='sidebar-title-main'>Sistema de gestión de <span>Indicadores</span></div>
+                    <div class='sidebar-subtitle'>POLITÉCNICA GRANCOLMBIANA</div>
+                  </div>
                 </div>
-                <div style='display: inline-block; background: transparent; border: 1px solid #10b981; 
-                            color: #10b981; padding: 6px 16px; border-radius: 20px; 
-                            font-size: 12px; font-weight: 600;'>
-                    PMV V2.0
+                """
+                st.markdown(header_html, unsafe_allow_html=True)
+                st.markdown("<div class='sidebar-section-title'>Módulos del Sistema</div>", unsafe_allow_html=True)
+
+                # Bloque de navegación
+                st.markdown("<div class='sidebar-nav-card'>", unsafe_allow_html=True)
+                # Menú personalizado HTML/CSS controlado por query param `page`
+                options = [
+                    ("Nuestro Impacto", "M", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='18' height='18' rx='3' fill='none' stroke='currentColor' stroke-width='1.5'/></svg>"),
+                    ("OPEX Financiero", "F", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='9' cy='9' r='6' fill='none' stroke='currentColor' stroke-width='1.5'/></svg>"),
+                    ("Base Normativa", "B", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M4 6h16M4 12h16M4 18h16' stroke='currentColor' stroke-width='1.5' stroke-linecap='round'/></svg>"),
+                    ("Auditoría (CSVs)", "A", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6v6l4 2' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"),
+                ]
+
+                params = st.experimental_get_query_params()
+                selected = params.get("page", ["Nuestro Impacto"])[0]
+
+                menu_items = []
+                for label, short, icon in options:
+                    is_active = "active" if label == selected else ""
+                    href = f"?page={label}"
+                    item_html = f"<a href='{href}' class='nav-link {is_active}'><span class='nav-icon'>{icon}</span><span class='nav-label'>{label}</span></a>"
+                    menu_items.append(item_html)
+
+                menu_html = "<div class='custom-sidebar-menu'>" + "".join(menu_items) + "</div>"
+                st.markdown(menu_html, unsafe_allow_html=True)
+                menu = selected
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                # Footer
+                st.markdown("""
+                <div style='margin-top: 40px; text-align: center; padding: 20px 0;'>
+                    <div style='font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 4px;'>
+                        Politécnico Grancolombiano
+                    </div>
+                    <div style='font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 12px;'>
+                        Institución Universitaria
+                    </div>
+                    <div style='display: inline-block; background: transparent; border: 1px solid #10b981; 
+                                color: #10b981; padding: 6px 16px; border-radius: 20px; 
+                                font-size: 12px; font-weight: 600;'>
+                        PMV V2.0
+                    </div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Error en sidebar: {e}")
 
