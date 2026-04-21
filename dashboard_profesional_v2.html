@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Indicadores - Dashboard Ejecutivo</title>
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- ECharts para gráficos avanzados -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js"></script>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* ============= RESET Y VARIABLES GLOBALES ============= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Colores principales - Azul profesional */
+            --primary: #0c63e4;          /* Azul intenso */
+            --primary-light: #3b82f6;    /* Azul claro */
+            --primary-dark: #0550c8;     /* Azul oscuro */
+            --primary-lighter: #e0f4ff; /* Azul muy claro */
+            
+            /* Colores secundarios - Azul degradado */
+            --secondary: #0ea5e9;       /* Azul cyan */
+            --secondary-light: #7dd3fc; /* Azul cyan claro */
+            --tertiary: #6366f1;        /* Azul indigo */
+            
+            --warning: #f59e0b;         /* Ámbar */
+            --danger: #ef4444;          /* Rojo */
+            --success: #10b981;         /* Verde */
+            
+            /* Colores de líneas - Paleta azul profesional */
+            --line-1: #0c63e4;          /* Azul principal */
+            --line-2: #0ea5e9;          /* Azul cyan */
+            --line-3: #6366f1;          /* Azul indigo */
+            --line-4: #0550c8;          /* Azul oscuro */
+            --line-5: #3b82f6;          /* Azul claro */
+            --line-6: #06b6d4;          /* Cyan */
+            
+            /* Grises y neutros */
+            --bg-light: #f7fafc;
+            --bg-lighter: #eef5ff;
+            --bg-dark: #0f172a;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #cbd5e1;
+            --border-dark: #94a3b8;
+            
+            /* Especiales - Con tonos azul */
+            --critical: #dc2626;
+            --success-light: #d1fae5;
+            --warning-light: #fef3c7;
+            --danger-light: #fee2e2;
+            --info-light: #dbeafe;      /* Azul info claro */
+            
+            /* Espaciado */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+            
+            /* Sombras */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        /* ============= LAYOUT GENERAL ============= */
+        .container-main {
+            display: flex;
+            min-height: 100vh;
+            background-color: var(--bg-light);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(135deg, #0550c8 0%, #0c63e4 50%, #0ea5e9 100%);
+            color: white;
+            padding: var(--spacing-xl);
+            box-shadow: 0 10px 40px rgba(12, 99, 228, 0.3);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            margin-bottom: var(--spacing-2xl);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .sidebar-logo i {
+            font-size: 2rem;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+            padding-left: 1.5rem;
+        }
+
+        .nav-link i {
+            font-size: 1.1rem;
+            width: 20px;
+        }
+
+        /* Contenido principal */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: var(--spacing-2xl);
+            overflow-y: auto;
+        }
+
+        /* ============= HEADER ============= */
+        .header {
+            margin-bottom: var(--spacing-2xl);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--spacing-lg);
+        }
+
+        .header-title h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .header-subtitle {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        /* ============= FILTROS ============= */
+        .filter-group {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+            padding: var(--spacing-lg);
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(12, 99, 228, 0.08);
+            margin-bottom: var(--spacing-xl);
+            border: 1px solid #dbeafe;
+        }
+
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .filter-item label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: 2px solid #cbd5e1;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            background: white;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-item select:hover,
+        .filter-item input:hover {
+            border-color: #0c63e4;
+            box-shadow: 0 0 0 3px rgba(12, 99, 228, 0.1);
+        }
+
+        .filter-item select:focus,
+        .filter-item input:focus {
+            outline: none;
+            border-color: #0c63e4;
+            box-shadow: 0 0 0 3px rgba(12, 99, 228, 0.15);
+        }
+
+        .btn-reset {
+            padding: var(--spacing-sm) var(--spacing-lg);
+            background: var(--bg-lighter);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            align-self: flex-end;
+        }
+
+        .btn-reset:hover {
+            background: var(--bg-light);
+            border-color: var(--text-light);
+        }
+
+        /* ============= TABS ============= */
+        .tabs-container {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-2xl);
+            border-bottom: 2px solid var(--border-color);
+            overflow-x: auto;
+            padding-bottom: 0;
+        }
+
+        .tab-button {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-light);
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.95rem;
+        }
+
+        .tab-button:hover {
+            color: var(--text-dark);
+        }
+
+        .tab-button.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ============= KPI CARDS ============= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: var(--spacing-lg);
+            box-shadow: 0 4px 15px rgba(12, 99, 228, 0.08);
+            border: 1px solid #dbeafe;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 25px rgba(12, 99, 228, 0.15);
+            border-color: #bfdbfe;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0c63e4, #0ea5e9);
+        }
+
+        .kpi-card.status-critical::before {
+            background: var(--danger);
+        }
+
+        .kpi-card.status-warning::before {
+            background: var(--warning);
+        }
+
+        .kpi-card.status-success::before {
+            background: var(--success);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon {
+            font-size: 1.5rem;
+            color: #0c63e4;
+            opacity: 0.7;
+        }
+
+        .kpi-card.status-critical .kpi-icon {
+            color: var(--danger);
+        }
+
+        .kpi-card.status-warning .kpi-icon {
+            color: var(--warning);
+        }
+
+        .kpi-card.status-success .kpi-icon {
+            color: var(--success);
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: var(--spacing-sm);
+            line-height: 1;
+        }
+
+        .kpi-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .kpi-label {
+            color: var(--text-muted);
+        }
+
+        .kpi-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .kpi-change.positive {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .kpi-change.negative {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .kpi-change.neutral {
+            background: var(--bg-lighter);
+            color: var(--text-light);
+        }
+
+        /* ============= STATUS BADGES ============= */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.critical {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .status-badge.warning {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .status-badge.success {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status-badge.info {
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary);
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* ============= SECCIONES Y CARDS ============= */
+        .section {
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .section-title i {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .section-subtitle {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        /* ============= CARDS DE CONTENIDO ============= */
+        .content-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: var(--spacing-lg);
+            box-shadow: 0 4px 12px rgba(12, 99, 228, 0.08);
+            border: 1px solid #dbeafe;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .content-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* ============= GRID DE GRÁFICOS ============= */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: var(--spacing-xl);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 0.75rem;
+            padding: var(--spacing-lg);
+            box-shadow: 0 4px 15px rgba(12, 99, 228, 0.08);
+            border: 1px solid #dbeafe;
+            position: relative;
+            min-height: 350px;
+            transition: all 0.3s ease;
+        }
+
+        .chart-container:hover {
+            box-shadow: 0 8px 25px rgba(12, 99, 228, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .chart-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            font-weight: 400;
+        }
+
+        .chart-canvas {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        .echarts-container {
+            width: 100% !important;
+            height: 300px !important;
+        }
+
+        /* ============= TABLAS ============= */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 0.75rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        table thead {
+            background: linear-gradient(135deg, rgba(12, 99, 228, 0.05) 0%, rgba(14, 165, 233, 0.05) 100%);
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        table th {
+            padding: var(--spacing-md) var(--spacing-lg);
+            text-align: left;
+            font-weight: 600;
+            color: #0550c8;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        table td {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid #dbeafe;
+            color: var(--text-dark);
+        }
+
+        table tbody tr:hover {
+            background: #f0f9ff;
+        }
+
+        table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ============= INSIGHTS ============= */
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .insight-card {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border-radius: 0.75rem;
+            padding: var(--spacing-lg);
+            border-left: 4px solid var(--primary);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary);
+        }
+
+        .insight-card.warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(251, 191, 36, 0.05) 100%);
+            border-left-color: var(--warning);
+        }
+
+        .insight-card.success {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(52, 211, 153, 0.05) 100%);
+            border-left-color: var(--success);
+        }
+
+        .insight-card.danger {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(248, 113, 113, 0.05) 100%);
+            border-left-color: var(--danger);
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .insight-icon {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .insight-card.warning .insight-icon {
+            color: var(--warning);
+        }
+
+        .insight-card.success .insight-icon {
+            color: var(--success);
+        }
+
+        .insight-card.danger .insight-icon {
+            color: var(--danger);
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+
+        .insight-text {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* ============= BOTONES ============= */
+        .btn {
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg-lighter);
+            color: var(--text-dark);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        /* ============= RESPONSIVE ============= */
+        @media (max-width: 1400px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 220px;
+            }
+
+            .main-content {
+                margin-left: 220px;
+                padding: var(--spacing-lg);
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header-title h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: var(--spacing-lg);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: var(--spacing-lg);
+            }
+
+            .container-main {
+                flex-direction: column;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-group {
+                flex-direction: column;
+            }
+
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-controls {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            table th,
+            table td {
+                padding: var(--spacing-sm);
+            }
+        }
+
+        /* ============= TOOLTIPS ============= */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            color: var(--primary);
+            text-decoration: underline dotted;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--text-dark);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            box-shadow: var(--shadow-lg);
+            font-weight: 400;
+            text-decoration: none;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--text-dark) transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* ============= ANIMACIONES ============= */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* ============= HERO SECTION ============= */
+        .hero-section {
+            background: linear-gradient(135deg, #0550c8 0%, #0c63e4 30%, #0ea5e9 70%, #7dd3fc 100%);
+            color: white;
+            padding: var(--spacing-2xl);
+            border-radius: 1rem;
+            margin-bottom: var(--spacing-2xl);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(12, 99, 228, 0.25);
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 400px;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: 10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+            opacity: 0.95;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: var(--spacing-2xl);
+            flex-wrap: wrap;
+        }
+
+        .hero-stat {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .hero-stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .hero-stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <!-- ============= SIDEBAR ============= -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-chart-line"></i>
+                    <span>SGIND</span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <li class="nav-item">
+                    <a class="nav-link active" data-tab="inicio" onclick="switchTab('inicio')">
+                        <i class="fas fa-home"></i>
+                        <span>Inicio</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-tab="estrategia" onclick="switchTab('estrategia')">
+                        <i class="fas fa-chess-knight"></i>
+                        <span>Estrategia</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-tab="operacion" onclick="switchTab('operacion')">
+                        <i class="fas fa-cogs"></i>
+                        <span>Operación</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-tab="procesos" onclick="switchTab('procesos')">
+                        <i class="fas fa-sitemap"></i>
+                        <span>Procesos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-tab="monitoreo" onclick="switchTab('monitoreo')">
+                        <i class="fas fa-database"></i>
+                        <span>Monitoreo de Datos</span>
+                    </a>
+                </li>
+            </nav>
+        </aside>
+
+        <!-- ============= CONTENIDO PRINCIPAL ============= -->
+        <main class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">
+                    <h1>Sistema de Gestión de Indicadores</h1>
+                    <p class="header-subtitle">Dashboard Ejecutivo - Período 2026</p>
+                </div>
+                <div class="header-controls">
+                    <button class="btn btn-secondary btn-sm">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                    <button class="btn btn-secondary btn-sm">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-group">
+                <div class="filter-item">
+                    <label>Año</label>
+                    <select>
+                        <option>2026</option>
+                        <option>2025</option>
+                        <option>2024</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>Mes</label>
+                    <select>
+                        <option>Abril</option>
+                        <option>Marzo</option>
+                        <option>Febrero</option>
+                        <option>Enero</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>Modalidad</label>
+                    <select>
+                        <option>Todas</option>
+                        <option>Presencial</option>
+                        <option>Virtual</option>
+                        <option>Híbrida</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>Proceso</label>
+                    <select>
+                        <option>Todos los procesos</option>
+                        <option>Gestión Académica</option>
+                        <option>Gestión Administrativa</option>
+                        <option>Gestión de Investigación</option>
+                    </select>
+                </div>
+                <button class="btn-reset">
+                    <i class="fas fa-redo"></i> Resetear
+                </button>
+            </div>
+
+            <!-- ============= TAB: INICIO ============= -->
+            <div id="inicio" class="tab-content active">
+                <!-- Hero Section -->
+                <div class="hero-section">
+                    <div class="hero-content">
+                        <h2 class="hero-title">Resumen Ejecutivo - Estado Actual</h2>
+                        <p class="hero-subtitle">Visión integral del desempeño institucional y gestión de indicadores</p>
+                        <div class="hero-stats">
+                            <div class="hero-stat">
+                                <div class="hero-stat-value">156</div>
+                                <div class="hero-stat-label">Indicadores Activos</div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="hero-stat-value">87%</div>
+                                <div class="hero-stat-label">Cumplimiento Promedio</div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="hero-stat-value">23</div>
+                                <div class="hero-stat-label">En Alerta / Peligro</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPIs Principales -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Indicadores Clave de Desempeño
+                    </h3>
+                    <div class="kpi-grid">
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Cumplimiento General</div>
+                                <i class="kpi-icon fas fa-check-circle"></i>
+                            </div>
+                            <div class="kpi-value">87.2%</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Meta: 85%</span>
+                                <span class="kpi-change positive">
+                                    <i class="fas fa-arrow-up"></i> +2.2%
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-critical">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Indicadores en Peligro</div>
+                                <i class="kpi-icon fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="kpi-value">12</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">De 156 total</span>
+                                <span class="kpi-change negative">
+                                    <i class="fas fa-arrow-up"></i> 7.7%
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-warning">
+                            <div class="kpi-header">
+                                <div class="kpi-title">En Alerta</div>
+                                <i class="kpi-icon fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="kpi-value">11</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Requieren atención</span>
+                                <span class="kpi-change neutral">
+                                    <i class="fas fa-minus"></i> 0%
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Sobrecumplimiento</div>
+                                <i class="kpi-icon fas fa-star"></i>
+                            </div>
+                            <div class="kpi-value">34</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Por encima de meta</span>
+                                <span class="kpi-change positive">
+                                    <i class="fas fa-arrow-up"></i> 5.4%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insights Narrativos -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-lightbulb"></i>
+                        Insights y Recomendaciones
+                    </h3>
+                    <div class="insights-grid">
+                        <div class="insight-card success">
+                            <div class="insight-header">
+                                <i class="insight-icon fas fa-check-circle"></i>
+                                <div class="insight-title">Tendencia Positiva</div>
+                            </div>
+                            <p class="insight-text">El cumplimiento general ha aumentado 2.2% respecto al mes anterior, alcanzando 87.2%. Esto indica una mejora sostenida en la ejecución operativa.</p>
+                        </div>
+
+                        <div class="insight-card warning">
+                            <div class="insight-header">
+                                <i class="insight-icon fas fa-exclamation-circle"></i>
+                                <div class="insight-title">Atención Requerida</div>
+                            </div>
+                            <p class="insight-text">12 indicadores se encuentran en peligro crítico. Se requiere intervención inmediata en los procesos de Gestión Académica y Administrativa.</p>
+                        </div>
+
+                        <div class="insight-card danger">
+                            <div class="insight-header">
+                                <i class="insight-icon fas fa-fire"></i>
+                                <div class="insight-title">Anomalías Detectadas</div>
+                            </div>
+                            <p class="insight-text">Se han identificado 3 anomalías significativas en las últimas 24 horas. Revisar logs de validación en la sección de Monitoreo.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos Principales -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Análisis de Desempeño
+                    </h3>
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>
+                                    <div>Cumplimiento por Línea</div>
+                                    <div class="chart-subtitle">Análisis comparativo de desempeño</div>
+                                </div>
+                            </div>
+                            <div class="chart-canvas">
+                                <canvas id="chart-linea"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>
+                                    <div>Ranking de Riesgo (IRIP)</div>
+                                    <div class="chart-subtitle">Indicadores con mayor riesgo</div>
+                                </div>
+                            </div>
+                            <div class="chart-canvas">
+                                <canvas id="chart-riesgo"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>
+                                    <div>Tendencia de Cumplimiento</div>
+                                    <div class="chart-subtitle">Últimos 12 meses</div>
+                                </div>
+                            </div>
+                            <div id="chart-tendencia" class="echarts-container"></div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>
+                                    <div>Distribución de Estados</div>
+                                    <div class="chart-subtitle">Porcentaje de indicadores por estado</div>
+                                </div>
+                            </div>
+                            <div id="chart-distribucion" class="echarts-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Gráficos Avanzados -->
+                    <div class="chart-grid" style="grid-template-columns: 1fr;">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>
+                                    <div>Jerarquía de Línea → Objetivo</div>
+                                    <div class="chart-subtitle">Análisis por nivel con cumplimiento promedio</div>
+                                </div>
+                            </div>
+                            <div id="chart-sunburst" class="echarts-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-grid" style="grid-template-columns: 1fr;">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>
+                                    <div>Mapa de Indicadores por Factor CNA</div>
+                                    <div class="chart-subtitle">Proporción de indicadores por factor y característica</div>
+                                </div>
+                            </div>
+                            <div id="chart-treemap" class="echarts-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============= TAB: ESTRATEGIA ============= -->
+            <div id="estrategia" class="tab-content">
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-chess-knight"></i>
+                        Análisis Estratégico
+                    </h3>
+
+                    <!-- CMI Estratégico -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h4 class="content-card-title">Cuadro de Mando Integral (CMI)</h4>
+                            <span class="status-badge info">4 Perspectivas</span>
+                        </div>
+                        <div class="chart-grid" style="grid-template-columns: 1fr;">
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    <div>Cumplimiento por Perspectiva CMI</div>
+                                </div>
+                                <div id="chart-cmi" class="echarts-container"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Plan de Mejoramiento -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h4 class="content-card-title">Plan de Mejoramiento</h4>
+                            <span class="status-badge success">24 Acciones Activas</span>
+                        </div>
+                        <div class="kpi-grid">
+                            <div class="kpi-card status-success">
+                                <div class="kpi-header">
+                                    <div class="kpi-title">Acciones Cerradas</div>
+                                    <i class="kpi-icon fas fa-check"></i>
+                                </div>
+                                <div class="kpi-value">18</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-label">Completadas</span>
+                                    <span class="kpi-change positive">75%</span>
+                                </div>
+                            </div>
+
+                            <div class="kpi-card status-warning">
+                                <div class="kpi-header">
+                                    <div class="kpi-title">En Ejecución</div>
+                                    <i class="kpi-icon fas fa-hourglass-half"></i>
+                                </div>
+                                <div class="kpi-value">5</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-label">En progreso</span>
+                                    <span class="kpi-change neutral">21%</span>
+                                </div>
+                            </div>
+
+                            <div class="kpi-card status-critical">
+                                <div class="kpi-header">
+                                    <div class="kpi-title">Vencidas</div>
+                                    <i class="kpi-icon fas fa-clock"></i>
+                                </div>
+                                <div class="kpi-value">1</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-label">Pendiente de cierre</span>
+                                    <span class="kpi-change negative">4%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chart-grid" style="grid-template-columns: 1fr;">
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    <div>Avance del Plan de Mejoramiento</div>
+                                </div>
+                                <div id="chart-mejora" class="echarts-container"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Indicadores Estratégicos -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h4 class="content-card-title">Indicadores Estratégicos CNA</h4>
+                            <span class="status-badge info">42 Indicadores</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Indicador</th>
+                                        <th>Factor</th>
+                                        <th>Meta</th>
+                                        <th>Actual</th>
+                                        <th>Cumplimiento</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>IND-001</strong></td>
+                                        <td>Cobertura de Programas Acreditados</td>
+                                        <td>Acreditación</td>
+                                        <td>65%</td>
+                                        <td>68%</td>
+                                        <td>104.6%</td>
+                                        <td><span class="status-badge success">Cumplido</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>IND-002</strong></td>
+                                        <td>Docentes con Postgrado</td>
+                                        <td>Recurso Humano</td>
+                                        <td>45%</td>
+                                        <td>42%</td>
+                                        <td>93.3%</td>
+                                        <td><span class="status-badge warning">Alerta</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>IND-003</strong></td>
+                                        <td>Investigación Financiada</td>
+                                        <td>Investigación</td>
+                                        <td>8.5%</td>
+                                        <td>7.2%</td>
+                                        <td>84.7%</td>
+                                        <td><span class="status-badge warning">Alerta</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>IND-004</strong></td>
+                                        <td>Tasas de Deserción</td>
+                                        <td>Académica</td>
+                                        <td>&lt;8%</td>
+                                        <td>9.2%</td>
+                                        <td>78.3%</td>
+                                        <td><span class="status-badge critical">Crítico</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>IND-005</strong></td>
+                                        <td>Satisfacción Estudiantil</td>
+                                        <td>Gestión Académica</td>
+                                        <td>4.0</td>
+                                        <td>4.2</td>
+                                        <td>105%</td>
+                                        <td><span class="status-badge success">Cumplido</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============= TAB: OPERACIÓN ============= -->
+            <div id="operacion" class="tab-content">
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-cogs"></i>
+                        Tablero Operativo
+                    </h3>
+
+                    <div class="kpi-grid">
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Reportes Entregados</div>
+                                <i class="kpi-icon fas fa-file-alt"></i>
+                            </div>
+                            <div class="kpi-value">142</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">De 156 esperados</span>
+                                <span class="kpi-change positive">91%</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-warning">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Próximos a Vencer</div>
+                                <i class="kpi-icon fas fa-calendar-times"></i>
+                            </div>
+                            <div class="kpi-value">8</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">En 3 días</span>
+                                <span class="kpi-change neutral">5%</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-critical">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Vencidos</div>
+                                <i class="kpi-icon fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="kpi-value">6</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Requieren acción</span>
+                                <span class="kpi-change negative">4%</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Carga de Datos</div>
+                                <i class="kpi-icon fas fa-database"></i>
+                            </div>
+                            <div class="kpi-value">98.5%</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Completitud de datos</span>
+                                <span class="kpi-change positive">+0.3%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seguimiento de Reportes -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-chart-column"></i>
+                        Seguimiento de Reportes por Proceso
+                    </h3>
+
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>Estado de Reportes por Proceso</div>
+                            </div>
+                            <div id="chart-reportes" class="echarts-container"></div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>Histórico de Cargas</div>
+                            </div>
+                            <div class="chart-canvas">
+                                <canvas id="chart-cargas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Gestión OM -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-tasks"></i>
+                        Gestión de Órdenes de Mejora
+                    </h3>
+
+                    <div class="content-card">
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID OM</th>
+                                        <th>Descripción</th>
+                                        <th>Proceso</th>
+                                        <th>Responsable</th>
+                                        <th>Fecha Límite</th>
+                                        <th>Estado</th>
+                                        <th>% Avance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>OM-2026-001</strong></td>
+                                        <td>Mejora en la Calidad de Información</td>
+                                        <td>Gestión Académica</td>
+                                        <td>Juan Pérez</td>
+                                        <td>2026-05-15</td>
+                                        <td><span class="status-badge success">En Ejecución</span></td>
+                                        <td><strong>75%</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>OM-2026-002</strong></td>
+                                        <td>Automatización de Reportes</td>
+                                        <td>Gestión Administrativa</td>
+                                        <td>María González</td>
+                                        <td>2026-04-30</td>
+                                        <td><span class="status-badge warning">Alerta</span></td>
+                                        <td><strong>45%</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>OM-2026-003</strong></td>
+                                        <td>Capacitación en Sistema</td>
+                                        <td>Gestión Técnica</td>
+                                        <td>Carlos López</td>
+                                        <td>2026-04-20</td>
+                                        <td><span class="status-badge critical">Crítico</span></td>
+                                        <td><strong>20%</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============= TAB: PROCESOS ============= -->
+            <div id="procesos" class="tab-content">
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-sitemap"></i>
+                        Análisis por Proceso
+                    </h3>
+
+                    <div class="chart-grid" style="grid-template-columns: 1fr;">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>Desempeño por Proceso</div>
+                            </div>
+                            <div id="chart-procesos" class="echarts-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Procesos -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h4 class="content-card-title">Indicadores por Proceso y Subproceso</h4>
+                            <span class="status-badge info">8 Procesos</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Proceso</th>
+                                        <th>Subproceso</th>
+                                        <th>Indicadores</th>
+                                        <th>Cumplimiento Promedio</th>
+                                        <th>En Peligro</th>
+                                        <th>En Alerta</th>
+                                        <th>Tendencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Gestión Académica</strong></td>
+                                        <td>Docencia</td>
+                                        <td>24</td>
+                                        <td><strong>89.5%</strong></td>
+                                        <td>1</td>
+                                        <td>2</td>
+                                        <td><span class="status-badge success"><i class="fas fa-arrow-up"></i> +3%</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Gestión Académica</strong></td>
+                                        <td>Currículo</td>
+                                        <td>18</td>
+                                        <td><strong>85.2%</strong></td>
+                                        <td>3</td>
+                                        <td>1</td>
+                                        <td><span class="status-badge warning"><i class="fas fa-arrow-down"></i> -1.5%</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Gestión Administrativa</strong></td>
+                                        <td>Finanzas</td>
+                                        <td>22</td>
+                                        <td><strong>91.3%</strong></td>
+                                        <td>0</td>
+                                        <td>1</td>
+                                        <td><span class="status-badge success"><i class="fas fa-arrow-up"></i> +2.1%</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Gestión Administrativa</strong></td>
+                                        <td>Recursos Humanos</td>
+                                        <td>19</td>
+                                        <td><strong>84.7%</strong></td>
+                                        <td>2</td>
+                                        <td>3</td>
+                                        <td><span class="status-badge warning"><i class="fas fa-arrow-down"></i> -2.3%</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Gestión de Investigación</strong></td>
+                                        <td>Investigación</td>
+                                        <td>28</td>
+                                        <td><strong>86.1%</strong></td>
+                                        <td>4</td>
+                                        <td>2</td>
+                                        <td><span class="status-badge success"><i class="fas fa-arrow-up"></i> +1.8%</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============= TAB: MONITOREO ============= -->
+            <div id="monitoreo" class="tab-content">
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-database"></i>
+                        Monitoreo de Datos
+                    </h3>
+
+                    <div class="kpi-grid">
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Archivos Procesados</div>
+                                <i class="kpi-icon fas fa-file-upload"></i>
+                            </div>
+                            <div class="kpi-value">324</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Este mes</span>
+                                <span class="kpi-change positive">+45</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Errores Detectados</div>
+                                <i class="kpi-icon fas fa-check-circle"></i>
+                            </div>
+                            <div class="kpi-value">8</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Resueltos</span>
+                                <span class="kpi-change positive">-12%</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-success">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Disponibilidad del Sistema</div>
+                                <i class="kpi-icon fas fa-server"></i>
+                            </div>
+                            <div class="kpi-value">99.8%</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">Uptime</span>
+                                <span class="kpi-change positive">+0.1%</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card status-warning">
+                            <div class="kpi-header">
+                                <div class="kpi-title">Validaciones Pendientes</div>
+                                <i class="kpi-icon fas fa-hourglass-half"></i>
+                            </div>
+                            <div class="kpi-value">3</div>
+                            <div class="kpi-footer">
+                                <span class="kpi-label">En revisión</span>
+                                <span class="kpi-change neutral">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs de Carga -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-history"></i>
+                        Histórico de Cargas y Validaciones
+                    </h3>
+
+                    <div class="chart-grid" style="grid-template-columns: 1fr;">
+                        <div class="chart-container">
+                            <div class="chart-title">
+                                <div>Ejecuciones Diarias de Carga</div>
+                            </div>
+                            <div class="chart-canvas">
+                                <canvas id="chart-ejecuciones"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Cargas -->
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <h4 class="content-card-title">Detalle de Cargas Recientes</h4>
+                            <span class="status-badge info">Últimas 10 cargas</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha/Hora</th>
+                                        <th>Archivo</th>
+                                        <th>Tipo</th>
+                                        <th>Registros</th>
+                                        <th>Estado</th>
+                                        <th>Errores</th>
+                                        <th>Duración</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>2026-04-20 14:32:15</td>
+                                        <td>indicadores_abril.xlsx</td>
+                                        <td>Excel</td>
+                                        <td>1,245</td>
+                                        <td><span class="status-badge success">Completada</span></td>
+                                        <td>0</td>
+                                        <td>2.3 seg</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2026-04-20 10:15:42</td>
+                                        <td>cumplimiento_procesos.csv</td>
+                                        <td>CSV</td>
+                                        <td>856</td>
+                                        <td><span class="status-badge success">Completada</span></td>
+                                        <td>0</td>
+                                        <td>1.8 seg</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2026-04-19 16:45:33</td>
+                                        <td>mejoras_cna.xlsx</td>
+                                        <td>Excel</td>
+                                        <td>2,103</td>
+                                        <td><span class="status-badge warning">Completada c/ advertencias</span></td>
+                                        <td>2</td>
+                                        <td>4.1 seg</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2026-04-19 09:20:11</td>
+                                        <td>reportes_operativos.csv</td>
+                                        <td>CSV</td>
+                                        <td>1,523</td>
+                                        <td><span class="status-badge success">Completada</span></td>
+                                        <td>0</td>
+                                        <td>2.7 seg</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2026-04-18 13:05:27</td>
+                                        <td>acciones_mejora.xlsx</td>
+                                        <td>Excel</td>
+                                        <td>891</td>
+                                        <td><span class="status-badge success">Completada</span></td>
+                                        <td>0</td>
+                                        <td>1.9 seg</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ============= SCRIPTS ============= -->
+    <script>
+        // ========== GESTIÓN DE TABS ==========
+        function switchTab(tabName) {
+            // Ocultar todos los tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Mostrar el tab seleccionado
+            document.getElementById(tabName).classList.add('active');
+
+            // Actualizar estado de botones
+            const buttons = document.querySelectorAll('.tab-button, .nav-link');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            const activeNav = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeNav) {
+                activeNav.classList.add('active');
+            }
+
+            // Re-renderizar gráficos si es necesario
+            setTimeout(() => {
+                if (window.chartsToRender) {
+                    Object.keys(window.chartsToRender).forEach(key => {
+                        if (window.chartsToRender[key]) {
+                            window.chartsToRender[key].resize();
+                        }
+                    });
+                }
+            }, 100);
+        }
+
+        // ========== DATOS SIMULADOS ==========
+        const data = {
+            lineas: ['Línea Académica', 'Línea Administrativa', 'Línea Investigación', 'Línea Extensión'],
+            cumplimientos: [89.5, 91.2, 83.4, 78.9],
+            
+            indicadoresRiesgo: ['Indicador A', 'Indicador B', 'Indicador C', 'Indicador D', 'Indicador E'],
+            riesgoIRIP: [85, 72, 68, 61, 54],
+            
+            meses: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            tendencia: [78.5, 79.2, 80.1, 81.5, 83.2, 84.6, 85.2, 86.1, 86.8, 87.2, 87.5, 87.2],
+            
+            perspectivas: ['Financiera', 'Procesos', 'Clientes', 'Aprendizaje'],
+            cmiValues: [82, 88, 91, 85],
+            
+            procesos: ['Gestión Académica', 'Gestión Administrativa', 'Gestión Investigación', 'Gestión Extensión', 'Gestión Técnica'],
+            procesosPerf: [89.5, 91.2, 83.4, 78.9, 92.1],
+            
+            reportesEstado: [
+                { name: 'Entregados', value: 142 },
+                { name: 'Pendientes', value: 10 },
+                { name: 'Vencidos', value: 4 }
+            ],
+            
+            cargas: [24, 18, 32, 15, 28, 31, 22, 26, 29, 35],
+            ejecuciones: [8, 7, 10, 5, 9, 11, 6, 8, 10, 12]
+        };
+
+        // ========== GRÁFICO: CUMPLIMIENTO POR LÍNEA ==========
+        const ctxLinea = document.getElementById('chart-linea');
+        if (ctxLinea) {
+            new Chart(ctxLinea, {
+                type: 'bar',
+                data: {
+                    labels: data.lineas,
+                    datasets: [{
+                        label: 'Cumplimiento %',
+                        data: data.cumplimientos,
+                        backgroundColor: [
+                            'rgba(12, 99, 228, 0.8)',
+                            'rgba(14, 165, 233, 0.8)',
+                            'rgba(99, 102, 241, 0.8)',
+                            'rgba(59, 130, 246, 0.8)'
+                        ],
+                        borderColor: [
+                            '#0c63e4',
+                            '#0ea5e9',
+                            '#6366f1',
+                            '#3b82f6'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(37, 99, 235, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: function(value) { return value + '%'; } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ========== GRÁFICO: RANKING DE RIESGO ==========
+        const ctxRiesgo = document.getElementById('chart-riesgo');
+        if (ctxRiesgo) {
+            new Chart(ctxRiesgo, {
+                type: 'bar',
+                data: {
+                    labels: data.indicadoresRiesgo,
+                    datasets: [{
+                        label: 'IRIP Score',
+                        data: data.riesgoIRIP,
+                        backgroundColor: function(context) {
+                            const value = context.raw;
+                            if (value >= 75) return 'rgba(12, 99, 228, 0.8)';
+                            if (value >= 60) return 'rgba(245, 158, 11, 0.8)';
+                            return 'rgba(239, 68, 68, 0.8)';
+                        },
+                        borderRadius: 8,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // ========== GRÁFICO: HISTÓRICO DE CARGAS ==========
+        const ctxCargas = document.getElementById('chart-cargas');
+        if (ctxCargas) {
+            new Chart(ctxCargas, {
+                type: 'line',
+                data: {
+                    labels: ['Día 1', 'Día 2', 'Día 3', 'Día 4', 'Día 5', 'Día 6', 'Día 7', 'Día 8', 'Día 9', 'Día 10'],
+                    datasets: [{
+                        label: 'Registros Cargados',
+                        data: data.cargas,
+                        borderColor: '#0c63e4',
+                        backgroundColor: 'rgba(12, 99, 228, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#0c63e4',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { font: { size: 12 } }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // ========== GRÁFICO: EJECUCIONES ==========
+        const ctxEjecuciones = document.getElementById('chart-ejecuciones');
+        if (ctxEjecuciones) {
+            new Chart(ctxEjecuciones, {
+                type: 'line',
+                data: {
+                    labels: ['Día 1', 'Día 2', 'Día 3', 'Día 4', 'Día 5', 'Día 6', 'Día 7', 'Día 8', 'Día 9', 'Día 10'],
+                    datasets: [{
+                        label: 'Ejecuciones Exitosas',
+                        data: data.ejecuciones,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#0ea5e9',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { font: { size: 12 } }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // ========== ECHARTS: TENDENCIA DE CUMPLIMIENTO ==========
+        window.chartsToRender = {};
+
+        function initTendenciaChart() {
+            const chartTendencia = echarts.init(document.getElementById('chart-tendencia'));
+            window.chartsToRender.tendencia = chartTendencia;
+            
+            const option = {
+                color: ['#0c63e4', '#0ea5e9', '#6366f1'],
+                tooltip: { trigger: 'axis' },
+                grid: { left: 60, right: 20, top: 20, bottom: 60 },
+                xAxis: {
+                    type: 'category',
+                    data: data.meses,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } },
+                    splitLine: { lineStyle: { color: '#eef5ff' } }
+                },
+                series: [{
+                    name: 'Cumplimiento %',
+                    data: data.tendencia,
+                    type: 'line',
+                    smooth: true,
+                    lineStyle: { width: 3, color: '#0c63e4' },
+                    areaStyle: { color: 'rgba(12, 99, 228, 0.2)' },
+                    itemStyle: { borderWidth: 2, borderColor: '#fff', color: '#0c63e4' }
+                }]
+            };
+            chartTendencia.setOption(option);
+        }
+
+        // ========== ECHARTS: DISTRIBUCIÓN DE ESTADOS ==========
+        function initDistribucionChart() {
+            const chartDistribucion = echarts.init(document.getElementById('chart-distribucion'));
+            window.chartsToRender.distribucion = chartDistribucion;
+            
+            const option = {
+                tooltip: { trigger: 'item' },
+                legend: { orient: 'bottom' },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: [
+                        { value: 133, name: 'Cumplido', itemStyle: { color: '#0c63e4' } },
+                        { value: 12, name: 'En Peligro', itemStyle: { color: '#ef4444' } },
+                        { value: 11, name: 'En Alerta', itemStyle: { color: '#f59e0b' } }
+                    ]
+                }]
+            };
+            chartDistribucion.setOption(option);
+        }
+
+        // ========== ECHARTS: CMI ==========
+        function initCMIChart() {
+            const chartCMI = echarts.init(document.getElementById('chart-cmi'));
+            window.chartsToRender.cmi = chartCMI;
+            
+            const option = {
+                color: ['#0c63e4', '#0ea5e9', '#6366f1', '#3b82f6'],
+                tooltip: { trigger: 'item' },
+                xAxis: {
+                    type: 'category',
+                    data: data.perspectivas,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } },
+                    splitLine: { lineStyle: { color: '#eef5ff' } }
+                },
+                series: [{
+                    data: data.cmiValues,
+                    type: 'bar',
+                    itemStyle: {
+                        borderRadius: [8, 8, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#0c63e4' },
+                            { offset: 1, color: '#0ea5e9' }
+                        ])
+                    }
+                }]
+            };
+            chartCMI.setOption(option);
+        }
+
+        // ========== ECHARTS: MEJORA ==========
+        function initMejoraChart() {
+            const chartMejora = echarts.init(document.getElementById('chart-mejora'));
+            window.chartsToRender.mejora = chartMejora;
+            
+            const option = {
+                tooltip: { trigger: 'axis' },
+                grid: { left: 60, right: 20, top: 20, bottom: 40 },
+                xAxis: {
+                    type: 'category',
+                    data: ['Cerradas', 'En Ejecución', 'Vencidas'],
+                    axisLine: { lineStyle: { color: '#cbd5e1' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { lineStyle: { color: '#cbd5e1' } }
+                },
+                series: [{
+                    data: [18, 5, 1],
+                    type: 'bar',
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#0c63e4' },
+                            { offset: 1, color: '#0550c8' }
+                        ])
+                    },
+                    borderRadius: [8, 8, 0, 0]
+                }]
+            };
+            chartMejora.setOption(option);
+        }
+
+        // ========== ECHARTS: REPORTES ==========
+        function initReportesChart() {
+            const chartReportes = echarts.init(document.getElementById('chart-reportes'));
+            window.chartsToRender.reportes = chartReportes;
+            
+            const option = {
+                tooltip: { trigger: 'item' },
+                legend: { orient: 'right' },
+                series: [{
+                    type: 'pie',
+                    radius: '50%',
+                    data: data.reportesEstado,
+                    itemStyle: {
+                        normal: {
+                            color: function(params) {
+                                const colors = ['#10b981', '#f59e0b', '#ef4444'];
+                                return colors[params.dataIndex];
+                            }
+                        }
+                    }
+                }]
+            };
+            chartReportes.setOption(option);
+        }
+
+        // ========== ECHARTS: PROCESOS ==========
+        function initProcesosChart() {
+            const chartProcesos = echarts.init(document.getElementById('chart-procesos'));
+            window.chartsToRender.procesos = chartProcesos;
+            
+            const option = {
+                tooltip: { trigger: 'axis' },
+                grid: { left: 150, right: 20, top: 20, bottom: 40 },
+                xAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: data.procesos,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } }
+                },
+                series: [{
+                    data: data.procesosPerf,
+                    type: 'bar',
+                    itemStyle: {
+                        borderRadius: [0, 8, 8, 0],
+                        color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                            { offset: 0, color: '#0c63e4' },
+                            { offset: 1, color: '#0ea5e9' }
+                        ])
+                    }
+                }]
+            };
+            chartProcesos.setOption(option);
+        }
+
+        // ========== ECHARTS: SUNBURST (Jerarquía) ==========
+        function initSunburstChart() {
+            const chartSunburst = echarts.init(document.getElementById('chart-sunburst'));
+            window.chartsToRender.sunburst = chartSunburst;
+            
+            const option = {
+                color: ['#0c63e4', '#0ea5e9', '#3b82f6', '#7dd3fc', '#0550c8', '#6366f1'],
+                tooltip: { trigger: 'item' },
+                series: [{
+                    type: 'sunburst',
+                    data: [
+                        {
+                            name: 'Línea Académica',
+                            children: [
+                                { name: 'Objetivo 1.1', value: 95, label: { rotate: 'radial' } },
+                                { name: 'Objetivo 1.2', value: 87 },
+                                { name: 'Objetivo 1.3', value: 92 },
+                                { name: 'Objetivo 1.4', value: 88 }
+                            ]
+                        },
+                        {
+                            name: 'Línea Administrativa',
+                            children: [
+                                { name: 'Objetivo 2.1', value: 91 },
+                                { name: 'Objetivo 2.2', value: 89 },
+                                { name: 'Objetivo 2.3', value: 93 }
+                            ]
+                        },
+                        {
+                            name: 'Línea Investigación',
+                            children: [
+                                { name: 'Objetivo 3.1', value: 82 },
+                                { name: 'Objetivo 3.2', value: 85 },
+                                { name: 'Objetivo 3.3', value: 81 }
+                            ]
+                        },
+                        {
+                            name: 'Línea Extensión',
+                            children: [
+                                { name: 'Objetivo 4.1', value: 78 },
+                                { name: 'Objetivo 4.2', value: 80 },
+                                { name: 'Objetivo 4.3', value: 79 }
+                            ]
+                        }
+                    ],
+                    radius: [0, '90%'],
+                    label: {
+                        rotate: 'radial',
+                        fontSize: 11
+                    }
+                }]
+            };
+            chartSunburst.setOption(option);
+        }
+
+        // ========== ECHARTS: TREEMAP (Mapa de Indicadores) ==========
+        function initTreemapChart() {
+            const chartTreemap = echarts.init(document.getElementById('chart-treemap'));
+            window.chartsToRender.treemap = chartTreemap;
+            
+            const option = {
+                series: [{
+                    type: 'treemap',
+                    data: [
+                        {
+                            name: 'Factor Misión',
+                            children: [
+                                {
+                                    name: 'Característica 1.1: Cobertura',
+                                    value: 24,
+                                    itemStyle: { color: 'rgba(12, 99, 228, 0.7)' }
+                                },
+                                {
+                                    name: 'Característica 1.2: Calidad',
+                                    value: 18,
+                                    itemStyle: { color: 'rgba(14, 165, 233, 0.7)' }
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Factor Estudiantes',
+                            children: [
+                                {
+                                    name: 'Característica 2.1: Admisión',
+                                    value: 16,
+                                    itemStyle: { color: 'rgba(99, 102, 241, 0.7)' }
+                                },
+                                {
+                                    name: 'Característica 2.2: Permanencia',
+                                    value: 14,
+                                    itemStyle: { color: 'rgba(59, 130, 246, 0.7)' }
+                                },
+                                {
+                                    name: 'Característica 2.3: Egresados',
+                                    value: 12,
+                                    itemStyle: { color: 'rgba(125, 211, 252, 0.7)' }
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Factor Docentes',
+                            children: [
+                                {
+                                    name: 'Característica 3.1: Formación',
+                                    value: 20,
+                                    itemStyle: { color: 'rgba(5, 80, 200, 0.7)' }
+                                },
+                                {
+                                    name: 'Característica 3.2: Experiencia',
+                                    value: 15,
+                                    itemStyle: { color: 'rgba(99, 102, 241, 0.7)' }
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Factor Investigación',
+                            children: [
+                                {
+                                    name: 'Característica 4.1: Grupos',
+                                    value: 18,
+                                    itemStyle: { color: 'rgba(14, 165, 233, 0.7)' }
+                                },
+                                {
+                                    name: 'Característica 4.2: Producción',
+                                    value: 19,
+                                    itemStyle: { color: 'rgba(12, 99, 228, 0.7)' }
+                                }
+                            ]
+                        }
+                    ],
+                    label: {
+                        formatter: '{b}',
+                        fontSize: 10
+                    },
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            };
+            chartTreemap.setOption(option);
+        }
+
+        // ========== INICIALIZAR GRÁFICOS AL CARGAR ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            initTendenciaChart();
+            initDistribucionChart();
+            initCMIChart();
+            initMejoraChart();
+            initReportesChart();
+            initProcesosChart();
+            initSunburstChart();
+            initTreemapChart();
+
+            // Reinicializar gráficos al cambiar de tab
+            const tabButtons = document.querySelectorAll('.nav-link');
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    setTimeout(() => {
+                        Object.keys(window.chartsToRender).forEach(key => {
+                            if (window.chartsToRender[key]) {
+                                window.chartsToRender[key].resize();
+                            }
+                        });
+                    }, 100);
+                });
+            });
+        });
+
+        // Redimensionar gráficos cuando la ventana cambia de tamaño
+        window.addEventListener('resize', () => {
+            if (window.chartsToRender) {
+                Object.keys(window.chartsToRender).forEach(key => {
+                    if (window.chartsToRender[key]) {
+                        window.chartsToRender[key].resize();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

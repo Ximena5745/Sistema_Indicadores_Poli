@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ejecutivo Profesional</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            background-color: #ffffff;
+            padding: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .filters {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .filters select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            justify-content: space-around;
+            background: #ffffff;
+            border-bottom: 2px solid #ddd;
+            margin-top: 20px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #555;
+            transition: color 0.3s, border-bottom 0.3s;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #4caf50;
+            color: #4caf50;
+        }
+
+        /* Sections */
+        .section {
+            display: none;
+            padding: 20px 0;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* KPI Cards */
+        .kpi-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .kpi-card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            font-size: 1.2rem;
+            color: #555;
+        }
+
+        .kpi-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .kpi-card .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #fff;
+        }
+
+        .badge.green {
+            background-color: #4caf50;
+        }
+
+        .badge.yellow {
+            background-color: #ff9800;
+        }
+
+        .badge.red {
+            background-color: #f44336;
+        }
+
+        /* Charts */
+        .charts-section {
+            margin: 20px 0;
+        }
+
+        .chart-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        /* Tables */
+        .table-section {
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f4f6f9;
+            font-weight: 500;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="header-title">Dashboard Ejecutivo Completo</h1>
+            <div class="filters">
+                <select>
+                    <option>Año</option>
+                    <option>2025</option>
+                    <option>2026</option>
+                </select>
+                <select>
+                    <option>Mes</option>
+                    <option>Enero</option>
+                    <option>Febrero</option>
+                </select>
+                <select>
+                    <option>Proceso</option>
+                    <option>Proceso 1</option>
+                    <option>Proceso 2</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" data-tab="resumen">Resumen</div>
+            <div class="tab" data-tab="estrategia">Estrategia</div>
+            <div class="tab" data-tab="operacion">Operación</div>
+            <div class="tab" data-tab="procesos">Procesos</div>
+            <div class="tab" data-tab="monitoreo">Monitoreo</div>
+        </div>
+
+        <!-- Resumen Section -->
+        <section class="section active" id="resumen">
+            <h2>Resumen Ejecutivo</h2>
+            <div class="kpi-section">
+                <div class="kpi-card">
+                    <h3>Total Indicadores</h3>
+                    <div class="value">120</div>
+                    <span class="badge green">+5%</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>En Peligro</h3>
+                    <div class="value">15</div>
+                    <span class="badge red">-2%</span>
+                </div>
+                <div class="kpi-card">
+                    <h3>En Alerta</h3>
+                    <div class="value">30</div>
+                    <span class="badge yellow">+3%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Estrategia Section -->
+        <section class="section" id="estrategia">
+            <h2>Estrategia</h2>
+            <div class="charts-section">
+                <div class="chart-container">
+                    <canvas id="chart1"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Operación Section -->
+        <section class="section" id="operacion">
+            <h2>Operación</h2>
+            <div class="charts-section">
+                <div class="chart-container">
+                    <canvas id="chart2"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Procesos Section -->
+        <section class="section" id="procesos">
+            <h2>Procesos</h2>
+            <div class="table-section">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Estado</th>
+                            <th>Cumplimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Indicador 1</td>
+                            <td>En Peligro</td>
+                            <td>45%</td>
+                        </tr>
+                        <tr>
+                            <td>Indicador 2</td>
+                            <td>En Alerta</td>
+                            <td>60%</td>
+                        </tr>
+                        <tr>
+                            <td>Indicador 3</td>
+                            <td>Estable</td>
+                            <td>85%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Monitoreo Section -->
+        <section class="section" id="monitoreo">
+            <h2>Monitoreo de Datos</h2>
+            <div class="charts-section">
+                <div class="chart-container">
+                    <canvas id="chart3"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Tab functionality
+        const tabs = document.querySelectorAll('.tab');
+        const sections = document.querySelectorAll('.section');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                sections.forEach(s => s.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Chart 1: Line Chart
+        const ctx1 = document.getElementById('chart1').getContext('2d');
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: ['Enero', 'Febrero', 'Marzo', 'Abril'],
+                datasets: [{
+                    label: 'Cumplimiento',
+                    data: [65, 59, 80, 81],
+                    borderColor: '#4caf50',
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+
+        // Chart 2: Bar Chart
+        const ctx2 = document.getElementById('chart2').getContext('2d');
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['Proceso 1', 'Proceso 2', 'Proceso 3'],
+                datasets: [{
+                    label: 'Indicadores',
+                    data: [12, 19, 3],
+                    backgroundColor: ['#4caf50', '#ff9800', '#f44336']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+
+        // Chart 3: Pie Chart
+        const ctx3 = document.getElementById('chart3').getContext('2d');
+        new Chart(ctx3, {
+            type: 'pie',
+            data: {
+                labels: ['Cumplido', 'En Proceso', 'Pendiente'],
+                datasets: [{
+                    data: [50, 30, 20],
+                    backgroundColor: ['#4caf50', '#ff9800', '#f44336']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Prueba | Indicadores Ejecutivos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --surface: #ffffff;
+            --surface-muted: #eef2f8;
+            --text: #111827;
+            --text-muted: #5b6776;
+            --border: rgba(15, 23, 42, 0.08);
+            --brand-blue: #1f78b4;
+            --brand-green: #2ca02c;
+            --brand-yellow: #f4b400;
+            --brand-red: #e63946;
+            --brand-purple: #6f42c1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, #eef3fb 0%, #f7f9fd 100%);
+            color: var(--text);
+        }
+
+        body, button, select {
+            font-family: inherit;
+        }
+
+        .page {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px 24px 40px;
+        }
+
+        header.dashboard-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 18px;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .dashboard-title {
+            margin: 0;
+            font-size: clamp(2rem, 2.4vw, 2.6rem);
+            line-height: 1.05;
+        }
+
+        .dashboard-subtitle {
+            margin: 10px 0 0;
+            color: var(--text-muted);
+            max-width: 680px;
+            font-size: 0.98rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 160px;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .control-group select {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 12px 14px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .control-group select:focus {
+            border-color: var(--brand-blue);
+            box-shadow: 0 0 0 4px rgba(31, 120, 180, 0.12);
+        }
+
+        .section {
+            margin-top: 28px;
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .top-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .top-nav button {
+            border: none;
+            background: rgba(31, 120, 180, 0.1);
+            color: var(--brand-blue);
+            padding: 12px 18px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .top-nav button.active,
+        .top-nav button:hover {
+            background: var(--brand-blue);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(31, 120, 180, 0.16);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        .section-header p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            max-width: 740px;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 22px;
+            padding: 22px;
+            box-shadow: var(--shadow);
+        }
+
+        .kpi-card {
+            position: relative;
+            overflow: hidden;
+            padding: 24px 24px 22px;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            right: -12px;
+            top: -18px;
+            width: 98px;
+            height: 98px;
+            border-radius: 50%;
+            background: rgba(47, 128, 237, 0.12);
+            z-index: 0;
+        }
+
+        .kpi-card .label {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .kpi-card .number {
+            position: relative;
+            z-index: 1;
+            font-size: clamp(2rem, 2.3vw, 2.4rem);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .kpi-card .trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge.green { background: var(--success); }
+        .badge.yellow { background: var(--warning); }
+        .badge.red { background: var(--danger); }
+        .badge.purple { background: var(--brand-purple); }
+
+        .kpi-meta {
+            margin-top: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .kpi-meta span {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .chart-panel {
+            display: grid;
+            grid-template-columns: 1.3fr 0.9fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .main-chart-card {
+            min-height: 430px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .chart-card {
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .chart-card canvas,
+        .main-chart-card canvas {
+            display: block;
+            width: 100% !important;
+            height: 280px !important;
+            max-height: 340px !important;
+            min-height: 260px;
+        }
+
+        .main-chart-card canvas {
+            height: 360px !important;
+            min-height: 340px;
+        }
+
+        .chart-caption {
+            margin-top: 14px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .status-card {
+            display: grid;
+            gap: 10px;
+            padding: 18px 20px;
+            border-radius: 18px;
+            background: var(--surface-muted);
+        }
+
+        .status-card strong {
+            display: block;
+            font-size: 1.05rem;
+            margin-bottom: 4px;
+        }
+
+        .table-card {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 640px;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 15px 12px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(47, 128, 237, 0.06);
+        }
+
+        tbody td {
+            padding: 14px 12px;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .insight-card {
+            display: grid;
+            gap: 12px;
+            padding: 22px;
+        }
+
+        .insight-card h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .insight-card p {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        .insight-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            color: var(--text);
+            background: rgba(47, 128, 237, 0.08);
+            border-radius: 999px;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+        .tag { font-size: 0.82rem; }
+
+        @media (max-width: 980px) {
+            .chart-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            header.dashboard-header {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                justify-content: stretch;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title">Dashboard Ejecutivo de Indicadores</h1>
+                <p class="dashboard-subtitle">Panorama estratégico, diagnóstico operativo y prioridades de acción con una lectura ágil y visual.</p>
+                <div class="top-nav" role="tablist">
+                    <button type="button" class="active" data-section="inicio">Inicio</button>
+                    <button type="button" data-section="estrategia">Estrategia</button>
+                    <button type="button" data-section="operacion">Operación</button>
+                    <button type="button" data-section="procesos">Procesos</button>
+                    <button type="button" data-section="monitoreo">Monitoreo de datos</button>
+                </div>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="filtro-anio">Año</label>
+                    <select id="filtro-anio">
+                        <option>2026</option>
+                        <option>2025</option>
+                        <option>2024</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="filtro-mes">Mes</label>
+                    <select id="filtro-mes">
+                        <option>Marzo</option>
+                        <option>Febrero</option>
+                        <option>Enero</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="filtro-proceso">Línea / Proceso</label>
+                    <select id="filtro-proceso">
+                        <option>Todos</option>
+                        <option>Académica</option>
+                        <option>Financiera</option>
+                        <option>CNA</option>
+                        <option>Operación</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <section id="inicio" class="section active">
+            <div class="section-header">
+                <div>
+                    <h2>Visión general del desempeño</h2>
+                    <p>Resumen de indicadores clave, estado de riesgo y evolución trimestral para identificar rápidamente qué necesita atención.</p>
+                </div>
+                <div class="legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:#1f78b4"></span> Línea 1</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#2ca02c"></span> Línea 2</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#f4b400"></span> Línea 3</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#e63946"></span> Alertas</span>
+                </div>
+            </div>
+
+            <div class="cards-grid">
+                <article class="card kpi-card">
+                    <div class="label">Indicadores activos</div>
+                    <div class="number" id="kpi-indicadores">184</div>
+                    <div class="trend"><span id="kpi-indicadores-trend" style="color:var(--brand-green)">▲ 14%</span> respecto al trimestre anterior</div>
+                    <div class="kpi-meta"><span>6 indicadores nuevos</span><span>4 métricas con cumplimiento superior</span></div>
+                </article>
+                <article class="card kpi-card">
+                    <div class="label">Cumplimiento general</div>
+                    <div class="number" id="kpi-cumplimiento">81.3%</div>
+                    <div class="trend"><span id="kpi-cumplimiento-trend" style="color:var(--brand-green)">▲ 3.8%</span> en 3 meses</div>
+                    <span class="badge green">Estable</span>
+                </article>
+                <article class="card kpi-card">
+                    <div class="label">Indicadores en riesgo</div>
+                    <div class="number" id="kpi-riesgo">12</div>
+                    <div class="trend"><span id="kpi-riesgo-trend" style="color:var(--brand-red)">▲ 25%</span> de variación</div>
+                    <span class="badge red">Prioridad alta</span>
+                </article>
+                <article class="card kpi-card">
+                    <div class="label">Acciones de mejora abiertas</div>
+                    <div class="number" id="kpi-acciones">54</div>
+                    <div class="trend"><span id="kpi-acciones-trend" style="color:var(--brand-yellow)">▼ 9%</span> cierre esperado</div>
+                    <span class="badge yellow">Seguimiento</span>
+                </article>
+            </div>
+
+            <div class="chart-panel">
+                <div class="card main-chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Tendencia de cumplimiento por línea</h3>
+                    <canvas id="trendChart"></canvas>
+                    <p class="chart-caption">Las líneas estratégicas mantienen un crecimiento estable; Línea 3 requiere revisión por debajo de la meta.</p>
+                </div>
+                <div class="card chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Alertas por categoría</h3>
+                    <canvas id="alertChart"></canvas>
+                    <p class="chart-caption">El 42% de las alertas proviene de indicadores con riesgo alto o vencimiento próximo.</p>
+                </div>
+            </div>
+
+            <div class="cards-grid" style="margin-top:20px;">
+                <article class="card status-card">
+                    <strong><span class="status-dot" style="background:#2ca02c"></span>Cumplimiento +</strong>
+                    <span>54% de líneas estratégicas con avance sostenido.</span>
+                    <span class="tag">Recomendación: conservar ritmo y generar reporte de seguimiento.</span>
+                </article>
+                <article class="card status-card">
+                    <strong><span class="status-dot" style="background:#f4b400"></span>Atención táctica</strong>
+                    <span>34% de las métricas presentan variación moderada en los últimos 60 días.</span>
+                    <span class="tag">Recomendación: priorizar mensajes de cumplimiento y cierre.</span>
+                </article>
+                <article class="card status-card">
+                    <strong><span class="status-dot" style="background:#e63946"></span>Alerta roja</strong>
+                    <span>12 indicadores en riesgo necesitan plan de mitigación inmediato.</span>
+                    <span class="tag">Recomendación: activar comité de calidad para indicadores CNA.</span>
+                </article>
+            </div>
+        </section>
+
+        <section id="estrategia" class="section">
+            <div class="section-header">
+                <div>
+                    <h2>Revisión estratégica</h2>
+                    <p>Indicadores de alineación con metas institucionales, cumplimiento CNA y distribución de foco en niveles de prioridad.</p>
+                </div>
+                <span class="badge purple">Estrategia en foco</span>
+            </div>
+
+            <div class="chart-panel">
+                <div class="card main-chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Cumplimiento por perspectiva</h3>
+                    <canvas id="strategyChart"></canvas>
+                    <p class="chart-caption">La perspectiva Académica lidera, mientras que Acreditación requiere rebote para alcanzar el objetivo anual.</p>
+                </div>
+                <div class="card chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Proyección de cierre</h3>
+                    <canvas id="projectionChart"></canvas>
+                    <p class="chart-caption">Proyección a seis meses basada en ritmo actual de avance y acciones abiertas.</p>
+                </div>
+            </div>
+
+            <div class="cards-grid" style="margin-top:20px;">
+                <article class="card insight-card">
+                    <div class="insight-pill">Insight</div>
+                    <h3>Avance estratégico con brecha en acreditación</h3>
+                    <p>El 38% del avance estratégico depende de los procesos de acreditación y reporte CNA. Reforzar recursos en estas áreas para lograr metas.</p>
+                </article>
+                <article class="card status-card">
+                    <strong><span class="status-dot" style="background:#1f78b4"></span>Meta académica</strong>
+                    <span>89% de cumplimiento en línea académica.</span>
+                    <span class="tag">Mantener seguimiento semanal para evitar desalineación.</span>
+                </article>
+            </div>
+        </section>
+
+        <section id="operacion" class="section">
+            <div class="section-header">
+                <div>
+                    <h2>Operación y gestión de reportes</h2>
+                    <p>Estado de entregas, cumplimiento operativo y alertas sobre reportes atrasados o en riesgo.</p>
+                </div>
+                <span class="badge yellow">Operaciones</span>
+            </div>
+
+            <div class="chart-panel">
+                <div class="card main-chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Reporte de estado por proceso</h3>
+                    <canvas id="operationChart"></canvas>
+                    <p class="chart-caption">Proporción de reportes completados, pendientes y vencidos por proceso.</p>
+                </div>
+                <div class="card chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Ciclo de validación</h3>
+                    <canvas id="dataQualityChart"></canvas>
+                    <p class="chart-caption">Calidad y tiempo de revisión de cargas de datos recientes.</p>
+                </div>
+            </div>
+
+            <div class="table-card card" style="margin-top:18px;">
+                <h3 style="margin-bottom:18px; font-size:1.05rem;">Reporte operativo prioritario</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Proceso</th>
+                            <th>Reportes</th>
+                            <th>Cumplimiento</th>
+                            <th>Vencidos</th>
+                            <th>Prioridad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Acreditación</td>
+                            <td>18</td>
+                            <td>72%</td>
+                            <td>4</td>
+                            <td><span class="badge red">Alta</span></td>
+                        </tr>
+                        <tr>
+                            <td>Gestión</td>
+                            <td>24</td>
+                            <td>81%</td>
+                            <td>2</td>
+                            <td><span class="badge yellow">Media</span></td>
+                        </tr>
+                        <tr>
+                            <td>Operación</td>
+                            <td>12</td>
+                            <td>90%</td>
+                            <td>0</td>
+                            <td><span class="badge green">Baja</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="procesos" class="section">
+            <div class="section-header">
+                <div>
+                    <h2>Desglose por procesos</h2>
+                    <p>Comparativo de cumplimiento por proceso, alertas y brechas históricas para la gestión táctica.</p>
+                </div>
+                <span class="badge green">Procesos</span>
+            </div>
+
+            <div class="chart-panel">
+                <div class="card main-chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Tendencia por procesos</h3>
+                    <canvas id="processTrendChart"></canvas>
+                    <p class="chart-caption">Evolución de los procesos clave durante los últimos cinco periodos.</p>
+                </div>
+                <div class="card chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Brechas y oportunidades</h3>
+                    <div class="status-grid" style="margin-top:0;">
+                        <article class="status-card">
+                            <strong>Indicadores con brecha</strong>
+                            <span>24 métricas con desviación mayor al 12%.</span>
+                        </article>
+                        <article class="status-card">
+                            <strong>Procesos en avance</strong>
+                            <span>3 procesos superan el benchmark institucional.</span>
+                        </article>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card card" style="margin-top:18px;">
+                <h3 style="margin-bottom:18px; font-size:1.05rem;">Indicadores por subproceso</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subproceso</th>
+                            <th>Proceso</th>
+                            <th>Cumplimiento</th>
+                            <th>Riesgo</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Revisión de evidencias</td>
+                            <td>Acreditación</td>
+                            <td>68%</td>
+                            <td><span class="badge yellow">Medio</span></td>
+                            <td>Reforzar seguimiento</td>
+                        </tr>
+                        <tr>
+                            <td>Gestión documental</td>
+                            <td>Operación</td>
+                            <td>83%</td>
+                            <td><span class="badge green">Bajo</span></td>
+                            <td>Monitoreo continuo</td>
+                        </tr>
+                        <tr>
+                            <td>Análisis estratégico</td>
+                            <td>Académica</td>
+                            <td>92%</td>
+                            <td><span class="badge green">Bajo</span></td>
+                            <td>Consolidar resultados</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="monitoreo" class="section">
+            <div class="section-header">
+                <div>
+                    <h2>Monitoreo de datos y validación</h2>
+                    <p>Visibilidad de cargas, validaciones y estado de la calidad de datos para garantizar integridad del reporte.</p>
+                </div>
+                <span class="badge purple">Datos</span>
+            </div>
+
+            <div class="chart-panel">
+                <div class="card main-chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Cargas y validaciones</h3>
+                    <canvas id="monitoringChart"></canvas>
+                    <p class="chart-caption">Seguimiento del desempeño de las cargas de datos y el porcentaje de validaciones exitosas.</p>
+                </div>
+                <div class="card chart-card">
+                    <h3 style="margin-bottom:14px; font-size:1.05rem;">Alertas de calidad</h3>
+                    <canvas id="qualityAlertChart"></canvas>
+                    <p class="chart-caption">Distribución de problemas detectados por origen en el pipeline de datos.</p>
+                </div>
+            </div>
+
+            <div class="cards-grid" style="margin-top:20px;">
+                <article class="card insight-card">
+                    <div class="insight-pill">Insight</div>
+                    <h3>Calidad de datos estable pero vigilada</h3>
+                    <p>El 87% de las cargas recientes fueron validadas sin incidentes, pero los errores en reporte CNA deben tratarse de inmediato para mantener el ciclo operativo.</p>
+                </article>
+                <article class="card status-card">
+                    <strong>Validaciones</strong>
+                    <span>87% status OK</span>
+                    <span class="tag">Prioridad: revisar 3 cargas pendientes.</span>
+                </article>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const charts = [];
+
+        const trendCtx = document.getElementById('trendChart');
+        const trendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Nov', 'Dic', 'Ene', 'Feb', 'Mar'],
+                datasets: [
+                    {
+                        label: 'Línea 1',
+                        data: [73, 77, 79, 82, 85],
+                        borderColor: '#1f78b4',
+                        backgroundColor: 'rgba(31,120,180,0.14)',
+                        pointRadius: 4,
+                        tension: 0.32,
+                        fill: true,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#1f78b4',
+                    },
+                    {
+                        label: 'Línea 2',
+                        data: [68, 70, 74, 78, 82],
+                        borderColor: '#2ca02c',
+                        backgroundColor: 'rgba(44,160,44,0.14)',
+                        pointRadius: 4,
+                        tension: 0.32,
+                        fill: true,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#2ca02c',
+                    },
+                    {
+                        label: 'Línea 3',
+                        data: [56, 59, 61, 65, 69],
+                        borderColor: '#f4b400',
+                        backgroundColor: 'rgba(244,180,0,0.14)',
+                        pointRadius: 4,
+                        tension: 0.32,
+                        fill: true,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#f4b400',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false },
+                    legend: { position: 'top', align: 'start' }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#5b6776' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(15,23,42,0.08)' },
+                        ticks: { color: '#5b6776', stepSize: 20 }
+                    }
+                }
+            }
+        });
+        charts.push(trendChart);
+
+        const alertCtx = document.getElementById('alertChart');
+        const alertChart = new Chart(alertCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
+                datasets: [
+                    {
+                        label: 'Alto riesgo',
+                        data: [5, 4, 6, 7, 8],
+                        backgroundColor: '#e63946',
+                        borderRadius: 8,
+                        barThickness: 20
+                    },
+                    {
+                        label: 'Moderado',
+                        data: [7, 8, 7, 6, 7],
+                        backgroundColor: '#f4b400',
+                        borderRadius: 8,
+                        barThickness: 20
+                    },
+                    {
+                        label: 'Controlado',
+                        data: [9, 10, 11, 12, 11],
+                        backgroundColor: '#2ca02c',
+                        borderRadius: 8,
+                        barThickness: 20
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false },
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { color: '#5b6776' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(15,23,42,0.08)' },
+                        ticks: { color: '#5b6776' }
+                    }
+                }
+            }
+        });
+        charts.push(alertChart);
+
+        const processCtx = document.getElementById('processChart');
+        const processChart = new Chart(processCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Académica', 'Acreditación', 'Operación', 'Financiera', 'Sostenibilidad'],
+                datasets: [
+                    {
+                        label: 'Cumplimiento',
+                        data: [89, 71, 82, 77, 69],
+                        backgroundColor: ['#1f78b4', '#2ca02c', '#f4b400', '#e63946', '#6f42c1'],
+                        borderRadius: 12,
+                        barThickness: 36
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` } },
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#5b6776' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(15,23,42,0.08)' },
+                        ticks: { color: '#5b6776' }
+                    }
+                }
+            }
+        });
+        charts.push(processChart);
+
+        const strategyCtx = document.getElementById('strategyChart');
+        const strategyChart = new Chart(strategyCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Académica', 'Acreditación', 'Operación', 'Financiera', 'Sostenibilidad'],
+                datasets: [{
+                    data: [24, 18, 20, 16, 22],
+                    backgroundColor: ['#1f78b4', '#2ca02c', '#f4b400', '#e63946', '#6f42c1'],
+                    hoverOffset: 6,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } }
+                }
+            }
+        });
+        charts.push(strategyChart);
+
+        const projectionCtx = document.getElementById('projectionChart');
+        const projectionChart = new Chart(projectionCtx, {
+            type: 'line',
+            data: {
+                labels: ['Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep'],
+                datasets: [
+                    {
+                        label: 'Proyección de cumplimiento',
+                        data: [82, 84, 86, 88, 89, 91],
+                        borderColor: '#6f42c1',
+                        backgroundColor: 'rgba(111,66,193,0.15)',
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#6f42c1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#5b6776' } },
+                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(15,23,42,0.08)' }, ticks: { color: '#5b6776' } }
+                }
+            }
+        });
+        charts.push(projectionChart);
+
+        const operationCtx = document.getElementById('operationChart');
+        const operationChart = new Chart(operationCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Acreditación', 'Gestión', 'Operación'],
+                datasets: [
+                    {
+                        label: 'Completados',
+                        data: [12, 18, 24],
+                        backgroundColor: '#2ca02c',
+                        borderRadius: 8
+                    },
+                    {
+                        label: 'Pendientes',
+                        data: [4, 6, 3],
+                        backgroundColor: '#f4b400',
+                        borderRadius: 8
+                    },
+                    {
+                        label: 'Vencidos',
+                        data: [2, 2, 0],
+                        backgroundColor: '#e63946',
+                        borderRadius: 8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false },
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { color: '#5b6776' } },
+                    y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(15,23,42,0.08)' }, ticks: { color: '#5b6776' } }
+                }
+            }
+        });
+        charts.push(operationChart);
+
+        const dataQualityCtx = document.getElementById('dataQualityChart');
+        const dataQualityChart = new Chart(dataQualityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Validado', 'Requiere revisión', 'Incidencias'],
+                datasets: [{
+                    data: [71, 18, 11],
+                    backgroundColor: ['#2ca02c', '#f4b400', '#e63946'],
+                    hoverOffset: 6,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10 } }
+                }
+            }
+        });
+        charts.push(dataQualityChart);
+
+        const processTrendCtx = document.getElementById('processTrendChart');
+        const processTrendChart = new Chart(processTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Oct', 'Nov', 'Dic', 'Ene', 'Feb'],
+                datasets: [
+                    {
+                        label: 'Acreditación',
+                        data: [68, 70, 71, 73, 71],
+                        borderColor: '#2ca02c',
+                        backgroundColor: 'rgba(44,160,44,0.12)',
+                        tension: 0.28,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#2ca02c',
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Operación',
+                        data: [82, 83, 84, 84, 83],
+                        borderColor: '#1f78b4',
+                        backgroundColor: 'rgba(31,120,180,0.12)',
+                        tension: 0.28,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#1f78b4',
+                        borderWidth: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#5b6776' } },
+                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(15,23,42,0.08)' }, ticks: { color: '#5b6776' } }
+                }
+            }
+        });
+        charts.push(processTrendChart);
+
+        const monitoringCtx = document.getElementById('monitoringChart');
+        const monitoringChart = new Chart(monitoringCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
+                datasets: [
+                    {
+                        label: 'Cargas exitosas',
+                        data: [18, 19, 20, 21],
+                        backgroundColor: '#1f78b4',
+                        borderRadius: 8,
+                        barThickness: 18
+                    },
+                    {
+                        label: 'Validaciones pendientes',
+                        data: [3, 2, 2, 1],
+                        backgroundColor: '#f4b400',
+                        borderRadius: 8,
+                        barThickness: 18
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#5b6776' } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(15,23,42,0.08)' }, ticks: { color: '#5b6776' } }
+                }
+            }
+        });
+        charts.push(monitoringChart);
+
+        const qualityAlertCtx = document.getElementById('qualityAlertChart');
+        const qualityAlertChart = new Chart(qualityAlertCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sin incidencias', 'Advertencias', 'Errores críticos'],
+                datasets: [{
+                    data: [56, 22, 22],
+                    backgroundColor: ['#2ca02c', '#f4b400', '#e63946'],
+                    hoverOffset: 6,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+            }
+        });
+        charts.push(qualityAlertChart);
+
+        const sectionButtons = document.querySelectorAll('.top-nav button');
+        const sections = document.querySelectorAll('.section');
+        const filtroAnio = document.getElementById('filtro-anio');
+        const filtroMes = document.getElementById('filtro-mes');
+        const filtroProceso = document.getElementById('filtro-proceso');
+
+        sectionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionId = button.dataset.section;
+                setActiveSection(sectionId);
+            });
+        });
+
+        function setActiveSection(id) {
+            sections.forEach(section => {
+                section.classList.toggle('active', section.id === id);
+            });
+            sectionButtons.forEach(button => {
+                button.classList.toggle('active', button.dataset.section === id);
+            });
+            setTimeout(() => charts.forEach(chart => {
+                chart.resize();
+                chart.update();
+            }), 120);
+        }
+
+        function updateDashboard() {
+            const proceso = filtroProceso.value;
+            const mes = filtroMes.value;
+
+            const kpiData = {
+                'Todos': { activos: 184, cumplimiento: 81.3, riesgo: 12, acciones: 54, actTrend: '▲ 14%', cumTrend: '▲ 3.8%', riesgoTrend: '▲ 25%', accionesTrend: '▼ 9%' },
+                'Académica': { activos: 48, cumplimiento: 89.2, riesgo: 2, acciones: 18, actTrend: '▲ 8%', cumTrend: '▲ 5.2%', riesgoTrend: '▼ 12%', accionesTrend: '▼ 5%' },
+                'Financiera': { activos: 32, cumplimiento: 77.1, riesgo: 5, acciones: 13, actTrend: '▲ 11%', cumTrend: '▲ 2.1%', riesgoTrend: '▲ 9%', accionesTrend: '▼ 4%' },
+                'CNA': { activos: 46, cumplimiento: 72.9, riesgo: 8, acciones: 14, actTrend: '▲ 16%', cumTrend: '▲ 1.8%', riesgoTrend: '▲ 33%', accionesTrend: '▼ 7%' },
+                'Operación': { activos: 58, cumplimiento: 83.7, riesgo: 6, acciones: 9, actTrend: '▲ 12%', cumTrend: '▲ 4.3%', riesgoTrend: '▲ 14%', accionesTrend: '▼ 11%' }
+            };
+
+            const values = kpiData[proceso] || kpiData['Todos'];
+            document.getElementById('kpi-indicadores').textContent = values.activos;
+            document.getElementById('kpi-cumplimiento').textContent = `${values.cumplimiento.toFixed(1)}%`;
+            document.getElementById('kpi-riesgo').textContent = values.riesgo;
+            document.getElementById('kpi-acciones').textContent = values.acciones;
+            document.getElementById('kpi-indicadores-trend').textContent = values.actTrend;
+            document.getElementById('kpi-cumplimiento-trend').textContent = values.cumTrend;
+            document.getElementById('kpi-riesgo-trend').textContent = values.riesgoTrend;
+            document.getElementById('kpi-acciones-trend').textContent = values.accionesTrend;
+
+            let newTrendData;
+            if (proceso === 'Académica') {
+                newTrendData = [[88, 89, 90, 91, 92], [79, 80, 82, 84, 85], [60, 62, 63, 64, 66]];
+            } else if (proceso === 'Financiera') {
+                newTrendData = [[65, 67, 69, 72, 77], [58, 60, 63, 68, 74], [50, 53, 55, 58, 62]];
+            } else if (proceso === 'CNA') {
+                newTrendData = [[72, 73, 74, 73, 73], [68, 70, 71, 71, 72], [55, 56, 57, 58, 59]];
+            } else if (proceso === 'Operación') {
+                newTrendData = [[80, 81, 82, 84, 86], [75, 76, 78, 80, 82], [70, 71, 73, 74, 76]];
+            } else {
+                newTrendData = [[73, 77, 79, 82, 85], [68, 70, 74, 78, 82], [56, 59, 61, 65, 69]];
+            }
+
+            trendChart.data.datasets[0].data = newTrendData[0];
+            trendChart.data.datasets[1].data = newTrendData[1];
+            trendChart.data.datasets[2].data = newTrendData[2];
+            trendChart.update();
+
+            processChart.data.datasets[0].data = proceso === 'Todos'
+                ? [89, 71, 82, 77, 69]
+                : [proceso === 'Académica' ? 92 : 0, proceso === 'Acreditación' ? 72 : 0, proceso === 'Operación' ? 86 : 0, proceso === 'Financiera' ? 77 : 0, proceso === 'CNA' ? 73 : 0];
+            processChart.update();
+
+            const subtitle = document.querySelector('.dashboard-subtitle');
+            subtitle.textContent = proceso === 'Todos'
+                ? 'Panorama estratégico, diagnóstico operativo y prioridades de acción con una lectura ágil y visual.'
+                : `Vista filtrada por ${proceso} | ${mes}`;
+        }
+
+        [filtroAnio, filtroMes, filtroProceso].forEach(select => {
+            select.addEventListener('change', updateDashboard);
+        });
+
+        window.addEventListener('resize', () => {
+            charts.forEach(chart => {
+                chart.resize();
+                chart.update();
+            });
+        });
+
+        updateDashboard();
+    </script>
+</body>
+</html>

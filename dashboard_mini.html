@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ejecutivo - Sistema de Indicadores</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           DASHBOARD EJECUTIVO - SISTEMA DE INDICADORES
+           Estilos modernos tipo SaaS
+           ============================================ */
+
+        :root {
+            /* Paleta de colores principal */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #273549;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            
+            /* Colores de líneas/métricas (conservados del original) */
+            --color-linea-estrategica: #3b82f6;
+            --color-linea-financiera: #10b981;
+            --color-linea-cliente: #f59e0b;
+            --color-linea-interna: #8b5cf6;
+            --color-linea-aprendizaje: #ec4899;
+            
+            /* Semáforo */
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            
+            /* Acentos */
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            
+            /* Espaciado */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            
+            /* Sombras */
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
+            --shadow-card: 0 0 0 1px rgba(255,255,255,0.05), 0 4px 6px -1px rgba(0,0,0,0.3);
+            
+            /* Bordes */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           LAYOUT PRINCIPAL
+           ============================================ */
+        
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: var(--spacing-lg);
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xl);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .header-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        .header-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .header-badge {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .header-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ============================================
+           FILTROS
+           ============================================ */
+        
+        .filters-bar {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .filter-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .filter-select {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            min-width: 150px;
+            transition: all 0.2s ease;
+        }
+
+        .filter-select:hover, .filter-select:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+        }
+
+        /* ============================================
+           SECCIÓN HERO - KPIs PRINCIPALES
+           ============================================ */
+        
+        .hero-section {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--accent-blue);
+            border-radius: 2px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-card);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--kpi-accent, var(--accent-blue));
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--kpi-accent, var(--accent-blue));
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .kpi-label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .kpi-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        .kpi-trend.up {
+            color: var(--success);
+            background: rgba(34, 197, 94, 0.15);
+        }
+
+        .kpi-trend.down {
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .kpi-trend.neutral {
+            color: var(--text-muted);
+            background: rgba(100, 116, 139, 0.15);
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .kpi-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .kpi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        /* ============================================
+           INSIGHT CARDS (Narrativa)
+           ============================================ */
+        
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .insight-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .insight-card.critical {
+            border-color: rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, var(--bg-card) 100%);
+        }
+
+        .insight-card.warning {
+            border-color: rgba(234, 179, 8, 0.3);
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, var(--bg-card) 100%);
+        }
+
+        .insight-card.success {
+            border-color: rgba(34, 197, 94, 0.3);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, var(--bg-card) 100%);
+        }
+
+        .insight-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .insight-card.critical .insight-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .insight-card.warning .insight-badge {
+            background: rgba(234, 179, 8, 0.2);
+            color: var(--warning);
+        }
+
+        .insight-card.success .insight-badge {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .insight-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .insight-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           GRID PRINCIPAL DE CONTENIDO
+           ============================================ */
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        @media (max-width: 1200px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================
+           CARDS GENÉRICAS
+           ============================================ */
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: var(--spacing-lg);
+        }
+
+        .card-footer {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.2);
+        }
+
+        /* ============================================
+           GRÁFICOS
+           ============================================ */
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .chart-container.tall {
+            height: 400px;
+        }
+
+        .chart-container.small {
+            height: 200px;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-md);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* ============================================
+           BARRA DE ESTADO / SEMÁFORO
+           ============================================ */
+        
+        .status-bars {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .status-bar-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .status-bar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-bar-label {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        .status-bar-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-bar-track {
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .status-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .status-bar-fill.success { background: var(--success); }
+        .status-bar-fill.warning { background: var(--warning); }
+        .status-bar-fill.danger { background: var(--danger); }
+
+        /* ============================================
+           TABLA DE DATOS
+           ============================================ */
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: var(--spacing-sm) var(--spacing-md);
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .data-table td {
+            font-size: 0.875rem;
+        }
+
+        .data-table tr:hover td {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* ============================================
+           BADGES Y TAGS
+           ============================================ */
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background: rgba(234, 179, 8, 0.15);
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        .badge-info {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--info);
+        }
+
+        .badge-neutral {
+            background: rgba(100, 116, 139, 0.15);
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           RANKING LIST
+           ============================================ */
+        
+        .ranking-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            transition: background 0.2s ease;
+        }
+
+        .ranking-item:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .ranking-position {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: var(--bg-primary);
+        }
+
+        .ranking-position.top {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #000;
+        }
+
+        .ranking-position.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .ranking-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ranking-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ranking-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .ranking-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* ============================================
+           MINI STAT CARDS
+           ============================================ */
+        
+        .mini-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+        }
+
+        .mini-stat {
+            padding: var(--spacing-md);
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .mini-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .mini-stat-label {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: var(--spacing-md);
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-md);
+            }
+            
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .kpi-value {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* ============================================
+           ANIMACIONES
+           ============================================ */
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card, .kpi-card, .insight-card {
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .kpi-card:nth-child(2) { animation-delay: 0.05s; }
+        .kpi-card:nth-child(3) { animation-delay: 0.1s; }
+        .kpi-card:nth-child(4) { animation-delay: 0.15s; }
+        .kpi-card:nth-child(5) { animation-delay: 0.2s; }
+
+        /* Tooltip custom */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            font-size: 0.75rem;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 100;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        
+        <!-- ============================================
+             HEADER
+             ============================================ -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1 class="header-title">Dashboard Ejecutivo</h1>
+                <p class="header-subtitle">Sistema de Indicadores Institucionales — Fecha: 20 de abril de 2026</p>
+            </div>
+            <div class="header-right">
+                <div class="header-badge">
+                    <span class="dot"></span>
+                    <span>Datos actualizados</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ============================================
+             FILTROS
+             ============================================ -->
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label class="filter-label">Año</label>
+                <select class="filter-select" id="filter-year">
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Mes</label>
+                <select class="filter-select" id="filter-month">
+                    <option value="todos">Todos</option>
+                    <option value="01">Enero</option>
+                    <option value="02">Febrero</option>
+                    <option value="03">Marzo</option>
+                    <option value="04">Abril</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Modalidad</label>
+                <select class="filter-select" id="filter-modalidad">
+                    <option value="todos">Todas</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="mensual">Mensual</option>
+                    <option value="trimestral">Trimestral</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Línea Estratégica</label>
+                <select class="filter-select" id="filter-linea">
+                    <option value="todos">Todas</option>
+                    <option value="estrategica">Estratégica</option>
+                    <option value="financiera">Financiera</option>
+                    <option value="cliente">Cliente</option>
+                    <option value="interna">Interna</option>
+                    <option value="aprendizaje">Aprendizaje</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ============================================
+             HERO SECTION - KPIs PRINCIPALES
+             ============================================ -->
+        <section class="hero-section">
+            <div class="section-header">
+                <h2 class="section-title">Resumen de Indicadores</h2>
+            </div>
+            <div class="kpi-grid">
+                <!-- KPI 1 -->
+                <div class="kpi-card" style="--kpi-accent: var(--accent-blue);">
+                    <div class="kpi-header">
+                        <div class="kpi-label">Total Indicadores</div>
+                        <div class="kpi-icon">📊</div>
+                    </div>
+                    <div class="kpi-value">387</div>
+                    <div class="kpi-subtitle">Indicadores monitoreados</div>
+                </div>
+
+                <!-- KPI 2 -->
+                <div class="kpi-card" style="--kpi-accent: var(--danger);">
+                    <div class="kpi-header">
+                        <div class="kpi-label">En Peligro</div>
+                        <div class="kpi-trend down">
+                            <span>↑</span> +12%
+                        </div>
+                    </div>
+                    <div class="kpi-value" style="color: var(--danger);">42</div>
+                    <div class="kpi-subtitle">Requieren atención inmediata</div>
+                </div>
+
+                <!-- KPI 3 -->
+                <div class="kpi-card" style="--kpi-accent: var(--warning);">
+                    <div class="kpi-header">
+                        <div class="kpi-label">En Alerta</div>
+                        <div class="kpi-trend neutral">
+                            <span>→</span> 0%
+                        </div>
+                    </div>
+                    <div class="kpi-value" style="color: var(--warning);">28</div>
+                    <div class="kpi-subtitle">Monitoreo cercano</div>
+                </div>
+
+                <!-- KPI 4 -->
+                <div class="kpi-card" style="--kpi-accent: var(--success);">
+                    <div class="kpi-header">
+                        <div class="kpi-label">Cumplimiento</div>
+                        <div class="kpi-trend up">
+                            <span>↑</span> +5.2%
+                        </div>
+                    </div>
+                    <div class="kpi-value" style="color: var(--success);">78.4%</div>
+                    <div class="kpi-subtitle">Promedio general</div>
+                </div>
+
+                <!-- KPI 5 -->
+                <div class="kpi-card" style="--kpi-accent: var(--color-linea-aprendizaje);">
+                    <div class="kpi-header">
+                        <div class="kpi-label">Acciones de Mejora</div>
+                        <div class="kpi-trend up">
+                            <span>↑</span> +8%
+                        </div>
+                    </div>
+                    <div class="kpi-value">156</div>
+                    <div class="kpi-subtitle">73 cerradas / 83 abiertas</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================
+             INSIGHT CARDS - NARRATIVA
+             ============================================ -->
+        <section class="insight-grid">
+            <div class="insight-card critical">
+                <div class="insight-badge">
+                    <span>⚠️</span> Alerta Crítica
+                </div>
+                <h3 class="insight-title">42 indicadores en riesgo IRIP</h3>
+                <p class="insight-description">
+                    El área de Gestión Académica presenta el mayor número de indicadores en peligro 
+                    (18), seguida de Investigación (12). Se recomienda revisión inmediata del plan de acción.
+                </p>
+            </div>
+
+            <div class="insight-card warning">
+                <div class="insight-badge">
+                    <span>📈</span> Oportunidad de Mejora
+                </div>
+                <h3 class="insight-title">Tendencia positiva en Línea Financiera</h3>
+                <p class="insight-description">
+                    La línea financiera muestra un incremento del 12% en cumplimiento respecto al período anterior. 
+                    3 indicadores superan la meta establecida.
+                </p>
+            </div>
+
+            <div class="insight-card success">
+                <div class="insight-badge">
+                    <span>🎯</span> Meta Alcanzada
+                </div>
+                <h3 class="insight-title">Cumplimiento CNA supera expectativa</h3>
+                <p class="insight-description">
+                    Los indicadores CNA muestran un cumplimiento del 92%, superando la meta institucional del 85%. 
+                    8 factores con visibilidad completa.
+                </p>
+            </div>
+        </section>
+
+        <!-- ============================================
+             CONTENT GRID
+             ============================================ -->
+        <div class="content-grid">
+            
+            <!-- Columna Principal - Gráficos -->
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-lg);">
+                
+                <!-- Cumplimiento por Perspectiva CMI -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Cumplimiento por Perspectiva CMI</h3>
+                        <select class="filter-select" style="min-width: 120px; padding: 4px 8px;">
+                            <option>Últimos 6 meses</option>
+                            <option>Último año</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="chartCMI"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--color-linea-estrategica);"></span> Estratégica</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--color-linea-financiera);"></span> Financiera</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--color-linea-cliente);"></span> Cliente</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--color-linea-interna);"></span> Interna</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--color-linea-aprendizaje);"></span> Aprendizaje</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tendencia de Cumplimiento -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Tendencia de Cumplimiento Historico</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="chartTendencia"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Lateral -->
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-lg);">
+                
+                <!-- Distribución de Cumplimiento -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Estado de Indicadores</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container small">
+                            <canvas id="chartEstado"></canvas>
+                        </div>
+                        <div class="status-bars" style="margin-top: var(--spacing-lg);">
+                            <div class="status-bar-item">
+                                <div class="status-bar-header">
+                                    <span class="status-bar-label">Sobrecumplimiento</span>
+                                    <span class="status-bar-value" style="color: var(--success);">89</span>
+                                </div>
+                                <div class="status-bar-track">
+                                    <div class="status-bar-fill success" style="width: 23%;"></div>
+                                </div>
+                            </div>
+                            <div class="status-bar-item">
+                                <div class="status-bar-header">
+                                    <span class="status-bar-label">Cumplimiento</span>
+                                    <span class="status-bar-value" style="color: var(--info);">156</span>
+                                </div>
+                                <div class="status-bar-track">
+                                    <div class="status-bar-fill" style="width: 40%; background: var(--info);"></div>
+                                </div>
+                            </div>
+                            <div class="status-bar-item">
+                                <div class="status-bar-header">
+                                    <span class="status-bar-label">En Alerta</span>
+                                    <span class="status-bar-value" style="color: var(--warning);">28</span>
+                                </div>
+                                <div class="status-bar-track">
+                                    <div class="status-bar-fill warning" style="width: 7%;"></div>
+                                </div>
+                            </div>
+                            <div class="status-bar-item">
+                                <div class="status-bar-header">
+                                    <span class="status-bar-label">En Peligro</span>
+                                    <span class="status-bar-value" style="color: var(--danger);">42</span>
+                                </div>
+                                <div class="status-bar-track">
+                                    <div class="status-bar-fill danger" style="width: 11%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top 5 Riesgos IRIP -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Top 5 Riesgos IRIP</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="ranking-list">
+                            <div class="ranking-item">
+                                <span class="ranking-position danger">1</span>
+                                <div class="ranking-content">
+                                    <div class="ranking-name">Tasa de Deserción Estudiantil</div>
+                                    <div class="ranking-meta">IRIP: 0.92 • Gestion Academica</div>
+                                </div>
+                                <span class="badge badge-danger">Crítico</span>
+                            </div>
+                            <div class="ranking-item">
+                                <span class="ranking-position danger">2</span>
+                                <div class="ranking-content">
+                                    <div class="ranking-name">Ejecucion Presupuestal</div>
+                                    <div class="ranking-meta">IRIP: 0.87 • Financiera</div>
+                                </div>
+                                <span class="badge badge-danger">Alto</span>
+                            </div>
+                            <div class="ranking-item">
+                                <span class="ranking-position">3</span>
+                                <div class="ranking-content">
+                                    <div class="ranking-name">satisfaccion Usuario</div>
+                                    <div class="Ranking-meta">IRIP: 0.74 • Cliente</div>
+                                </div>
+                                <span class="badge badge-warning">Medio</span>
+                            </div>
+                            <div class="ranking-item">
+                                <span class="ranking-position">4</span>
+                                <div class="ranking-content">
+                                    <div class="ranking-name">Tiempo de Respuesta Promedio</div>
+                                    <div class="ranking-meta">IRIP: 0.68 • Procesos Internos</div>
+                                </div>
+                                <span class="badge badge-warning">Medio</span>
+                            </div>
+                            <div class="ranking-item">
+                                <span class="ranking-position">5</span>
+                                <div class="ranking-content">
+                                    <div class="ranking-name">Capacitaciones Completadas</div>
+                                    <div class="ranking-meta">IRIP: 0.61 • Aprendizaje</div>
+                                </div>
+                                <span class="badge badge-info">Bajo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             SEGUNDA FILA - DETALLES
+             ============================================ -->
+        <div class="content-grid">
+            
+            <!-- Factores CNA -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Cumplimiento por Factor CNA</h3>
+                    <select class="filter-select" style="min-width: 120px; padding: 4px 8px;">
+                        <option>Todos los factores</option>
+                        <option>Factor 1</option>
+                        <option>Factor 2</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="chartFactores"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones de Mejora -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Acciones de Mejora</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mini-stats">
+                        <div class="mini-stat">
+                            <div class="mini-stat-value" style="color: var(--success);">73</div>
+                            <div class="mini-stat-label">Cerradas</div>
+                        </div>
+                        <div class="mini-stat">
+                            <div class="mini-stat-value" style="color: var(--warning);">56</div>
+                            <div class="mini-stat-label">Abiertas</div>
+                        </div>
+                        <div class="mini-stat">
+                            <div class="mini-stat-value" style="color: var(--danger);">27</div>
+                            <div class="mini-stat-label">Vencidas</div>
+                        </div>
+                        <div class="mini-stat">
+                            <div class="mini-stat-value" style="color: var(--info);">12</div>
+                            <div class="mini-stat-label">Próximas</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-lg);">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Estado</th>
+                                    <th>Cantidad</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="badge badge-success">Cerradas</span></td>
+                                    <td>73</td>
+                                    <td>47%</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-neutral">Abiertas</span></td>
+                                    <td>56</td>
+                                    <td>36%</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-danger">Vencidas</span></td>
+                                    <td>27</td>
+                                    <td>17%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             FOOTER
+             ============================================ -->
+        <footer style="text-align: center; padding: var(--spacing-xl) 0; color: var(--text-muted); font-size: 0.75rem;">
+            Sistema de Indicadores Institucionales — Dashboard Ejecutivo v2.0
+        </footer>
+    </div>
+
+    <!-- ============================================
+         SCRIPTS - GRÁFICOS
+         ============================================ -->
+    <script>
+        // Configuración global de Chart.js
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#334155';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        // Paleta de colores por línea estratégica (conservada del original)
+        const LINEA_COLORS = {
+            estrategica: '#3b82f6',
+            financiera: '#10b981',
+            cliente: '#f59e0b',
+            interna: '#8b5cf6',
+            aprendizaje: '#ec4899'
+        };
+
+        // ============================================
+        // GRÁFICO 1: Cumplimiento por Perspectiva CMI
+        // ============================================
+        const ctxCMI = document.getElementById('chartCMI').getContext('2d');
+        new Chart(ctxCMI, {
+            type: 'bar',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                datasets: [
+                    {
+                        label: 'Estratégica',
+                        data: [75, 78, 82, 79, 85, 88],
+                        backgroundColor: LINEA_COLORS.estrategica,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Financiera',
+                        data: [68, 72, 75, 80, 82, 85],
+                        backgroundColor: LINEA_COLORS.financiera,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Cliente',
+                        data: [70, 73, 71, 74, 76, 78],
+                        backgroundColor: LINEA_COLORS.cliente,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Interna',
+                        data: [65, 68, 72, 75, 78, 80],
+                        backgroundColor: LINEA_COLORS.interna,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Aprendizaje',
+                        data: [60, 63, 67, 70, 72, 75],
+                        backgroundColor: LINEA_COLORS.aprendizaje,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#94a3b8',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: { color: '#334155' },
+                        ticks: { 
+                            font: { size: 11 },
+                            callback: function(value) { return value + '%'; }
+                        }
+                    }
+                }
+            }
+        });
+
+        // ============================================
+        // GRÁFICO 2: Tendencia de Cumplimiento
+        // ============================================
+        const ctxTendencia = document.getElementById('chartTendencia').getContext('2d');
+        new Chart(ctxTendencia, {
+            type: 'line',
+            data: {
+                labels: ['2022', '2023', '2024', '2025', '2026'],
+                datasets: [{
+                    label: 'Cumplimiento Promedio',
+                    data: [62, 68, 72, 75, 78.4],
+                    borderColor: LINEA_COLORS.estrategica,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: LINEA_COLORS.estrategica,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }, {
+                    label: 'Meta Institucional',
+                    data: [80, 80, 82, 82, 85],
+                    borderColor: '#64748b',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#94a3b8',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        min: 50,
+                        max: 100,
+                        grid: { color: '#334155' },
+                        ticks: { 
+                            font: { size: 11 },
+                            callback: function(value) { return value + '%'; }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+
+        // ============================================
+        // GRÁFICO 3: Estado de Indicadores (Donut)
+        // ============================================
+        const ctxEstado = document.getElementById('chartEstado').getContext('2d');
+        new Chart(ctxEstado, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sobrecumplimiento', 'Cumplimiento', 'En Alerta', 'En Peligro'],
+                datasets: [{
+                    data: [89, 156, 28, 42],
+                    backgroundColor: [
+                        LINEA_COLORS.financiera,
+                        LINEA_COLORS.estrategica,
+                        LINEA_COLORS.cliente,
+                        '#ef4444'
+                    ],
+                    borderWidth: 0,
+                    spacing: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#94a3b8',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = Math.round((context.raw / total) * 100);
+                                return context.label + ': ' + context.raw + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // ============================================
+        // GRÁFICO 4: Cumplimiento por Factor CNA
+        // ============================================
+        const ctxFactores = document.getElementById('chartFactores').getContext('2d');
+        new Chart(ctxFactores, {
+            type: 'bar',
+            data: {
+                labels: ['Factor 1', 'Factor 2', 'Factor 3', 'Factor 4', 'Factor 5', 'Factor 6', 'Factor 7', 'Factor 8'],
+                datasets: [{
+                    label: 'Cumplimiento',
+                    data: [85, 78, 92, 71, 88, 65, 79, 82],
+                    backgroundColor: function(context) {
+                        const value = context.raw;
+                        if (value >= 85) return LINEA_COLORS.financiera;
+                        if (value >= 70) return LINEA_COLORS.cliente;
+                        return '#ef4444';
+                    },
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#94a3b8',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return 'Cumplimiento: ' + context.raw + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0,
+                        max: 100,
+                        grid: { color: '#334155' },
+                        ticks: { 
+                            font: { size: 11 },
+                            callback: function(value) { return value + '%'; }
+                        }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // ============================================
+        // INTERACTIVIDAD: Filtros simulados
+        // ============================================
+        document.querySelectorAll('.filter-select').forEach(select => {
+            select.addEventListener('change', function() {
+                console.log('Filtro cambiado:', this.id, '=', this.value);
+                // Aquí se implementaría la lógica real de filtrado
+                // Por ahora, solo registramos el evento
+            });
+        });
+    </script>
+</body>
+</html>
