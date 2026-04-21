@@ -89,19 +89,34 @@ def main():
                     ("Auditoría (CSVs)", "A", "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6v6l4 2' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"),
                 ]
 
-                params = st.experimental_get_query_params()
-                selected = params.get("page", ["Nuestro Impacto"])[0]
+                # Compatibilidad: si la API de query params no existe, usar selectbox como fallback
+                if hasattr(st, "experimental_get_query_params"):
+                    params = st.experimental_get_query_params()
+                    selected = params.get("page", ["Nuestro Impacto"])[0]
 
-                menu_items = []
-                for label, short, icon in options:
-                    is_active = "active" if label == selected else ""
-                    href = f"?page={label}"
-                    item_html = f"<a href='{href}' class='nav-link {is_active}'><span class='nav-icon'>{icon}</span><span class='nav-label'>{label}</span></a>"
-                    menu_items.append(item_html)
+                    menu_items = []
+                    for label, short, icon in options:
+                        is_active = "active" if label == selected else ""
+                        href = f"?page={label}"
+                        item_html = f"<a href='{href}' class='nav-link {is_active}'><span class='nav-icon'>{icon}</span><span class='nav-label'>{label}</span></a>"
+                        menu_items.append(item_html)
 
-                menu_html = "<div class='custom-sidebar-menu'>" + "".join(menu_items) + "</div>"
-                st.markdown(menu_html, unsafe_allow_html=True)
-                menu = selected
+                    menu_html = "<div class='custom-sidebar-menu'>" + "".join(menu_items) + "</div>"
+                    st.markdown(menu_html, unsafe_allow_html=True)
+                    menu = selected
+                else:
+                    # Fallback: usar widget nativo para navegación (compatible con todas las versiones)
+                    labels = [opt[0] for opt in options]
+                    sel = st.selectbox("", labels, index=0)
+                    # Render simple HTML list to keep visual similar
+                    menu_items = []
+                    for label, short, icon in options:
+                        is_active = "active" if label == sel else ""
+                        item_html = f"<div class='nav-link {is_active}'><span class='nav-icon'>{icon}</span><span class='nav-label'>{label}</span></div>"
+                        menu_items.append(item_html)
+                    menu_html = "<div class='custom-sidebar-menu'>" + "".join(menu_items) + "</div>"
+                    st.markdown(menu_html, unsafe_allow_html=True)
+                    menu = sel
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 # Footer
