@@ -1170,11 +1170,14 @@ def render():
 
                 n_ind = int(row["N_Indicadores"]) if row is not None else 0
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
-                # Obtener histórico de cumplimiento para la línea
+                # Detectar columna de año automáticamente
                 historico = None
                 if row is not None and "Linea" in row:
                     linea_hist = row["Linea"]
-                    historico = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist][["Año", "cumplimiento_pct"]].rename(columns={"cumplimiento_pct": "Cumplimiento"})
+                    df_hist = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist]
+                    year_col = next((c for c in df_hist.columns if c.lower() in ["año", "anio", "year"]), None)
+                    if year_col and "cumplimiento_pct" in df_hist.columns:
+                        historico = df_hist[[year_col, "cumplimiento_pct"]].rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
                 with ficha_cols[idx % 6]:
                     _render_strategy_card(
                         title=card_def["label"],
