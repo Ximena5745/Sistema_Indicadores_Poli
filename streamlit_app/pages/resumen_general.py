@@ -951,8 +951,30 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
     )
 
 
-def _render_strategy_card(title: str, indicators: int, cumplimiento: float, color: str, icon: str):
+def _render_strategy_card(title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None):
     spark = _sparkline_svg(color, up=True)
+    # Si se pasa un DataFrame de histórico, mostrar gráfico Plotly con tooltip
+    chart_html = ""
+    if historico is not None and not historico.empty:
+        import plotly.graph_objects as go
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=historico['Año'],
+            y=historico['Cumplimiento'],
+            mode='lines+markers',
+            line=dict(color=color, width=2),
+            marker=dict(size=8, color=color),
+            hovertemplate='Año: %{x}<br>Cumplimiento: %{y:.1f}%<extra></extra>'
+        ))
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            height=80,
+            xaxis=dict(showgrid=False, visible=False),
+            yaxis=dict(showgrid=False, visible=False),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        chart_html = st.plotly_chart(fig, use_container_width=True, height=80)
     st.markdown(
         f"""
         <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%);'>
@@ -964,11 +986,12 @@ def _render_strategy_card(title: str, indicators: int, cumplimiento: float, colo
                 </div>
             </div>
             <p class='rg-card-title'>{title}</p>
-            <div style='display:flex;justify-content:flex-end;margin-top:0.3rem;'>{spark}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
+    if chart_html:
+        st.markdown("<div style='margin-top:-1.2rem;'></div>", unsafe_allow_html=True)
 
 
 def _render_chip(value: int, label: str, color: str):
@@ -1147,6 +1170,11 @@ def render():
 
                 n_ind = int(row["N_Indicadores"]) if row is not None else 0
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
+                # Obtener histórico de cumplimiento para la línea
+                historico = None
+                if row is not None and "Linea" in row:
+                    linea_hist = row["Linea"]
+                    historico = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist][["Año", "cumplimiento_pct"]].rename(columns={"cumplimiento_pct": "Cumplimiento"})
                 with ficha_cols[idx % 6]:
                     _render_strategy_card(
                         title=card_def["label"],
@@ -1154,8 +1182,8 @@ def render():
                         cumplimiento=cumpl,
                         color=card_def["color"],
                         icon=card_def["icon"],
+                        historico=historico
                     )
-
             # Gráfica alineación de objetivos estratégicos
             st.markdown("<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>", unsafe_allow_html=True)
             sunburst = _build_sunburst(pdi_estrategico)
