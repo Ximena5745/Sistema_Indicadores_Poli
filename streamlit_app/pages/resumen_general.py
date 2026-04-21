@@ -290,8 +290,9 @@ def _available_months_for_year(df: pd.DataFrame, year: int) -> list[int]:
 
 def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     df = pdi_df.copy()
-    df["Linea"] = df["Linea"].fillna("Sin línea")
-    df["Objetivo"] = df["Objetivo"].fillna("Sin objetivo")
+    # Eliminar nodos vacíos o en blanco en la jerarquía
+    for col in ["Linea", "Objetivo"]:
+        df = df[df[col].notnull() & (df[col].astype(str).str.strip() != "")]
     df = df[df["cumplimiento_pct"].notna()]
 
     # Si no hay datos válidos, crear un nodo dummy con 0%
