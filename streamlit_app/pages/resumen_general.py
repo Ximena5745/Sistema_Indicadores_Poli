@@ -1101,23 +1101,8 @@ def render():
             key="cmi_estrategico_year"
         )
     
-    with col_month_e:
-        available_months_e = _available_months_for_year(consolidado, year_estrategico)
-        if available_months_e:
-            last_avail_e = max([m for m in available_months_e if 1 <= m <= 12], default=12)
-            default_idx_e = last_avail_e - 1
-        else:
-            default_idx_e = 11
-        month_name_estrategico = st.selectbox(
-            "Mes de análisis",
-            options=MESES_NOMBRES,
-            index=default_idx_e,
-            key="cmi_estrategico_month"
-        )
-        month_estrategico = MESES_NOMBRES.index(month_name_estrategico) + 1
-    
     # Cargar datos y aplicar filtro CMI Estratégico
-    pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), int(month_estrategico))
+    pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), 12)
     pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
     
     # Filtro adicional por línea estratégica
