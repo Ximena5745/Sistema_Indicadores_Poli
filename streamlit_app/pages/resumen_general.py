@@ -1097,7 +1097,7 @@ def render():
         year_estrategico = st.segmented_control(
             "Año de análisis",
             options=years,
-            index=len(years)-1,
+            default=years[-1],
             key="cmi_estrategico_year"
         )
     
