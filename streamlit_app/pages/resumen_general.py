@@ -479,7 +479,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             html_label = str(wrapped).replace('\n', '<br>')
             html_label = f"<b>{html_label}</b>"
             # percentage en azul
-            pct_html = f"<br><span style='color:#0B5FFF;font-size:18px'>{pct:.0f}%</span>"
+            pct_html = f"<br><span style='color:#0B5FFF;font-size:13px'>{pct:.0f}%</span>"
             text.append(f"{html_label}{pct_html}")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
@@ -544,9 +544,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     try:
         if len(fig.data) >= 1 and getattr(fig.data[0], 'type', None) == 'sunburst':
             fig.data[0].update(
-                uniformtext=dict(minsize=6, mode='show'),
-                textfont=dict(family='Inter, sans-serif', size=14, color='#062A4F'),
-                insidetextfont=dict(family='Inter, sans-serif', size=14, color='#0B5FFF'),
+                uniformtext=dict(minsize=7, mode='show'),
+                textfont=dict(family='Inter, sans-serif', size=11, color='#062A4F'),
+                insidetextfont=dict(family='Inter, sans-serif', size=11, color='#0B5FFF'),
                 marker=dict(line=dict(color='#FFFFFF', width=1)),
                 branchvalues='remainder',
                 separation=0,
