@@ -471,21 +471,13 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         edu_key = _norm_key('Educación para toda la vida')
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = (cd[0] if cd and cd[0] is not None else 0)
-            is_edu = _norm_key(lab) == edu_key
-            # Educación para toda la vida: wrap más pequeño para 3 líneas
+            # Todas las líneas: mismo ancho de wrap y mismo tamaño de fuente
             if parent == "":
-                if is_edu:
-                    wrapped = wrap_label(lab, width=8)
-                else:
-                    wrapped = wrap_label(lab, width=12)
+                wrapped = wrap_label(lab, width=12)
             else:
                 wrapped = wrap_label(lab, width=26)
             html_label = str(wrapped).replace('\n', '<br>')
-            # Educación: mayor fonte
-            if is_edu:
-                html_label = f"<b><span style='font-size:22px'>{html_label}</span></b>"
-            else:
-                html_label = f"<b>{html_label}</b>"
+            html_label = f"<b>{html_label}</b>"
             # percentage en azul
             pct_html = f"<br><span style='color:#0B5FFF;font-size:18px'>{pct:.0f}%</span>"
             text.append(f"{html_label}{pct_html}")
@@ -552,16 +544,16 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     try:
         if len(fig.data) >= 1 and getattr(fig.data[0], 'type', None) == 'sunburst':
             fig.data[0].update(
-                uniformtext=dict(minsize=8, mode='hide'),
+                uniformtext=dict(minsize=6, mode='show'),
                 textfont=dict(family='Inter, sans-serif', size=14, color='#062A4F'),
-                insidetextfont=dict(family='Inter, sans-serif', size=20, color='#0B5FFF'),
+                insidetextfont=dict(family='Inter, sans-serif', size=14, color='#0B5FFF'),
                 marker=dict(line=dict(color='#FFFFFF', width=1)),
                 branchvalues='remainder',
                 separation=0,
                 texttemplate='%{text}',
                 hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
-                insidetextorientation='radial',
-                constraintext='hide'
+                insidetextorientation='horizontal',
+                constraintext='none'
             )
     except Exception:
         pass
