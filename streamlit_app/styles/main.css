@@ -453,3 +453,26 @@ div[data-baseweb="menu"] {
     padding: 1rem;
     margin-bottom: 1rem;
 }
+
+/* ─── FIX DEFINITIVO: fondo blanco del menu del sidebar ───────────────────── */
+[data-testid="stSidebar"] [data-testid="stElementContainer"],
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div,
+[data-testid="stSidebar"] iframe[data-testid="stIFrame"],
+[data-testid="stSidebar"] .streamlit-option-menu,
+[data-testid="stSidebar"] .streamlit-option-menu > div,
+[data-testid="stSidebar"] .streamlit-option-menu ul,
+[data-testid="stSidebar"] .streamlit-option-menu li,
+[data-testid="stSidebar"] .streamlit-option-menu .nav,
+[data-testid="stSidebar"] .streamlit-option-menu .nav-pills,
+[data-testid="stSidebar"] .streamlit-option-menu .nav-item {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link-selected {
+    background: linear-gradient(90deg, rgba(18, 38, 70, 0.95) 0%, rgba(11, 28, 55, 0.95) 100%) !important;
+    border: 1px solid rgba(62, 122, 214, 0.35) !important;
+}

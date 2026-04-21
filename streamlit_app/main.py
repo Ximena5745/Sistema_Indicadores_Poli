@@ -98,17 +98,25 @@ def main():
                 default_index=0,
                 orientation="vertical",
                 styles={
-                    "container": {"background": "transparent", "padding": "0"},
+                    "container": {
+                        "background-color": "transparent",
+                        "background": "transparent",
+                        "padding": "0",
+                        "border": "none",
+                        "box-shadow": "none",
+                    },
                     "nav-link": {
                         "font-size": "19px",
                         "font-weight": "500",
                         "color": "#7f9ac3",
+                        "background-color": "transparent",
                         "background": "transparent",
                         "border-radius": "12px",
                         "padding": "12px 14px",
                         "margin": "2px 0",
                     },
                     "nav-link-selected": {
+                        "background-color": "#112646",
                         "background": "#112646",
                         "color": "#4c90ff",
                         "border-radius": "12px",
