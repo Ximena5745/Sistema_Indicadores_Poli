@@ -73,13 +73,6 @@ def main():
                 unsafe_allow_html=True,
             )
 
-            st.text_input(
-                "Buscar indicador",
-                placeholder="Buscar indicador...",
-                key="sidebar_search",
-                label_visibility="collapsed",
-            )
-
             st.markdown("<div class='sidebar-v2-section'>PRINCIPAL</div>", unsafe_allow_html=True)
 
             menu_labels = [
