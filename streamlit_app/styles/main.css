@@ -155,6 +155,35 @@ body {
     margin-right: 12px;
 }
 
+/* Fuerza total: anular tonos claros aplicados por styles.css a streamlit-option-menu */
+section[data-testid="stSidebar"] .streamlit-option-menu,
+[data-testid="stSidebar"] .streamlit-option-menu,
+.streamlit-option-menu {
+    background: var(--surface-dark) !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+    border: 1px solid rgba(255,255,255,0.04) !important;
+    box-shadow: none !important;
+}
+.streamlit-option-menu .nav-link {
+    background: transparent !important;
+    color: var(--text-on-dark) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 12px 14px !important;
+    margin: 6px 0 !important;
+    box-shadow: none !important;
+}
+.streamlit-option-menu .nav-link:hover {
+    background: rgba(11,58,112,0.12) !important;
+    color: #ffffff !important;
+}
+.streamlit-option-menu .nav-link.active {
+    background: linear-gradient(90deg, rgba(2,36,87,0.95), rgba(11,58,112,0.95)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(2,36,87,0.22) !important;
+}
+
 /* Selectores para menú personalizado HTML en sidebar */
 .custom-sidebar-menu {
     display: flex;

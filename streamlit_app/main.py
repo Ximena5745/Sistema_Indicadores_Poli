@@ -85,8 +85,8 @@ def main():
                 # Usar streamlit-option-menu para navegación (visual personalizado via CSS)
                 menu = option_menu(
                     menu_title=None,
-                    options=["Nuestro Impacto", "OPEX Financiero", "Base Normativa", "Auditoría (CSVs)"],
-                    icons=["globe", "graph-up", "scale", "folder"],
+                    options=["Resumen General", "Resumen Estratégico", "Resumen por Procesos", "Seguimiento Operativo"],
+                    icons=["grid-3x3-gap-fill", "bar-chart-line", "diagram-3", "folder"],
                     menu_icon="cast",
                     default_index=0,
                     orientation="vertical",
