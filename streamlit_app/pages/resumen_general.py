@@ -1069,7 +1069,6 @@ def render():
     top_l, top_r = st.columns([5, 1])
     with top_l:
         st.markdown("<h1 class='rg-title'>CMI ESTRATEGICO - Vision General</h1>", unsafe_allow_html=True)
-        st.markdown("<div class='rg-subtitle'>Fuente real: Consolidado Cierres — Resultados Consolidados.xlsx</div>", unsafe_allow_html=True)
     with top_r:
         st.markdown("<div style='margin-top:1.1rem; text-align:right;'><span class='rg-btn'>Descargar app</span></div>", unsafe_allow_html=True)
     
