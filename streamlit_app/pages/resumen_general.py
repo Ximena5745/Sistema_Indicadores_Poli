@@ -48,6 +48,7 @@ pages/resumen_general_real.py — Resumen General con datos reales de Consolidad
 Fuente real: data/output/Resultados Consolidados.xlsx · hoja Consolidado Cierres
 """
 from pathlib import Path  # noqa: F401 — retenido por compatibilidad con código heredado
+import os
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
