@@ -333,10 +333,18 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
         normalized_color_map = { _norm_key(k): v for k, v in LINEA_COLORS.items() }
 
+        # --- AJUSTE: Agregar nodo raíz explícito ---
+        root_label = "Objetivos Estratégicos"
+        labels.append(root_label)
+        parents.append("")
+        values.append(sum(line_counts.values()))
+        customdata.append([0])
+        colors.append("#062A4F")  # color raíz
+
         for _, line in lines.iterrows():
             linea_name = line["Linea"]
             labels.append(linea_name)
-            parents.append("")
+            parents.append(root_label)
             values.append(int(line_counts.get(linea_name, 0)) or 1)
             customdata.append([line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0])
             colors.append(normalized_color_map.get(_norm_key(linea_name), "#6B728E"))
