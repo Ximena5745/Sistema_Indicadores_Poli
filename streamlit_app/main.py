@@ -24,42 +24,10 @@ def _inject_styles():
             st.markdown(f"<style>{styles}</style>", unsafe_allow_html=True)
 
 
-def _load_sidebar_logo_html():
-    from base64 import b64encode
-    from pathlib import Path
-
-    base = Path(__file__).parent / "assets"
-    logo_candidates = [
-        base / "Wallpaper-POLI.jpg.webp",
-        base / "Wallpaper-POLI.webp",
-        base / "Wallpaper-POLI.jpg",
-        base / "Wallpaper-POLI.png",
-    ]
-    logo_path = next((p for p in logo_candidates if p.exists()), None)
-    if logo_path is None:
-        return None
-    mime = "image/webp" if logo_path.suffix.lower() == ".webp" else "image/png"
-    try:
-        encoded = b64encode(logo_path.read_bytes()).decode("ascii")
-        return f"<img src='data:{mime};base64,{encoded}' alt='Logo' class='sidebar-logo-img'/>"
-    except Exception:
-        return None
-
-
-def _get_git_commit_short():
-    import subprocess, os
-    try:
-        p = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True)
-        return p.stdout.strip()
-    except Exception:
-        return os.getenv("GIT_COMMIT", "unknown")
-
-
 def main():
     _inject_styles()
 
-    # Importar páginas bajo demanda para evitar circular imports durante la carga
-    # Usar imports absolutos primero para evitar problemas de paquete en cloud.
+    # Importar páginas bajo demanda para evitar circular imports
     try:
         from streamlit_app.pages import (
             cmi_estrategico,
@@ -83,44 +51,40 @@ def main():
             pdi_acreditacion,
         )
 
-    # Valor seguro por defecto para menu - siempre disponible aunque todo falle
-    menu = "Resumen general"
+    # Valor seguro por defecto
+    menu = "Nuestro Impacto"
 
     # Configuración del sidebar
     try:
         with st.sidebar:
-            logo_html = _load_sidebar_logo_html()
-            if logo_html:
-                logo_block = f"<div class='sidebar-logo'>{logo_html}</div>"
-            else:
-                logo_block = """
+            # Logo cuadrado con P
+            logo_html = """
             <div class='sidebar-logo'>
-              <svg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'>
-                <rect width='64' height='64' rx='32' fill='#ffffff'/>
-                <text x='32' y='40' font-size='28' text-anchor='middle' fill='#0c63e4' font-family='Arial' font-weight='700'>PG</text>
+              <svg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                <rect width='40' height='40' rx='6' fill='#ffffff'/>
+                <text x='20' y='28' font-size='24' text-anchor='middle' fill='#0f385a' font-family='Arial' font-weight='800'>P</text>
               </svg>
             </div>
-        """
+            """
 
             header_html = f"""
-        <div class='sidebar-header'>
-          {logo_block}
-          <div>
-            <div class='sidebar-title'>Sistema de Indicadores</div>
-            <div class='sidebar-subtitle'>Politécnico Grancolombiano</div>
-          </div>
-        </div>
-        """
+            <div class='sidebar-header'>
+              {logo_html}
+              <div class='sidebar-header-text'>
+                <div class='sidebar-title-main'>Sistema de <span>Indicadores</span></div>
+                <div class='sidebar-subtitle'>Inteligencia de Datos</div>
+              </div>
+            </div>
+            """
             st.markdown(header_html, unsafe_allow_html=True)
-            st.markdown("<div class='sidebar-divider'></div>", unsafe_allow_html=True)
-            st.markdown("<div class='sidebar-section-title'>Navegación</div>", unsafe_allow_html=True)
+            st.markdown("<div class='sidebar-section-title'>Módulos del Sistema</div>", unsafe_allow_html=True)
 
-            # Bloque de navegación tipo tarjeta
+            # Bloque de navegación
             st.markdown("<div class='sidebar-nav-card'>", unsafe_allow_html=True)
             menu = option_menu(
                 menu_title=None,
-                options=["Resumen general", "Resumen Estratégico", "Resumen por procesos", "Seguimiento operativo"],
-                icons=["file-text", "house", "layers", "clipboard-check"],
+                options=["Nuestro Impacto", "OPEX Financiero", "Base Normativa", "Auditoría (CSVs)"],
+                icons=["globe", "graph-up", "scale", "folder"],
                 menu_icon="cast",
                 default_index=0,
                 orientation="vertical",
@@ -128,38 +92,50 @@ def main():
                     "container": {
                         "background": "transparent",
                         "padding": "0",
-                        "box-shadow": "none",
                     },
                     "nav-link": {
-                        "font-size": "18px",
-                        "font-weight": "700",
-                        "color": "#183B56",
-                        "background": "none",
-                        "border-radius": "12px",
-                        "padding": "12px 16px",
-                        "margin-bottom": "10px",
-                        "transition": "background 0.15s, color 0.15s",
+                        "font-size": "16px",
+                        "font-weight": "600",
+                        "color": "#e2e8f0",
+                        "background": "transparent",
+                        "border-radius": "10px",
+                        "padding": "14px 16px",
+                        "margin": "4px 0",
                     },
                     "nav-link-selected": {
-                        "background": "var(--primary, #0c63e4)",
-                        "color": "#fff",
-                        "box-shadow": "0 2px 8px 0 rgba(12,99,228,0.10)",
+                        "background": "#0c63e4",
+                        "color": "#ffffff",
+                        "border-radius": "10px",
                     },
                     "icon": {
-                        "font-size": "22px",
-                        "margin-right": "8px",
+                        "font-size": "20px",
+                        "margin-right": "12px",
                     },
                 },
             )
             st.markdown("</div>", unsafe_allow_html=True)
-            # Mantener sidebar limpio: el foco es la navegación y el encabezado.
-            st.markdown("<style>.sidebar-status-card{display:none!important;}.version-box{display:none!important;}</style>", unsafe_allow_html=True)
-    except Exception as e:
-        st.error("No se pudo cargar el menú de navegación. Por favor revisa la configuración del sidebar.")
 
-    # Routing simple a páginas
-    if menu == "Resumen Estratégico":
-        # Resumen estratégico: cada pestaña tiene su propio resumen ejecutivo.
+            # Footer
+            st.markdown("""
+            <div style='margin-top: 40px; text-align: center; padding: 20px 0;'>
+                <div style='font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 4px;'>
+                    Politécnico Grancolombiano
+                </div>
+                <div style='font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 12px;'>
+                    Institución Universitaria
+                </div>
+                <div style='display: inline-block; background: transparent; border: 1px solid #10b981; 
+                            color: #10b981; padding: 6px 16px; border-radius: 20px; 
+                            font-size: 12px; font-weight: 600;'>
+                    PMV V2.0
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Error en sidebar: {e}")
+
+    # Routing
+    if menu == "Nuestro Impacto":
         tab_cmi, tab_plan, tab_acred = st.tabs(["CMI Estratégico", "Plan de Mejoramiento", "Gestión y Acreditación"])
         with tab_cmi:
             cmi_estrategico.render()
@@ -168,18 +144,14 @@ def main():
         with tab_acred:
             pdi_acreditacion.render()
 
-    elif menu == "Resumen general":
+    elif menu == "OPEX Financiero":
         resumen_general.render()
 
-    elif menu == "Resumen por procesos":
-        # Resumen por procesos se renderiza como una vista con sus propias pestañas (ya implementado en el módulo)
+    elif menu == "Base Normativa":
         resumen_por_proceso.render()
 
-    elif menu == "Seguimiento operativo":
-        # Agrupar vistas operativas en pestañas internas
-        tab_a, tab_b, tab_c = st.tabs(
-            ["Tablero Operativo", "Seguimiento reportes", "Gestión de OM"]
-        )
+    elif menu == "Auditoría (CSVs)":
+        tab_a, tab_b, tab_c = st.tabs(["Tablero Operativo", "Seguimiento reportes", "Gestión de OM"])
         with tab_a:
             tablero_operativo.render()
         with tab_b:

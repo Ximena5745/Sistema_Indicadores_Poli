@@ -38,44 +38,91 @@ body {
 
 /* ─── SIDEBAR ─────────────────────────────────────────────────────────────────── */
 
-
-/* Sidebar fondo principal */
+/* Sidebar fondo principal - Azul oscuro corporativo (#0550c8) */
 [data-testid="stSidebar"] {
-    background: var(--primary-dark, #0550c8) !important;
-    border-radius: 0 32px 32px 0;
-    min-width: 320px;
-    padding-top: 24px !important;
-    padding-bottom: 24px !important;
-    box-shadow: 2px 0 24px 0 rgba(12,99,228,0.08);
+    background: #0550c8 !important;
+    min-width: 280px;
+    padding: 0 !important;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    background: #0550c8 !important;
+    padding: 24px 16px !important;
 }
 
 [data-testid="stSidebar"] * {
-    color: var(--sidebar-text, #f4f7fb) !important;
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* Header visual tipo tarjeta */
+/* Header con logo y título */
 .sidebar-header {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px 20px 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+.sidebar-logo {
+    width: 48px;
+    height: 48px;
+    background: #ffffff;
+    border-radius: 8px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    padding: 24px 18px 18px 18px;
-    background: rgba(12,99,228,0.10);
-    border: 1.5px solid var(--primary, #0c63e4);
-    border-radius: 18px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 16px 0 rgba(12,99,228,0.06);
+    flex-shrink: 0;
 }
 
 .sidebar-logo img, .sidebar-logo svg {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 2px 8px 0 rgba(12,99,228,0.10);
-    margin-bottom: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+}
+
+.sidebar-header-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-title-main {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.sidebar-title-main span {
+    color: #0ea5e9;
+    font-weight: 700;
+}
+
+.sidebar-subtitle {
+    font-size: 11px;
+    color: rgba(255,255,255,0.8);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+/* Sección de navegación */
+.sidebar-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0ea5e9;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 24px 8px 16px 8px;
+}
+
+/* Contenedor de navegación tipo tarjeta - color oscuro */
+.sidebar-nav-card {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 8px;
+    margin: 0 8px;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 .sidebar-title {
