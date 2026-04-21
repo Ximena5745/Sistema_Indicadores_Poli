@@ -404,7 +404,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
         # --- AJUSTE: El centro serán las líneas estratégicas ---
         for _, line in lines.iterrows():
-            linea_name = line["Linea"]
+            linea_name = str(line["Linea"]).replace('_', ' ')
             labels.append(linea_name)
             parents.append("")
             values.append(0)  # branchvalues='remainder': parent=0 → tamaño definido por hijos
@@ -423,8 +423,8 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             count = obj_counts.get((parent_name, obj_name), 0)
             if not count or int(count) <= 0:
                 continue
-            labels.append(str(obj_name).strip())
-            parents.append(str(parent_name).strip())
+            labels.append(str(obj_name).strip().replace('_', ' '))
+            parents.append(str(parent_name).strip().replace('_', ' '))
             values.append(1)  # valor uniforme → distribución igualitaria sin gaps
             customdata.append([float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0])
             colors.append(normalized_color_map.get(_norm_key(parent_name), "#6B728E"))
