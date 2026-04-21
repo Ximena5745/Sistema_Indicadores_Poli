@@ -45,88 +45,208 @@ body {
     --muted-on-dark: rgba(230,240,255,0.6);
 }
 
-/* ===== SIDEBAR (reconstruido) ===== */
+/* ===== SIDEBAR v2 (estilo imagen 2) ===== */
 [data-testid="stSidebar"], section[data-testid="stSidebar"], aside[data-testid="stSidebar"] {
-    background: #022457 !important; /* color principal */
-    color: #e6f0ff !important;
-    padding: 20px !important;
-    min-width: 280px;
+    background: linear-gradient(180deg, #050e1f 0%, #081a33 100%) !important;
+    color: #c6d5ee !important;
+    border-right: 1px solid rgba(82, 116, 168, 0.24) !important;
 }
 
-/* Header */
-.sidebar-header { display:flex; gap:12px; align-items:center; padding:18px; border-radius:12px; background: rgba(1,20,40,0.12); border:1px solid rgba(255,255,255,0.03); }
-.sidebar-logo { width:48px; height:48px; border-radius:10px; background:linear-gradient(135deg,#7c3aed,#60a5fa); display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800 }
-.sidebar-header-text { display:flex;flex-direction:column }
-.sidebar-title-main { font-size:16px; font-weight:800; color:#fff }
-.sidebar-title-main span { color:#cfe6ff }
-.sidebar-subtitle { font-size:10px; color:rgba(230,240,255,0.7); text-transform:uppercase }
-
-/* Search */
-.sidebar-search { margin:14px 0 }
-section[data-testid="stSidebar"] .stTextInput>div>div>input { background: rgba(255,255,255,0.02) !important; border:1px solid rgba(255,255,255,0.04) !important; color:#cfe6ff !important; padding:10px; border-radius:10px }
-
-/* Sections */
-.sidebar-section-title { margin-top:18px; margin-bottom:8px; color:rgba(230,240,255,0.6); font-size:11px; font-weight:700; text-transform:uppercase }
-
-/* Option menu visuals */
-.sidebar-nav-card { margin:0; padding:0 }
-.streamlit-option-menu { background:transparent !important; padding:0 !important; border:none !important }
-.streamlit-option-menu .nav-link { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:10px; color:#dbeeff !important; font-weight:700 !important; margin-bottom:8px !important }
-.streamlit-option-menu .nav-link .bi, .streamlit-option-menu .nav-link i { color: rgba(200,220,255,0.7) !important; font-size:18px }
-.streamlit-option-menu .nav-link:hover { background: rgba(11,58,112,0.12) !important; color:#fff !important }
-.streamlit-option-menu .nav-link.active { background: linear-gradient(90deg,#0b3a70,#022457) !important; color:#fff !important; box-shadow:0 6px 16px rgba(2,36,87,0.22) !important; border-left:4px solid #60a5fa !important }
-
-/* Alerts badges */
-.sidebar-badge { margin-left:auto; font-size:12px; font-weight:700; padding:4px 8px; border-radius:999px; color:#fff }
-.badge-blue { background:#2563eb }
-.badge-red { background:#ef4444 }
-.badge-yellow { background:#f59e0b }
-
-/* Profile */
-.sidebar-profile { margin-top:18px; padding:12px; border-radius:12px; background:rgba(255,255,255,0.02); display:flex; gap:12px; align-items:center; border:1px solid rgba(255,255,255,0.03) }
-.sidebar-profile .avatar { width:36px;height:36px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#60a5fa);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700 }
-.sidebar-profile .meta { font-size:12px; color:rgba(230,240,255,0.9) }
-
-/* Force remove any light backgrounds from auto-generated containers */
-section[data-testid="stSidebar"] div[class*="css-"] { background: transparent !important }
-
-/* RESET agresivo: eliminar cualquier fondo claro que pueda entrar desde reglas externas */
-section[data-testid="stSidebar"] * {
-    background-color: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    border-color: transparent !important;
+[data-testid="stSidebar"] > div:first-child {
+    padding: 12px 12px 16px !important;
 }
 
-/* Reaplicar componentes que deben tener fondo explícito */
-.sidebar-header { background: rgba(1,20,40,0.12) !important; border:1px solid rgba(255,255,255,0.03) !important; }
-.sidebar-profile { background: rgba(255,255,255,0.02) !important; border:1px solid rgba(255,255,255,0.03) !important; }
-.streamlit-option-menu .nav-link.active { background: linear-gradient(90deg,#0b3a70,#022457) !important; box-shadow:0 6px 16px rgba(2,36,87,0.22) !important; }
+.sidebar-v2 {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 28px);
+    gap: 12px;
+}
 
-/* Agresivo: anular contenedores generados (listas, menús, grupos) que puedan tener fondo blanco */
-section[data-testid="stSidebar"] div[role="list"],
-section[data-testid="stSidebar"] div[role="group"],
-section[data-testid="stSidebar"] div[role="menu"],
-section[data-testid="stSidebar"] div[role="presentation"],
-section[data-testid="stSidebar"] div[role="listbox"] {
+.sidebar-v2-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.sidebar-v2-logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #2f6cff 0%, #5b4de7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 24px rgba(37, 83, 200, 0.45);
+}
+
+.sidebar-v2-brand {
+    min-width: 0;
+}
+
+.sidebar-v2-title {
+    color: #f2f7ff;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: 0.2px;
+}
+
+.sidebar-v2-subtitle {
+    margin-top: 2px;
+    color: #86a0c4;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+}
+
+[data-testid="stSidebar"] .stTextInput {
+    margin-top: 8px;
+}
+
+[data-testid="stSidebar"] .stTextInput > div > div > input {
+    border-radius: 12px !important;
+    border: 1px solid rgba(95, 122, 163, 0.35) !important;
+    background: rgba(20, 34, 59, 0.9) !important;
+    color: #c9dbf8 !important;
+    font-size: 15px !important;
+    padding: 11px 13px !important;
+}
+
+[data-testid="stSidebar"] .stTextInput > div > div > input::placeholder {
+    color: #6e87ad !important;
+}
+
+.sidebar-v2-section {
+    color: #4f6589;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-top: 8px;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu {
     background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
-/* Forzar que cualquier contenedor directo dentro de la tarjeta de navegación sea transparente */
-.sidebar-nav-card > div,
-.sidebar-nav-card > section,
-.sidebar-nav-card > ul,
-.sidebar-nav-card > div > div {
-    background: transparent !important;
+[data-testid="stSidebar"] .streamlit-option-menu ul {
+    gap: 4px;
 }
 
-/* Si hay popovers o overlays con fondo, anulamos específicamente dentro del sidebar */
-section[data-testid="stSidebar"] [data-baseweb="popover"],
-section[data-testid="stSidebar"] [data-baseweb="menu"],
-section[data-testid="stSidebar"] [data-baseweb="menu"] * {
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link {
+    position: relative;
+    border-radius: 12px !important;
+    color: #7d95bb !important;
+    font-size: 17px !important;
+    font-weight: 500 !important;
+    padding: 12px 14px !important;
+    margin: 1px 0 !important;
     background: transparent !important;
+    transition: all 0.2s ease;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link i,
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link .bi {
+    color: #7d95bb !important;
+    font-size: 18px !important;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link:hover {
+    background: rgba(18, 38, 70, 0.75) !important;
+    color: #b6cff5 !important;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link-selected {
+    background: linear-gradient(90deg, rgba(18, 38, 70, 0.95) 0%, rgba(11, 28, 55, 0.95) 100%) !important;
+    color: #4b8fff !important;
+    border: 1px solid rgba(62, 122, 214, 0.35) !important;
+    box-shadow: inset 0 0 0 1px rgba(69, 132, 234, 0.12);
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link-selected i,
+[data-testid="stSidebar"] .streamlit-option-menu .nav-link-selected .bi {
+    color: #4b8fff !important;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu ul li:nth-child(3) .nav-link::after,
+[data-testid="stSidebar"] .streamlit-option-menu ul li:nth-child(5) .nav-link::after,
+[data-testid="stSidebar"] .streamlit-option-menu ul li:nth-child(6) .nav-link::after {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu ul li:nth-child(3) .nav-link::after {
+    content: "4";
+    background: #3b82f6;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu ul li:nth-child(5) .nav-link::after {
+    content: "2";
+    background: #ef4444;
+}
+
+[data-testid="stSidebar"] .streamlit-option-menu ul li:nth-child(6) .nav-link::after {
+    content: "5";
+    background: #f59e0b;
+}
+
+.sidebar-v2-profile {
+    margin-top: auto;
+    border: 1px solid rgba(84, 112, 151, 0.35);
+    background: rgba(21, 38, 66, 0.75);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-v2-profile .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #eef4ff;
+    font-size: 14px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #4f7bf7 0%, #5b4de7 100%);
+}
+
+.sidebar-v2-profile .meta .name {
+    color: #e7f0ff;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.sidebar-v2-profile .meta .role {
+    color: #7f99c1;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+@media (max-width: 900px) {
+    .sidebar-v2-title {
+        font-size: 18px;
+    }
+
+    [data-testid="stSidebar"] .streamlit-option-menu .nav-link {
+        font-size: 16px !important;
+    }
 }
 
 /* ─── SELECTORES Y CONTROLES — Streamlit widgets (BaseWeb) ───────────────────── */
