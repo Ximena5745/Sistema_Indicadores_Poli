@@ -71,14 +71,19 @@ except (ImportError, ModuleNotFoundError):
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
 
-# Limpiar caché corrupto si es necesario
-if "page_cache_cleared" not in st.session_state:
-    try:
-        si.load_worksheet_flags.clear()
-        si.load_cierres.clear()
-    except Exception:
-        pass
-    st.session_state.page_cache_cleared = True
+# Limpiar caché corrupto si es necesario (defensa para st stub en tests)
+try:
+    ss = st.session_state
+except Exception:
+    ss = None
+if ss is not None:
+    if "page_cache_cleared" not in ss:
+        try:
+            si.load_worksheet_flags.clear()
+            si.load_cierres.clear()
+        except Exception:
+            pass
+        ss.page_cache_cleared = True
 
 PATH_CONSOLIDADO = DATA_OUTPUT / "Resultados Consolidados.xlsx"
 
@@ -149,6 +154,8 @@ def _load_consolidado_cierres() -> pd.DataFrame:
                 uniques.to_excel(writer, sheet_name=col[:30], index=False)
     except Exception as e:
         print(f"No se pudo exportar columnas/valores únicos: {e}")
+    # Asegurar carpeta de artifacts y normalizar columna año
+    os.makedirs("artifacts", exist_ok=True)
     if "A\x1fo" in df.columns:
         df["A\x1fo"] = pd.to_numeric(df["A\x1fo"], errors="coerce")
     elif "Anio" in df.columns:
@@ -326,6 +333,14 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         print(f"No se pudo exportar columnas: {e}")
 
     df = pdi_df.copy()
+    # Normalizar y limpiar cumplimiento_pct: convertir a numérico y eliminar inf
+    try:
+        import numpy as np
+        df["cumplimiento_pct"] = pd.to_numeric(df.get("cumplimiento_pct"), errors="coerce")
+        # avoid chained-assignment issues: assign the replaced series back
+        df["cumplimiento_pct"] = df["cumplimiento_pct"].replace([np.inf, -np.inf], pd.NA)
+    except Exception:
+        pass
     # Eliminar nodos vacíos o en blanco en la jerarquía
     for col in ["Linea", "Objetivo"]:
         df = df[df[col].notnull() & (df[col].astype(str).str.strip() != "")]
@@ -347,6 +362,15 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         colors = ["#6B728E"]
         text = ["Sin datos\n0.0%"]
     else:
+        # --- LIMPIEZA ADICIONAL: eliminar indicadores tipo métrica y objetivos vacíos ---
+        if "tipo" in df.columns:
+            try:
+                df = df[~df["tipo"].astype(str).str.lower().str.contains("metr", na=False)]
+            except Exception:
+                pass
+        # Asegurar no tener objetivos vacíos o sólo espacios (defensa adicional)
+        df = df[df["Objetivo"].notnull() & (df["Objetivo"].astype(str).str.strip() != "")]
+
         # Nivel 1: Linea (promedio)
         lines = df.groupby("Linea", dropna=False).agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
         # Nivel 2: Objetivo (promedio)
@@ -389,10 +413,19 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         for _, row in grouped.iterrows():
             obj_name = row["Objetivo"]
             parent_name = row["Linea"]
-            labels.append(obj_name)
-            parents.append(parent_name)
-            values.append(int(obj_counts.get((parent_name, obj_name), 0)) or 1)
-            customdata.append([row["cumplimiento_pct"] if pd.notna(row["cumplimiento_pct"]) else 0])
+            # Omitir objetivos vacíos o nulos (defensa adicional)
+            if pd.isna(obj_name) or str(obj_name).strip() == "":
+                continue
+            if pd.isna(parent_name) or str(parent_name).strip() == "":
+                continue
+            # Omitir objetivos sin indicadores válidos
+            count = obj_counts.get((parent_name, obj_name), 0)
+            if not count or int(count) <= 0:
+                continue
+            labels.append(str(obj_name).strip())
+            parents.append(str(parent_name).strip())
+            values.append(max(1, int(count)))
+            customdata.append([float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0])
             colors.append(normalized_color_map.get(_norm_key(parent_name), "#6B728E"))
 
         # Wrap long labels to multiple lines so they fit inside sectors
@@ -472,6 +505,18 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     outer_colors = [colors[i] for i in outer_idxs]
     outer_custom = [customdata[i] for i in outer_idxs]
     outer_text = [text[i] for i in outer_idxs]
+
+    # Exportar diagnósticos (si las tablas existen en el scope)
+    try:
+        import os
+        if 'lines' in locals():
+            os.makedirs('artifacts', exist_ok=True)
+            lines.to_excel(os.path.join('artifacts', 'sunburst_diag_lines.xlsx'), index=False)
+        if 'grouped' in locals():
+            os.makedirs('artifacts', exist_ok=True)
+            grouped.to_excel(os.path.join('artifacts', 'sunburst_diag_grouped.xlsx'), index=False)
+    except Exception as e:
+        print('No se pudo exportar sunburst diagnostics:', e)
 
     # Build a single Sunburst trace (more robust across runtimes)
     fig = go.Figure()

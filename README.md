@@ -296,6 +296,30 @@ sistema_indicadores_poli/
     └── render.yaml                       ← Config para Render.com
 ```
 
+## 🚀 Despliegue en Streamlit Cloud
+
+Recomendaciones rápidas para desplegar esta aplicación en Streamlit Cloud:
+
+- `requirements.txt` ya incluye las dependencias principales (`streamlit`, `pandas`, `plotly`, `openpyxl`, etc.). Asegúrate de actualizar versiones si es necesario.
+- Punto de entrada: `app.py` en la raíz del repositorio — Streamlit Cloud ejecutará automáticamente `streamlit run app.py`.
+- Archivos de datos: si usas `data/output/Resultados Consolidados.xlsx` u otros Excel locales, súbelos al repo o configura una URL/almacenamiento externo (S3, Google Drive público, o una API). Streamlit Cloud no mantiene archivos fuera del repo entre despliegues.
+- Variables sensibles / secretos: añade claves en la sección Secrets del dashboard de Streamlit Cloud (Settings → Secrets) y accédelas con `st.secrets` o `os.environ`.
+- Evita rutas absolutas: el código ya está preparado usando rutas relativas y `Path(__file__).resolve().parents[...]`. Verifica que no existan referencias a `C:\Users` en código productivo.
+- Archivos temporales y logs: la app escribe en `artifacts/` dentro del workspace; Streamlit Cloud permite escritura en tiempo de ejecución, pero los archivos no persisten entre despliegues — usar almacenamiento externo para persistencia.
+
+Pasos mínimos:
+
+1. Crear un nuevo repo en GitHub (o usar este repo) y hacer push.
+2. Ir a https://share.streamlit.io → New app → conectar el repo y elegir `app.py` como entrypoint.
+3. Añadir Secrets en la UI si la app necesita claves (API, DB).
+4. Desplegar y abrir la URL generada por Streamlit Cloud.
+
+Diagnóstico rápido en caso de error en Cloud:
+
+- Si la app falla al importar módulos, revisa `import_error_traceback.txt` (generado por `app.py`).
+- Comprueba `artifacts/import_error_traceback.txt` o `import_error_traceback.txt` en la raíz del workspace para la traza completa.
+
+
 ---
 
 ## ⚡ Inicio Rápido
