@@ -1128,11 +1128,15 @@ def _render_strategy_card(
         except Exception as e:
             sparkline = f"<!-- Error: {str(e)} -->"
 
-    card_html = "<div class='rg-card' style='border-left:4px solid " + color + ";background:linear-gradient(140deg,#fff,#" + color[1:] + "1E);padding:10px;margin:5px 0;'>"
-    card_html += "<div style='font-size:24px;margin-bottom:5px;'>" + icon + "</div>"
-    card_html += "<div style='font-size:20px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
-    card_html += "<div style='font-size:12px;color:#666;'>" + str(indicators) + " indicadores</div>"
-    card_html += "<div style='font-size:14px;font-weight:bold;margin:5px 0;'>" + title + "</div>"
+    # Construir HTML de la tarjeta con orden: icono, valor, indicadores, título, gráfico
+    card_html = "<div class='rg-card' style='border-left:4px solid " + color + ";background:linear-gradient(140deg,#fff,#" + color[1:] + "1E);padding:12px;margin:5px 0;border-radius:8px;'>"
+    card_html += "<div style='display:flex;align-items:center;margin-bottom:8px;'>"
+    card_html += "<div style='font-size:28px;margin-right:10px;'>" + icon + "</div>"
+    card_html += "<div style='text-align:right;flex:1;'>"
+    card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
+    card_html += "<div style='font-size:11px;color:#666;'>" + str(indicators) + " indicadores</div>"
+    card_html += "</div></div>"
+    card_html += "<div style='font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;'>" + title + "</div>"
     card_html += sparkline
     card_html += "</div>"
     
@@ -1426,8 +1430,6 @@ def render():
                         pass
                 
                 with ficha_cols[idx % 6]:
-                    # Debug: show data
-                    st.caption(f"📊 {card_def['label']}: historico={'N/A' if historico is None else len(historico)} rows")
                     _render_strategy_card(
                         title=card_def["label"],
                         indicators=n_ind,
