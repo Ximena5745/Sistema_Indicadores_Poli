@@ -6,24 +6,20 @@
 
 ## 🗺️ Índices de Documentación
 
-### [📌 MASTER_INDEX.md](MASTER_INDEX.md) ← **COMIENZA AQUÍ**
-Mapa completo de toda la documentación organizada por carpetas temáticas (Estrategia, Planificación, Técnica, Funcional, Operativa)
+### [📌 Documentación MDV](docs/README.md) ← **COMIENZA AQUÍ**
+Indice actual consolidado en 7 documentos principales para arquitectos, desarrolladores y analistas.
 
-### [📋 PLAN_INTEGRAL_MEJORA_SGIND.md](02-PLANIFICACION/PLAN_INTEGRAL_MEJORA_SGIND.md)
+### [📋 Plan Integral SGIND](02-PLANIFICACION/PLAN_INTEGRAL_MEJORA_SGIND.md)
 Consolidación de visión completa: 3 Fases + 15 Pilares + roadmap semanal + métricas + riesgos
 
 ---
 
-🟢 **[Resultado Refactorización Sprint 1-2](05-OPERATIVO/RESULTADO_REFACTORIZACION_SPRINT1-2.md)** — ✅ 8,034 líneas dead code eliminadas, 105 tests pasando  
+🟢 **[Resultado Refactorización Sprint 1-2](05-OPERATIVO/RESULTADO_REFACTORIZACION_SPRINT1-2.md)** — ✅ 8,034 líneas dead code eliminadas, 105 tests pasando
 📄 **[Plan Fase 2 Detallado](02-PLANIFICACION/FASE_2_PLAN.md)** — Semanas 1-8 (refactorización incluida)
 
-📐 **[Estándar Global Meta/Ejecución](docs/02-CALCULOS/formato_meta_ejecucion_global.md)** — Regla única de formato para fichas, tablas y gráficas
+📐 **[Documentación MDV](docs/README.md)** — Índice de los 7 documentos principales consolidados
 
-🗂️ **[Fuentes oficiales Meta/Ejecución](docs/02-CALCULOS/formato_meta_ejecucion_global.md#fuentes-oficiales-de-meta-y-ejecucion)** — Consideraciones de Consolidado Histórico/Semestral/Cierres por vista
-
-🧭 **[Inventario de Fuentes del Proyecto](docs/FUENTES_DATOS_PROYECTO.md)** — Catálogo integral de fuentes operativas, persistencia y configuración
-
-📑 **[Fuentes por Página](docs/FUENTES_POR_PAGINA.md)** — Listado completo de fuente/hoja utilizado en cada página de la aplicación
+📑 **[Fuentes por Página](docs/archive/FUENTES_POR_PAGINA.md)** — Listado completo de fuente/hoja utilizado en cada página de la aplicación
 
 ---
 

@@ -49,7 +49,7 @@ class DataService:
         """
         Carga datos de seguimiento desde Resultados Consolidados.xlsx - Consolidado Semestral.
 
-        Según documentación oficial (FUENTES_POR_PAGINA.md):
+        Según documentación oficial (docs/archive/FUENTES_POR_PAGINA.md):
         - Resumen por Proceso debe usar "Consolidado Semestral"
         - No usar "Seguimiento_Reporte.xlsx" para Meta/Ejecución/Cumplimiento
 
