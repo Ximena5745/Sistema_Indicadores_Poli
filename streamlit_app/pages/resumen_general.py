@@ -1428,6 +1428,8 @@ def render():
                         pass
                 
                 with ficha_cols[idx % 6]:
+                    # Debug: show data
+                    st.caption(f"📊 {card_def['label']}: historico={'N/A' if historico is None else len(historico)} rows")
                     _render_strategy_card(
                         title=card_def["label"],
                         indicators=n_ind,
