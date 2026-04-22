@@ -1109,36 +1109,34 @@ def _render_strategy_card(
                 
                 path_d = "M" + " L".join(points)
                 
-                # Generar círculos para puntos
-                circles_html = ""
-                for i, (x_str, y_str) in enumerate([p.split(",") for p in points]):
-                    circles_html += f'<circle cx="{x_str}" cy="{y_str}" r="3" fill="{color}"/>'
-                
-                # Tooltip con todos los valores
+                # Tooltip
                 tooltip = " - ".join([f"{a}:{v:.0f}%" for a, v in zip(anos, valores)])
                 
-                sparkline = f'''<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto;background:transparent;">
-                    <line x1="0" y1="{height*0.5}" x2="{width}" y2="{height*0.5}" stroke="#ccc" stroke-width="1" stroke-dasharray="3"/>
-                    <path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    {circles_html}
-                    <title>{tooltip}</title>
-                </svg>'''
+                # Construir SVG manualmente
+                svg_parts = []
+                svg_parts.append(f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto;">')
+                svg_parts.append(f'<line x1="0" y1="{height/2}" x2="{width}" y2="{height/2}" stroke="#ddd" stroke-width="1" stroke-dasharray="3"/>')
+                svg_parts.append(f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2"/>')
+                for p in points:
+                    xy = p.split(",")
+                    svg_parts.append(f'<circle cx="{xy[0]}" cy="{xy[1]}" r="3" fill="{color}"/>')
+                svg_parts.append(f'<title>{tooltip}</title>')
+                svg_parts.append('</svg>')
+                
+                sparkline = "".join(svg_parts)
+                
         except Exception as e:
-            sparkline = f"<!-- Error: {e} -->"
+            sparkline = f"<!-- Error: {str(e)} -->"
 
-    card_html = """<div class='rg-card' style='border-left: 4px solid """ + color + """; background: linear-gradient(140deg, #FFFFFF 0%, """ + color + """1E 100%);'>""" + \
-        """<div class='rg-card-head'>""" + \
-        """<div class='rg-icon' style='color:""" + color + """;'>""" + icon + """</div>""" + \
-        """<div style='text-align:right;'>""" + \
-        """<p class='rg-main-value' style='color:""" + color + """; margin-bottom:0.2rem;'>""" + f"{cumplimiento:.1f}%" + """</p>""" + \
-        """<p class='rg-meta'>""" + str(indicators) + """ indicadores</p>""" + \
-        """</div></div>""" + \
-        """<p class='rg-card-title'>""" + title + """</p>""" + \
-        sparkline + \
-        """</div>"""
+    card_html = "<div class='rg-card' style='border-left:4px solid " + color + ";background:linear-gradient(140deg,#fff,#" + color[1:] + "1E);padding:10px;margin:5px 0;'>"
+    card_html += "<div style='font-size:24px;margin-bottom:5px;'>" + icon + "</div>"
+    card_html += "<div style='font-size:20px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
+    card_html += "<div style='font-size:12px;color:#666;'>" + str(indicators) + " indicadores</div>"
+    card_html += "<div style='font-size:14px;font-weight:bold;margin:5px 0;'>" + title + "</div>"
+    card_html += sparkline
+    card_html += "</div>"
     
-    # Usar st.html en lugar de st.markdown para renderizar SVG
-    st.html(card_html)
+    st.markdown(card_html, unsafe_allow_html=True)
 
 
 def _render_chip(value: int, label: str, color: str):
