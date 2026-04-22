@@ -1076,37 +1076,55 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 def _render_strategy_card(
     title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
 ):
-    """Renderiza una tarjeta de estrategia con mini gráfico."""
+    """Renderiza una tarjeta de estrategia con mini gráfico de línea."""
     import streamlit as st
 
-    # Generar mini gráfico si hay datos históricos
-    chart_html = ""
+    # Generar mini gráfico de línea SVG si hay datos históricos
+    sparkline = ""
     if historico is not None and not historico.empty and len(historico) >= 1:
         try:
-            anos = sorted([int(a) for a in historico["Año"].values])
-            valores = []
-            for a in anos:
-                valor = historico[historico["Año"] == a]["Cumplimiento"].values[0]
-                valores.append(valor)
+            # Ordenar por año
+            df_sorted = historico.sort_values("Año")
+            anos = [int(a) for a in df_sorted["Año"].values]
+            valores = [float(v) for v in df_sorted["Cumplimiento"].values]
             
-            if len(valores) >= 1:
-                # Crear mini barras horizontales
-                bars = ""
-                max_val = max(valores)
-                for i, (a, v) in enumerate(zip(anos, valores)):
-                    bar_width = (v / max_val) * 100
-                    color_bar = color if v >= 100 else "#F59E0B"
-                    bars += f"""<div style="display:flex;align-items:center;margin:2px 0;font-size:11px;">
-                        <span style="width:30px;color:#666;">{a}</span>
-                        <div style="flex:1;height:8px;background:#eee;border-radius:2px;margin:0 5px;">
-                            <div style="width:{bar_width}%;height:100%;background:{color_bar};border-radius:2px;"></div>
-                        </div>
-                        <span style="width:40px;text-align:right;color:{color};">{v:.0f}%</span>
-                    </div>"""
+            if len(anos) >= 1:
+                # Calcular puntos del gráfico
+                width = 100
+                height = 35
+                min_v = min(valores) * 0.9
+                max_v = max(valores) * 1.1
+                if max_v == min_v:
+                    max_v = min_v + 20
                 
-                chart_html = f"""<div style="margin-top:5px;padding-top:5px;border-top:1px solid #eee;">{bars}</div>"""
-        except Exception:
-            pass
+                # Generar puntos
+                points = []
+                for i, v in enumerate(valores):
+                    if len(anos) == 1:
+                        x = width / 2
+                    else:
+                        x = (i / (len(anos) - 1)) * width
+                    y = height - ((v - min_v) / (max_v - min_v)) * height
+                    points.append(f"{x:.1f},{y:.1f}")
+                
+                path_d = "M" + " L".join(points)
+                
+                # Generar círculos para puntos
+                circles_html = ""
+                for i, (x_str, y_str) in enumerate([p.split(",") for p in points]):
+                    circles_html += f'<circle cx="{x_str}" cy="{y_str}" r="3" fill="{color}"/>'
+                
+                # Tooltip con todos los valores
+                tooltip = " - ".join([f"{a}:{v:.0f}%" for a, v in zip(anos, valores)])
+                
+                sparkline = f'''<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto;background:transparent;">
+                    <line x1="0" y1="{height*0.5}" x2="{width}" y2="{height*0.5}" stroke="#ccc" stroke-width="1" stroke-dasharray="3"/>
+                    <path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    {circles_html}
+                    <title>{tooltip}</title>
+                </svg>'''
+        except Exception as e:
+            sparkline = f"<!-- Error: {e} -->"
 
     card_html = """<div class='rg-card' style='border-left: 4px solid """ + color + """; background: linear-gradient(140deg, #FFFFFF 0%, """ + color + """1E 100%);'>""" + \
         """<div class='rg-card-head'>""" + \
@@ -1116,10 +1134,11 @@ def _render_strategy_card(
         """<p class='rg-meta'>""" + str(indicators) + """ indicadores</p>""" + \
         """</div></div>""" + \
         """<p class='rg-card-title'>""" + title + """</p>""" + \
-        chart_html + \
+        sparkline + \
         """</div>"""
     
-    st.markdown(card_html, unsafe_allow_html=True)
+    # Usar st.html en lugar de st.markdown para renderizar SVG
+    st.html(card_html)
 
 
 def _render_chip(value: int, label: str, color: str):
