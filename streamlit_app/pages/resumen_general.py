@@ -1078,39 +1078,15 @@ def _render_strategy_card(
 ):
     """
     Renderiza una tarjeta de estrategia con gráfico embebido de cumplimiento histórico.
-    
-    Args:
-        title: Título de la tarjeta (nombre de línea estratégica)
-        indicators: Cantidad de indicadores en la línea
-        cumplimiento: Porcentaje de cumplimiento actual (%)
-        color: Color principal de la tarjeta
-        icon: Icono representativo
-        historico: DataFrame con columnas 'Año' y 'Cumplimiento' (opcional)
     """
     import streamlit as st
-    from streamlit.components.v1 import html as st_html
 
-    card_html = f"""
-    <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%); padding-bottom:0.5rem;'>
-        <div class='rg-card-head'>
-            <div class='rg-icon' style='color:{color};'>{icon}</div>
-            <div style='text-align:right;'>
-                <p class='rg-main-value' style='color:{color}; margin-bottom:0.2rem;'>{cumplimiento:.1f}%</p>
-                <p class='rg-meta'>{indicators} indicadores</p>
-            </div>
-        </div>
-        <p class='rg-card-title' style='margin-bottom:0.5rem;'>{title}</p>
-        <div id='minichart' style='margin-top:-0.5rem;'>
-            <!-- Aquí va el gráfico -->
-        </div>
-    </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
-    
-    if historico is not None and not historico.empty:
+    # Generar el gráfico como HTML primero
+    chart_html = ""
+    if historico is not None and not historico.empty and len(historico) > 0:
         import plotly.graph_objects as go
 
-        anos = historico["Año"].values
+        anos = [int(a) for a in historico["Año"].values]
         cumplimientos = historico["Cumplimiento"].values
 
         fig = go.Figure()
@@ -1121,7 +1097,7 @@ def _render_strategy_card(
                 y=cumplimientos,
                 mode="lines+markers",
                 line=dict(color=color, width=2.5),
-                marker=dict(size=10, color=color, line=dict(color="white", width=1.5)),
+                marker=dict(size=8, color=color),
                 hovertemplate=(
                     "<b>Año: %{x}</b><br>"
                     "Cumplimiento: %{y:.1f}%<br>"
@@ -1135,59 +1111,39 @@ def _render_strategy_card(
             y=100,
             line_dash="dash",
             line_color="#6B7280",
-            line_width=1.5,
-            annotation_text="Meta 100%",
-            annotation_position="bottom right",
-            annotation_font_size=9,
-            annotation_font_color="#6B7280",
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=anos,
-                y=[100] * len(anos),
-                mode="lines",
-                line=dict(color="#6B7280", width=1, dash="dash"),
-                hoverinfo="skip",
-                showlegend=False,
-            )
+            line_width=1,
         )
 
         fig.update_layout(
-            margin=dict(l=5, r=5, t=5, b=5),
-            height=90,
-            xaxis=dict(
-                showgrid=False,
-                visible=False,
-                tickmode="linear",
-                dtick=1,
-            ),
-            yaxis=dict(
-                showgrid=True,
-                gridcolor="rgba(0,0,0,0.05)",
-                visible=False,
-                range=[min(min(cumplimientos) * 0.9, 85), max(max(cumplimientos) * 1.1, 115)],
-            ),
+            margin=dict(l=10, r=10, t=10, b=10),
+            height=70,
+            xaxis=dict(showgrid=False, visible=False),
+            yaxis=dict(showgrid=False, visible=False),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             showlegend=False,
-            hovermode="x unified",
         )
 
-        st.markdown(
-            f"<div style='margin-top:-3.4rem; margin-bottom:0.2rem;'>", unsafe_allow_html=True
+        chart_html = fig.to_html(
+            full_html=False,
+            include_plotlyjs="cdn",
+            config={"displayModeBar": False, "staticPlot": True},
         )
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            height=90,
-            config={
-                "displayModeBar": False,
-                "staticPlot": False,
-                "responsive": True,
-            },
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
+
+    card_html = f"""
+    <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%);'>
+        <div class='rg-card-head'>
+            <div class='rg-icon' style='color:{color};'>{icon}</div>
+            <div style='text-align:right;'>
+                <p class='rg-main-value' style='color:{color}; margin-bottom:0.2rem;'>{cumplimiento:.1f}%</p>
+                <p class='rg-meta'>{indicators} indicadores</p>
+            </div>
+        </div>
+        <p class='rg-card-title'>{title}</p>
+        {chart_html}
+    </div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
 
 
 def _render_chip(value: int, label: str, color: str):
@@ -1411,19 +1367,24 @@ def render():
                 n_ind = int(row["N_Indicadores"]) if row is not None else 0
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
                 
+                # Cargar histórico desde datos originales sin filtro de año
                 historico = None
-                if row is not None and "Linea" in pdi_estrategico.columns:
-                    linea_hist = row["Linea"]
-                    df_hist = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist].copy()
-                    year_col = "Anio"
-                    if year_col in df_hist.columns and "cumplimiento_pct" in df_hist.columns:
-                        historico = (
-                            df_hist.groupby(year_col, dropna=False)["cumplimiento_pct"]
-                            .mean()
-                            .reset_index()
-                            .rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
-                        )
-                        historico = historico.sort_values("Año")
+                try:
+                    df_all_years = preparar_pdi_con_cierre(2025, 12)
+                    df_all_years = filter_df_for_cmi_estrategico(df_all_years, id_column="Id")
+                    if "Linea" in df_all_years.columns and "cumplimiento_pct" in df_all_years.columns and "Anio" in df_all_years.columns:
+                        df_hist = df_all_years[df_all_years["Linea"] == row["Linea"]].copy()
+                        if not df_hist.empty:
+                            historico = (
+                                df_hist.groupby("Anio", dropna=False)["cumplimiento_pct"]
+                                .mean()
+                                .reset_index()
+                                .rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
+                            )
+                            historico = historico.sort_values("Año")
+                except Exception:
+                    pass
+                
                 with ficha_cols[idx % 6]:
                     _render_strategy_card(
                         title=card_def["label"],
