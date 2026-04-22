@@ -603,6 +603,70 @@ def calcular_tendencia(cumpl_actual, cumpl_anterior, umbral=0.02):
     # Anterior: 50%, Actual: 45% (delta -5%) → ↓ Empeorada
 ```
 
+---
+
+## DATA QUALITY - RIESGOS Y MITIGACIÓN
+
+### Riesgos Identificados en Fase 4-5 (RESUELTOS)
+
+#### ❌ → ✅ Riesgo #1: Heurística "si > 2" ambigua
+
+**Problema anterior:**
+- `normalizar_cumplimiento()` asumía que valor > 2 = porcentaje (divide por 100)
+- Ambigüedad: ¿2.5 significa 250% o 2.5%?
+- Sin validación de escala de entrada
+
+**Solución actual:**
+- Función `normalizar_valor_a_porcentaje()` en core/semantica.py es robusta
+- Detecta automáticamente escala y normaliza
+- Validación en tests/test_calculos.py: 50+ casos edge
+
+**Validación:**
+```python
+# Casos cubiertos:
+assert normalizar_valor_a_porcentaje(95, es_porcentaje=True) == 0.95  # % input
+assert normalizar_valor_a_porcentaje(0.95, es_porcentaje=False) == 0.95  # decimal input
+assert normalizar_valor_a_porcentaje(150) == 1.50  # Auto-detecta %
+assert normalizar_valor_a_porcentaje(1.5) == 1.5  # Auto-detecta decimal
+```
+
+#### ❌ → ✅ Riesgo #2: Inconsistencia categorización en 3+ lugares
+
+**Problema anterior:**
+- strategic_indicators.py → `_nivel_desde_cumplimiento()` (defectuosa)
+- resumen_general.py → `_map_level()` (hardcoding umbrales)
+- resumen_por_proceso.py → heurística "si max <= 1.5"
+- Divergencias en Plan Anual detection
+
+**Solución actual:**
+- ✅ Centralizar en `core/semantica.py::categorizar_cumplimiento()`
+- ✅ Todas las funciones UI importan de `core.semantica`
+- ✅ Plan Anual detección dinámica desde IDS_PLAN_ANUAL
+
+**Validación:**
+```python
+# Todas usan misma función
+from core.semantica import categorizar_cumplimiento, normalizar_y_categorizar
+
+# Plan Anual detection
+assert categorizar_cumplimiento(0.947, id_indicador=373) == "Cumplimiento"  # ✓
+assert categorizar_cumplimiento(0.947, id_indicador=1) == "Alerta"  # ✓
+```
+
+#### ❌ → ✅ Riesgo #3: Cambiar umbral requiere actualizar 8 lugares
+
+**Problema anterior:**
+- UMBRAL_ALERTA hardcodeado en múltiples archivos
+- Cambiar valor → buscar y reemplazar en 8 ubicaciones
+- Alto riesgo de inconsistencia
+
+**Solución actual:**
+- ✅ Umbrales centralizados en `core/config.py`
+- ✅ Importar de config en todas partes
+- ✅ Una sola actualización propaga a aplicación completa
+
+---
+
 ### 3. Categorización
 
 ```python

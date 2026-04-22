@@ -42,8 +42,15 @@ def test_upsert_unico_actualiza_registro_existente(tmp_path, monkeypatch):
 
     db_manager._init_sqlite()
 
-    assert db_manager.guardar_registro_om(_payload_base(numero_om="OM-2026-001", tiene_om=1)) is True
-    assert db_manager.guardar_registro_om(_payload_base(numero_om="OM-2026-999", tiene_om=0, comentario="Sin apertura")) is True
+    assert (
+        db_manager.guardar_registro_om(_payload_base(numero_om="OM-2026-001", tiene_om=1)) is True
+    )
+    assert (
+        db_manager.guardar_registro_om(
+            _payload_base(numero_om="OM-2026-999", tiene_om=0, comentario="Sin apertura")
+        )
+        is True
+    )
 
     rows = db_manager.leer_registros_om()
     assert len(rows) == 1
@@ -60,7 +67,9 @@ def test_leer_registros_filtra_por_anio(tmp_path, monkeypatch):
     db_manager._init_sqlite()
 
     db_manager.guardar_registro_om(_payload_base(anio=2026, id_indicador="150", numero_om="OM-1"))
-    db_manager.guardar_registro_om(_payload_base(anio=2025, id_indicador="151", numero_om="OM-2", periodo="Abril"))
+    db_manager.guardar_registro_om(
+        _payload_base(anio=2025, id_indicador="151", numero_om="OM-2", periodo="Abril")
+    )
 
     rows_2026 = db_manager.leer_registros_om(anio=2026)
     rows_2025 = db_manager.leer_registros_om(anio=2025)
@@ -78,8 +87,12 @@ def test_leer_registros_filtra_por_periodo(tmp_path, monkeypatch):
 
     db_manager._init_sqlite()
 
-    db_manager.guardar_registro_om(_payload_base(anio=2026, id_indicador="150", periodo="Mayo", numero_om="OM-1"))
-    db_manager.guardar_registro_om(_payload_base(anio=2026, id_indicador="151", periodo="Junio", numero_om="OM-2"))
+    db_manager.guardar_registro_om(
+        _payload_base(anio=2026, id_indicador="150", periodo="Mayo", numero_om="OM-1")
+    )
+    db_manager.guardar_registro_om(
+        _payload_base(anio=2026, id_indicador="151", periodo="Junio", numero_om="OM-2")
+    )
 
     rows_mayo = db_manager.leer_registros_om(periodo="Mayo")
     rows_junio = db_manager.leer_registros_om(periodo="junio")
@@ -97,7 +110,9 @@ def test_registros_om_como_dict(tmp_path, monkeypatch):
 
     db_manager._init_sqlite()
 
-    db_manager.guardar_registro_om(_payload_base(id_indicador="200", numero_om="OM-200", periodo="Mayo"))
+    db_manager.guardar_registro_om(
+        _payload_base(id_indicador="200", numero_om="OM-200", periodo="Mayo")
+    )
 
     result = db_manager.registros_om_como_dict(anio=2026)
 
@@ -114,7 +129,12 @@ def test_guardar_registro_om_normaliza_periodo_yyyy_mm(tmp_path, monkeypatch):
 
     db_manager._init_sqlite()
 
-    assert db_manager.guardar_registro_om(_payload_base(id_indicador="201", numero_om="OM-2025-101", periodo="2025-12", anio=0)) is True
+    assert (
+        db_manager.guardar_registro_om(
+            _payload_base(id_indicador="201", numero_om="OM-2025-101", periodo="2025-12", anio=0)
+        )
+        is True
+    )
     rows = db_manager.leer_registros_om()
     assert len(rows) == 1
     assert rows[0]["periodo"] == "Diciembre"

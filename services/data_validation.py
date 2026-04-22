@@ -8,7 +8,7 @@ Proporciona funciones para validar fuentes de datos y reportar issues.
 
 Usage:
     from services.data_validation import validate_dataset, ValidationReport
-    
+
     report = validate_dataset(df, source_name="resultados_consolidados")
     if not report.is_valid:
         report.print_issues()
@@ -25,7 +25,6 @@ from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
 import yaml
-
 
 _COLUMN_ALIASES: Dict[str, Set[str]] = {
     "ano": {"ano", "año", "a�o", "anio", "ano_archivo", "año_archivo", "a�o_archivo"},
@@ -67,11 +66,7 @@ class ValidationIssue:
         level_icon = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}[self.level]
         sheet_info = f" [{self.sheet}]" if self.sheet else ""
         col_info = f" [{self.column}]" if self.column else ""
-        sample_info = (
-            f" | Examples: {self.values_sample[:3]}"
-            if self.values_sample
-            else ""
-        )
+        sample_info = f" | Examples: {self.values_sample[:3]}" if self.values_sample else ""
         return (
             f"{level_icon} {self.rule}{sheet_info}{col_info} — {self.description} "
             f"({self.row_count} rows){sample_info}"
@@ -183,8 +178,7 @@ def _find_matching_column(columns: pd.Index, contract_column: str) -> Optional[s
     normalized_contract = _normalize_text(contract_column)
     aliases = {normalized_contract}
     aliases.update(
-        _normalize_text(alias)
-        for alias in _COLUMN_ALIASES.get(normalized_contract, set())
+        _normalize_text(alias) for alias in _COLUMN_ALIASES.get(normalized_contract, set())
     )
 
     for column in columns:

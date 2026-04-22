@@ -7,9 +7,8 @@ Requiere ANTHROPIC_API_KEY en st.secrets o variable de entorno.
 DISEÑO: este módulo es PURO — no importa streamlit ni gestiona st.session_state.
 La caché entre llamadas debe gestionarse en la capa UI con @st.cache_data.
 """
-import hashlib
-import os
 
+import os
 
 _MODEL = "claude-haiku-4-5-20251001"
 
@@ -37,10 +36,12 @@ def _get_client():
     """Retorna cliente Anthropic o None si la key no está configurada."""
     try:
         import anthropic
+
         # Intentar desde st.secrets solo si streamlit está disponible
         key = ""
         try:
             import streamlit as st
+
             key = st.secrets.get("ANTHROPIC_API_KEY", "")
         except Exception:
             pass

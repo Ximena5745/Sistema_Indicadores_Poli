@@ -6,6 +6,7 @@ Prioridad de detección de DATABASE_URL:
   2. Variable de entorno DATABASE_URL → .env local / Render
   3. Sin URL → SQLite local en data/db/registros_om.db
 """
+
 import os
 import re
 import sqlite3
@@ -17,6 +18,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -28,6 +30,7 @@ def _safe_st_secrets_get(key: str, default: str = "") -> str:
     """Lee un secret de Streamlit si está disponible, sin romper en ejecución no-Streamlit."""
     try:
         import streamlit as st
+
         return str(st.secrets.get(key, default)).strip()
     except Exception:
         return default
@@ -49,9 +52,15 @@ def _sanitize_postgres_dsn(dsn: str) -> str:
 
     parsed = urlparse(raw)
     unsupported = {"pgbouncer"}
-    cleaned_qs = [(k, v) for (k, v) in parse_qsl(parsed.query, keep_blank_values=True) if k.lower() not in unsupported]
+    cleaned_qs = [
+        (k, v)
+        for (k, v) in parse_qsl(parsed.query, keep_blank_values=True)
+        if k.lower() not in unsupported
+    ]
     new_query = urlencode(cleaned_qs, doseq=True)
-    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+    return urlunparse(
+        (parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment)
+    )
 
 
 def _extract_supabase_project_ref(supabase_url: str) -> str:
@@ -74,16 +83,29 @@ def _get_postgres_connect_kwargs() -> Optional[Dict[str, Any]]:
     if db_url:
         return {"dsn": db_url}
 
-    pooler_url = _safe_st_secrets_get("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_POOLER_URL", "").strip()
+    pooler_url = (
+        _safe_st_secrets_get("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_POOLER_URL", "").strip()
+    )
     if pooler_url:
         return {"dsn": _sanitize_postgres_dsn(pooler_url)}
 
     supabase_url = _safe_st_secrets_get("SUPABASE_URL") or os.getenv("SUPABASE_URL", "").strip()
-    supabase_db_password = _safe_st_secrets_get("SUPABASE_DB_PASSWORD") or os.getenv("SUPABASE_DB_PASSWORD", "").strip()
-    supabase_db_host = _safe_st_secrets_get("SUPABASE_DB_HOST") or os.getenv("SUPABASE_DB_HOST", "").strip()
-    supabase_db_port = _safe_st_secrets_get("SUPABASE_DB_PORT") or os.getenv("SUPABASE_DB_PORT", "").strip()
-    supabase_db_user = _safe_st_secrets_get("SUPABASE_DB_USER") or os.getenv("SUPABASE_DB_USER", "").strip()
-    supabase_db_name = _safe_st_secrets_get("SUPABASE_DB_NAME") or os.getenv("SUPABASE_DB_NAME", "").strip()
+    supabase_db_password = (
+        _safe_st_secrets_get("SUPABASE_DB_PASSWORD")
+        or os.getenv("SUPABASE_DB_PASSWORD", "").strip()
+    )
+    supabase_db_host = (
+        _safe_st_secrets_get("SUPABASE_DB_HOST") or os.getenv("SUPABASE_DB_HOST", "").strip()
+    )
+    supabase_db_port = (
+        _safe_st_secrets_get("SUPABASE_DB_PORT") or os.getenv("SUPABASE_DB_PORT", "").strip()
+    )
+    supabase_db_user = (
+        _safe_st_secrets_get("SUPABASE_DB_USER") or os.getenv("SUPABASE_DB_USER", "").strip()
+    )
+    supabase_db_name = (
+        _safe_st_secrets_get("SUPABASE_DB_NAME") or os.getenv("SUPABASE_DB_NAME", "").strip()
+    )
 
     project_ref = _extract_supabase_project_ref(supabase_url)
     if project_ref and supabase_db_password:
@@ -118,7 +140,10 @@ def _connect_postgres():
         # Entornos sin salida IPv6 pueden fallar con hostnames que resuelven primero AAAA.
         if "Cannot assign requested address" in msg or "Network is unreachable" in msg:
             # Si hay pooler configurado, priorizarlo como fallback incluso cuando DATABASE_URL sea directa.
-            pooler_url = _safe_st_secrets_get("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_POOLER_URL", "").strip()
+            pooler_url = (
+                _safe_st_secrets_get("SUPABASE_POOLER_URL")
+                or os.getenv("SUPABASE_POOLER_URL", "").strip()
+            )
             if pooler_url:
                 try:
                     return psycopg2.connect(dsn=pooler_url)
@@ -132,8 +157,18 @@ def _connect_postgres():
 
 def _mes_numero_a_nombre(numero: int) -> str:
     meses = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
     ]
     return meses[numero - 1] if 1 <= numero <= 12 else str(numero)
 
@@ -144,19 +179,43 @@ def _normalize_mes_nombre(mes: Any) -> str:
         return ""
     texto_lower = texto.lower()
     meses_map = {
-        "ene": "Enero", "ene.": "Enero", "enero": "Enero",
-        "feb": "Febrero", "feb.": "Febrero", "febrero": "Febrero",
-        "mar": "Marzo", "mar.": "Marzo", "marzo": "Marzo",
-        "abr": "Abril", "abr.": "Abril", "abril": "Abril",
-        "may": "Mayo", "mayo": "Mayo",
-        "jun": "Junio", "jun.": "Junio", "junio": "Junio",
-        "jul": "Julio", "jul.": "Julio", "julio": "Julio",
-        "ago": "Agosto", "ago.": "Agosto", "agosto": "Agosto",
-        "sep": "Septiembre", "sep.": "Septiembre", "sept": "Septiembre",
-        "sept.": "Septiembre", "septiembre": "Septiembre",
-        "oct": "Octubre", "oct.": "Octubre", "octubre": "Octubre",
-        "nov": "Noviembre", "nov.": "Noviembre", "noviembre": "Noviembre",
-        "dic": "Diciembre", "dic.": "Diciembre", "diciembre": "Diciembre",
+        "ene": "Enero",
+        "ene.": "Enero",
+        "enero": "Enero",
+        "feb": "Febrero",
+        "feb.": "Febrero",
+        "febrero": "Febrero",
+        "mar": "Marzo",
+        "mar.": "Marzo",
+        "marzo": "Marzo",
+        "abr": "Abril",
+        "abr.": "Abril",
+        "abril": "Abril",
+        "may": "Mayo",
+        "mayo": "Mayo",
+        "jun": "Junio",
+        "jun.": "Junio",
+        "junio": "Junio",
+        "jul": "Julio",
+        "jul.": "Julio",
+        "julio": "Julio",
+        "ago": "Agosto",
+        "ago.": "Agosto",
+        "agosto": "Agosto",
+        "sep": "Septiembre",
+        "sep.": "Septiembre",
+        "sept": "Septiembre",
+        "sept.": "Septiembre",
+        "septiembre": "Septiembre",
+        "oct": "Octubre",
+        "oct.": "Octubre",
+        "octubre": "Octubre",
+        "nov": "Noviembre",
+        "nov.": "Noviembre",
+        "noviembre": "Noviembre",
+        "dic": "Diciembre",
+        "dic.": "Diciembre",
+        "diciembre": "Diciembre",
     }
     return meses_map.get(texto_lower, texto.capitalize())
 
@@ -265,6 +324,7 @@ def _notify_streamlit(level: str, message: str) -> None:
     """Publica mensajes en Streamlit si existe contexto UI."""
     try:
         import streamlit as st
+
         fn = getattr(st, level, None)
         if callable(fn):
             fn(message)
@@ -273,6 +333,7 @@ def _notify_streamlit(level: str, message: str) -> None:
 
 
 # ── Inicialización ────────────────────────────────────────────────────────────
+
 
 def _init_sqlite():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -338,6 +399,7 @@ def inicializar_db():
 
 # ── Upsert ────────────────────────────────────────────────────────────────────
 
+
 def guardar_registro_om(datos: dict) -> bool:
     """
     Upsert en registros_om.
@@ -347,20 +409,20 @@ def guardar_registro_om(datos: dict) -> bool:
     Returns True si éxito.
     """
     inicializar_db()
-    
+
     periodo, anio = _normalize_om_periodo_anio(datos.get("periodo", ""), datos.get("anio", 0))
     datos = {
-        "id_indicador":     str(datos.get("id_indicador", "")),
+        "id_indicador": str(datos.get("id_indicador", "")),
         "nombre_indicador": str(datos.get("nombre_indicador", "")),
-        "proceso":          str(datos.get("proceso", "")),
-        "periodo":          str(periodo),
-        "anio":             int(anio),
-        "tiene_om":         int(datos.get("tiene_om", 0)),
-        "tipo_accion":      str(datos.get("tipo_accion", "OM Kawak")),
-        "numero_om":        str(datos.get("numero_om", "")),
-        "comentario":       str(datos.get("comentario", "")),
-        "registrado_por":   "",
-        "fecha_registro":   datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "proceso": str(datos.get("proceso", "")),
+        "periodo": str(periodo),
+        "anio": int(anio),
+        "tiene_om": int(datos.get("tiene_om", 0)),
+        "tipo_accion": str(datos.get("tipo_accion", "OM Kawak")),
+        "numero_om": str(datos.get("numero_om", "")),
+        "comentario": str(datos.get("comentario", "")),
+        "registrado_por": "",
+        "fecha_registro": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     try:
         if _use_pg():
@@ -374,7 +436,8 @@ def guardar_registro_om(datos: dict) -> bool:
 
 def _upsert_sqlite(d: dict) -> bool:
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO registros_om
             (id_indicador, nombre_indicador, proceso, periodo, anio,
              tiene_om, tipo_accion, numero_om, comentario, registrado_por, fecha_registro)
@@ -389,7 +452,9 @@ def _upsert_sqlite(d: dict) -> bool:
             numero_om        = excluded.numero_om,
             comentario       = excluded.comentario,
             fecha_registro   = excluded.fecha_registro
-    """, d)
+    """,
+        d,
+    )
     conn.commit()
     conn.close()
     return True
@@ -398,7 +463,8 @@ def _upsert_sqlite(d: dict) -> bool:
 def _upsert_postgres(d: dict) -> bool:
     conn = _connect_postgres()
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO registros_om
             (id_indicador, nombre_indicador, proceso, periodo, anio,
              tiene_om, tipo_accion, numero_om, comentario, registrado_por, fecha_registro)
@@ -414,7 +480,9 @@ def _upsert_postgres(d: dict) -> bool:
             numero_om        = EXCLUDED.numero_om,
             comentario       = EXCLUDED.comentario,
             fecha_registro   = EXCLUDED.fecha_registro
-    """, d)
+    """,
+        d,
+    )
     conn.commit()
     cur.close()
     conn.close()
@@ -422,6 +490,7 @@ def _upsert_postgres(d: dict) -> bool:
 
 
 # ── Consulta ──────────────────────────────────────────────────────────────────
+
 
 def leer_registros_om(anio: int = None, periodo: str = None):
     """Retorna lista de dicts con los registros guardados."""
@@ -460,15 +529,14 @@ def _leer_sqlite(anio, periodo):
             (periodo_norm,),
         ).fetchall()
     else:
-        rows = conn.execute(
-            "SELECT * FROM registros_om ORDER BY fecha_registro DESC"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM registros_om ORDER BY fecha_registro DESC").fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 def _leer_postgres(anio, periodo):
     import psycopg2.extras
+
     conn = _connect_postgres()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     periodo_norm = ""
@@ -510,12 +578,12 @@ def registros_om_como_dict(anio: int = None, periodo: str = None) -> dict:
         iid = r["id_indicador"]
         if iid not in result:  # leer_registros_om ordena DESC → primer registro = más reciente
             result[iid] = {
-                "tiene_om":   bool(r.get("tiene_om", 0)),
+                "tiene_om": bool(r.get("tiene_om", 0)),
                 "tipo_accion": r.get("tipo_accion", "OM Kawak"),
-                "numero_om":  r.get("numero_om", ""),
-                "periodo":    r.get("periodo", ""),
+                "numero_om": r.get("numero_om", ""),
+                "periodo": r.get("periodo", ""),
                 "comentario": r.get("comentario", ""),
-                "anio":       r.get("anio", ""),
+                "anio": r.get("anio", ""),
             }
     return result
 
@@ -547,7 +615,7 @@ def guardar_acciones_bulk(df) -> bool:
             return False
 
     # Si no hay filas, salir
-    if (hasattr(df, 'empty') and df.empty) or (not hasattr(df, 'shape') and len(df) == 0):
+    if (hasattr(df, "empty") and df.empty) or (not hasattr(df, "shape") and len(df) == 0):
         return False
 
     cols = list(df.columns)
@@ -557,12 +625,15 @@ def guardar_acciones_bulk(df) -> bool:
             cur = conn.cursor()
             # Crear tabla con columnas TEXT si no existe
             cols_defs = ", ".join([f'"{c}" TEXT' for c in cols])
-            cur.execute(f'CREATE TABLE IF NOT EXISTS acciones (id SERIAL PRIMARY KEY, {cols_defs})')
+            cur.execute(f"CREATE TABLE IF NOT EXISTS acciones (id SERIAL PRIMARY KEY, {cols_defs})")
             # Insertar filas
             for _, row in df.iterrows():
                 vals = [None if (pd is not None and pd.isna(x)) else str(x) for x in row.tolist()]
-                placeholders = ','.join(['%s'] * len(vals))
-                cur.execute(f'INSERT INTO acciones ({", ".join([f"\"{c}\"" for c in cols])}) VALUES ({placeholders})', tuple(vals))
+                placeholders = ",".join(["%s"] * len(vals))
+                cur.execute(
+                    f'INSERT INTO acciones ({", ".join([f"\"{c}\"" for c in cols])}) VALUES ({placeholders})',
+                    tuple(vals),
+                )
             conn.commit()
             cur.close()
             conn.close()
@@ -571,7 +642,9 @@ def guardar_acciones_bulk(df) -> bool:
             conn = sqlite3.connect(DB_PATH)
             cur = conn.cursor()
             cols_defs = ", ".join([f'"{c}" TEXT' for c in cols])
-            cur.execute(f'CREATE TABLE IF NOT EXISTS acciones (id INTEGER PRIMARY KEY AUTOINCREMENT, {cols_defs})')
+            cur.execute(
+                f"CREATE TABLE IF NOT EXISTS acciones (id INTEGER PRIMARY KEY AUTOINCREMENT, {cols_defs})"
+            )
             insert_sql = f'INSERT INTO acciones ({", ".join([f"\"{c}\"" for c in cols])}) VALUES ({", ".join(["?" for _ in cols])})'
             for _, row in df.iterrows():
                 vals = [None if (pd is not None and pd.isna(x)) else str(x) for x in row.tolist()]
@@ -590,6 +663,7 @@ def leer_acciones(limit: int = 1000) -> list:
         if _use_pg():
             import psycopg2
             import psycopg2.extras
+
             conn = _connect_postgres()
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute(f"SELECT * FROM acciones ORDER BY id DESC LIMIT {int(limit)}")
@@ -621,7 +695,7 @@ def borrar_acciones_por_marker(col: str, value: str) -> bool:
         if _use_pg():
             conn = _connect_postgres()
             cur = conn.cursor()
-            cur.execute(f"DELETE FROM acciones WHERE \"{col}\" = %s", (str(value),))
+            cur.execute(f'DELETE FROM acciones WHERE "{col}" = %s', (str(value),))
             conn.commit()
             cur.close()
             conn.close()
@@ -629,7 +703,7 @@ def borrar_acciones_por_marker(col: str, value: str) -> bool:
         else:
             conn = sqlite3.connect(DB_PATH)
             cur = conn.cursor()
-            cur.execute(f"DELETE FROM acciones WHERE \"{col}\" = ?", (str(value),))
+            cur.execute(f'DELETE FROM acciones WHERE "{col}" = ?', (str(value),))
             conn.commit()
             conn.close()
             return True

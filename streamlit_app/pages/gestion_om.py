@@ -5,7 +5,13 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from core.semantica import categorizar_cumplimiento, obtener_icono_categoria, obtener_color_categoria, normalizar_valor_a_porcentaje, normalizar_y_categorizar
+from core.semantica import (
+    categorizar_cumplimiento,
+    obtener_icono_categoria,
+    obtener_color_categoria,
+    normalizar_valor_a_porcentaje,
+    normalizar_y_categorizar,
+)
 
 _RUTA_KPI_DIAG = (
     Path(__file__).resolve().parents[2] / "data" / "output" / "artifacts" / "kpi_diagnostico.json"
@@ -32,6 +38,7 @@ def _guardar_kpi_diag(con_ia: bool, elapsed: float) -> None:
     except Exception:
         pass  # No bloquear la UI si falla la escritura
 
+
 try:
     from services.ai_analysis import analizar_texto_indicador as _analizar_texto_puro
     from services.data_loader import cargar_acciones_mejora, cargar_dataset_historico
@@ -41,6 +48,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).parents[2]))
     sys.path.insert(0, str(Path(__file__).parents[2] / "services"))
     from ai_analysis import analizar_texto_indicador as _analizar_texto_puro
@@ -63,10 +71,11 @@ def _cargar_avance_om() -> dict:
     Retorna: {id_oportunidad: avance_promedio}
     """
     import os
+
     base_path = Path(__file__).resolve().parents[2] / "data" / "raw" / "Plan de accion"
     if not base_path.exists():
         return {}
-    
+
     def _parse_avance(v):
         if v is None:
             return pd.NA
@@ -92,17 +101,21 @@ def _cargar_avance_om() -> dict:
         try:
             df = pd.read_excel(f, dtype=str, na_filter=False)
             cols = df.columns.tolist()
-            
+
             avance_col = next((c for c in cols if "Avance" in c and "%" in c), None)
             if not avance_col:
                 avance_col = next((c for c in cols if "Avance" in c), None)
-            
+
             # Buscar columna "Id Oportunidad de mejora" (no "Estado...")
             id_om_col = next((c for c in cols if "Id Oportunidad de mejora" in c), None)
             if not id_om_col:
-                id_om_col = next((c for c in cols if c.startswith("Id ") and "Oportunidad" in c), None)
-            id_accion_col = next((c for c in cols if str(c).strip().lower() in {"id acción", "id accion"}), None)
-            
+                id_om_col = next(
+                    (c for c in cols if c.startswith("Id ") and "Oportunidad" in c), None
+                )
+            id_accion_col = next(
+                (c for c in cols if str(c).strip().lower() in {"id acción", "id accion"}), None
+            )
+
             if id_om_col and avance_col:
                 subset_cols = [id_om_col, avance_col]
                 if id_accion_col:
@@ -115,14 +128,14 @@ def _cargar_avance_om() -> dict:
                 dfs.append(df_subset)
         except Exception as e:
             continue
-    
+
     if not dfs:
         return {}
-    
+
     df_all = pd.concat(dfs, ignore_index=True)
     df_all["Avance"] = df_all["Avance"].apply(_parse_avance)
     df_all["Id_OM"] = df_all["Id_OM"].astype(str).str.strip()
-    
+
     df_all = df_all.dropna(subset=["Id_OM", "Avance"])
     df_all = df_all[df_all["Id_OM"] != ""]
     df_all = df_all[df_all["Id_OM"].str.lower() != "nan"]
@@ -136,26 +149,32 @@ def _cargar_avance_om() -> dict:
         if not con_id.empty:
             con_id = con_id.drop_duplicates(subset=["Id_OM", "Id_Accion"], keep="last")
         df_all = pd.concat([con_id, sin_id], ignore_index=True)
-    
+
     if df_all.empty:
         return {}
-    
+
     # Debug: expose internal avances for quick sanity when DEBUG_OM is enabled
     try:
         import os
+
         if os.getenv("DEBUG_OM", "0") == "1":
             import json
-            print("DEBUG_OM avances:", json.dumps(
-                df_all.groupby("Id_OM")["Avance"].mean().round(1).to_dict(),
-                indent=2,
-            ))
+
+            print(
+                "DEBUG_OM avances:",
+                json.dumps(
+                    df_all.groupby("Id_OM")["Avance"].mean().round(1).to_dict(),
+                    indent=2,
+                ),
+            )
     except Exception:
         pass
-    
+
     resultado = df_all.groupby("Id_OM")["Avance"].mean().to_dict()
 
     # Generar llaves robustas para matchear OM (ej: "440", "440.0", "OM 440").
     import re
+
     salida = {}
     for k, v in resultado.items():
         try:
@@ -220,21 +239,34 @@ def _cargar_plan_accion_para_om(om_id: str) -> pd.DataFrame:
             if not accion:
                 accion = str(row.get("Accion", "")).strip()
             if not accion:
-                accion = str(row.get("Descripci\u00f3n", "")).strip() or str(row.get("Descripcion", "")).strip()
-            resp = str(row.get("Responsable de ejecuci\u00f3n", "")) or str(row.get("Responsable", "")) or str(row.get("Fuente de Identificaci\u00f3n", ""))
+                accion = (
+                    str(row.get("Descripci\u00f3n", "")).strip()
+                    or str(row.get("Descripcion", "")).strip()
+                )
+            resp = (
+                str(row.get("Responsable de ejecuci\u00f3n", ""))
+                or str(row.get("Responsable", ""))
+                or str(row.get("Fuente de Identificaci\u00f3n", ""))
+            )
             avance = row.get("Avance (%)", row.get("Avance", ""))
             if avance is None or (isinstance(avance, float) and pd.isna(avance)):
                 avance = ""
-            estado_plan = str(row.get("Estado (Plan de Acci\u00f3n)", "")) or str(row.get("Estado (Plan Acción)", ""))
-            estado_om = str(row.get("Estado (Oportunidad de mejora)", "")) or str(row.get("Estado de Oportunidad", ""))
-            rows.append({
-                "Id Acción": id_accion,
-                "Acción": accion,
-                "Responsable de ejecución": resp,
-                "Avance (%)": avance,
-                "Estado (Plan de Acción)": estado_plan,
-                "Estado (Oportunidad de mejora)": estado_om,
-            })
+            estado_plan = str(row.get("Estado (Plan de Acci\u00f3n)", "")) or str(
+                row.get("Estado (Plan Acción)", "")
+            )
+            estado_om = str(row.get("Estado (Oportunidad de mejora)", "")) or str(
+                row.get("Estado de Oportunidad", "")
+            )
+            rows.append(
+                {
+                    "Id Acción": id_accion,
+                    "Acción": accion,
+                    "Responsable de ejecución": resp,
+                    "Avance (%)": avance,
+                    "Estado (Plan de Acción)": estado_plan,
+                    "Estado (Oportunidad de mejora)": estado_om,
+                }
+            )
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame(rows)
@@ -257,7 +289,14 @@ def _normalizar_campos_plan_accion(plan_df: pd.DataFrame) -> pd.DataFrame:
     df_show = plan_df.copy()
     renames = {}
     for c in df_show.columns:
-        c_norm = c.lower().replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+        c_norm = (
+            c.lower()
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
+        )
         if c_norm == "id accion":
             renames[c] = "Id Acción"
         elif c_norm.startswith("accion"):
@@ -288,7 +327,9 @@ def _normalizar_campos_plan_accion(plan_df: pd.DataFrame) -> pd.DataFrame:
     if "Avance (%)" in df_show.columns:
         avance_num = pd.to_numeric(df_show["Avance (%)"], errors="coerce")
         # Usar centralizado normalizar_valor_a_porcentaje (Problema #9 FIX)
-        avance_num = avance_num.apply(lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v)
+        avance_num = avance_num.apply(
+            lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v
+        )
         df_show["Avance (%)"] = avance_num.apply(lambda v: "-" if pd.isna(v) else f"{v:.1f}%")
 
     return df_show.reset_index(drop=True)
@@ -300,7 +341,7 @@ def _extraer_tipo_y_identificador(numero_om: str) -> tuple:
         return ("Sin acción", "")
     for tipo in ["OM Kawak", "Reto Plan Anual", "Proyecto Institucional", "Otro"]:
         if numero_om.startswith(tipo + ":"):
-            identificador = numero_om[len(tipo) + 1:].strip()
+            identificador = numero_om[len(tipo) + 1 :].strip()
             return (tipo, identificador)
     return ("Otro", numero_om)
 
@@ -330,9 +371,31 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
     cols = [
         c
         for c in [
-            "Id", "Indicador", "Proceso", "Subproceso", "Categoria", "Cumplimiento", "Cumplimiento_pct", "Periodicidad", "Anio", "Mes",
-            "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
-            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+            "Id",
+            "Indicador",
+            "Proceso",
+            "Subproceso",
+            "Categoria",
+            "Cumplimiento",
+            "Cumplimiento_pct",
+            "Periodicidad",
+            "Anio",
+            "Mes",
+            "Meta",
+            "Ejecucion",
+            "Meta_Signo",
+            "Meta s",
+            "MetaS",
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+            "Decimales",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
+            "DecimalesEje",
+            "DecMeta",
+            "DecEjec",
         ]
         if c in df.columns
     ]
@@ -341,8 +404,18 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
 
 def _meses_disponibles() -> list[str]:
     return [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
     ]
 
 
@@ -522,7 +595,9 @@ def _render_diag_kpi() -> None:
         if avg_with is not None and avg_without is not None and avg_without > 0:
             ahorro_sec = avg_without - avg_with
             ahorro_pct = (ahorro_sec / avg_without) * 100
-            st.metric("Reduccion estimada", f"{ahorro_sec / 60:.1f} min", delta=f"{ahorro_pct:+.1f}%")
+            st.metric(
+                "Reduccion estimada", f"{ahorro_sec / 60:.1f} min", delta=f"{ahorro_pct:+.1f}%"
+            )
         else:
             st.metric("Reduccion estimada", "N/D")
 
@@ -542,10 +617,18 @@ def _render_diag_kpi() -> None:
                 h_con = df_hist[df_hist["con_ia"]]["segundos"].dropna()
                 h_avg_sin = float(h_sin.mean()) if not h_sin.empty else None
                 h_avg_con = float(h_con.mean()) if not h_con.empty else None
-                with st.expander(f"Baseline histórico ({len(df_hist)} mediciones acumuladas)", expanded=False):
+                with st.expander(
+                    f"Baseline histórico ({len(df_hist)} mediciones acumuladas)", expanded=False
+                ):
                     hk1, hk2, hk3 = st.columns(3)
-                    hk1.metric("Promedio sin IA (histórico)", f"{h_avg_sin / 60:.1f} min" if h_avg_sin else "N/D")
-                    hk2.metric("Promedio con IA (histórico)", f"{h_avg_con / 60:.1f} min" if h_avg_con else "N/D")
+                    hk1.metric(
+                        "Promedio sin IA (histórico)",
+                        f"{h_avg_sin / 60:.1f} min" if h_avg_sin else "N/D",
+                    )
+                    hk2.metric(
+                        "Promedio con IA (histórico)",
+                        f"{h_avg_con / 60:.1f} min" if h_avg_con else "N/D",
+                    )
                     if h_avg_sin and h_avg_con and h_avg_sin > 0:
                         reduccion = (h_avg_sin - h_avg_con) / h_avg_sin * 100
                         hk3.metric("Reduccion historica", f"{reduccion:.1f}%")
@@ -554,20 +637,23 @@ def _render_diag_kpi() -> None:
         except Exception:
             pass
 
+
 def _build_consolidado_om(df_reg: pd.DataFrame) -> pd.DataFrame:
     total = len(df_reg)
     con_om = int((df_reg.get("tiene_om", pd.Series(dtype=int)) == 1).sum())
     sin_om = total - con_om
     cobertura = (con_om / total * 100) if total > 0 else 0.0
 
-    return pd.DataFrame([
-        {
-            "Registros totales": total,
-            "Con OM": con_om,
-            "Sin OM": sin_om,
-            "Cobertura OM (%)": round(cobertura, 1),
-        }
-    ])
+    return pd.DataFrame(
+        [
+            {
+                "Registros totales": total,
+                "Con OM": con_om,
+                "Sin OM": sin_om,
+                "Cobertura OM (%)": round(cobertura, 1),
+            }
+        ]
+    )
 
 
 def _build_consolidado_por_periodo(df_reg: pd.DataFrame) -> pd.DataFrame:
@@ -586,44 +672,69 @@ def _build_consolidado_por_periodo(df_reg: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     agrupado["sin_om"] = agrupado["registros"] - agrupado["con_om"]
-    agrupado["cobertura_om_pct"] = ((agrupado["con_om"] / agrupado["registros"]).fillna(0) * 100).round(1)
+    agrupado["cobertura_om_pct"] = (
+        (agrupado["con_om"] / agrupado["registros"]).fillna(0) * 100
+    ).round(1)
     return agrupado.sort_values(["anio", "periodo"], ascending=[False, True]).reset_index(drop=True)
 
 
 def _resumen_om_por_id(df_reg: pd.DataFrame, avances_om: dict = None) -> pd.DataFrame:
     if df_reg.empty:
-        return pd.DataFrame(columns=["Id", "tiene_om", "numero_om", "periodo_om", "anio_om", "avance_om", "tipo_accion", "identificador"])
+        return pd.DataFrame(
+            columns=[
+                "Id",
+                "tiene_om",
+                "numero_om",
+                "periodo_om",
+                "anio_om",
+                "avance_om",
+                "tipo_accion",
+                "identificador",
+            ]
+        )
 
     df = df_reg.copy()
     df["Id"] = df.get("id_indicador", "").apply(_id_str)
     df = df[df["Id"] != ""].copy()
     if df.empty:
-        return pd.DataFrame(columns=["Id", "tiene_om", "numero_om", "periodo_om", "anio_om", "avance_om", "tipo_accion", "identificador"])
+        return pd.DataFrame(
+            columns=[
+                "Id",
+                "tiene_om",
+                "numero_om",
+                "periodo_om",
+                "anio_om",
+                "avance_om",
+                "tipo_accion",
+                "identificador",
+            ]
+        )
 
     if "fecha_registro" in df.columns:
         df = df.sort_values("fecha_registro", ascending=False)
 
-    out = (
-        df.groupby("Id", as_index=False)
-        .agg(
-            tiene_om=("tiene_om", "max"),
-            tipo_accion=("tipo_accion", "first"),
-            numero_om=("numero_om", "first"),
-            periodo_om=("periodo", "first"),
-            anio_om=("anio", "first"),
-        )
+    out = df.groupby("Id", as_index=False).agg(
+        tiene_om=("tiene_om", "max"),
+        tipo_accion=("tipo_accion", "first"),
+        numero_om=("numero_om", "first"),
+        periodo_om=("periodo", "first"),
+        anio_om=("anio", "first"),
     )
     out["tiene_om"] = pd.to_numeric(out["tiene_om"], errors="coerce").fillna(0).astype(int)
     out["tipo_accion"] = out["tipo_accion"].fillna("OM Kawak")
     # Normalizar identificador OM para facilitar cruce con avances_om
-    out["identificador"] = out["numero_om"].fillna("").apply(
-        lambda x: _extraer_tipo_y_identificador(str(x))[1] if str(x).strip() else ""
+    out["identificador"] = (
+        out["numero_om"]
+        .fillna("")
+        .apply(lambda x: _extraer_tipo_y_identificador(str(x))[1] if str(x).strip() else "")
     )
     out["identificador"] = out["identificador"].apply(_id_str)
-    
+
     if avances_om and isinstance(avances_om, dict) and len(avances_om) > 0:
+
         def buscar_avance(x):
             import re
+
             x_clean = str(x).strip()
             if not x_clean:
                 return 0
@@ -646,12 +757,13 @@ def _resumen_om_por_id(df_reg: pd.DataFrame, avances_om: dict = None) -> pd.Data
             if x_clean.lower() in avances_om:
                 return avances_om[x_clean.lower()]
             return 0
+
         out["avance_om"] = out["identificador"].apply(buscar_avance)
     else:
         out["avance_om"] = 0
-    
+
     out["avance_om"] = pd.to_numeric(out["avance_om"], errors="coerce").fillna(0)
-    
+
     return out
 
 
@@ -660,14 +772,24 @@ def _resumen_acciones_por_id(df_acc: pd.DataFrame) -> pd.DataFrame:
     if df_acc.empty:
         return pd.DataFrame(columns=base_cols)
 
-    id_col = _buscar_col(df_acc, ["Id", "ID", "Id Indicador", "ID Indicador", "id_indicador", "id indicador"]) or ""
+    id_col = (
+        _buscar_col(
+            df_acc, ["Id", "ID", "Id Indicador", "ID Indicador", "id_indicador", "id indicador"]
+        )
+        or ""
+    )
     if not id_col:
         return pd.DataFrame(columns=base_cols)
 
     av_col = _buscar_col(df_acc, ["AVANCE", "Avance", "% Avance", "Porcentaje Avance"]) or ""
-    tipo_col = _buscar_col(df_acc, ["Tipo", "TIPO", "Tipo de accion", "Tipo Accion", "TIPO_ACCION"]) or ""
+    tipo_col = (
+        _buscar_col(df_acc, ["Tipo", "TIPO", "Tipo de accion", "Tipo Accion", "TIPO_ACCION"]) or ""
+    )
     reto_col = _buscar_col(df_acc, ["Reto", "RETO", "Mitiga con reto", "mitiga_reto"]) or ""
-    proyecto_col = _buscar_col(df_acc, ["Proyecto", "PROYECTO", "Mitiga con proyecto", "mitiga_proyecto"]) or ""
+    proyecto_col = (
+        _buscar_col(df_acc, ["Proyecto", "PROYECTO", "Mitiga con proyecto", "mitiga_proyecto"])
+        or ""
+    )
 
     df = df_acc.copy()
     df["Id"] = df[id_col].apply(_id_str)
@@ -690,14 +812,11 @@ def _resumen_acciones_por_id(df_acc: pd.DataFrame) -> pd.DataFrame:
     if proyecto_col:
         df["_is_proyecto"] = df["_is_proyecto"] | df[proyecto_col].apply(_bool_si)
 
-    out = (
-        df.groupby("Id", as_index=False)
-        .agg(
-            tiene_accion=("Id", "count"),
-            avance_accion=("_avance", "mean"),
-            mitiga_reto=("_is_reto", "max"),
-            mitiga_proyecto=("_is_proyecto", "max"),
-        )
+    out = df.groupby("Id", as_index=False).agg(
+        tiene_accion=("Id", "count"),
+        avance_accion=("_avance", "mean"),
+        mitiga_reto=("_is_reto", "max"),
+        mitiga_proyecto=("_is_proyecto", "max"),
     )
     out["tiene_accion"] = (out["tiene_accion"] > 0).astype(int)
     out["avance_accion"] = pd.to_numeric(out["avance_accion"], errors="coerce").round(1)
@@ -706,7 +825,9 @@ def _resumen_acciones_por_id(df_acc: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df_acc: pd.DataFrame, avances_om: dict = None) -> pd.DataFrame:
+def _matriz_mitigacion_peligro(
+    df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df_acc: pd.DataFrame, avances_om: dict = None
+) -> pd.DataFrame:
     if df_riesgo.empty:
         return pd.DataFrame()
 
@@ -736,11 +857,19 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
     if "Cumplimiento" in m.columns:
         m["Cumplimiento_pct"] = pd.to_numeric(m.get("Cumplimiento"), errors="coerce")
         # Usar centralizado normalizar_valor_a_porcentaje para escala (Problema #9 FIX)
-        m["Cumplimiento_pct"] = m["Cumplimiento_pct"].apply(
-            lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v
-        ).round(1)
+        m["Cumplimiento_pct"] = (
+            m["Cumplimiento_pct"]
+            .apply(
+                lambda v: (
+                    normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v
+                )
+            )
+            .round(1)
+        )
     elif "Cumplimiento_norm" in m.columns:
-        m["Cumplimiento_pct"] = (pd.to_numeric(m.get("Cumplimiento_norm"), errors="coerce") * 100).round(1)
+        m["Cumplimiento_pct"] = (
+            pd.to_numeric(m.get("Cumplimiento_norm"), errors="coerce") * 100
+        ).round(1)
     else:
         m["Cumplimiento_pct"] = pd.NA
 
@@ -754,28 +883,62 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
 
     # Añadir columna Ver más solo si hay OM registrada (tiene_om=1 y existe identificador)
     if "Id" in m.columns:
+
         def _link_ver_mas(row):
             if int(row.get("tiene_om", 0) or 0) == 1:
                 om_num = str(row.get("identificador", "")).strip()
                 if om_num:
                     return f"<a href='?ver_mas={om_num}'>Ver más</a>"
             return ""
+
         m["Ver_mas"] = m.apply(_link_ver_mas, axis=1)
 
     cols = [
-        "Id", "Indicador", "Proceso", "Subproceso", "Periodicidad", "Categoria",
-        "tiene_om", "Ver_mas", "numero_om", "tipo_accion", "identificador", "avance_om", "tipo_mitigacion", "Cumplimiento_pct",
-        "Meta", "Ejecucion",
-        "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
-        "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+        "Id",
+        "Indicador",
+        "Proceso",
+        "Subproceso",
+        "Periodicidad",
+        "Categoria",
+        "tiene_om",
+        "Ver_mas",
+        "numero_om",
+        "tipo_accion",
+        "identificador",
+        "avance_om",
+        "tipo_mitigacion",
+        "Cumplimiento_pct",
+        "Meta",
+        "Ejecucion",
+        "Meta_Signo",
+        "Meta s",
+        "MetaS",
+        "Ejecucion_Signo",
+        "Ejecución s",
+        "Ejecucion s",
+        "EjecS",
+        "Decimales",
+        "Decimales_Meta",
+        "Decimales_Ejecucion",
+        "DecimalesEje",
+        "DecMeta",
+        "DecEjec",
     ]
     cols = [c for c in cols if c in m.columns]
     m = m[cols]
     return m.sort_values(["tipo_mitigacion", "Id"], ascending=[True, True]).reset_index(drop=True)
 
 
-
-def _construir_tabla_peligro(df_riesgo: pd.DataFrame, registros_om: dict, mes_sel: str, anio_sel: str, proc_sel: str, sub_sel: str, avances_om: dict = None, mostrar_alerta: bool = False) -> pd.DataFrame:
+def _construir_tabla_peligro(
+    df_riesgo: pd.DataFrame,
+    registros_om: dict,
+    mes_sel: str,
+    anio_sel: str,
+    proc_sel: str,
+    sub_sel: str,
+    avances_om: dict = None,
+    mostrar_alerta: bool = False,
+) -> pd.DataFrame:
     """Construye la tabla de indicadores en peligro (y opcionalmente alerta) aplicando filtros."""
     if df_riesgo.empty:
         return pd.DataFrame()
@@ -806,17 +969,19 @@ def _construir_tabla_peligro(df_riesgo: pd.DataFrame, registros_om: dict, mes_se
 
     # Convertir registros_om dict a DataFrame esperado por _resumen_om_por_id
     if registros_om:
-        df_reg = pd.DataFrame([
-            {
-                "id_indicador": k,
-                "tiene_om": v.get("tiene_om", False),
-                "tipo_accion": v.get("tipo_accion", "OM Kawak"),
-                "numero_om": v.get("numero_om", ""),
-                "periodo": v.get("periodo", ""),
-                "anio": v.get("anio", ""),
-            }
-            for k, v in registros_om.items()
-        ])
+        df_reg = pd.DataFrame(
+            [
+                {
+                    "id_indicador": k,
+                    "tiene_om": v.get("tiene_om", False),
+                    "tipo_accion": v.get("tipo_accion", "OM Kawak"),
+                    "numero_om": v.get("numero_om", ""),
+                    "periodo": v.get("periodo", ""),
+                    "anio": v.get("anio", ""),
+                }
+                for k, v in registros_om.items()
+            ]
+        )
     else:
         df_reg = pd.DataFrame()
 
@@ -862,25 +1027,54 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
 
     cols = list(df.columns)
     cols_excluir = {
-        "accion_creada", "mitiga_reto", "mitiga_proyecto", "avance_mitigacion_pct",
-        "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
-        "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
-        "numero_om", "tipo_mitigacion", "Proceso",
+        "accion_creada",
+        "mitiga_reto",
+        "mitiga_proyecto",
+        "avance_mitigacion_pct",
+        "Meta_Signo",
+        "Meta s",
+        "MetaS",
+        "Ejecucion_Signo",
+        "Ejecución s",
+        "Ejecucion s",
+        "EjecS",
+        "Decimales",
+        "Decimales_Meta",
+        "Decimales_Ejecucion",
+        "DecimalesEje",
+        "DecMeta",
+        "DecEjec",
+        "numero_om",
+        "tipo_mitigacion",
+        "Proceso",
     }
     cols = [c for c in cols if c not in cols_excluir]
-    cols_orden = ["Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria", "tipo_accion", "identificador", "avance_om", "tiene_om"]
+    cols_orden = [
+        "Id",
+        "Indicador",
+        "Subproceso",
+        "Periodicidad",
+        "Meta",
+        "Ejecucion",
+        "Cumplimiento_pct",
+        "Categoria",
+        "tipo_accion",
+        "identificador",
+        "avance_om",
+        "tiene_om",
+    ]
     cols = [c for c in cols_orden if c in cols]
-    
+
     rename_map = {
         "Cumplimiento_pct": "Cumplimiento",
         "avance_om": "Avance OM",
         "tiene_om": "Ver más",
         "tipo_accion": "Tipo de Acción",
-        "identificador": "OM"
+        "identificador": "OM",
     }
     df_display = df[cols].copy()
     df_display.columns = [rename_map.get(c, c) for c in df_display.columns]
-    
+
     # Función helper para íconos: usar función centralizada
     def _icono_cumpl(val):
         if pd.isna(val):
@@ -888,13 +1082,20 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
         # MEJORA FASE 2: Usar wrapper centralizado
         categoria = normalizar_y_categorizar(val, es_porcentaje=True)
         return obtener_icono_categoria(categoria)
-    
-    df_display["Cumplimiento"] = df_display["Cumplimiento"].apply(lambda x: f"{_icono_cumpl(x)} {x}%" if pd.notna(x) else "-")
-    
+
+    df_display["Cumplimiento"] = df_display["Cumplimiento"].apply(
+        lambda x: f"{_icono_cumpl(x)} {x}%" if pd.notna(x) else "-"
+    )
+
     def _color_tipo(t):
-        colores = {"OM Kawak": "blue", "Reto Plan Anual": "orange", "Proyecto Institucional": "purple", "Otro": "gray"}
+        colores = {
+            "OM Kawak": "blue",
+            "Reto Plan Anual": "orange",
+            "Proyecto Institucional": "purple",
+            "Otro": "gray",
+        }
         return colores.get(t, "gray")
-    
+
     return df_display
 
 
@@ -904,14 +1105,14 @@ def barra_avance_om(pct):
     if pd.isna(pct) or pct == 0:
         color = "#F3F4F6"
         icon = "⚪"
-        return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>'''
+        return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>"""
 
     # MEJORA FASE 2: Usar wrapper centralizado
     categoria = normalizar_y_categorizar(pct, es_porcentaje=True)
     color = obtener_color_categoria(categoria)
     icon = obtener_icono_categoria(categoria)
 
-    return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:{min(100,pct)}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {pct:.1f}%</span></div>'''
+    return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:{min(100,pct)}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {pct:.1f}%</span></div>"""
 
 
 def barra_cumplimiento(pct):
@@ -920,7 +1121,7 @@ def barra_cumplimiento(pct):
     if pd.isna(pct):
         color = "#F3F4F6"
         icon = "⚪"
-        return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>'''
+        return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>"""
 
     n = float(pct)
     # MEJORA FASE 2: Usar wrapper centralizado
@@ -929,7 +1130,7 @@ def barra_cumplimiento(pct):
     icon = obtener_icono_categoria(categoria)
 
     width = 2 if n <= 0 else min(100, n)
-    return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:{width}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {n:.1f}%</span></div>'''
+    return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:{width}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {n:.1f}%</span></div>"""
 
 
 def badge_tipo_accion(tipo):
@@ -956,7 +1157,9 @@ def _icono_cumplimiento(cumpl_val) -> str:
 
 def render():
     st.title("Gestión OM")
-    st.caption("Filtrado por mes, año, proceso y subproceso. Registra OM abiertas o pendientes sobre indicadores en Peligro.")
+    st.caption(
+        "Filtrado por mes, año, proceso y subproceso. Registra OM abiertas o pendientes sobre indicadores en Peligro."
+    )
     st.caption("Fuente: Consolidado Historico")
 
     df_riesgo = _cargar_indicadores_riesgo()
@@ -969,7 +1172,20 @@ def render():
     else:
         df_riesgo["Mes"] = ""
 
-    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    meses = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
+    ]
     anios = ["2026"]
     if "Anio" in df_riesgo.columns:
         available = [str(int(x)) for x in sorted(df_riesgo["Anio"].dropna().astype(int).unique())]
@@ -983,7 +1199,6 @@ def render():
     subprocesos = ["Todos"]
     if "Subproceso" in df_riesgo.columns:
         subprocesos += sorted(df_riesgo["Subproceso"].dropna().astype(str).unique().tolist())
-
 
     with st.expander("Filtros", expanded=True):
         fa, fm, fp, fs = st.columns(4)
@@ -1001,7 +1216,7 @@ def render():
     mostrar_alerta = st.checkbox(
         "Mostrar también indicadores en Alerta",
         value=False,
-        help="Si se activa, se mostrarán y podrán asociarse OM a indicadores en alerta además de los de peligro."
+        help="Si se activa, se mostrarán y podrán asociarse OM a indicadores en alerta además de los de peligro.",
     )
 
     registros_om = _cargar_registros_om(anio=anio_sel, periodo=mes_sel)
@@ -1016,6 +1231,7 @@ def render():
     # Debug: expose avances_om mapping for troubleshooting UI
     try:
         import os
+
         if os.getenv("DEBUG_OM_UI", "0") == "1":
             st.write("DEBUG avances_om:")
             st.json(avances_om)
@@ -1032,7 +1248,9 @@ def render():
     # --- Tabla principal con encabezado visual e icono de expansión OM ---
     from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
-    df_tabla_fmt = formatear_meta_ejecucion_df(df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion")
+    df_tabla_fmt = formatear_meta_ejecucion_df(
+        df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion"
+    )
     rename_map = {
         "Cumplimiento_pct": "Cumplimiento",
         "avance_om": "Avance OM",
@@ -1043,11 +1261,22 @@ def render():
     df_tabla_fmt = df_tabla_fmt.rename(columns=rename_map)
 
     cols_orden = [
-        "Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion",
-        "Cumplimiento", "Categoria", "Tipo de Acción", "OM", "Avance OM"
+        "Id",
+        "Indicador",
+        "Subproceso",
+        "Periodicidad",
+        "Meta",
+        "Ejecucion",
+        "Cumplimiento",
+        "Categoria",
+        "Tipo de Acción",
+        "OM",
+        "Avance OM",
     ]
     cols_tabla = [c for c in cols_orden if c in df_tabla_fmt.columns]
-    df_view = df_tabla_fmt[cols_tabla + (["Ver más"] if "Ver más" in df_tabla_fmt.columns else [])].copy()
+    df_view = df_tabla_fmt[
+        cols_tabla + (["Ver más"] if "Ver más" in df_tabla_fmt.columns else [])
+    ].copy()
 
     if "Cumplimiento" in df_view.columns:
         df_view["Cumplimiento"] = pd.to_numeric(df_view["Cumplimiento"], errors="coerce").round(1)
@@ -1205,7 +1434,11 @@ def render():
         avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
         if pd.notna(avance_num) and abs(avance_num) <= 1.5:
             avance_num = avance_num * 100
-        avance_txt = "<div class='om-avance-wrap'>" + (barra_avance_om(float(avance_num)) if pd.notna(avance_num) else barra_avance_om(0)) + "</div>"
+        avance_txt = (
+            "<div class='om-avance-wrap'>"
+            + (barra_avance_om(float(avance_num)) if pd.notna(avance_num) else barra_avance_om(0))
+            + "</div>"
+        )
 
         valores = [
             str(row.get("Id", "")),
@@ -1217,7 +1450,11 @@ def render():
             cumple_txt,
             str(row.get("Categoria", "")),
             tipo_badge,
-            "" if pd.isna(row.get("OM")) or str(row.get("OM")).lower() == "nan" else str(row.get("OM")),
+            (
+                ""
+                if pd.isna(row.get("OM")) or str(row.get("OM")).lower() == "nan"
+                else str(row.get("OM"))
+            ),
             avance_txt,
         ]
 
@@ -1231,9 +1468,16 @@ def render():
             tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
             if tiene_om and om_id and om_id.lower() != "nan":
                 st.markdown(f"<div class='{cell_class} om-icon-cell'>", unsafe_allow_html=True)
-                if st.button("📋", key=f"btn_om_{ridx}_{om_id}", help=f"Ver acciones OM {om_id}", type="tertiary"):
+                if st.button(
+                    "📋",
+                    key=f"btn_om_{ridx}_{om_id}",
+                    help=f"Ver acciones OM {om_id}",
+                    type="tertiary",
+                ):
                     active = st.session_state.get("om_expanded_row")
-                    st.session_state["om_expanded_row"] = None if active == (ridx, om_id) else (ridx, om_id)
+                    st.session_state["om_expanded_row"] = (
+                        None if active == (ridx, om_id) else (ridx, om_id)
+                    )
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='{cell_class}'></div>", unsafe_allow_html=True)
@@ -1257,7 +1501,7 @@ def render():
         "Seleccionar indicador",
         opciones,
         index=0,
-        help="Solo se muestran los indicadores en peligro o alerta según el filtro activo."
+        help="Solo se muestran los indicadores en peligro o alerta según el filtro activo.",
     )
     selected_id = indicador_seleccionado.split(" - ")[0] if indicador_seleccionado else ""
 
@@ -1276,7 +1520,7 @@ def render():
             ind_mes = mes_sel
         if not ind_anio or not str(ind_anio).isdigit():
             ind_anio = anio_sel
-        
+
         # Usar SIEMPRE el formato global pasando el dict completo de la fila
         meta_val = meta_his_signo(row.iloc[0].to_dict()) if not row.empty else ""
         ejec_val = ejecucion_his_signo(row.iloc[0].to_dict()) if not row.empty else ""
@@ -1285,7 +1529,7 @@ def render():
         with st.expander("Asociar Oportunidad de mejora", expanded=True):
             st.markdown(f"**Indicador:** `{indicador}` - {nombre_ind}")
             st.markdown(f"**Período:** {ind_mes} {ind_anio}")
-            
+
             if meta_val or ejec_val or cumpl_val:
                 c1, c2, c3 = st.columns(3)
                 with c1:
@@ -1294,12 +1538,16 @@ def render():
                     st.metric("Ejecución", ejec_val if ejec_val else "-")
                 with c3:
                     st.metric("Cumplimiento", f"{cumpl_val}%" if cumpl_val else "-")
-            
+
             st.markdown("---")
             with st.form("om_modal_form", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
-                    tipo_accion = st.selectbox("Tipo de Acción", ["OM Kawak", "Reto Plan Anual", "Proyecto Institucional", "Otro"], index=0)
+                    tipo_accion = st.selectbox(
+                        "Tipo de Acción",
+                        ["OM Kawak", "Reto Plan Anual", "Proyecto Institucional", "Otro"],
+                        index=0,
+                    )
                 with col2:
                     placeholders = {
                         "OM Kawak": "N° OM Kawak",
@@ -1307,11 +1555,18 @@ def render():
                         "Proyecto Institucional": "Nombre del proyecto",
                         "Otro": "Descripción de la acción",
                     }
-                    numero_om = st.text_input("Identificador", placeholder=placeholders.get(tipo_accion, ""))
-                
-                observacion = st.text_area("Observación", placeholder="Describe la situación o justificación para la acción.")
-                
-                submitted = st.form_submit_button("💾 Guardar Oportunidad de Mejora", use_container_width=True)
+                    numero_om = st.text_input(
+                        "Identificador", placeholder=placeholders.get(tipo_accion, "")
+                    )
+
+                observacion = st.text_area(
+                    "Observación",
+                    placeholder="Describe la situación o justificación para la acción.",
+                )
+
+                submitted = st.form_submit_button(
+                    "💾 Guardar Oportunidad de Mejora", use_container_width=True
+                )
 
         if submitted:
             payload = {
@@ -1331,17 +1586,18 @@ def render():
                 st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
                 st.rerun()
 
+
 if st.session_state.get("om_popup_open"):
-        om_id = str(st.session_state.get("om_popup_id", ""))
-        plan_df = _cargar_plan_accion_para_om(om_id)
-        df_show = _normalizar_campos_plan_accion(plan_df)
-        # Mantener compatibilidad con query param existente
-        with st.expander(f"Plan de Acción - OM {om_id}", expanded=True):
-            st.subheader(f"Plan de Acción para OM {om_id}")
-            if not df_show.empty:
-                st.dataframe(df_show, use_container_width=True, hide_index=True)
-            else:
-                st.write("No hay actividades para mostrar.")
-            if st.button("Cerrar", key=f"cerrar_popup_{om_id}"):
-                st.session_state["om_popup_open"] = False
-                st.rerun()
+    om_id = str(st.session_state.get("om_popup_id", ""))
+    plan_df = _cargar_plan_accion_para_om(om_id)
+    df_show = _normalizar_campos_plan_accion(plan_df)
+    # Mantener compatibilidad con query param existente
+    with st.expander(f"Plan de Acción - OM {om_id}", expanded=True):
+        st.subheader(f"Plan de Acción para OM {om_id}")
+        if not df_show.empty:
+            st.dataframe(df_show, use_container_width=True, hide_index=True)
+        else:
+            st.write("No hay actividades para mostrar.")
+        if st.button("Cerrar", key=f"cerrar_popup_{om_id}"):
+            st.session_state["om_popup_open"] = False
+            st.rerun()

@@ -9,20 +9,23 @@ st.sidebar.title("Sistema de Indicadores")
 st.sidebar.subheader("Politécnico Grancolombiano · v2.0 Estratégico")
 
 # Secciones del menú lateral
-menu = st.sidebar.radio("Navegación", [
-    "Inicio estratégico",
-    "Seg. de reportes",
-    "Reporte cumplimiento",
-    "Gestión de OM",
-    "Tablero operativo",
-    "Predicción IRIP",
-    "Detector anomalías",
-    "CMI Estratégico",
-    "Indicadores acreditación",
-    "Plan de mejoramiento",
-    "Resumen por proceso",
-    "Exportar / reportes"
-])
+menu = st.sidebar.radio(
+    "Navegación",
+    [
+        "Inicio estratégico",
+        "Seg. de reportes",
+        "Reporte cumplimiento",
+        "Gestión de OM",
+        "Tablero operativo",
+        "Predicción IRIP",
+        "Detector anomalías",
+        "CMI Estratégico",
+        "Indicadores acreditación",
+        "Plan de mejoramiento",
+        "Resumen por proceso",
+        "Exportar / reportes",
+    ],
+)
 
 # Topbar superior
 st.title("Inicio estratégico")
@@ -36,8 +39,9 @@ st.markdown(
         <p style="color: white;">3 anomalías en datos (z-score >3) · 7 metas fuera de rango estadístico óptimo</p>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
+
 
 # Fila de KPIs globales
 def mostrar_kpis():
@@ -46,24 +50,33 @@ def mostrar_kpis():
         {"label": "En peligro", "valor": 20, "subtexto": "+19 vs ant. · 5.2%", "color": "#ff3b30"},
         {"label": "En alerta", "valor": 24, "subtexto": "+21 vs ant. · 6.2%", "color": "#ffab00"},
         {"label": "Cumplimiento", "valor": 85, "subtexto": "+70 vs ant. · 22%", "color": "#00c853"},
-        {"label": "Sobrecumplimiento", "valor": 115, "subtexto": "+108 vs ant. · 29.7%", "color": "#00b8d4"}
+        {
+            "label": "Sobrecumplimiento",
+            "valor": 115,
+            "subtexto": "+108 vs ant. · 29.7%",
+            "color": "#00b8d4",
+        },
     ]
 
     cols = st.columns(len(kpis))
     for col, kpi in zip(cols, kpis):
         col.metric(label=kpi["label"], value=kpi["valor"], delta=kpi["subtexto"])
 
+
 mostrar_kpis()
 
 # Subnavegación interna del módulo
-sub_menu = st.selectbox("Vista detallada", [
-    "Resumen ejecutivo",
-    "Por proceso",
-    "Por vicerrectoría",
-    "Analítica IA",
-    "PDI / Acreditación",
-    "Auditorías"
-])
+sub_menu = st.selectbox(
+    "Vista detallada",
+    [
+        "Resumen ejecutivo",
+        "Por proceso",
+        "Por vicerrectoría",
+        "Analítica IA",
+        "PDI / Acreditación",
+        "Auditorías",
+    ],
+)
 
 # Contenido dinámico según la selección
 if sub_menu == "Resumen ejecutivo":
@@ -79,31 +92,51 @@ import plotly.express as px
 import pandas as pd
 
 # Datos simulados para las gráficas
-data_irip = pd.DataFrame({
-    "Indicador": ["Graduación oportuna", "Cobertura banda ancha", "Publicaciones indexadas", "Tasa retención", "Financiación externa"],
-    "Riesgo": [87, 82, 79, 73, 71]
-})
+data_irip = pd.DataFrame(
+    {
+        "Indicador": [
+            "Graduación oportuna",
+            "Cobertura banda ancha",
+            "Publicaciones indexadas",
+            "Tasa retención",
+            "Financiación externa",
+        ],
+        "Riesgo": [87, 82, 79, 73, 71],
+    }
+)
 
-data_anomalias = pd.DataFrame({
-    "Fecha": pd.date_range(start="2026-01-01", periods=10, freq="M"),
-    "Anomalías": [3, 5, 2, 4, 6, 3, 7, 5, 4, 6]
-})
+data_anomalias = pd.DataFrame(
+    {
+        "Fecha": pd.date_range(start="2026-01-01", periods=10, freq="M"),
+        "Anomalías": [3, 5, 2, 4, 6, 3, 7, 5, 4, 6],
+    }
+)
 
-data_cmi = pd.DataFrame({
-    "Perspectiva": ["Formación", "Investigación", "Extensión", "Internacionalización"],
-    "Cumplimiento": [85, 78, 92, 88]
-})
+data_cmi = pd.DataFrame(
+    {
+        "Perspectiva": ["Formación", "Investigación", "Extensión", "Internacionalización"],
+        "Cumplimiento": [85, 78, 92, 88],
+    }
+)
 
 # Módulo IRIP Predictivo
 st.subheader("Módulo IRIP Predictivo")
-fig_irip = px.bar(data_irip, x="Riesgo", y="Indicador", orientation="h", color="Riesgo",
-                  color_continuous_scale="reds", title="Ranking de Riesgo IRIP")
+fig_irip = px.bar(
+    data_irip,
+    x="Riesgo",
+    y="Indicador",
+    orientation="h",
+    color="Riesgo",
+    color_continuous_scale="reds",
+    title="Ranking de Riesgo IRIP",
+)
 try:
     from ..components.renderers import render_echarts
 except ImportError:
     try:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent))
         from components.renderers import render_echarts
     except ImportError:
@@ -111,9 +144,14 @@ except ImportError:
 
 if render_echarts:
     try:
-        labels = data_irip['Indicador'].astype(str).tolist()
-        vals = [int(v) for v in data_irip['Riesgo'].tolist()]
-        option = {"tooltip": {"trigger": "axis"}, "xAxis": {"type": "value"}, "yAxis": {"type": "category", "data": labels}, "series": [{"type": "bar", "data": vals}]}
+        labels = data_irip["Indicador"].astype(str).tolist()
+        vals = [int(v) for v in data_irip["Riesgo"].tolist()]
+        option = {
+            "tooltip": {"trigger": "axis"},
+            "xAxis": {"type": "value"},
+            "yAxis": {"type": "category", "data": labels},
+            "series": [{"type": "bar", "data": vals}],
+        }
         render_echarts(option, height=260)
     except Exception:
         st.plotly_chart(fig_irip)
@@ -122,14 +160,20 @@ else:
 
 # Módulo DAD / Detector de anomalías
 st.subheader("Módulo DAD / Detector de anomalías")
-fig_anomalias = px.line(data_anomalias, x="Fecha", y="Anomalías", markers=True,
-                        title="Tendencia de Anomalías Detectadas")
+fig_anomalias = px.line(
+    data_anomalias,
+    x="Fecha",
+    y="Anomalías",
+    markers=True,
+    title="Tendencia de Anomalías Detectadas",
+)
 try:
     from ..components.renderers import render_echarts
 except ImportError:
     try:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent))
         from components.renderers import render_echarts
     except ImportError:
@@ -137,9 +181,14 @@ except ImportError:
 
 if render_echarts:
     try:
-        xs = [str(d.date()) for d in data_anomalias['Fecha'].tolist()]
-        ys = [int(v) for v in data_anomalias['Anomalías'].tolist()]
-        option = {"tooltip": {"trigger": "axis"}, "xAxis": {"type": "category", "data": xs}, "yAxis": {"type": "value"}, "series": [{"type": "line", "data": ys, "showSymbol": True}]}
+        xs = [str(d.date()) for d in data_anomalias["Fecha"].tolist()]
+        ys = [int(v) for v in data_anomalias["Anomalías"].tolist()]
+        option = {
+            "tooltip": {"trigger": "axis"},
+            "xAxis": {"type": "category", "data": xs},
+            "yAxis": {"type": "value"},
+            "series": [{"type": "line", "data": ys, "showSymbol": True}],
+        }
         render_echarts(option, height=300)
     except Exception:
         st.plotly_chart(fig_anomalias)
@@ -148,14 +197,21 @@ else:
 
 # Módulo CMI Estratégico
 st.subheader("Módulo CMI Estratégico")
-fig_cmi = px.bar(data_cmi, x="Perspectiva", y="Cumplimiento", color="Cumplimiento",
-                 color_continuous_scale="blues", title="Cumplimiento por Perspectiva CMI")
+fig_cmi = px.bar(
+    data_cmi,
+    x="Perspectiva",
+    y="Cumplimiento",
+    color="Cumplimiento",
+    color_continuous_scale="blues",
+    title="Cumplimiento por Perspectiva CMI",
+)
 try:
     from ..components.renderers import render_echarts
 except ImportError:
     try:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent))
         from components.renderers import render_echarts
     except ImportError:
@@ -163,9 +219,14 @@ except ImportError:
 
 if render_echarts:
     try:
-        cats = data_cmi['Perspectiva'].astype(str).tolist()
-        vals = [float(v) for v in data_cmi['Cumplimiento'].tolist()]
-        option = {"tooltip": {"trigger": "axis"}, "xAxis": {"type": "category", "data": cats}, "yAxis": {"type": "value"}, "series": [{"type": "bar", "data": vals}]}
+        cats = data_cmi["Perspectiva"].astype(str).tolist()
+        vals = [float(v) for v in data_cmi["Cumplimiento"].tolist()]
+        option = {
+            "tooltip": {"trigger": "axis"},
+            "xAxis": {"type": "category", "data": cats},
+            "yAxis": {"type": "value"},
+            "series": [{"type": "bar", "data": vals}],
+        }
         render_echarts(option, height=300)
     except Exception:
         st.plotly_chart(fig_cmi)
@@ -175,4 +236,3 @@ else:
 # Footer
 st.markdown("---")
 st.markdown("Sistema de Indicadores · Politécnico Grancolombiano · 2026")
-

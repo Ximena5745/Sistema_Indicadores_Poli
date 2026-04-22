@@ -21,7 +21,10 @@ def render_exec_summary(data: dict, height: int = 360):
     # Inyectar JSON en el script placeholder
     data_json = json.dumps(data, ensure_ascii=False)
     # Replace the DATA_HOLDER content
-    html = html.replace('<script type="application/json" id="DATA_HOLDER">null</script>', f'<script type="application/json" id="DATA_HOLDER">{data_json}</script>')
+    html = html.replace(
+        '<script type="application/json" id="DATA_HOLDER">null</script>',
+        f'<script type="application/json" id="DATA_HOLDER">{data_json}</script>',
+    )
     components.html(html, height=height, scrolling=True)
 
 
@@ -31,12 +34,12 @@ def render_alert_strip(message: str, level: str = "info"):
     level: 'info'|'warning'|'danger'|'success'
     """
     colors = {
-        'info':    ('#E6F2FF', '#1A3A5C'),
-        'warning': ('#FFF8E1', '#F59E0B'),
-        'danger':  ('#FFECEC', '#DC2626'),
-        'success': ('#E8F5E9', '#16A34A'),
+        "info": ("#E6F2FF", "#1A3A5C"),
+        "warning": ("#FFF8E1", "#F59E0B"),
+        "danger": ("#FFECEC", "#DC2626"),
+        "success": ("#E8F5E9", "#16A34A"),
     }
-    bg, border = colors.get(level, colors['info'])
+    bg, border = colors.get(level, colors["info"])
     html = f"""
     <div style='background:{bg}; border-left:4px solid {border}; padding:10px; border-radius:6px; margin-bottom:12px;'>
       {message}
@@ -111,9 +114,17 @@ def kpi_card(
 
     with cols[1]:
         if sparkline:
-            fig = go.Figure(go.Scatter(y=sparkline, mode='lines', line=dict(width=2, color=core_config.COLORES.get('primario', '#0B5FFF'))))
-            fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=60, paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            fig = go.Figure(
+                go.Scatter(
+                    y=sparkline,
+                    mode="lines",
+                    line=dict(width=2, color=core_config.COLORES.get("primario", "#0B5FFF")),
+                )
+            )
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=0, b=0), height=60, paper_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 
 def actions_table(df_actions):
@@ -126,25 +137,25 @@ def actions_table(df_actions):
     df_show = df_actions.copy().reset_index(drop=True)
     edited = None
     try:
-        edited = st.experimental_data_editor(df_show, num_rows='dynamic', use_container_width=True)
+        edited = st.experimental_data_editor(df_show, num_rows="dynamic", use_container_width=True)
     except Exception:
         st.dataframe(df_show, use_container_width=True)
 
     # Bulk actions: seleccionar filas por índice
     ids = df_show.index.astype(str).tolist()
-    selected = st.multiselect("Seleccionar acciones (para bulk)", ids, key='bulk_actions_select')
+    selected = st.multiselect("Seleccionar acciones (para bulk)", ids, key="bulk_actions_select")
     if selected:
         sel_idx = [int(i) for i in selected]
-        col1, col2 = st.columns([1,1])
+        col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("Marcar seleccionadas como Cerradas"):
-                df_show.loc[sel_idx, 'ESTADO'] = 'Cerrada'
+                df_show.loc[sel_idx, "ESTADO"] = "Cerrada"
                 st.success(f"{len(sel_idx)} acciones marcadas como Cerradas (local).")
         with col2:
-            nuevo_responsable = st.text_input("Reasignar responsable a:", key='bulk_reassign_input')
+            nuevo_responsable = st.text_input("Reasignar responsable a:", key="bulk_reassign_input")
             if st.button("Reasignar seleccionadas") and nuevo_responsable.strip():
                 # intentar columnas posibles
-                for col in ('RESPONSABLE','responsable','Responsable'):
+                for col in ("RESPONSABLE", "responsable", "Responsable"):
                     if col in df_show.columns:
                         df_show.loc[sel_idx, col] = nuevo_responsable
                 st.success(f"{len(sel_idx)} acciones reasignadas a {nuevo_responsable} (local).")
@@ -155,8 +166,9 @@ def actions_table(df_actions):
         # Descargar Excel preferente para usuarios
         try:
             import pandas as _pd
+
             bio = io.BytesIO()
-            _pd.DataFrame(to_export).to_excel(bio, index=False, engine='openpyxl')
+            _pd.DataFrame(to_export).to_excel(bio, index=False, engine="openpyxl")
             bio.seek(0)
             st.download_button(
                 "Descargar Excel",
@@ -166,8 +178,10 @@ def actions_table(df_actions):
             )
         except Exception:
             # Fallback CSV
-            csv = to_export.to_csv(index=False).encode('utf-8')
-            st.download_button("Descargar CSV", csv, file_name="acciones_priorizadas.csv", mime="text/csv")
+            csv = to_export.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "Descargar CSV", csv, file_name="acciones_priorizadas.csv", mime="text/csv"
+            )
     except Exception:
         pass
 
@@ -185,14 +199,17 @@ def actions_table(df_actions):
             # Intentar usar un hook en core.db_manager si está disponible
             try:
                 import core.db_manager as dbm
-                if hasattr(dbm, 'guardar_acciones_bulk'):
+
+                if hasattr(dbm, "guardar_acciones_bulk"):
                     ok = dbm.guardar_acciones_bulk(to_export)
                     if ok:
                         st.success("Guardado en DB (hook) exitoso.")
                     else:
                         st.error("El hook de DB devolvió fallo.")
                 else:
-                    st.warning("No se encontró un hook 'guardar_acciones_bulk' en core.db_manager. Implementa la función para habilitar guardado en DB.")
+                    st.warning(
+                        "No se encontró un hook 'guardar_acciones_bulk' en core.db_manager. Implementa la función para habilitar guardado en DB."
+                    )
             except Exception as e:
                 st.error(f"Error al intentar guardar en DB: {e}")
 
@@ -208,8 +225,13 @@ def set_global_palette(palette: dict | None = None):
     """
     if palette is None:
         palette = {
-            'primary': '#0B5FFF', 'success': '#16A34A', 'alert': '#F59E0B',
-            'danger': '#DC2626', 'bg': '#F5F7FA', 'panel': '#FFFFFF', 'text': '#0F1724'
+            "primary": "#0B5FFF",
+            "success": "#16A34A",
+            "alert": "#F59E0B",
+            "danger": "#DC2626",
+            "bg": "#F5F7FA",
+            "panel": "#FFFFFF",
+            "text": "#0F1724",
         }
         css = f"""
         <style>
@@ -250,10 +272,18 @@ def render_kawak_caption(total_indicadores: int, total_reportados: int | None = 
     if total_reportados is None:
         st.caption(f"Indicadores totales (Kawak): {total_indicadores}")
     else:
-        st.caption(f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}")
+        st.caption(
+            f"Indicadores totales (Kawak): {total_indicadores} · Reportados en período: {total_reportados}"
+        )
 
 
-def generate_sparkline_counts(df: pd.DataFrame, date_col: str = "Fecha", group_col: str | None = None, filter_val: str | None = None, periods: int = 6) -> list:
+def generate_sparkline_counts(
+    df: pd.DataFrame,
+    date_col: str = "Fecha",
+    group_col: str | None = None,
+    filter_val: str | None = None,
+    periods: int = 6,
+) -> list:
     """Genera una serie simple de conteos por mes para los últimos `periods` meses.
 
     - `df`: DataFrame con columna de fecha.
@@ -285,7 +315,13 @@ def generate_sparkline_counts(df: pd.DataFrame, date_col: str = "Fecha", group_c
         return []
 
 
-def generate_sparkline_agg(df: pd.DataFrame, date_col: str = "Fecha", value_col: str = "Cumplimiento", agg: str = "mean", periods: int = 6) -> list:
+def generate_sparkline_agg(
+    df: pd.DataFrame,
+    date_col: str = "Fecha",
+    value_col: str = "Cumplimiento",
+    agg: str = "mean",
+    periods: int = 6,
+) -> list:
     """Genera una serie agregada (mean/sum/median) por mes para `value_col` sobre los últimos `periods` meses."""
     try:
         if df is None or df.empty:
@@ -354,11 +390,11 @@ def render_table_paginated(df, page_size: int = 20, key: str | None = None):
 
 
 def render_echarts(option: dict, height: int = 420):
-        """Renderiza una opción de ECharts en Streamlit mediante HTML embebido.
+    """Renderiza una opción de ECharts en Streamlit mediante HTML embebido.
 
-        option: dict que corresponde al objeto de configuración de ECharts.
-        """
-        tpl = f"""
+    option: dict que corresponde al objeto de configuración de ECharts.
+    """
+    tpl = f"""
         <div id='echart_{id(option)}' style='width:100%;height:{height}px;'></div>
         <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
         <script>
@@ -372,19 +408,20 @@ def render_echarts(option: dict, height: int = 420):
             }})();
         </script>
         """
-        components.html(tpl, height=height+20, scrolling=True)
+    components.html(tpl, height=height + 20, scrolling=True)
 
 
 def _save_actions_to_csv(df, basename: str = "acciones_priorizadas") -> str:
     """Guarda el DataFrame `df` como CSV en `data/raw/` con timestamp y retorna la ruta relativa."""
     from pathlib import Path
+
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = Path(__file__).parent.parent.parent / "data" / "raw"
     out_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{basename}_{ts}.csv"
     out_path = out_dir / filename
     # Asegurar que df sea exportable
-    df.to_csv(out_path, index=False, encoding='utf-8')
+    df.to_csv(out_path, index=False, encoding="utf-8")
     # Retornar ruta relativa al repo (Windows-friendly)
     return str(out_path)
 
@@ -392,6 +429,7 @@ def _save_actions_to_csv(df, basename: str = "acciones_priorizadas") -> str:
 def _save_actions_to_excel(df, basename: str = "acciones_priorizadas") -> str:
     """Guarda el DataFrame `df` como Excel (.xlsx) en `data/raw/` con timestamp y retorna la ruta relativa."""
     from pathlib import Path
+
     try:
         import pandas as _pd
     except Exception:
@@ -403,9 +441,9 @@ def _save_actions_to_excel(df, basename: str = "acciones_priorizadas") -> str:
     out_path = out_dir / filename
     # Convertir a DataFrame si es necesario
     if _pd is not None:
-        _pd.DataFrame(df).to_excel(out_path, index=False, engine='openpyxl')
+        _pd.DataFrame(df).to_excel(out_path, index=False, engine="openpyxl")
     else:
         # Fallback: guardar CSV con extensión xlsx (no ideal)
-        df.to_csv(out_path.with_suffix('.csv'), index=False, encoding='utf-8')
-        out_path = out_path.with_suffix('.csv')
+        df.to_csv(out_path.with_suffix(".csv"), index=False, encoding="utf-8")
+        out_path = out_path.with_suffix(".csv")
     return str(out_path)

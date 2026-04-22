@@ -11,6 +11,7 @@ Regla de capas:
   - Carga con caché Streamlit → aquí (services/)
   - Mapeos de procesos   → services/procesos.py (desde config/mapeos_procesos.yaml)
 """
+
 import unicodedata
 import streamlit as st
 import pandas as pd
@@ -24,7 +25,7 @@ from services.procesos import obtener_proceso_padre
 # Import data validation skill
 try:
     import sys
-    from pathlib import Path
+
     skill_path = Path(__file__).resolve().parent.parent / ".github" / "skills" / "data-validation"
     if skill_path.exists():
         sys.path.insert(0, str(skill_path))
@@ -34,12 +35,13 @@ except ImportError:
     def enrich_with_process_hierarchy(df, path):
         return df
 
+
 _RENAME = {
-    "Año":           "Anio",
-    "Ejecución":     "Ejecucion",
+    "Año": "Anio",
+    "Ejecución": "Ejecucion",
     "Clasificación": "Clasificacion",
-    "Ejecución s":   "Ejecucion_s",
-    "Meta s":        "Meta_Signo",
+    "Ejecución s": "Ejecucion_s",
+    "Meta s": "Meta_Signo",
 }
 
 
@@ -71,15 +73,36 @@ def _id_a_str(x) -> str:
 def _cargar_mapa_proceso_padre() -> dict:
     """DEPRECADO (11-abr-2026): usar services.procesos.obtener_proceso_padre() en su lugar."""
     from services.procesos import cargar_mapeos_procesos
+
     return cargar_mapeos_procesos()
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# ETL PIPELINE: 5 FASES CLARAMENTE SEPARADAS
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# FASE 1: Lectura (IO) - Leer desde Excel, renombrar columnas, normalizar IDs
+# FASE 2: Enriquecimiento Primario - JOIN con Catálogo Indicadores
+# FASE 3: Enriquecimiento Secundario - JOIN con CMI + mapeo de procesos
+# FASE 4: Reconstrucción de Fórmulas - Año, Mes, Período desde Fecha
+# FASE 5: Cálculos y Categorización - Normalizacióny categorización de cumplimiento
+#
+# ═════════════════════════════════════════════════════════════════════════════
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Funciones privadas de cargar_dataset (una sola responsabilidad cada una)
-# ─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
+# FASE 1: LECTURA (IO)
+# Responsabilidad única: Leer Excel + renombrar columnas + normalizar IDs
+# ───────────────────────────────────────────────────────────────────────────
 
-def _leer_consolidado_semestral(path: Path) -> pd.DataFrame:
+
+def _fase1_leer_consolidado_semestral(path: Path) -> pd.DataFrame:
+    """
+    FASE 1 - Lectura: Leer hoja principal normalizar.
+
+    Entrada: Ruta a Resultados Consolidados.xlsx
+    Salida: DataFrame crudo con columnas normalizadas e IDs como string
+    Efectos: Solo IO, sin transformaciones de negocio
+    """
     """Paso 1: Solo IO — leer hoja principal y normalizar columnas/IDs."""
     df = pd.read_excel(path, sheet_name="Consolidado Semestral", engine="openpyxl")
     df = _renombrar(df, _RENAME)
@@ -88,8 +111,14 @@ def _leer_consolidado_semestral(path: Path) -> pd.DataFrame:
     return df
 
 
-def _leer_consolidado_historico(path: Path) -> pd.DataFrame:
-    """Paso 1 (OM): Solo IO — leer hoja histórico y normalizar columnas/IDs."""
+def _fase1_leer_consolidado_historico(path: Path) -> pd.DataFrame:
+    """
+    FASE 1 - Lectura (histórico): Leer hoja histórico y normalizar.
+
+    Entrada: Ruta a Resultados Consolidados.xlsx
+    Salida: DataFrame histórico con columnas normalizadas
+    Nota: Usada solo por cargar_dataset_historico() para Gestión OM
+    """
     df = pd.read_excel(path, sheet_name="Consolidado Historico", engine="openpyxl")
     df = _renombrar(df, _RENAME)
     if "Id" in df.columns:
@@ -97,8 +126,20 @@ def _leer_consolidado_historico(path: Path) -> pd.DataFrame:
     return df
 
 
-def _enriquecer_clasificacion(df: pd.DataFrame, path: Path) -> pd.DataFrame:
-    """Paso 2: Join con hoja Catalogo Indicadores para añadir Clasificacion."""
+# ───────────────────────────────────────────────────────────────────────────
+# FASE 2: ENRIQUECIMIENTO PRIMARIO
+# Responsabilidad única: JOIN con Catálogo Indicadores
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def _fase2_enriquecer_clasificacion(df: pd.DataFrame, path: Path) -> pd.DataFrame:
+    """
+    FASE 2 - Enriquecimiento Primario: JOIN con Catálogo Indicadores.
+
+    Entrada: DataFrame de FASE 1
+    Salida: DataFrame con columna Clasificación enriquecida
+    Efectos: Agrega metadatos desde Catálogo (si falta)
+    """
     if "Clasificacion" in df.columns:
         return df
     try:
@@ -112,13 +153,26 @@ def _enriquecer_clasificacion(df: pd.DataFrame, path: Path) -> pd.DataFrame:
     return df
 
 
-def _enriquecer_cmi_y_procesos(df: pd.DataFrame) -> pd.DataFrame:
-    """Paso 3: Join con CMI (Subproceso/Linea/Objetivo) y mapeo Proceso padre."""
+# ───────────────────────────────────────────────────────────────────────────
+# FASE 3: ENRIQUECIMIENTO SECUNDARIO
+# Responsabilidad única: JOIN con CMI + mapeo Procesos maestros
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def _fase3_enriquecer_cmi_y_procesos(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    FASE 3 - Enriquecimiento Secundario: JOIN CMI y mapeo de procesos.
+
+    Entrada: DataFrame de FASE 2
+    Salida: DataFrame con Subproceso, Línea, Objetivo, Proceso Padre
+    Efectos: Agrega jerarquía de procesos (CMI + mapeo YAML)
+    """
     # CMI — NO se toma Sentido (puede estar desactualizado respecto a Kawak)
     try:
         df_cmi = pd.read_excel(
             DATA_RAW / "Indicadores por CMI.xlsx",
-            sheet_name="Worksheet", engine="openpyxl",
+            sheet_name="Worksheet",
+            engine="openpyxl",
         )
         df_cmi = _renombrar(df_cmi, _RENAME)
         df_cmi["Id"] = df_cmi["Id"].apply(_id_a_str)
@@ -138,15 +192,36 @@ def _enriquecer_cmi_y_procesos(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _reconstruir_columnas_formula(df: pd.DataFrame) -> pd.DataFrame:
-    """Paso 4a: Recalcula columnas derivadas de fórmulas Excel (Año/Mes/Periodo)."""
+# ───────────────────────────────────────────────────────────────────────────
+# FASE 4: RECONSTRUCCIÓN DE FÓRMULAS
+# Responsabilidad única: Calcular Año, Mes, Período desde Fecha
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def _fase4_reconstruir_columnas_formula(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    FASE 4 - Reconstrucción de Fórmulas: Calcular Año, Mes, Período desde Fecha.
+
+    Entrada: DataFrame de FASE 3
+    Salida: DataFrame con columnas temporales completas
+    Efectos: Rellena campos faltantes desde Fecha (fuente confiable)
+    """
     if "Fecha" not in df.columns:
         return df
     _fecha = pd.to_datetime(df["Fecha"], errors="coerce")
     _MESES_ES = {
-        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+        1: "Enero",
+        2: "Febrero",
+        3: "Marzo",
+        4: "Abril",
+        5: "Mayo",
+        6: "Junio",
+        7: "Julio",
+        8: "Agosto",
+        9: "Septiembre",
+        10: "Octubre",
+        11: "Noviembre",
+        12: "Diciembre",
     }
     if "Año" in df.columns:
         df["Año"] = df["Año"].fillna(_fecha.dt.year)
@@ -169,11 +244,19 @@ def _reconstruir_columnas_formula(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
-    """Paso 4b: Detectar métricas/sin-reporte y categorizar cumplimiento.
-    
-    NOTA: Cumplimiento es pre-calculado en scripts/etl/cumplimiento.py.
-    Esta función solo detecta tipo de registro y categoriza valores existentes.
+def _fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    FASE 5 - Cálculos y Categorización: Normalizar y categorizar cumplimiento.
+
+    Entrada: DataFrame de FASE 4
+    Salida: DataFrame con columnas Cumplimiento_norm y Categoria finales
+    Efectos:
+      - Normaliza escala (% vs decimal)
+      - Categoriza según umbrales (Peligro/Alerta/Cumplimiento/Sobrecumplimiento)
+      - Detecta registros especiales (métricas, sin reporte)
+
+    NOTA: Cumplimiento es pre-calculado en scripts/etl/cumplimiento.py
+    Esta función solo NORMALIZA Y CATEGORIZA valores existentes.
     """
 
     _col_tipo_reg = next((c for c in ["TipoRegistro", "Tipo_Registro"] if c in df.columns), None)
@@ -183,15 +266,21 @@ def _aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     if _col_tipo_reg:
         _mask_metrica = df[_col_tipo_reg].astype(str).str.strip().str.lower() == "metrica"
     elif "Indicador" in df.columns:
-        _mask_metrica = df["Indicador"].astype(str).str.lower().str.contains(r"\bmetrica\b", na=False)
+        _mask_metrica = (
+            df["Indicador"].astype(str).str.lower().str.contains(r"\bmetrica\b", na=False)
+        )
     else:
         _mask_metrica = pd.Series(False, index=df.index)
 
     # Detectar sin meta / No Aplica
     _mask_sin_meta = (
-        pd.to_numeric(df["Meta"], errors="coerce").isna()
-        | (pd.to_numeric(df["Meta"], errors="coerce") == 0)
-    ) if "Meta" in df.columns else pd.Series(False, index=df.index)
+        (
+            pd.to_numeric(df["Meta"], errors="coerce").isna()
+            | (pd.to_numeric(df["Meta"], errors="coerce") == 0)
+        )
+        if "Meta" in df.columns
+        else pd.Series(False, index=df.index)
+    )
 
     if _col_tipo_reg:
         _mask_no_aplica = df[_col_tipo_reg].astype(str).str.strip().str.lower().eq("no aplica")
@@ -239,18 +328,19 @@ def _aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @st.cache_data(ttl=300, show_spinner="Cargando datos principales...")
 def cargar_dataset() -> pd.DataFrame:
     """
     Carga el dataset principal desde Resultados Consolidados.xlsx (fuente oficial).
     La hoja principal general para consumo en app es Consolidado Semestral.
 
-    Pipeline interno (cada paso tiene una sola responsabilidad):
-      1. _leer_consolidado_semestral()    → IO + renombrar columnas
-      2. _enriquecer_clasificacion()      → join Catalogo Indicadores
-      3. _enriquecer_cmi_y_procesos()     → join CMI + mapeo procesos
-      4. _reconstruir_columnas_formula()  → Año/Mes/Periodo desde Fecha
-      5. _aplicar_calculos_cumplimiento() → normalizar + categorizar
+    Pipeline ETL de 5 Fases (cada paso tiene una sola responsabilidad):
+      FASE 1: _fase1_leer_consolidado_semestral()      → IO + renombrar columnas
+      FASE 2: _fase2_enriquecer_clasificacion()        → join Catálogo Indicadores
+      FASE 3: _fase3_enriquecer_cmi_y_procesos()       → join CMI + mapeo procesos
+      FASE 4: _fase4_reconstruir_columnas_formula()    → Año/Mes/Periodo desde Fecha
+      FASE 5: _fase5_aplicar_calculos_cumplimiento()   → normalizar + categorizar
 
     El Sentido se toma SIEMPRE del Consolidado (calculado desde Kawak/API).
     """
@@ -259,11 +349,11 @@ def cargar_dataset() -> pd.DataFrame:
         st.error(f"Archivo no encontrado: {path}")
         return pd.DataFrame()
 
-    df = _leer_consolidado_semestral(path)
-    df = _enriquecer_clasificacion(df, path)
-    df = _enriquecer_cmi_y_procesos(df)
-    df = _reconstruir_columnas_formula(df)
-    df = _aplicar_calculos_cumplimiento(df)
+    df = _fase1_leer_consolidado_semestral(path)
+    df = _fase2_enriquecer_clasificacion(df, path)
+    df = _fase3_enriquecer_cmi_y_procesos(df)
+    df = _fase4_reconstruir_columnas_formula(df)
+    df = _fase5_aplicar_calculos_cumplimiento(df)
     return df
 
 
@@ -272,17 +362,19 @@ def cargar_dataset_historico() -> pd.DataFrame:
     """
     Carga la hoja Consolidado Historico para casos específicos de Gestión OM.
     No reemplaza la fuente general del resto de módulos.
+
+    Pipeline ETL: Mismas 5 fases que cargar_dataset(), pero con FASE 1 histórica.
     """
     path = DATA_OUTPUT / "Resultados Consolidados.xlsx"
     if not path.exists():
         st.error(f"Archivo no encontrado: {path}")
         return pd.DataFrame()
 
-    df = _leer_consolidado_historico(path)
-    df = _enriquecer_clasificacion(df, path)
-    df = _enriquecer_cmi_y_procesos(df)
-    df = _reconstruir_columnas_formula(df)
-    df = _aplicar_calculos_cumplimiento(df)
+    df = _fase1_leer_consolidado_historico(path)
+    df = _fase2_enriquecer_clasificacion(df, path)
+    df = _fase3_enriquecer_cmi_y_procesos(df)
+    df = _fase4_reconstruir_columnas_formula(df)
+    df = _fase5_aplicar_calculos_cumplimiento(df)
     return df
 
 
@@ -336,7 +428,7 @@ def _leer_excel(path: Path, header: int = 0) -> pd.DataFrame:
 def cargar_om() -> pd.DataFrame:
     """Carga OM.xlsx (preferido) o OM.xls. Encabezados en fila 8 (header=7)."""
     xlsx = DATA_RAW / "OM.xlsx"
-    xls  = DATA_RAW / "OM.xls"
+    xls = DATA_RAW / "OM.xls"
 
     if xlsx.exists():
         path, header = xlsx, 7
@@ -359,8 +451,12 @@ def cargar_om() -> pd.DataFrame:
         df = df[df["Id"].notna() & (df["Id"].astype(str).str.strip() != "")].reset_index(drop=True)
         df["Id"] = df["Id"].apply(_id_a_str)
 
-    for col in ["Fecha de identificación", "Fecha de creación",
-                "Fecha estimada de cierre", "Fecha real de cierre"]:
+    for col in [
+        "Fecha de identificación",
+        "Fecha de creación",
+        "Fecha estimada de cierre",
+        "Fecha real de cierre",
+    ]:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
@@ -458,7 +554,11 @@ def df_indicadores_unicos(df: pd.DataFrame) -> pd.DataFrame:
         return df[revisar == 1].drop_duplicates(subset="Id", keep="first").reset_index(drop=True)
     col_fecha = "Fecha" if "Fecha" in df.columns else None
     if col_fecha:
-        return df.sort_values(col_fecha).drop_duplicates(subset="Id", keep="last").reset_index(drop=True)
+        return (
+            df.sort_values(col_fecha)
+            .drop_duplicates(subset="Id", keep="last")
+            .reset_index(drop=True)
+        )
     return df.drop_duplicates(subset="Id", keep="last").reset_index(drop=True)
 
 

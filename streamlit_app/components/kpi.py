@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 class KPIRow:
     def __init__(self, kpis=None):
         self.kpis = kpis or [

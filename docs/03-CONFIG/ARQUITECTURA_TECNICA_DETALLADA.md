@@ -17,8 +17,10 @@
 6. [Capa de Presentación](#capa-de-presentación)
 7. [Estrategia de Caché](#estrategia-de-caché)
 8. [Flujos de Datos](#flujos-de-datos)
-9. [Problemas Identificados](#problemas-identificados)
-10. [Hoja de Ruta Técnica](#hoja-de-ruta-técnica)
+9. [Evolución Arquitectónica: Fases 1-4](#evolución-arquitectónica-fases-1-4)
+10. [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
+11. [Problemas Identificados](#problemas-identificados)
+12. [Hoja de Ruta Técnica](#hoja-de-ruta-técnica)
 
 ---
 
@@ -1261,6 +1263,329 @@ PERSISTENCIA:
   ├─ PROD: PostgreSQL en Render.com
   └─ Backup: Ambas fuentes en Supabase
 ```
+
+---
+
+## Evolución Arquitectónica: Fases 1-4
+
+### Síntesis de Descubrimiento (FASE 1-4: 21 de abril de 2026)
+
+Durante el análisis exhaustivo realizado en Fases 1-4 se documentó la evolución del SGIND desde arquitectura dispersa a consolidada:
+
+```
+FASE 1: Discovery
+   └─ 13 FUENTES DE DATOS identificadas
+      ├─ 4 Fuentes primarias (Consolidado, Maestro, CMI, API)
+      ├─ 3 Anexos operacionales (OM, Acciones, Planes)
+      ├─ 3 Catálogos históricos (Kawak)
+      ├─ 2 Bases de datos (SQLite/PostgreSQL)
+      └─ 1 Configuración (YAML)
+
+FASE 2: Data Lineage
+   └─ 5 KPIs AUDITADOS end-to-end (245, 276, 77, 203, 274)
+      ├─ Trazabilidad: Origen → Consolidación → Visualización
+      ├─ Pipeline uniforme: 5 pasos (Leer → Enriquecer × 2 → Fórmula → Cálculos)
+      └─ Validación: Mismos datos en todas las vistas
+
+FASE 3: Modelo Conceptual
+   └─ 15 ENTIDADES IDENTIFICADAS (Concepto → SQL)
+      ├─ Negocio: Indicador, Medición, Proceso, Línea
+      ├─ Persistencia: Consolidado, OM, Catálogo
+      ├─ Operacionales: Acción, OM, Plan, Ficha
+      └─ Externas: Kawak (integración)
+
+FASE 4: Capa Semántica
+   └─ 23 CÁLCULOS INVENTARIADOS
+      ├─ Antes: 8 módulos, 9 páginas, 4 duplicaciones
+      ├─ Consolidación: 23 → 8 cálculos oficiales en semantica.py
+      └─ Refactorización: UI importa de core.semantica (centralizado)
+```
+
+### Metadatos de Consolidación
+
+| Métrica | FASE 1 | FASE 2 | FASE 3 | FASE 4 | Final |
+|---------|--------|--------|--------|--------|-------|
+| **Fuentes de datos** | 13 | 5 auditadas | - | - | 5 críticas |
+| **Entidades modelo** | - | - | 15 | - | 8 principales |
+| **Cálculos identificados** | - | - | - | 23 | 8 consolidados |
+| **Módulos (UI)** | 9 | - | - | - | 6 refactorizado |
+| **Localización hardcoding** | 8 lugares | - | - | - | 1 lugar (config.py) |
+| **Test coverage** | - | - | - | - | 32% → **80% META** |
+
+### Diagrama de Consolidación
+
+```
+13 FUENTES RAW
+    ↓
+    ├─ Consolidado Semestral (Excel)
+    ├─ Maestro Procesos (Subproceso-Proceso-Area.xlsx)
+    ├─ CMI Estratégico (Indicadores por CMI.xlsx)
+    ├─ OM + Acciones Mejora (Excel)
+    ├─ Kawak Histórico (2022-2026)
+    ├─ BD SQLite (Dev)
+    ├─ BD PostgreSQL (Prod)
+    ├─ Mapeos Procesos (YAML)
+    └─ [8 más]
+    ↓
+5 PASOS ETL (PIPELINE ÚNICO)
+    ├─ Paso 1: Leer consolidado + enriquecer clasificación
+    ├─ Paso 2: JOIN CMI + Procesos maestros
+    ├─ Paso 3: Reconstruir columnas de fecha/período
+    ├─ Paso 4: Aplicar cálculos cumplimiento
+    └─ Paso 5: Persistir en caché + expo
+    ↓
+8 ENTIDADES PRINCIPALES
+    ├─ Indicador (id, nombre, proceso, sentido)
+    ├─ Medición (fecha, ejecución, meta, cumplimiento)
+    ├─ Proceso (jerarquía: Área → Proceso → Subproceso)
+    ├─ Línea Estratégica (CMI: Línea → Objetivo)
+    ├─ Consolidado (histórico persistente)
+    ├─ OM (seguimiento y registro)
+    ├─ Acción Mejora (plan de trabajo)
+    └─ Categoría (Peligro/Alerta/Cumplimiento/Sobrecumplimiento)
+    ↓
+23 CÁLCULOS → 8 CONSOLIDADOS
+    ├─ normalizar_valor_a_porcentaje() [Primitivo]
+    ├─ categorizar_cumplimiento() [Derivado]
+    ├─ normalizar_y_categorizar() [Estratégico]
+    ├─ obtener_icono_categoria() [Formato]
+    ├─ obtener_color_categoria() [Formato]
+    ├─ calcular_tendencia() [Derivado]
+    ├─ extraer_meta_ejecucion() [Auxiliar]
+    └─ validar_cumplimiento() [Validación]
+    ↓
+6 VISTAS REFACTORIZADAS
+    ├─ Resumen General → normalizar_y_categorizar()
+    ├─ CMI Estratégico → categorizar_cumplimiento()
+    ├─ Gestión OM → obtener_icono_categoria()
+    ├─ Resumen por Proceso → normalizar_valor_a_porcentaje()
+    ├─ Tablero Operativo → categorizar_cumplimiento()
+    └─ Plan Mejoramiento → normalizar_y_categorizar()
+    ↓
+✅ SGIND CONSOLIDADO
+```
+
+---
+
+## Architecture Decision Records (ADRs)
+
+### ADR-001: Consolidation of Calculation Logic in `core/semantica.py`
+
+**Status:** ✅ **ACCEPTED** (Implementado en Fase 4)
+
+**Context:**
+- 23 funciones de cálculo dispersas en 4 módulos + 9 páginas UI
+- 4 copias de `categorizar_cumplimiento()` con inconsistencias
+- Plan Anual detection ausente en strategic_indicators.py
+- Hardcoding de umbrales en múltiples ubicaciones
+- Cambios de regla negocio requieren actualización en 8+ lugares
+
+**Decision:**
+Crear `core/semantica.py` como **Single Source of Truth** para toda lógica de categorización:
+```python
+# ANTES: Disperso
+resumen_general.py → def _map_level_v2() [hardcoded]
+gestion_om.py → inline categorización [hardcoded]
+strategic_indicators.py → def _nivel_desde_cumplimiento() [defectuosa]
+
+# DESPUÉS: Centralizado
+core/semantica.py → def categorizar_cumplimiento(cumplimiento, id_indicador)
+                 → def normalizar_y_categorizar(valor, es_porcentaje, id_indicador)
+                 → def normalizar_valor_a_porcentaje(valor)
+                 → def obtener_icono_categoria(categoria)
+                 → def obtener_color_categoria(categoria)
+```
+
+**Consequences (Positivas):**
+✅ **Consistencia:** Misma lógica en todas las vistas  
+✅ **Mantenibilidad:** Un cambio de umbral → 1 lugar  
+✅ **Plan Anual Support:** Detección automática desde IDS_PLAN_ANUAL  
+✅ **Testabilidad:** 28 tests en test_semantica.py  
+✅ **Reusabilidad:** Importado por 5 módulos
+
+**Consequences (Negativas):**
+❌ Migración de 8+ funciones (1-2h de refactorización)  
+❌ Cambios en imports en 5+ archivos  
+❌ Necesita coordinación con tests existentes
+
+**Trade-offs:**
+- Flexibility vs Consistency: Elegimos **Consistency** (70/30)
+- Centralization vs Distribution: Elegimos **Centralization** (80/20)
+- New Module vs Core Expansion: Elegimos **New Module** (semantica.py aislado)
+
+**Implementation:**
+- ✅ Created `core/semantica.py` (200+ lines)
+- ✅ Wrote `tests/test_semantica.py` (28 tests)
+- ✅ Refactored 5 importers (resumen_general, gestion_om, etc.)
+- ✅ Deprecated functions marked in old modules
+
+**Related:**
+- [AUDITORIA_FASE_4_CAPA_SEMANTICA.md](../../AUDITORIA_FASE_4_CAPA_SEMANTICA.md) - Justificación detallada
+- [core/semantica.py](../../core/semantica.py) - Implementación
+- [tests/test_semantica.py](../../tests/test_semantica.py) - Test suite
+
+---
+
+### ADR-002: Centralized Configuration in `core/config.py`
+
+**Status:** ✅ **ACCEPTED** (En progreso - M6)
+
+**Context:**
+- Umbrales (UMBRAL_PELIGRO, UMBRAL_ALERTA, etc.) hardcodeados en 8 places
+- Plan Anual IDs (373, 390, 414-418, etc.) dispersos en comentarios/hardcoding
+- IDS_TOPE_100 y excepciones sin documentación
+- Cambiar configuración requiere código → buscar/reemplazar → merge/deploy
+- No-devs no pueden ajustar reglas sin programador
+
+**Decision:**
+Centralizar **toda** configuración de negocio en `core/config.py`:
+```python
+# ANTES:
+# resumen_general.py línea 95: if cumpl < 0.80: ...
+# gestion_om.py línea 203: elif cumpl >= 1.05: ...
+# strategic_indicators.py línea 318: if id in [373, 390, ...]: ...
+
+# DESPUÉS:
+# core/config.py
+UMBRAL_PELIGRO = 0.80
+UMBRAL_ALERTA = 1.00
+UMBRAL_SOBRECUMPLIMIENTO = 1.05
+
+IDS_PLAN_ANUAL = load_plan_anual_ids_from_excel()  # Dinámico
+IDS_TOPE_100 = {373, 390, 414, 415, 416, 417, 418, 420, 469, 470, 471}
+```
+
+**Consequences (Positivas):**
+✅ **Single Source of Truth:** Una fuente para configuración  
+✅ **No-Dev Friendly:** Analistas pueden editar Excel sin código  
+✅ **Dinámico:** IDS_PLAN_ANUAL se carga desde "Indicadores por CMI.xlsx"  
+✅ **Auditable:** Historial de cambios via Git  
+✅ **Environment-Aware:** Diferentes config por env (dev/staging/prod)
+
+**Consequences (Negativas):**
+❌ Requiere refactorización de 8 funciones  
+❌ Performance: Cargar IDS_PLAN_ANUAL en cada ejecución (mitigado con caché)  
+❌ Circular imports si no es cuidadoso
+
+**Trade-offs:**
+- Magic Numbers vs Named Constants: Elegimos **Named Constants** (100/0)
+- Hardcode vs Config: Elegimos **Config** (100/0)
+
+**Implementation:** [Scheduled for M6 - Refactor core/config.py]
+- [ ] Extract all magic numbers to constants
+- [ ] Create `load_plan_anual_ids_from_excel()` function
+- [ ] Add environment-specific overrides (dev/staging/prod)
+- [ ] Update 8 importers to use config
+- [ ] Write tests/test_config.py (15 tests)
+
+---
+
+### ADR-003: Separation of UI Concerns from Business Logic
+
+**Status:** ✅ **ACCEPTED** (Implementado en Fase 4)
+
+**Context:**
+- streamlit_app/pages/*.py contienen cálculos de negocio inline
+- core/ y services/ son para lógica pura
+- UI code mixed with calculation code = difícil de testear + reutilizar
+- Cambiar formato de visualización afecta lógica de cálculo
+
+**Decision:**
+**Strict Separation of Concerns:**
+```
+core/         → Lógica pura (sin dependencias Streamlit)
+              ├─ semantica.py → Categorización + Cálculos
+              └─ config.py → Configuración + Constantes
+
+services/     → ETL + Integración de datos
+              ├─ data_loader.py → Carga y transformación
+              └─ strategic_indicators.py → Preparación de vistas
+
+streamlit_app/pages/ → SOLO presentación
+              └─ Importar funciones de core/
+              └─ Formatting (colores, iconos, etc.)
+              └─ Layout (st.columns, st.metric, etc.)
+```
+
+**Consequences:**
+✅ **Testability:** core/ totalmente testeable sin Streamlit  
+✅ **Reusability:** core/ importable por otras aplicaciones (API, CLI, etc.)  
+✅ **Maintainability:** Cambios de UI no afectan lógica
+
+**Trade-offs:**
+- Tight Coupling vs Loose Coupling: Elegimos **Loose** (100/0)
+- Flexibility vs Structure: Elegimos **Structure** (90/10)
+
+**Implementation:** ✅ Completo
+- ✅ Moved all calculations to core/semantica.py
+- ✅ Updated 5+ page importers
+- ✅ Created test suite for each layer
+
+---
+
+## Problemas Identificados
+
+### `services/strategic_indicators.py` (300+ líneas) — Indicadores Estratégicos
+
+**Propósito:** Preparación de indicadores CMI/CNA para agregaciones en dashboards estratégicos
+
+**Funciones principales:**
+
+```python
+def load_cierres() -> pd.DataFrame:
+    """Carga cierres de indicadores desde consolidado_final."""
+    # Lee Excel con datos consolidados
+    # Retorna: DataFrame con (id, indicador, ejecucion, meta, cumplimiento)
+
+def preparar_pdi_con_cierre() -> pd.DataFrame:
+    """Prepara CMI (Plan de Desarrollo Institucional) alineado con cierre.
+    
+    Transformaciones:
+    - Fusiona CMI catalog con cierres de indicadores
+    - Calcula cumplimiento usando categorizar_cumplimiento()
+    - Agrupa por: Línea → Objetivo → Indicador
+    
+    Retorna: DataFrame listo para dashboard CMI Estratégico
+    """
+
+def preparar_cna_con_cierre() -> pd.DataFrame:
+    """Prepara CNA (Características de Acreditación) alineado con cierre.
+    
+    Similar a preparar_pdi_con_cierre pero con estructura CNA.
+    """
+```
+
+**Estado:** ✅ Refactorizado (Fase 4) para usar `categorizar_cumplimiento()` centralizado en core/semantica.py
+
+**Referencia:** [AUDITORIA_FASE_4_CAPA_SEMANTICA.md](../../AUDITORIA_FASE_4_CAPA_SEMANTICA.md)
+
+---
+
+### Riesgos Identificados y Resueltos
+
+#### ✅ Problema #1: Plan Anual mal categorizado (RESUELTO)
+- **Causa:** `_nivel_desde_cumplimiento()` en strategic_indicators.py ignoraba detección de Plan Anual
+- **Síntoma:** Indicador 373 con cumplimiento 0.947 → Alerta (incorrecto, debía ser Cumplimiento)
+- **Solución:** Reemplazar con `categorizar_cumplimiento()` que detecta IDS_PLAN_ANUAL dinámicamente
+- **Estado:** ✅ IMPLEMENTADO - Importa de `core.semantica`
+
+#### ✅ Problema #5: Strategic indicators con lógica duplicada (RESUELTO)
+- **Causa:** Función recalculaba cumplimiento sin reglas Plan Anual
+- **Solución:** Centralizar lógica en core/semantica.py
+- **Estado:** ✅ IMPLEMENTADO - Reutiliza función oficial
+
+#### ✅ Duplicación de código (RESUELTO)
+- **Antes:** 8+ copias de `categorizar_cumplimiento()` en:
+  - core/calculos.py
+  - core/semantica.py
+  - services/strategic_indicators.py (defectuosa)
+  - services/data_loader.py (inline)
+  - streamlit_app/pages/*.py (4+ versiones hardcodeadas)
+- **Después:** ✅ 1 función oficial en core/semantica.py
+- **Refactorización UI:** Importan de core.semantica
+  - resumen_general.py → `_map_level_v2()` usa `normalizar_y_categorizar()`
+  - resumen_por_proceso.py → `_cumplimiento_pct()` usa `normalizar_valor_a_porcentaje()`
+  - gestion_om.py → importa directamente de `core.semantica`
 
 ---
 

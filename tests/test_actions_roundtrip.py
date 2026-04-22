@@ -8,17 +8,19 @@ from core import db_manager
 def test_save_excel_and_db_roundtrip():
     # preparar datos de prueba con marcador único
     marker = str(uuid.uuid4())
-    df = pd.DataFrame([
-        {"ACCION": "Test A", "RESPONSABLE": "CI", "ESTADO": "Abierta", "test_marker": marker},
-        {"ACCION": "Test B", "RESPONSABLE": "CI", "ESTADO": "Abierta", "test_marker": marker},
-    ])
+    df = pd.DataFrame(
+        [
+            {"ACCION": "Test A", "RESPONSABLE": "CI", "ESTADO": "Abierta", "test_marker": marker},
+            {"ACCION": "Test B", "RESPONSABLE": "CI", "ESTADO": "Abierta", "test_marker": marker},
+        ]
+    )
 
     # Guardar Excel y verificar que el archivo existe y tiene contenido
     path = renderers._save_actions_to_excel(df, basename="test_actions_roundtrip")
     assert os.path.exists(path)
     # leer con pandas (openpyxl required)
     try:
-        df_reload = pd.read_excel(path, engine='openpyxl')
+        df_reload = pd.read_excel(path, engine="openpyxl")
         assert len(df_reload) == len(df)
     finally:
         # cleanup archivo
@@ -33,8 +35,8 @@ def test_save_excel_and_db_roundtrip():
 
     rows = db_manager.leer_acciones(limit=50)
     # filtrar por marcador
-    found = [r for r in rows if r.get('test_marker') == marker]
+    found = [r for r in rows if r.get("test_marker") == marker]
     assert len(found) == len(df)
 
     # cleanup DB
-    assert db_manager.borrar_acciones_por_marker('test_marker', marker) is True
+    assert db_manager.borrar_acciones_por_marker("test_marker", marker) is True

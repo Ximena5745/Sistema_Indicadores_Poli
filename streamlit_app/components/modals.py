@@ -12,6 +12,7 @@ try:
     from ..utils.formatting import ejecucion_his_signo, meta_his_signo
 except (ImportError, ModuleNotFoundError):
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from styles.design_system import COLORS, SHADOWS, ICONS, get_line_color
     from utils.formatting import ejecucion_his_signo, meta_his_signo
@@ -20,32 +21,34 @@ except (ImportError, ModuleNotFoundError):
 def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
     """
     Renderiza un modal con detalle completo de un indicador.
-    
+
     Args:
         indicator_data: dict - Datos completos del indicador
         modal_id: str - ID único para el modal
     """
     # Preparar datos
-    nombre = indicator_data.get('nombre', 'Indicador')
-    codigo = indicator_data.get('codigo', 'IND-001')
-    descripcion = indicator_data.get('descripcion', '')
-    meta = indicator_data.get('meta', 0)
-    ejecucion = indicator_data.get('ejecucion', 0)
-    cumplimiento = indicator_data.get('cumplimiento', 0)
-    estado = indicator_data.get('estado', 'Sin dato')
-    tendencia = indicator_data.get('tendencia', [])
-    responsable = indicator_data.get('responsable', 'Sin asignar')
-    frecuencia = indicator_data.get('frecuencia', 'Mensual')
-    unidad = indicator_data.get('unidad', '')
-    proceso = indicator_data.get('proceso', '')
-    linea = indicator_data.get('linea', '')
-    acciones = indicator_data.get('acciones', [])
+    nombre = indicator_data.get("nombre", "Indicador")
+    codigo = indicator_data.get("codigo", "IND-001")
+    descripcion = indicator_data.get("descripcion", "")
+    meta = indicator_data.get("meta", 0)
+    ejecucion = indicator_data.get("ejecucion", 0)
+    cumplimiento = indicator_data.get("cumplimiento", 0)
+    estado = indicator_data.get("estado", "Sin dato")
+    tendencia = indicator_data.get("tendencia", [])
+    responsable = indicator_data.get("responsable", "Sin asignar")
+    frecuencia = indicator_data.get("frecuencia", "Mensual")
+    unidad = indicator_data.get("unidad", "")
+    proceso = indicator_data.get("proceso", "")
+    linea = indicator_data.get("linea", "")
+    acciones = indicator_data.get("acciones", [])
     meta_fmt = meta_his_signo(
         {
             "Meta": meta,
             "Meta_Signo": indicator_data.get("meta_signo", ""),
             "Decimales": indicator_data.get("decimales", 0),
-            "Decimales_Meta": indicator_data.get("decimales_meta", indicator_data.get("decimales", 0)),
+            "Decimales_Meta": indicator_data.get(
+                "decimales_meta", indicator_data.get("decimales", 0)
+            ),
             "DecimalesEje": indicator_data.get("decimales_ejec", 0),
         }
     )
@@ -57,7 +60,7 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
             "DecimalesEje": indicator_data.get("decimales_ejec", 0),
         }
     )
-    
+
     # Color según línea si existe, sino por cumplimiento
     if linea:
         color = get_line_color(linea)
@@ -70,14 +73,14 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
             color = COLORS["warning"]
         else:
             color = COLORS["danger"]
-    
+
     # Generar sparkline SVG
     sparkline_svg = ""
     if tendencia and len(tendencia) > 1:
         min_val = min(tendencia)
         max_val = max(tendencia)
         range_val = max_val - min_val if max_val != min_val else 1
-        
+
         points = []
         width = 300
         height = 80
@@ -85,12 +88,12 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
             x = (i / (len(tendencia) - 1)) * width
             y = height - ((val - min_val) / range_val) * height * 0.8 - height * 0.1
             points.append(f"{x:.1f},{y:.1f}")
-        
+
         path = " ".join(points)
-        
+
         # Área bajo la curva
         area_path = f"0,{height} " + path + f" {width},{height}"
-        
+
         sparkline_svg = f"""
         <svg width="100%" height="{height}" viewBox="0 0 {width} {height}" style="margin-top: 1rem;">
             <defs>
@@ -115,7 +118,7 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
             <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="6" fill="{color}" stroke="white" stroke-width="2"/>
         </svg>
         """
-    
+
     # HTML del modal
     modal_html = f"""
     <div id="{modal_id}" class="modal-overlay" style="display: none;">
@@ -504,16 +507,16 @@ def render_indicator_detail_modal(indicator_data, modal_id="indicator_modal"):
     }}
     </script>
     """
-    
+
     components.html(modal_html, height=0)
-    
+
     return modal_id
 
 
 def show_toast_notification(message, type_="info", duration=3000):
     """
     Muestra una notificación tipo toast no intrusiva.
-    
+
     Args:
         message: str - Mensaje a mostrar
         type_: str - 'success', 'warning', 'danger', 'info'
@@ -523,11 +526,11 @@ def show_toast_notification(message, type_="info", duration=3000):
         "success": (COLORS["success"], "✅"),
         "warning": (COLORS["warning"], "⚠️"),
         "danger": (COLORS["danger"], "🚨"),
-        "info": (COLORS["info"], "ℹ️")
+        "info": (COLORS["info"], "ℹ️"),
     }
-    
+
     color, icon = colors.get(type_, colors["info"])
-    
+
     toast_html = f"""
     <div id="toast" style="
         position: fixed;
@@ -583,14 +586,14 @@ def show_toast_notification(message, type_="info", duration=3000):
     }}, {duration});
     </script>
     """
-    
+
     components.html(toast_html, height=0)
 
 
 def render_tooltip(content, tooltip_text, position="top"):
     """
     Renderiza un elemento con tooltip al hacer hover.
-    
+
     Args:
         content: str - Contenido visible
         tooltip_text: str - Texto del tooltip
@@ -600,11 +603,11 @@ def render_tooltip(content, tooltip_text, position="top"):
         "top": ("bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"),
         "bottom": ("top: 100%; left: 50%; transform: translateX(-50%); margin-top: 8px;"),
         "left": ("right: 100%; top: 50%; transform: translateY(-50%); margin-right: 8px;"),
-        "right": ("left: 100%; top: 50%; transform: translateY(-50%); margin-left: 8px;")
+        "right": ("left: 100%; top: 50%; transform: translateY(-50%); margin-left: 8px;"),
     }
-    
+
     position_style = positions.get(position, positions["top"])
-    
+
     tooltip_html = f"""
     <span style="
         position: relative;
@@ -645,7 +648,7 @@ def render_tooltip(content, tooltip_text, position="top"):
     }}
     </style>
     """
-    
+
     st.markdown(tooltip_html, unsafe_allow_html=True)
 
 

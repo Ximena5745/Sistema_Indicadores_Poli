@@ -6,13 +6,13 @@ Flexible caching strategy — supports Redis (prod) + local fallback (dev).
 
 Usage:
     from services.caching_strategy import CacheStrategy, get_cache
-    
+
     # Automatic: uses Redis if available, falls back to local
     cache = get_cache()
-    
+
     # Try to get from cache
     df = cache.get("dataset_key")
-    
+
     # If not cached, load and store
     if df is None:
         df = pd.read_excel("data.xlsx")
@@ -76,7 +76,7 @@ class RedisCache(BaseCacheStrategy):
     def __init__(self, redis_url: Optional[str] = None):
         """
         Initialize Redis cache.
-        
+
         Args:
             redis_url: Redis connection URL (e.g., redis://user:pass@host:port).
                       If None, reads from REDIS_URL environment variable.
@@ -93,6 +93,7 @@ class RedisCache(BaseCacheStrategy):
 
         try:
             import redis
+
             self.client = redis.from_url(self.redis_url, decode_responses=False)
             self.client.ping()
             logger.info("✅ Redis cache connected")
@@ -229,7 +230,7 @@ class LocalCache(BaseCacheStrategy):
 class HybridCache(BaseCacheStrategy):
     """
     Hybrid caching — tries Redis first, falls back to local.
-    
+
     Ideal for graceful degradation:
     - Production: uses Redis for shared cache
     - Redis unavailable: falls back to local
@@ -297,11 +298,11 @@ def get_cache(
 ) -> BaseCacheStrategy:
     """
     Get or create global cache instance.
-    
+
     Args:
         strategy: "hybrid" (default), "redis", or "local"
         redis_url: Redis connection URL (if using redis/hybrid)
-    
+
     Returns:
         Cache strategy instance
     """

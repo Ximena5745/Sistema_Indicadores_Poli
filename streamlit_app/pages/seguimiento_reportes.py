@@ -8,13 +8,15 @@ import streamlit as st
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import exportar_excel
 from streamlit_app.utils.formatting import id_limpio
 from core.config import CACHE_TTL
 
-
-RUTA_SEGUIMIENTO = Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
+RUTA_SEGUIMIENTO = (
+    Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
+)
 
 # Ventana máxima en meses antes de marcar como vencido
 _VENTANA_MESES: dict[str, int] = {
@@ -29,7 +31,7 @@ _VENTANA_MESES: dict[str, int] = {
 def _nm(s: str) -> str:
     """Normaliza string a minúsculas sin tildes."""
     s = str(s or "").strip().lower()
-    for a, b in (("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u")):
+    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u")):
         s = s.replace(a, b)
     return s
 
@@ -55,10 +57,9 @@ def _detectar_vencidos(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         return pd.DataFrame(), pd.DataFrame()
 
     df_rep = df[df["Estado"].astype(str).str.strip() == "Reportado"].copy()
-    df_rep["ym"] = (
-        pd.to_numeric(df_rep["Año"], errors="coerce").fillna(0).astype(int) * 12
-        + pd.to_numeric(df_rep["Mes"], errors="coerce").fillna(0).astype(int)
-    )
+    df_rep["ym"] = pd.to_numeric(df_rep["Año"], errors="coerce").fillna(0).astype(
+        int
+    ) * 12 + pd.to_numeric(df_rep["Mes"], errors="coerce").fillna(0).astype(int)
     ultimo = df_rep.groupby("Id")["ym"].max().reset_index().rename(columns={"ym": "ultimo_ym"})
 
     # Metadatos base por indicador
@@ -67,7 +68,9 @@ def _detectar_vencidos(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     merged = meta.merge(ultimo, on="Id", how="left")
     merged["ultimo_ym"] = merged["ultimo_ym"].fillna(0).astype(int)
-    merged["ventana"] = merged.get("Periodicidad", pd.Series("mensual", index=merged.index)).apply(_ventana)
+    merged["ventana"] = merged.get("Periodicidad", pd.Series("mensual", index=merged.index)).apply(
+        _ventana
+    )
     merged["diff_meses"] = ym_actual - merged["ultimo_ym"]
 
     vencidos = merged[merged["diff_meses"] > merged["ventana"]].copy()
@@ -111,11 +114,27 @@ def render():
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     # Meses en español
     MESES_OPCIONES = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
     ]
 
-    anios = sorted(pd.to_numeric(df.get("Año", pd.Series(dtype=float)), errors="coerce").dropna().astype(int).unique().tolist())
+    anios = sorted(
+        pd.to_numeric(df.get("Año", pd.Series(dtype=float)), errors="coerce")
+        .dropna()
+        .astype(int)
+        .unique()
+        .tolist()
+    )
     # default: prefer 2025 if present, else the latest year
     with col_f1:
         year_options = ["Todos"] + anios
@@ -125,20 +144,38 @@ def render():
             default_year = anios[-1] if anios else "Todos"
         anio_sel = st.segmented_control("Año", options=year_options, default=default_year)
 
-    meses_nums = sorted(pd.to_numeric(df.get("Mes", pd.Series(dtype=float)), errors="coerce").dropna().astype(int).unique().tolist())
+    meses_nums = sorted(
+        pd.to_numeric(df.get("Mes", pd.Series(dtype=float)), errors="coerce")
+        .dropna()
+        .astype(int)
+        .unique()
+        .tolist()
+    )
     with col_f2:
         # map numeric months to names for display
         mes_names = [MESES_OPCIONES[m - 1] for m in meses_nums if 1 <= m <= 12]
         mes_options = ["Todos"] + mes_names
         # default to Diciembre if available
-        default_mes_idx = mes_options.index("Diciembre") if "Diciembre" in mes_options else max(0, len(mes_options) - 1)
+        default_mes_idx = (
+            mes_options.index("Diciembre")
+            if "Diciembre" in mes_options
+            else max(0, len(mes_options) - 1)
+        )
         mes_sel = st.selectbox("Mes", options=mes_options, index=default_mes_idx)
 
-    procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist()) if "Proceso" in df.columns else []
+    procesos = (
+        sorted(df["Proceso"].dropna().astype(str).unique().tolist())
+        if "Proceso" in df.columns
+        else []
+    )
     with col_f3:
         proceso_sel = st.selectbox("Proceso", options=["Todos"] + procesos)
 
-    estados = sorted(df["Estado"].dropna().astype(str).unique().tolist()) if "Estado" in df.columns else []
+    estados = (
+        sorted(df["Estado"].dropna().astype(str).unique().tolist())
+        if "Estado" in df.columns
+        else []
+    )
     with col_f4:
         estado_sel = st.selectbox("Estado", options=["Todos"] + estados)
 
@@ -180,20 +217,32 @@ def render():
         with ac1:
             if not vencidos.empty:
                 st.error(f"**{len(vencidos)} indicadores vencidos** (sin reporte en su ventana)")
-                _v_cols = [c for c in ["Id", "Indicador", "Proceso", "Periodicidad", "diff_meses"] if c in vencidos.columns]
+                _v_cols = [
+                    c
+                    for c in ["Id", "Indicador", "Proceso", "Periodicidad", "diff_meses"]
+                    if c in vencidos.columns
+                ]
                 st.dataframe(
                     vencidos[_v_cols].rename(columns={"diff_meses": "Meses sin reporte"}).head(20),
-                    use_container_width=True, hide_index=True,
+                    use_container_width=True,
+                    hide_index=True,
                 )
             else:
                 st.success("Sin indicadores vencidos detectados.")
         with ac2:
             if not por_vencer.empty:
                 st.warning(f"**{len(por_vencer)} próximos a vencer** (dentro del 80 % de ventana)")
-                _pv_cols = [c for c in ["Id", "Indicador", "Proceso", "Periodicidad", "diff_meses"] if c in por_vencer.columns]
+                _pv_cols = [
+                    c
+                    for c in ["Id", "Indicador", "Proceso", "Periodicidad", "diff_meses"]
+                    if c in por_vencer.columns
+                ]
                 st.dataframe(
-                    por_vencer[_pv_cols].rename(columns={"diff_meses": "Meses sin reporte"}).head(20),
-                    use_container_width=True, hide_index=True,
+                    por_vencer[_pv_cols]
+                    .rename(columns={"diff_meses": "Meses sin reporte"})
+                    .head(20),
+                    use_container_width=True,
+                    hide_index=True,
                 )
             else:
                 st.success("Sin indicadores próximos a vencer.")
@@ -202,8 +251,7 @@ def render():
     if "Proceso" in df_view.columns and "Estado" in df_view.columns:
         st.markdown("### Estado de reportes por proceso")
         df_proc = (
-            df_view.groupby(["Proceso", "Estado"], dropna=False)
-            .size().reset_index(name="Cantidad")
+            df_view.groupby(["Proceso", "Estado"], dropna=False).size().reset_index(name="Cantidad")
         )
         _col_estado = {
             "Reportado": "#28a745",
@@ -228,36 +276,38 @@ def render():
             from components.renderers import render_echarts
 
             def _option_proc_estado(df_proc, color_map):
-                procs = df_proc['Proceso'].astype(str).unique().tolist()
-                estados = df_proc['Estado'].astype(str).unique().tolist()
+                procs = df_proc["Proceso"].astype(str).unique().tolist()
+                estados = df_proc["Estado"].astype(str).unique().tolist()
                 # ordenar procs
                 procs = sorted(procs)
                 series = []
                 for est in estados:
                     vals = []
                     for p in procs:
-                        s = df_proc[(df_proc['Proceso'] == p) & (df_proc['Estado'] == est)]
-                        vals.append(int(s['Cantidad'].sum()) if not s.empty else 0)
-                    series.append({
-                        'name': est,
-                        'type': 'bar',
-                        'stack': 'total',
-                        'data': vals,
-                        'itemStyle': {'color': color_map.get(est, '#888')},
-                    })
+                        s = df_proc[(df_proc["Proceso"] == p) & (df_proc["Estado"] == est)]
+                        vals.append(int(s["Cantidad"].sum()) if not s.empty else 0)
+                    series.append(
+                        {
+                            "name": est,
+                            "type": "bar",
+                            "stack": "total",
+                            "data": vals,
+                            "itemStyle": {"color": color_map.get(est, "#888")},
+                        }
+                    )
                 option = {
-                    'tooltip': {'trigger': 'axis', 'axisPointer': {'type': 'shadow'}},
-                    'legend': {'bottom': 0},
-                    'xAxis': {'type': 'category', 'data': procs, 'axisLabel': {'rotate': -35}},
-                    'yAxis': {'type': 'value'},
-                    'series': series,
-                    'grid': {'left': '10%', 'right': '5%', 'bottom': '20%'}
+                    "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+                    "legend": {"bottom": 0},
+                    "xAxis": {"type": "category", "data": procs, "axisLabel": {"rotate": -35}},
+                    "yAxis": {"type": "value"},
+                    "series": series,
+                    "grid": {"left": "10%", "right": "5%", "bottom": "20%"},
                 }
-                return {'option': option, 'height': max(320, len(procs) * 28 + 80)}
+                return {"option": option, "height": max(320, len(procs) * 28 + 80)}
 
             opt = _option_proc_estado(df_proc, _col_estado)
-            if opt and opt.get('option'):
-                render_echarts(opt['option'], height=opt.get('height', 420))
+            if opt and opt.get("option"):
+                render_echarts(opt["option"], height=opt.get("height", 420))
             else:
                 st.plotly_chart(fig_proc, use_container_width=True, key="sr_proc_estado")
         except Exception:

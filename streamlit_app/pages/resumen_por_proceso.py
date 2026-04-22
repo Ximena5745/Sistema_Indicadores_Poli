@@ -12,11 +12,11 @@ from plotly.subplots import make_subplots
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
-
 
 MESES_OPCIONES = [
     "Enero",
@@ -86,33 +86,34 @@ def _mes_to_num(value: object) -> float | None:
 def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
     """
     Normaliza valores de cumplimiento a porcentaje (0-100 o 0-130).
-    
+
     Problema #8 FIX: Usa normalizar_valor_a_porcentaje() de core/semantica.
     Elimina hardcoding de heurística "si max_abs <= 2".
     """
     from core.semantica import normalizar_valor_a_porcentaje
-    
+
     # Caso 1: Cumplimiento_norm (ya normalizado)
     if "Cumplimiento_norm" in df.columns:
         vals = pd.to_numeric(df["Cumplimiento_norm"], errors="coerce")
         # Cumplimiento_norm ya está en porcentaje, retornar como está
         return vals
-    
+
     # Caso 2: Cumplimiento (puede ser decimal o porcentaje)
     if "Cumplimiento" in df.columns:
+
         def _norm_cumpl(val):
             """Normaliza un valor individual."""
             return normalizar_valor_a_porcentaje(val)
-        
+
         return df["Cumplimiento"].apply(_norm_cumpl)
-    
+
     # Caso 3: Meta/Ejecucion (calcular ratio)
     if {"Meta", "Ejecucion"}.issubset(df.columns):
         meta = pd.to_numeric(df["Meta"].apply(_to_float), errors="coerce")
         ejec = pd.to_numeric(df["Ejecucion"].apply(_to_float), errors="coerce")
         ratio = (ejec / meta.replace({0: pd.NA})) * 100
         return pd.to_numeric(ratio, errors="coerce")
-    
+
     # Caso 4: No hay datos disponibles
     return pd.Series(index=df.index, dtype="float64")
 
@@ -248,7 +249,9 @@ def _latest_per_indicator(df: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def _prepare_tracking(df: pd.DataFrame, map_df: pd.DataFrame, month_num: int | None = None) -> pd.DataFrame:
+def _prepare_tracking(
+    df: pd.DataFrame, map_df: pd.DataFrame, month_num: int | None = None
+) -> pd.DataFrame:
     if df.empty:
         return df
 
@@ -257,7 +260,9 @@ def _prepare_tracking(df: pd.DataFrame, map_df: pd.DataFrame, month_num: int | N
         out["Proceso"] = "Sin proceso"
 
     if not map_df.empty and {"Subproceso", "Proceso"}.issubset(map_df.columns):
-        sub_map = map_df[["Subproceso", "Proceso"]].dropna().drop_duplicates(subset=["Subproceso"]).copy()
+        sub_map = (
+            map_df[["Subproceso", "Proceso"]].dropna().drop_duplicates(subset=["Subproceso"]).copy()
+        )
         sub_map["sub_norm"] = sub_map["Subproceso"].astype(str).map(_norm_text)
 
         out["proc_input"] = out["Proceso"].astype(str)
@@ -276,7 +281,13 @@ def _prepare_tracking(df: pd.DataFrame, map_df: pd.DataFrame, month_num: int | N
         else:
             out["Subproceso_final"] = out["proc_input"]
 
-        out = out.drop(columns=[c for c in ["proc_input", "proc_norm", "sub_norm", "Proceso_padre_sub"] if c in out.columns])
+        out = out.drop(
+            columns=[
+                c
+                for c in ["proc_input", "proc_norm", "sub_norm", "Proceso_padre_sub"]
+                if c in out.columns
+            ]
+        )
     else:
         out["Proceso_padre"] = out["Proceso"].astype(str)
         out["Subproceso_final"] = out["Proceso"].astype(str)
@@ -293,12 +304,15 @@ def _prepare_tracking(df: pd.DataFrame, map_df: pd.DataFrame, month_num: int | N
     if period_col is not None:
         out["Ejecucion"] = out[period_col].apply(_to_float)
     elif month_num is None and "Mes" in out.columns:
+
         def _row_ejec(row):
             month = _mes_to_num(row.get("Mes"))
             if month is None:
                 return None
             col_name = _period_col_for_month(out, int(month))
-            return _to_float(row.get(col_name)) if col_name is not None and col_name in row else None
+            return (
+                _to_float(row.get(col_name)) if col_name is not None and col_name in row else None
+            )
 
         out["Ejecucion"] = out.apply(_row_ejec, axis=1)
         if ejec_col is not None:
@@ -345,9 +359,16 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
     if proc_col is None:
         return pd.DataFrame(), "No se encontró columna Proceso en LISTA DE CHEQUEO de calidad."
     if any(c is None for c in [c1_col, c2_col, c3_col, c4_col, c5_col]):
-        return pd.DataFrame(), "No se encontraron las 5 columnas de criterios de calidad en LISTA DE CHEQUEO."
+        return (
+            pd.DataFrame(),
+            "No se encontraron las 5 columnas de criterios de calidad en LISTA DE CHEQUEO.",
+        )
 
-    out_cols = [c for c in [proc_col, sub_col, tem_col, c1_col, c2_col, c3_col, c4_col, c5_col] if c is not None]
+    out_cols = [
+        c
+        for c in [proc_col, sub_col, tem_col, c1_col, c2_col, c3_col, c4_col, c5_col]
+        if c is not None
+    ]
     out = df[out_cols].copy()
     rename_map = {proc_col: "Proceso"}
     if sub_col is not None:
@@ -362,8 +383,22 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
 
     out = out.rename(columns=rename_map)
 
-    for col in ["I. OPORTUNIDAD", "II. COMPLETITUD", "III. CONSISTENCIA", "IV. PRECISIÓN", "V. PROTOCOLO"]:
-        out[col] = out[col].astype(str).str.replace("✔", "", regex=False).str.replace("⚠", "", regex=False).str.replace("✘", "", regex=False).str.strip().str.upper()
+    for col in [
+        "I. OPORTUNIDAD",
+        "II. COMPLETITUD",
+        "III. CONSISTENCIA",
+        "IV. PRECISIÓN",
+        "V. PROTOCOLO",
+    ]:
+        out[col] = (
+            out[col]
+            .astype(str)
+            .str.replace("✔", "", regex=False)
+            .str.replace("⚠", "", regex=False)
+            .str.replace("✘", "", regex=False)
+            .str.strip()
+            .str.upper()
+        )
 
     def _score_calidad(v: object) -> float | None:
         t = _norm_text(v)
@@ -377,7 +412,13 @@ def _load_calidad_data() -> tuple[pd.DataFrame, str | None]:
             return 1.0
         return None
 
-    crit_cols = ["I. OPORTUNIDAD", "II. COMPLETITUD", "III. CONSISTENCIA", "IV. PRECISIÓN", "V. PROTOCOLO"]
+    crit_cols = [
+        "I. OPORTUNIDAD",
+        "II. COMPLETITUD",
+        "III. CONSISTENCIA",
+        "IV. PRECISIÓN",
+        "V. PROTOCOLO",
+    ]
     score_cols = []
     for c in crit_cols:
         sc = f"{c}__score"
@@ -431,9 +472,17 @@ def _build_calidad_metrics(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
         .reset_index()
     )
     proc["Calidad_promedio"] = proc["Calidad_promedio"].round(1)
-    proc["% Cumple"] = (proc["Cumple"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
-    proc["% Parcial"] = (proc["Cumple_parcialmente"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
-    proc["% No cumple"] = (proc["No_cumple"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    proc["% Cumple"] = (
+        (proc["Cumple"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    )
+    proc["% Parcial"] = (
+        (proc["Cumple_parcialmente"] / proc["Registros"].replace({0: pd.NA}) * 100)
+        .round(1)
+        .fillna(0)
+    )
+    proc["% No cumple"] = (
+        (proc["No_cumple"] / proc["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    )
 
     sub = (
         work.groupby(["Proceso", "Subproceso"], dropna=False)
@@ -448,12 +497,22 @@ def _build_calidad_metrics(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
     )
 
     sub["Calidad_promedio"] = sub["Calidad_promedio"].round(1)
-    sub["% Cumple"] = (sub["Cumple"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
-    sub["% Parcial"] = (sub["Cumple_parcialmente"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
-    sub["% No cumple"] = (sub["No_cumple"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    sub["% Cumple"] = (
+        (sub["Cumple"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    )
+    sub["% Parcial"] = (
+        (sub["Cumple_parcialmente"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    )
+    sub["% No cumple"] = (
+        (sub["No_cumple"] / sub["Registros"].replace({0: pd.NA}) * 100).round(1).fillna(0)
+    )
 
-    proc = proc.sort_values(["Calidad_promedio", "Proceso"], ascending=[False, True]).reset_index(drop=True)
-    sub = sub.sort_values(["Proceso", "Calidad_promedio", "Subproceso"], ascending=[True, False, True]).reset_index(drop=True)
+    proc = proc.sort_values(["Calidad_promedio", "Proceso"], ascending=[False, True]).reset_index(
+        drop=True
+    )
+    sub = sub.sort_values(
+        ["Proceso", "Calidad_promedio", "Subproceso"], ascending=[True, False, True]
+    ).reset_index(drop=True)
 
     proc = proc.rename(columns={"Calidad_promedio": "% Calidad"})
     sub = sub.rename(columns={"Calidad_promedio": "% Calidad"})
@@ -541,9 +600,14 @@ def _render_calidad_kpis_cards(df: pd.DataFrame) -> None:
         )
 
     if rows:
-        st.markdown("<div style='font-weight:700;margin:2px 0 8px 0;color:#0f172a;'>KPIs por subproceso</div>", unsafe_allow_html=True)
         st.markdown(
-            "<div style='display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;'>" + "".join(rows) + "</div>",
+            "<div style='font-weight:700;margin:2px 0 8px 0;color:#0f172a;'>KPIs por subproceso</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div style='display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;'>"
+            + "".join(rows)
+            + "</div>",
             unsafe_allow_html=True,
         )
 
@@ -569,7 +633,10 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
             continue
 
     if PdfReader is None:
-        return pd.DataFrame(), "No está instalado pypdf ni PyPDF2. Instala uno de esos paquetes para extraer texto de auditoría."
+        return (
+            pd.DataFrame(),
+            "No está instalado pypdf ni PyPDF2. Instala uno de esos paquetes para extraer texto de auditoría.",
+        )
 
     if not processes:
         return pd.DataFrame(), "No hay procesos disponibles para buscar en los PDFs."
@@ -682,7 +749,7 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
                 for idx, sent in enumerate(sentences):
                     sent_norm = _norm_text(sent)
                     if proc_norm in sent_norm:
-                        window = sentences[max(0, idx - 1): min(len(sentences), idx + 2)]
+                        window = sentences[max(0, idx - 1) : min(len(sentences), idx + 2)]
                         for frag in window:
                             frag_norm = _norm_text(frag)
                             if _contains_indicator_context(frag_norm) or proc_norm in frag_norm:
@@ -712,7 +779,10 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
                     collected[key]["Terminos"].update(_extract_detected_terms(_norm_text(frag)))
 
     if not collected:
-        return pd.DataFrame(), "No se encontraron menciones directas de procesos en los PDFs de auditoría."
+        return (
+            pd.DataFrame(),
+            "No se encontraron menciones directas de procesos en los PDFs de auditoría.",
+        )
 
     rows = []
     for (proc_name, source_name), payload in collected.items():
@@ -737,13 +807,15 @@ def _load_auditoria_mentions(processes: list[str]) -> tuple[pd.DataFrame, str | 
 # Auditoría estructurada desde Excel (auditoria_resultado.xlsx)
 # ---------------------------------------------------------------------------
 
-_AUDITORIA_XLSX = Path(__file__).resolve().parents[2] / "data" / "raw" / "Auditoria" / "auditoria_resultado.xlsx"
+_AUDITORIA_XLSX = (
+    Path(__file__).resolve().parents[2] / "data" / "raw" / "Auditoria" / "auditoria_resultado.xlsx"
+)
 
 _AUD_LABELS = {
-    "fortalezas":              ("Fortalezas",              "#0d6e55", "✦"),
-    "oportunidades_mejora":    ("Oportunidades de Mejora", "#7a5c00", "◈"),
-    "hallazgos":               ("Hallazgos",               "#1b4f8a", "◉"),
-    "no_conformidades":        ("No Conformidades",        "#8b1a1a", "▲"),
+    "fortalezas": ("Fortalezas", "#0d6e55", "✦"),
+    "oportunidades_mejora": ("Oportunidades de Mejora", "#7a5c00", "◈"),
+    "hallazgos": ("Hallazgos", "#1b4f8a", "◉"),
+    "no_conformidades": ("No Conformidades", "#8b1a1a", "▲"),
     "recomendacion_desempeno": ("Recomendación de Desempeño", "#3d2b8e", "◆"),
 }
 
@@ -751,7 +823,10 @@ _AUD_LABELS = {
 @st.cache_data(show_spinner=False)
 def _load_auditoria_excel() -> tuple:
     if not _AUDITORIA_XLSX.exists():
-        return pd.DataFrame(), f"No existe el archivo: {_AUDITORIA_XLSX.name}. Ejecuta scripts/generar_auditoria_csv.py primero."
+        return (
+            pd.DataFrame(),
+            f"No existe el archivo: {_AUDITORIA_XLSX.name}. Ejecuta scripts/generar_auditoria_csv.py primero.",
+        )
     try:
         df = pd.read_excel(_AUDITORIA_XLSX, sheet_name="Auditoria", engine="openpyxl")
         df = df.fillna("")
@@ -760,14 +835,23 @@ def _load_auditoria_excel() -> tuple:
         return pd.DataFrame(), f"Error leyendo Excel de auditoría: {e}"
 
 
-def _render_categoria_card(proceso: str, label: str, items: list, pill_bg: str, pill_text: str, dot_color: str, icono: str, hdr_color: str) -> str:
+def _render_categoria_card(
+    proceso: str,
+    label: str,
+    items: list,
+    pill_bg: str,
+    pill_text: str,
+    dot_color: str,
+    icono: str,
+    hdr_color: str,
+) -> str:
     """Una tarjeta por categoría: header con color de categoría, nombre de proceso, lista de items."""
     count_badge = f'<span style="background:rgba(255,255,255,0.3);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:8px;">{len(items)}</span>'
     items_html = "".join(
         f'<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f3f4f7;">'
         f'<span style="width:7px;height:7px;min-width:7px;background:{dot_color};border-radius:50%;margin-top:5px;flex-shrink:0;"></span>'
         f'<span style="font-size:0.81rem;color:#2c2c3e;line-height:1.55;word-break:break-word;">{item}</span>'
-        f'</div>'
+        f"</div>"
         for item in items
     )
     return (
@@ -777,12 +861,12 @@ def _render_categoria_card(proceso: str, label: str, items: list, pill_bg: str, 
         f'<div style="display:flex;align-items:center;gap:7px;">'
         f'<span style="font-size:1rem;line-height:1;">{icono}</span>'
         f'<span style="font-size:0.71rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#ffffff;">{label}</span>'
-        f'</div>{count_badge}</div>'
+        f"</div>{count_badge}</div>"
         f'<div style="padding:8px 16px 6px 16px;background:{pill_bg};border-bottom:1px solid #eaedf3;">'
         f'<span style="font-size:0.75rem;font-weight:600;color:{pill_text};text-transform:uppercase;letter-spacing:0.04em;">{proceso}</span>'
-        f'</div>'
+        f"</div>"
         f'<div style="padding:4px 16px 10px 16px;">{items_html}</div>'
-        f'</div>'
+        f"</div>"
     )
 
 
@@ -790,8 +874,8 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
     """Renderiza la pestaña Auditoría como fichas ejecutivas por proceso."""
     st.markdown(
         '<p style="font-size:0.82rem;color:#888;margin-bottom:16px;">'
-        'Resultados estructurados a partir de informes de auditoría. '
-        'Solo se muestran campos con contenido registrado.</p>',
+        "Resultados estructurados a partir de informes de auditoría. "
+        "Solo se muestran campos con contenido registrado.</p>",
         unsafe_allow_html=True,
     )
 
@@ -815,11 +899,25 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
 
     # campo → (label, pill_bg, pill_text, dot_color, emoji, hdr_color)
     _CAT_STYLE = {
-        "fortalezas":              ("Fortalezas",              "#d1f5e0", "#0a5c36", "#1aaa6b", "✅", "#1aaa6b"),
-        "oportunidades_mejora":    ("Oportunidades de Mejora", "#fff3cd", "#7a5000", "#e6a800", "🔄", "#e6a800"),
-        "hallazgos":               ("Hallazgos",               "#dbeeff", "#003d8f", "#1a6fdb", "🔍", "#1a6fdb"),
-        "no_conformidades":        ("No Conformidades",        "#fde0e0", "#7a0000", "#e63535", "⚠️", "#e63535"),
-        "recomendacion_desempeno": ("Recomendación Desempeño", "#ede0ff", "#3d0080", "#7c3aed", "💡", "#7c3aed"),
+        "fortalezas": ("Fortalezas", "#d1f5e0", "#0a5c36", "#1aaa6b", "✅", "#1aaa6b"),
+        "oportunidades_mejora": (
+            "Oportunidades de Mejora",
+            "#fff3cd",
+            "#7a5000",
+            "#e6a800",
+            "🔄",
+            "#e6a800",
+        ),
+        "hallazgos": ("Hallazgos", "#dbeeff", "#003d8f", "#1a6fdb", "🔍", "#1a6fdb"),
+        "no_conformidades": ("No Conformidades", "#fde0e0", "#7a0000", "#e63535", "⚠️", "#e63535"),
+        "recomendacion_desempeno": (
+            "Recomendación Desempeño",
+            "#ede0ff",
+            "#3d0080",
+            "#7c3aed",
+            "💡",
+            "#7c3aed",
+        ),
     }
 
     def _seccion(tipo: str, titulo: str, color_titulo: str) -> None:
@@ -827,13 +925,15 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
         cols_present = [c for c in cols_check if c in df_filtrado.columns]
         if not cols_present:
             return
-        df_tipo = df_filtrado[df_filtrado[cols_present].apply(lambda r: r.str.strip().ne("").any(), axis=1)]
+        df_tipo = df_filtrado[
+            df_filtrado[cols_present].apply(lambda r: r.str.strip().ne("").any(), axis=1)
+        ]
 
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px 0;">'
             f'<div style="width:4px;height:28px;border-radius:2px;background:{color_titulo};flex-shrink:0;"></div>'
             f'<span style="font-size:0.95rem;font-weight:700;color:#1a1a2e;">{titulo}</span>'
-            f'</div>',
+            f"</div>",
             unsafe_allow_html=True,
         )
 
@@ -861,7 +961,7 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
             # Mostrar nombre del proceso
             st.markdown(
                 f'<div style="font-size:0.8rem;font-weight:700;color:#1a1a2e;text-transform:uppercase;'
-                f'letter-spacing:0.04em;padding:8px 0 4px 2px;border-bottom:2px solid {color_titulo};'
+                f"letter-spacing:0.04em;padding:8px 0 4px 2px;border-bottom:2px solid {color_titulo};"
                 f'margin-bottom:12px;">{proceso}</div>',
                 unsafe_allow_html=True,
             )
@@ -873,12 +973,17 @@ def _render_auditoria_tab(proceso_filtro: str) -> None:
 
             for idx, (estilo, items) in enumerate(cats_con_datos):
                 label, pill_bg, pill_text, dot_color, emoji, hdr_color = estilo
-                html = _render_categoria_card(proceso, label, items, pill_bg, pill_text, dot_color, emoji, hdr_color)
+                html = _render_categoria_card(
+                    proceso, label, items, pill_bg, pill_text, dot_color, emoji, hdr_color
+                )
                 with columnas[idx % n_cols]:
                     st.markdown(html, unsafe_allow_html=True)
 
     _seccion("interna", "Auditoría Interna", "#1b3f72")
-    st.markdown('<hr style="border:none;border-top:1px solid #e8e8e8;margin:8px 0;">', unsafe_allow_html=True)
+    st.markdown(
+        '<hr style="border:none;border-top:1px solid #e8e8e8;margin:8px 0;">',
+        unsafe_allow_html=True,
+    )
     _seccion("externa", "Auditoría Externa – Icontec 2025", "#b06000")
 
 
@@ -886,8 +991,22 @@ def _build_info_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     base_cols = [
         c
         for c in [
-            "Indicador", "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
-            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+            "Indicador",
+            "Meta",
+            "Ejecucion",
+            "Meta_Signo",
+            "Meta s",
+            "MetaS",
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+            "Decimales",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
+            "DecimalesEje",
+            "DecMeta",
+            "DecEjec",
         ]
         if c in df_latest.columns
     ]
@@ -1026,16 +1145,22 @@ def _generar_analisis_estandar(yearly_df: pd.DataFrame, textos_periodo: list[str
         if curr_ejec is not None and prev_ejec is not None:
             d_e = curr_ejec - prev_ejec
             trend_e = "aumentó" if d_e > 0 else ("disminuyó" if d_e < 0 else "se mantuvo")
-            lineas.append(f"La ejecución {trend_e} {abs(d_e):.2f} puntos respecto al periodo/año previo comparable.")
+            lineas.append(
+                f"La ejecución {trend_e} {abs(d_e):.2f} puntos respecto al periodo/año previo comparable."
+            )
 
         if curr_cumpl is not None and prev_cumpl is not None:
             d_c = curr_cumpl - prev_cumpl
             trend_c = "mejoró" if d_c > 0 else ("cayó" if d_c < 0 else "se mantuvo")
-            lineas.append(f"El cumplimiento {trend_c} {abs(d_c):.2f} puntos frente al periodo/año previo.")
+            lineas.append(
+                f"El cumplimiento {trend_c} {abs(d_c):.2f} puntos frente al periodo/año previo."
+            )
 
     promedio = cumpl_s.dropna().mean() if not cumpl_s.dropna().empty else None
     if promedio is not None and pd.notna(promedio):
-        lineas.append(f"En el histórico visible, el cumplimiento promedio fue {float(promedio):.1f}%.")
+        lineas.append(
+            f"En el histórico visible, el cumplimiento promedio fue {float(promedio):.1f}%."
+        )
 
     # Complemento cualitativo con últimos análisis registrados por periodos.
     comp = [_resumir_analisis_texto(t, max_chars=180) for t in textos_periodo if str(t).strip()]
@@ -1048,7 +1173,13 @@ def _generar_analisis_estandar(yearly_df: pd.DataFrame, textos_periodo: list[str
 
 @st.cache_data(show_spinner=False)
 def _load_analisis_indicadores() -> dict[str, str]:
-    source = Path(__file__).parents[2] / "data" / "raw" / "Fuentes Consolidadas" / "Consolidado_API_Kawak.xlsx"
+    source = (
+        Path(__file__).parents[2]
+        / "data"
+        / "raw"
+        / "Fuentes Consolidadas"
+        / "Consolidado_API_Kawak.xlsx"
+    )
     if not source.exists():
         return {}
 
@@ -1084,7 +1215,13 @@ def _load_analisis_indicadores() -> dict[str, str]:
 
 @st.cache_data(show_spinner=False)
 def _load_analisis_periodos() -> dict[str, list[str]]:
-    source = Path(__file__).parents[2] / "data" / "raw" / "Fuentes Consolidadas" / "Consolidado_API_Kawak.xlsx"
+    source = (
+        Path(__file__).parents[2]
+        / "data"
+        / "raw"
+        / "Fuentes Consolidadas"
+        / "Consolidado_API_Kawak.xlsx"
+    )
     if not source.exists():
         return {}
     try:
@@ -1183,7 +1320,11 @@ def _render_indicadores_subproceso_cards(
 
     analisis_map = _load_analisis_indicadores()
     analisis_periodos = _load_analisis_periodos()
-    subprocesos_datos = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist()) if "Subproceso_final" in filtered.columns else []
+    subprocesos_datos = (
+        sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist())
+        if "Subproceso_final" in filtered.columns
+        else []
+    )
     subprocesos = subprocesos_datos.copy()
 
     # Tabulación oficial por jerarquía Proceso-Subproceso del maestro.
@@ -1196,11 +1337,15 @@ def _render_indicadores_subproceso_cards(
         map_work = map_df.copy()
         map_work["_proc_norm"] = map_work["Proceso"].astype(str).map(_norm_text)
         map_work["_sub_val"] = map_work["Subproceso"].astype(str).str.strip()
-        oficiales = sorted(map_work[map_work["_proc_norm"] == proceso_norm]["_sub_val"].dropna().unique().tolist())
+        oficiales = sorted(
+            map_work[map_work["_proc_norm"] == proceso_norm]["_sub_val"].dropna().unique().tolist()
+        )
 
         if oficiales:
             datos_map = {_norm_text(s): s for s in subprocesos_datos}
-            subprocesos = [datos_map[_norm_text(s)] for s in oficiales if _norm_text(s) in datos_map]
+            subprocesos = [
+                datos_map[_norm_text(s)] for s in oficiales if _norm_text(s) in datos_map
+            ]
     if not subprocesos:
         st.info("No hay subprocesos para mostrar en este filtro.")
         return
@@ -1231,7 +1376,9 @@ def _render_indicadores_subproceso_cards(
             end = start + items_per_page
             page_df = sub_df.iloc[start:end].copy()
 
-            st.caption(f"Mostrando indicadores {start + 1} a {min(end, indicadores_total)} de {indicadores_total}.")
+            st.caption(
+                f"Mostrando indicadores {start + 1} a {min(end, indicadores_total)} de {indicadores_total}."
+            )
 
             cols = st.columns(3)
             for idx, (_, row) in enumerate(page_df.iterrows()):
@@ -1250,12 +1397,18 @@ def _render_indicadores_subproceso_cards(
                     if "Subproceso_final" in hist_prev.columns:
                         hist_prev = hist_prev[hist_prev["Subproceso_final"].astype(str) == str(sub)]
                     if month_num is not None and "Mes" in hist_prev.columns:
-                        hist_prev = hist_prev[hist_prev["Mes"].apply(_mes_to_num) == float(month_num)]
+                        hist_prev = hist_prev[
+                            hist_prev["Mes"].apply(_mes_to_num) == float(month_num)
+                        ]
                     if not hist_prev.empty:
-                        previo = _to_float(_latest_per_indicator(hist_prev).iloc[-1].get("Cumplimiento_pct"))
+                        previo = _to_float(
+                            _latest_per_indicator(hist_prev).iloc[-1].get("Cumplimiento_pct")
+                        )
 
                 delta_txt, delta_color = _cumpl_delta(cumpl, previo)
-                analisis_txt = _resumir_analisis_texto(_buscar_analisis_indicador(indicador, analisis_map))
+                analisis_txt = _resumir_analisis_texto(
+                    _buscar_analisis_indicador(indicador, analisis_map)
+                )
                 color = NIVELES_COLORS.get(categoria.lower(), "#6E7781")
 
                 with cols[idx % 3]:
@@ -1273,41 +1426,72 @@ def _render_indicadores_subproceso_cards(
                         unsafe_allow_html=True,
                     )
 
-                    if st.button("Ver detalle", key=f"btn_det_{_norm_text(sub)}_{_norm_text(indicador)}_{idx}", use_container_width=True):
+                    if st.button(
+                        "Ver detalle",
+                        key=f"btn_det_{_norm_text(sub)}_{_norm_text(indicador)}_{idx}",
+                        use_container_width=True,
+                    ):
                         st.session_state[selected_key] = indicador
 
             nav1, nav2, nav3 = st.columns([1, 2, 1])
             with nav1:
-                if st.button("< Anterior", key=f"btn_prev_{_norm_text(sub)}", disabled=page == 0, use_container_width=True):
+                if st.button(
+                    "< Anterior",
+                    key=f"btn_prev_{_norm_text(sub)}",
+                    disabled=page == 0,
+                    use_container_width=True,
+                ):
                     st.session_state[page_key] = page - 1
                     st.rerun()
             with nav2:
-                st.markdown(f"<div style='text-align:center;padding-top:6px;'>Página <b>{page + 1}</b> de <b>{total_pages}</b></div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div style='text-align:center;padding-top:6px;'>Página <b>{page + 1}</b> de <b>{total_pages}</b></div>",
+                    unsafe_allow_html=True,
+                )
             with nav3:
-                if st.button("Siguiente >", key=f"btn_next_{_norm_text(sub)}", disabled=page >= total_pages - 1, use_container_width=True):
+                if st.button(
+                    "Siguiente >",
+                    key=f"btn_next_{_norm_text(sub)}",
+                    disabled=page >= total_pages - 1,
+                    use_container_width=True,
+                ):
                     st.session_state[page_key] = page + 1
                     st.rerun()
 
             selected_indicator = st.session_state.get(selected_key)
             if selected_indicator:
                 st.markdown(f"#### Detalle del indicador: {selected_indicator}")
-                yearly_df = _build_indicator_yearly(selected_indicator, historic_df, subproceso=sub, month_num=month_num)
+                yearly_df = _build_indicator_yearly(
+                    selected_indicator, historic_df, subproceso=sub, month_num=month_num
+                )
                 if yearly_df.empty:
                     st.info("No hay histórico para el indicador seleccionado.")
                 else:
                     chart_df = yearly_df.copy()
                     if "Anio" in chart_df.columns:
-                        chart_df["Año"] = pd.to_numeric(chart_df["Anio"], errors="coerce").astype("Int64").astype(str)
+                        chart_df["Año"] = (
+                            pd.to_numeric(chart_df["Anio"], errors="coerce")
+                            .astype("Int64")
+                            .astype(str)
+                        )
                     if "Año" in chart_df.columns:
                         fig = make_subplots(specs=[[{"secondary_y": True}]])
                         if "Meta" in chart_df.columns:
                             fig.add_trace(
-                                go.Bar(name="Meta", x=chart_df["Año"], y=pd.to_numeric(chart_df["Meta"], errors="coerce")),
+                                go.Bar(
+                                    name="Meta",
+                                    x=chart_df["Año"],
+                                    y=pd.to_numeric(chart_df["Meta"], errors="coerce"),
+                                ),
                                 secondary_y=False,
                             )
                         if "Ejecucion" in chart_df.columns:
                             fig.add_trace(
-                                go.Bar(name="Ejecución", x=chart_df["Año"], y=pd.to_numeric(chart_df["Ejecucion"], errors="coerce")),
+                                go.Bar(
+                                    name="Ejecución",
+                                    x=chart_df["Año"],
+                                    y=pd.to_numeric(chart_df["Ejecucion"], errors="coerce"),
+                                ),
                                 secondary_y=False,
                             )
                         if "Cumplimiento_pct" in chart_df.columns:
@@ -1329,12 +1513,26 @@ def _render_indicadores_subproceso_cards(
                         fig.update_yaxes(title_text="Cumplimiento (%)", secondary_y=True)
                         st.plotly_chart(fig, use_container_width=True)
 
-                    table = chart_df[[c for c in ["Anio", "Meta", "Ejecucion", "Cumplimiento_pct"] if c in chart_df.columns]].copy()
-                    table = table.rename(columns={"Anio": "Año", "Ejecucion": "Ejecución", "Cumplimiento_pct": "Cumplimiento (%)"})
+                    table = chart_df[
+                        [
+                            c
+                            for c in ["Anio", "Meta", "Ejecucion", "Cumplimiento_pct"]
+                            if c in chart_df.columns
+                        ]
+                    ].copy()
+                    table = table.rename(
+                        columns={
+                            "Anio": "Año",
+                            "Ejecucion": "Ejecución",
+                            "Cumplimiento_pct": "Cumplimiento (%)",
+                        }
+                    )
                     if "Ejecución" in table.columns:
                         table["Ejecución"] = pd.to_numeric(table["Ejecución"], errors="coerce")
                     if "Cumplimiento (%)" in table.columns:
-                        table["Cumplimiento (%)"] = pd.to_numeric(table["Cumplimiento (%)"], errors="coerce").round(1)
+                        table["Cumplimiento (%)"] = pd.to_numeric(
+                            table["Cumplimiento (%)"], errors="coerce"
+                        ).round(1)
                     st.dataframe(table, use_container_width=True, hide_index=True)
 
                 analisis_raw = _buscar_analisis_indicador(selected_indicator, analisis_map)
@@ -1342,7 +1540,12 @@ def _render_indicadores_subproceso_cards(
                 st.markdown("##### Análisis del indicador")
                 texto_estandar = _generar_analisis_estandar(yearly_df, analisis_hist)
                 if analisis_raw and analisis_raw not in analisis_hist:
-                    texto_estandar = texto_estandar + "\n\n" + "Resumen del último periodo: " + _resumir_analisis_texto(analisis_raw, max_chars=220)
+                    texto_estandar = (
+                        texto_estandar
+                        + "\n\n"
+                        + "Resumen del último periodo: "
+                        + _resumir_analisis_texto(analisis_raw, max_chars=220)
+                    )
                 st.write(texto_estandar)
 
 
@@ -1350,14 +1553,31 @@ def _build_indicadores_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     base_cols = [
         c
         for c in [
-            "Subproceso_final", "Indicador", "Meta", "Ejecucion", "Meta_Signo", "Meta s", "MetaS", "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
-            "Decimales", "Decimales_Meta", "Decimales_Ejecucion", "DecimalesEje", "DecMeta", "DecEjec",
+            "Subproceso_final",
+            "Indicador",
+            "Meta",
+            "Ejecucion",
+            "Meta_Signo",
+            "Meta s",
+            "MetaS",
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+            "Decimales",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
+            "DecimalesEje",
+            "DecMeta",
+            "DecEjec",
         ]
         if c in df_latest.columns
     ]
     out = df_latest[base_cols].copy() if base_cols else pd.DataFrame(index=df_latest.index)
     out["Subproceso - Indicador"] = (
-        out.get("Subproceso_final", pd.Series(["Sin subproceso"] * len(out), index=out.index)).astype(str)
+        out.get(
+            "Subproceso_final", pd.Series(["Sin subproceso"] * len(out), index=out.index)
+        ).astype(str)
         + " - "
         + out.get("Indicador", pd.Series([""] * len(out), index=out.index)).astype(str)
     )
@@ -1368,7 +1588,13 @@ def _build_indicadores_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     out = formatear_meta_ejecucion_df(out, meta_col="Meta", ejec_col="Ejecucion")
     out = out.rename(columns={"Ejecucion": "Ejecución"})
     out["Cumplimiento"] = df_latest.get("Cumplimiento_pct", pd.NA).apply(_cumpl_label)
-    return out[[c for c in ["Subproceso - Indicador", "Meta", "Ejecución", "Cumplimiento"] if c in out.columns]]
+    return out[
+        [
+            c
+            for c in ["Subproceso - Indicador", "Meta", "Ejecución", "Cumplimiento"]
+            if c in out.columns
+        ]
+    ]
 
 
 def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFrame:
@@ -1390,7 +1616,9 @@ def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFram
     riesgos = work[work["Cumplimiento_pct"].notna() & (work["Cumplimiento_pct"] < 80)]
     top_riesgos = riesgos.nsmallest(3, "Cumplimiento_pct") if not riesgos.empty else pd.DataFrame()
 
-    riesgo_names = ", ".join(top_riesgos.get("Indicador", pd.Series(dtype=str)).astype(str).tolist())
+    riesgo_names = ", ".join(
+        top_riesgos.get("Indicador", pd.Series(dtype=str)).astype(str).tolist()
+    )
     if not riesgo_names:
         riesgo_names = "Ninguno crítico en el corte"
 
@@ -1415,13 +1643,27 @@ def render() -> None:
     map_df = ds.get_process_map()
 
     if tracking_df.empty:
-        st.warning("No se encontró data de seguimiento en data/output/Resultados Consolidados.xlsx (Consolidado Semestral).")
+        st.warning(
+            "No se encontró data de seguimiento en data/output/Resultados Consolidados.xlsx (Consolidado Semestral)."
+        )
         return
     if map_df.empty:
         st.warning("No se encontró el mapeo de procesos en data/raw/Subproceso-Proceso-Area.xlsx.")
         return
 
-    years = sorted([int(y) for y in pd.to_numeric(tracking_df["Anio"], errors="coerce").dropna().unique().tolist()]) if "Anio" in tracking_df.columns else []
+    years = (
+        sorted(
+            [
+                int(y)
+                for y in pd.to_numeric(tracking_df["Anio"], errors="coerce")
+                .dropna()
+                .unique()
+                .tolist()
+            ]
+        )
+        if "Anio" in tracking_df.columns
+        else []
+    )
     default_month_num = _default_month_num(tracking_df)
     default_month = MESES_OPCIONES[default_month_num - 1]
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
@@ -1440,22 +1682,30 @@ def render() -> None:
         proceso_placeholder = st.empty()
 
     # Recalcular datos del corte según mes seleccionado para que Meta/Ejecución/Cumplimiento respondan al filtro
-    selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
+    selected_month_num = (
+        MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
+    )
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=selected_month_num)
     base_filtered = snapshot_df.copy()
 
     if anio is not None and "Anio" in base_filtered.columns:
-        base_filtered = base_filtered[pd.to_numeric(base_filtered["Anio"], errors="coerce") == int(anio)]
+        base_filtered = base_filtered[
+            pd.to_numeric(base_filtered["Anio"], errors="coerce") == int(anio)
+        ]
 
     if mes and "Mes" in base_filtered.columns:
         mes_num = MESES_OPCIONES.index(mes) + 1
         base_filtered = base_filtered[base_filtered["Mes"].apply(_mes_to_num) == float(mes_num)]
 
-    procesos_filtrados = sorted(base_filtered["Proceso_padre"].dropna().astype(str).unique().tolist())
+    procesos_filtrados = sorted(
+        base_filtered["Proceso_padre"].dropna().astype(str).unique().tolist()
+    )
     opciones_proceso = ["Todos"] + (procesos_filtrados if procesos_filtrados else procesos_all)
     default_index = 1 if len(opciones_proceso) > 1 else 0
 
-    proceso_sel = proceso_placeholder.selectbox("Proceso (Filtro Padre)", options=opciones_proceso, index=default_index)
+    proceso_sel = proceso_placeholder.selectbox(
+        "Proceso (Filtro Padre)", options=opciones_proceso, index=default_index
+    )
 
     filtered = base_filtered.copy()
     if proceso_sel != "Todos":
@@ -1463,7 +1713,9 @@ def render() -> None:
 
     subproceso_sel = "Todos"
     if proceso_sel != "Todos":
-        subprocesos_filtrados = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist())
+        subprocesos_filtrados = sorted(
+            filtered["Subproceso_final"].dropna().astype(str).unique().tolist()
+        )
         if subprocesos_filtrados:
             sub_options = ["Todos"] + subprocesos_filtrados
             subproceso_sel = st.selectbox("Subproceso", options=sub_options, index=0)
@@ -1471,32 +1723,44 @@ def render() -> None:
                 filtered = filtered[filtered["Subproceso_final"].astype(str) == subproceso_sel]
 
     if filtered.empty:
-        st.info("No hay datos para la combinación de filtros seleccionada. Se muestran las pestañas en modo informativo.")
+        st.info(
+            "No hay datos para la combinación de filtros seleccionada. Se muestran las pestañas en modo informativo."
+        )
 
     latest = _latest_per_indicator(filtered) if not filtered.empty else filtered.copy()
     selected_process_label = proceso_sel if proceso_sel != "Todos" else "Todos los procesos"
-    selected_subprocess_label = subproceso_sel if subproceso_sel != "Todos" else "Todos los subprocesos"
+    selected_subprocess_label = (
+        subproceso_sel if subproceso_sel != "Todos" else "Todos los subprocesos"
+    )
 
     historic_base = full_work_df.copy()
     if anio is not None and "Anio" in historic_base.columns:
-        historic_base = historic_base[pd.to_numeric(historic_base["Anio"], errors="coerce") == int(anio)]
+        historic_base = historic_base[
+            pd.to_numeric(historic_base["Anio"], errors="coerce") == int(anio)
+        ]
     if proceso_sel != "Todos":
         historic_base = historic_base[historic_base["Proceso_padre"].astype(str) == proceso_sel]
     if subproceso_sel != "Todos":
-        historic_base = historic_base[historic_base["Subproceso_final"].astype(str) == subproceso_sel]
+        historic_base = historic_base[
+            historic_base["Subproceso_final"].astype(str) == subproceso_sel
+        ]
 
-    st.caption(f"Filtro Padre activo: {selected_process_label} | Subproceso: {selected_subprocess_label} | Corte: {mes} {anio}")
+    st.caption(
+        f"Filtro Padre activo: {selected_process_label} | Subproceso: {selected_subprocess_label} | Corte: {mes} {anio}"
+    )
 
-    tabs = st.tabs([
-        "📋 Resumen general",
-        "ℹ️ Información por proceso",
-        "📊 Indicadores",
-        "📈 Evolución",
-        "✅ Calidad",
-        "🔍 Auditoría",
-        "💡 Propuestos",
-        "🤖 Análisis IA",
-    ])
+    tabs = st.tabs(
+        [
+            "📋 Resumen general",
+            "ℹ️ Información por proceso",
+            "📊 Indicadores",
+            "📈 Evolución",
+            "✅ Calidad",
+            "🔍 Auditoría",
+            "💡 Propuestos",
+            "🤖 Análisis IA",
+        ]
+    )
 
     with tabs[0]:
         st.markdown("### Resumen general - Gráficas importantes")
@@ -1522,7 +1786,9 @@ def render() -> None:
                 bins_df.loc[(cumplimiento >= 80) & (cumplimiento < 100), "Nivel"] = "Alerta"
                 bins_df.loc[cumplimiento < 80, "Nivel"] = "Peligro"
 
-                pie_df = bins_df["Nivel"].value_counts().rename_axis("Nivel").reset_index(name="Total")
+                pie_df = (
+                    bins_df["Nivel"].value_counts().rename_axis("Nivel").reset_index(name="Total")
+                )
                 fig_pie = px.pie(
                     pie_df,
                     names="Nivel",
@@ -1566,25 +1832,33 @@ def render() -> None:
 
     with tabs[2]:
         st.markdown("### Indicadores")
-        _render_indicadores_subproceso_cards(latest, full_work_df, anio, selected_month_num, map_df, proceso_sel)
+        _render_indicadores_subproceso_cards(
+            latest, full_work_df, anio, selected_month_num, map_df, proceso_sel
+        )
 
     with tabs[3]:
         st.markdown("### Evolución de indicadores")
         if historic_base.empty:
             st.warning("No hay datos históricos para el filtro activo.")
         else:
-            indicador_options = sorted(historic_base["Indicador"].dropna().astype(str).unique().tolist())
+            indicador_options = sorted(
+                historic_base["Indicador"].dropna().astype(str).unique().tolist()
+            )
             if not indicador_options:
                 st.info("No hay indicadores históricos disponibles para el filtro activo.")
             else:
-                selected_indicator = st.selectbox("Indicador para evolución", options=indicador_options, index=0)
+                selected_indicator = st.selectbox(
+                    "Indicador para evolución", options=indicador_options, index=0
+                )
                 if selected_indicator:
                     hist_df = _build_indicator_history(historic_base, selected_indicator)
                     if hist_df.empty:
                         st.info("No hay histórico disponible para el indicador seleccionado.")
                     else:
                         st.plotly_chart(
-                            grafico_historico_indicador(hist_df, titulo=f"Evolución de {selected_indicator}"),
+                            grafico_historico_indicador(
+                                hist_df, titulo=f"Evolución de {selected_indicator}"
+                            ),
                             use_container_width=True,
                         )
                         hist_table = tabla_historica_indicador(hist_df)
@@ -1606,12 +1880,16 @@ def render() -> None:
                 calidad_df["_proc_norm"] = calidad_df["Proceso"].astype(str).map(_norm_text)
                 filtro = calidad_df[calidad_df["_proc_norm"] == proc_norm]
                 if filtro.empty:
-                    filtro = calidad_df[calidad_df["_proc_norm"].apply(lambda x: proc_norm in x or x in proc_norm)]
+                    filtro = calidad_df[
+                        calidad_df["_proc_norm"].apply(lambda x: proc_norm in x or x in proc_norm)
+                    ]
                 calidad_df = filtro.drop(columns=["_proc_norm"], errors="ignore")
 
             if subproceso_sel != "Todos" and "Subproceso" in calidad_df.columns:
                 sub_norm = _norm_text(subproceso_sel)
-                calidad_df = calidad_df[calidad_df["Subproceso"].astype(str).map(_norm_text) == sub_norm]
+                calidad_df = calidad_df[
+                    calidad_df["Subproceso"].astype(str).map(_norm_text) == sub_norm
+                ]
 
             if calidad_df.empty:
                 st.info("Sin datos de calidad para el filtro seleccionado.")
@@ -1666,21 +1944,30 @@ def render() -> None:
         st.markdown("### Auditoría")
         _render_auditoria_tab(selected_process_label)
 
-
-    def _load_indicadores_propuestos(proceso_actual: str = "Todos", subproceso_actual: str = "Todos"):
+    def _load_indicadores_propuestos(
+        proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
+    ):
         import pandas as pd
+
         EXCEL_PATH = (
             Path(__file__).parents[2]
-            / "data" / "raw" / "Propuesta Indicadores" / "Indicadores Propuestos.xlsx"
+            / "data"
+            / "raw"
+            / "Propuesta Indicadores"
+            / "Indicadores Propuestos.xlsx"
         )
         if not EXCEL_PATH.exists():
             return pd.DataFrame(), f"No existe el archivo: {EXCEL_PATH}"
         try:
             # Retos
             retos = pd.read_excel(EXCEL_PATH, sheet_name="Retos")
-            retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][["Proceso", "Subproceso", "Indicador Propuesto"]]
+            retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][
+                ["Proceso", "Subproceso", "Indicador Propuesto"]
+            ]
             retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
-            retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(str)
+            retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(
+                str
+            )
             factor_ret = _first_col(retos, ["Factor", "FACTOR"])
             car_ret = _first_col(retos, ["Caracteristica", "Característica", "CARACTERÍSTICA"])
             if factor_ret is not None:
@@ -1688,50 +1975,77 @@ def render() -> None:
             else:
                 retos_filtrados["Factor"] = ""
             if car_ret is not None:
-                retos_filtrados["Característica"] = retos.loc[retos_filtrados.index, car_ret].astype(str)
+                retos_filtrados["Característica"] = retos.loc[
+                    retos_filtrados.index, car_ret
+                ].astype(str)
             else:
                 retos_filtrados["Característica"] = ""
             retos_filtrados["Fuente"] = "Retos"
 
             # Proyectos
             proyectos = pd.read_excel(EXCEL_PATH, sheet_name="Proyectos")
-            proyectos_filtrados = proyectos[proyectos["Propuesta"].str.upper() == "SI"][["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]]
-            proyectos_filtrados = proyectos_filtrados.rename(columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"})
+            proyectos_filtrados = proyectos[proyectos["Propuesta"].str.upper() == "SI"][
+                ["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]
+            ]
+            proyectos_filtrados = proyectos_filtrados.rename(
+                columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"}
+            )
             proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
-            proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados["Indicador Propuesto"].astype(str)
+            proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados[
+                "Indicador Propuesto"
+            ].astype(str)
             proyectos_filtrados["Factor"] = ""
             proyectos_filtrados["Característica"] = ""
             proyectos_filtrados["Fuente"] = "Proyectos"
 
             # Plan de mejoramiento
             plan = pd.read_excel(EXCEL_PATH, sheet_name="Plan de mejoramiento", header=1)
-            plan_filtrados = plan[plan["Propuesta Indicador"].str.upper() == "SI"][ ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"] ]
-            plan_filtrados = plan_filtrados.rename(columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"})
+            plan_filtrados = plan[plan["Propuesta Indicador"].str.upper() == "SI"][
+                ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"]
+            ]
+            plan_filtrados = plan_filtrados.rename(
+                columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"}
+            )
             plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
-            plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(str)
+            plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(
+                str
+            )
             factor_col = _first_col(plan, ["FACTOR", "Factor"])
             car_col = _first_col(plan, ["CARACTERÍSTICA", "Característica", "CARACTERISTICA"])
-            plan_filtrados["Factor"] = plan.loc[plan_filtrados.index, factor_col].astype(str) if factor_col is not None else ""
-            plan_filtrados["Característica"] = plan.loc[plan_filtrados.index, car_col].astype(str) if car_col is not None else ""
+            plan_filtrados["Factor"] = (
+                plan.loc[plan_filtrados.index, factor_col].astype(str)
+                if factor_col is not None
+                else ""
+            )
+            plan_filtrados["Característica"] = (
+                plan.loc[plan_filtrados.index, car_col].astype(str) if car_col is not None else ""
+            )
             plan_filtrados["Fuente"] = "Plan de mejoramiento"
 
             # Calidad
             calidad = pd.read_excel(EXCEL_PATH, sheet_name="Calidad")
             calidad_filtrados = calidad[["Proceso", "Subroceso", "Propuesta SGC (Indicadores)"]]
-            calidad_filtrados = calidad_filtrados.rename(columns={"Subroceso": "Subproceso", "Propuesta SGC (Indicadores)": "Indicador Propuesto"})
+            calidad_filtrados = calidad_filtrados.rename(
+                columns={
+                    "Subroceso": "Subproceso",
+                    "Propuesta SGC (Indicadores)": "Indicador Propuesto",
+                }
+            )
             calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
-            calidad_filtrados["Indicador Propuesto"] = calidad_filtrados["Indicador Propuesto"].astype(str)
+            calidad_filtrados["Indicador Propuesto"] = calidad_filtrados[
+                "Indicador Propuesto"
+            ].astype(str)
             calidad_filtrados["Factor"] = ""
             calidad_filtrados["Característica"] = ""
             calidad_filtrados["Fuente"] = "Calidad"
 
-            df_final = pd.concat([
-                retos_filtrados,
-                proyectos_filtrados,
-                plan_filtrados,
-                calidad_filtrados
-            ], ignore_index=True)
-            df_final = df_final.drop_duplicates(subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"])
+            df_final = pd.concat(
+                [retos_filtrados, proyectos_filtrados, plan_filtrados, calidad_filtrados],
+                ignore_index=True,
+            )
+            df_final = df_final.drop_duplicates(
+                subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"]
+            )
 
             if proceso_actual != "Todos" and "Proceso" in df_final.columns:
                 proceso_norm = _norm_text(proceso_actual)
@@ -1796,7 +2110,13 @@ def render() -> None:
                                             tags.append(f"Factor: {fac}")
                                         if car and car.lower() != "nan":
                                             tags.append(f"Característica: {car}")
-                                        extra = "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>" + " | ".join(tags) + "</div>" if tags else ""
+                                        extra = (
+                                            "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>"
+                                            + " | ".join(tags)
+                                            + "</div>"
+                                            if tags
+                                            else ""
+                                        )
                                     st.markdown(
                                         f"""
                                         <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
@@ -1809,7 +2129,9 @@ def render() -> None:
 
     with tabs[6]:
         st.markdown("### Indicadores propuestos por proceso y subproceso")
-        st.caption("Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos.")
+        st.caption(
+            "Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos."
+        )
         df_prop, msg_prop = _load_indicadores_propuestos(proceso_sel, subproceso_sel)
         if msg_prop:
             st.warning(msg_prop)
@@ -1822,11 +2144,19 @@ def render() -> None:
         riesgos = latest[cumplimiento < 80]
         alertas = latest[(cumplimiento >= 80) & (cumplimiento < 100)]
 
-        st.write(f"Se identifican {len(riesgos)} indicadores en peligro y {len(alertas)} en alerta para el filtro activo.")
+        st.write(
+            f"Se identifican {len(riesgos)} indicadores en peligro y {len(alertas)} en alerta para el filtro activo."
+        )
         if not riesgos.empty:
-            cols = [c for c in ["Indicador", "Subproceso_final", "Cumplimiento_pct"] if c in riesgos.columns]
+            cols = [
+                c
+                for c in ["Indicador", "Subproceso_final", "Cumplimiento_pct"]
+                if c in riesgos.columns
+            ]
             preview = riesgos[cols].copy().sort_values("Cumplimiento_pct", ascending=True).head(10)
-            preview = preview.rename(columns={"Subproceso_final": "Subproceso", "Cumplimiento_pct": "Cumplimiento (%)"})
+            preview = preview.rename(
+                columns={"Subproceso_final": "Subproceso", "Cumplimiento_pct": "Cumplimiento (%)"}
+            )
             st.dataframe(preview, use_container_width=True, hide_index=True)
         else:
             st.success("No hay indicadores en peligro para el corte seleccionado.")

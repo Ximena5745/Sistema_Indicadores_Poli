@@ -12,34 +12,28 @@ gradientes para mantener consistencia visual en toda la aplicación.
 
 COLORS = {
     # Colores principales
-    "primary": "#1A3A5C",           # Azul institucional
-    "primary_light": "#2E5C8A",     # Azul claro
-    "primary_dark": "#0D1F33",      # Azul oscuro
-    
+    "primary": "#1A3A5C",  # Azul institucional
+    "primary_light": "#2E5C8A",  # Azul claro
+    "primary_dark": "#0D1F33",  # Azul oscuro
     # Colores de estado
-    "success": "#43A047",           # Verde cumplimiento
-    "success_light": "#66BB6A",     # Verde claro
-    "success_dark": "#2E7D32",      # Verde oscuro
-    
-    "warning": "#FBAF17",           # Amarillo alerta
-    "warning_light": "#FFCC4D",     # Amarillo claro
-    "warning_dark": "#F57F17",      # Amarillo oscuro
-    
-    "danger": "#D32F2F",            # Rojo peligro
-    "danger_light": "#EF5350",      # Rojo claro
-    "danger_dark": "#B71C1C",       # Rojo oscuro
-    
-    "info": "#2196F3",              # Azul info
-    "info_light": "#64B5F6",        # Azul info claro
-    "info_dark": "#1565C0",         # Azul info oscuro
-    
+    "success": "#43A047",  # Verde cumplimiento
+    "success_light": "#66BB6A",  # Verde claro
+    "success_dark": "#2E7D32",  # Verde oscuro
+    "warning": "#FBAF17",  # Amarillo alerta
+    "warning_light": "#FFCC4D",  # Amarillo claro
+    "warning_dark": "#F57F17",  # Amarillo oscuro
+    "danger": "#D32F2F",  # Rojo peligro
+    "danger_light": "#EF5350",  # Rojo claro
+    "danger_dark": "#B71C1C",  # Rojo oscuro
+    "info": "#2196F3",  # Azul info
+    "info_light": "#64B5F6",  # Azul info claro
+    "info_dark": "#1565C0",  # Azul info oscuro
     # Colores de cumplimiento específicos
     "cumplimiento": "#43A047",
     "sobrecumplimiento": "#1A3A5C",
     "alerta": "#FBAF17",
     "peligro": "#D32F2F",
     "sin_dato": "#9E9E9E",
-    
     # Escala de grises
     "white": "#FFFFFF",
     "gray_50": "#FAFAFA",
@@ -53,12 +47,10 @@ COLORS = {
     "gray_800": "#424242",
     "gray_900": "#212121",
     "black": "#000000",
-    
     # Fondos
     "background": "#F5F7FA",
     "surface": "#FFFFFF",
     "surface_variant": "#F8F9FA",
-    
     # Texto
     "text_primary": "#1A1A1A",
     "text_secondary": "#666666",
@@ -128,6 +120,7 @@ def get_palette_for_chart(kind="default", linea=None):
 
     return [COLORS["success"], COLORS["warning"], COLORS["danger"]]
 
+
 # =============================================================================
 
 GRADIENTS = {
@@ -167,26 +160,23 @@ SHADOWS = {
 TYPOGRAPHY = {
     "font_family": "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     "font_mono": "'JetBrains Mono', 'Fira Code', monospace",
-    
     # Tamaños
-    "size_xs": "0.75rem",      # 12px
-    "size_sm": "0.875rem",     # 14px
-    "size_base": "1rem",       # 16px
-    "size_lg": "1.125rem",     # 18px
-    "size_xl": "1.25rem",      # 20px
-    "size_2xl": "1.5rem",      # 24px
-    "size_3xl": "1.875rem",    # 30px
-    "size_4xl": "2.25rem",     # 36px
-    "size_5xl": "3rem",        # 48px
-    "size_6xl": "3.75rem",     # 60px
-    
+    "size_xs": "0.75rem",  # 12px
+    "size_sm": "0.875rem",  # 14px
+    "size_base": "1rem",  # 16px
+    "size_lg": "1.125rem",  # 18px
+    "size_xl": "1.25rem",  # 20px
+    "size_2xl": "1.5rem",  # 24px
+    "size_3xl": "1.875rem",  # 30px
+    "size_4xl": "2.25rem",  # 36px
+    "size_5xl": "3rem",  # 48px
+    "size_6xl": "3.75rem",  # 60px
     # Pesos
     "weight_normal": "400",
     "weight_medium": "500",
     "weight_semibold": "600",
     "weight_bold": "700",
     "weight_extrabold": "800",
-    
     # Altura de línea
     "leading_tight": "1.25",
     "leading_snug": "1.375",
@@ -201,18 +191,18 @@ TYPOGRAPHY = {
 
 SPACING = {
     "0": "0",
-    "1": "0.25rem",    # 4px
-    "2": "0.5rem",     # 8px
-    "3": "0.75rem",    # 12px
-    "4": "1rem",       # 16px
-    "5": "1.25rem",    # 20px
-    "6": "1.5rem",     # 24px
-    "8": "2rem",       # 32px
-    "10": "2.5rem",    # 40px
-    "12": "3rem",      # 48px
-    "16": "4rem",      # 64px
-    "20": "5rem",      # 80px
-    "24": "6rem",      # 96px
+    "1": "0.25rem",  # 4px
+    "2": "0.5rem",  # 8px
+    "3": "0.75rem",  # 12px
+    "4": "1rem",  # 16px
+    "5": "1.25rem",  # 20px
+    "6": "1.5rem",  # 24px
+    "8": "2rem",  # 32px
+    "10": "2.5rem",  # 40px
+    "12": "3rem",  # 48px
+    "16": "4rem",  # 64px
+    "20": "5rem",  # 80px
+    "24": "6rem",  # 96px
 }
 
 # =============================================================================
@@ -223,13 +213,12 @@ BORDERS = {
     "width_thin": "1px",
     "width_normal": "2px",
     "width_thick": "4px",
-    
     "radius_none": "0",
-    "radius_sm": "0.25rem",    # 4px
-    "radius_md": "0.5rem",      # 8px
-    "radius_lg": "0.75rem",     # 12px
-    "radius_xl": "1rem",        # 16px
-    "radius_2xl": "1.5rem",     # 24px
+    "radius_sm": "0.25rem",  # 4px
+    "radius_md": "0.5rem",  # 8px
+    "radius_lg": "0.75rem",  # 12px
+    "radius_xl": "1rem",  # 16px
+    "radius_2xl": "1.5rem",  # 24px
     "radius_full": "9999px",
 }
 
@@ -250,7 +239,6 @@ ICONS = {
     "settings": "fa-solid fa-gear",
     "user": "fa-solid fa-user",
     "logout": "fa-solid fa-right-from-bracket",
-    
     # Indicadores
     "indicador": "fa-solid fa-bullseye",
     "meta": "fa-solid fa-flag-checkered",
@@ -259,7 +247,6 @@ ICONS = {
     "tendencia_up": "fa-solid fa-arrow-trend-up",
     "tendencia_down": "fa-solid fa-arrow-trend-down",
     "tendencia_flat": "fa-solid fa-minus",
-    
     # Estados
     "peligro": "fa-solid fa-circle-exclamation",
     "alerta": "fa-solid fa-triangle-exclamation",
@@ -269,21 +256,18 @@ ICONS = {
     "error": "fa-solid fa-xmark",
     "warning": "fa-solid fa-exclamation",
     "info": "fa-solid fa-circle-info",
-    
     # Procesos y Organización
     "proceso": "fa-solid fa-sitemap",
     "subproceso": "fa-solid fa-diagram-project",
     "area": "fa-solid fa-building",
     "unidad": "fa-solid fa-users",
     "departamento": "fa-solid fa-building-user",
-    
     # Acciones
     "accion": "fa-solid fa-clipboard-check",
     "accion_mejora": "fa-solid fa-wrench",
     "om": "fa-solid fa-lightbulb",
     "plan": "fa-solid fa-map",
     "estrategia": "fa-solid fa-chess",
-    
     # Reportes y Documentos
     "reporte": "fa-solid fa-file-lines",
     "excel": "fa-solid fa-file-excel",
@@ -294,7 +278,6 @@ ICONS = {
     "print": "fa-solid fa-print",
     "share": "fa-solid fa-share-nodes",
     "copy": "fa-solid fa-copy",
-    
     # Análisis
     "analisis": "fa-solid fa-magnifying-glass-chart",
     "chart": "fa-solid fa-chart-pie",
@@ -304,14 +287,12 @@ ICONS = {
     "table": "fa-solid fa-table",
     "data": "fa-solid fa-database",
     "stats": "fa-solid fa-calculator",
-    
     # IA y Tecnología
     "ia": "fa-solid fa-robot",
     "ai": "fa-solid fa-brain",
     "magic": "fa-solid fa-wand-magic-sparkles",
     "automation": "fa-solid fa-gears",
     "predict": "fa-solid fa-crystal-ball",
-    
     # Tiempo
     "calendar": "fa-solid fa-calendar",
     "calendar_check": "fa-solid fa-calendar-check",
@@ -321,14 +302,12 @@ ICONS = {
     "deadline": "fa-solid fa-stopwatch",
     "vencido": "fa-solid fa-calendar-xmark",
     "proximo": "fa-solid fa-calendar-day",
-    
     # Calidad
     "quality": "fa-solid fa-award",
     "certificate": "fa-solid fa-certificate",
     "verified": "fa-solid fa-badge-check",
     "acreditacion": "fa-solid fa-graduation-cap",
     "cna": "fa-solid fa-building-columns",
-    
     # Comunicación
     "comment": "fa-solid fa-comment",
     "comments": "fa-solid fa-comments",
@@ -337,7 +316,6 @@ ICONS = {
     "phone": "fa-solid fa-phone",
     "message": "fa-solid fa-message",
     "alert_bell": "fa-solid fa-bell-exclamation",
-    
     # Misceláneos
     "eye": "fa-solid fa-eye",
     "eye_slash": "fa-solid fa-eye-slash",
@@ -421,13 +399,14 @@ BREAKPOINTS = {
 # FUNCIONES AUXILIARES
 # =============================================================================
 
+
 def get_color_for_cumplimiento(valor):
     """
     Retorna el color correspondiente según el valor de cumplimiento.
-    
+
     Args:
         valor: Porcentaje de cumplimiento (0-100)
-    
+
     Returns:
         str: Código hexadecimal del color
     """
@@ -444,15 +423,15 @@ def get_color_for_cumplimiento(valor):
 def get_icon_for_estado(estado):
     """
     Retorna el icono FontAwesome correspondiente al estado.
-    
+
     Args:
         estado: str - Estado del indicador
-    
+
     Returns:
         str: Clase del icono FontAwesome
     """
     estado = estado.lower() if estado else ""
-    
+
     mapping = {
         "cumplimiento": ICONS["cumplimiento"],
         "sobrecumplimiento": ICONS["sobrecumplimiento"],
@@ -464,22 +443,22 @@ def get_icon_for_estado(estado):
         "danger": ICONS["peligro"],
         "info": ICONS["info"],
     }
-    
+
     return mapping.get(estado, ICONS["sin_dato"])
 
 
 def get_gradient_for_estado(estado):
     """
     Retorna el gradiente correspondiente al estado.
-    
+
     Args:
         estado: str - Estado del indicador
-    
+
     Returns:
         str: CSS gradient
     """
     estado = estado.lower() if estado else ""
-    
+
     mapping = {
         "cumplimiento": GRADIENTS["success"],
         "sobrecumplimiento": GRADIENTS["hero"],
@@ -489,17 +468,17 @@ def get_gradient_for_estado(estado):
         "warning": GRADIENTS["warning"],
         "danger": GRADIENTS["alert"],
     }
-    
+
     return mapping.get(estado, GRADIENTS["glass"])
 
 
 def get_shadow_for_depth(depth):
     """
     Retorna la sombra correspondiente a la profundidad.
-    
+
     Args:
         depth: str - Nivel de profundidad (xs, sm, md, lg, xl, 2xl)
-    
+
     Returns:
         str: CSS box-shadow
     """
@@ -510,10 +489,11 @@ def get_shadow_for_depth(depth):
 # CSS GENERATOR
 # =============================================================================
 
+
 def generate_css_variables():
     """
     Genera las variables CSS para usar en toda la aplicación.
-    
+
     Returns:
         str: Bloque CSS con variables
     """
@@ -590,7 +570,7 @@ def generate_css_variables():
         radius_xl=BORDERS["radius_xl"],
         font_family=TYPOGRAPHY["font_family"],
     )
-    
+
     return css
 
 

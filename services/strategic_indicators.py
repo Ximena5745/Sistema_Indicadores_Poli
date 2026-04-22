@@ -7,7 +7,10 @@ import streamlit as st
 
 from core.config import (
     CACHE_TTL,
-    NIVEL_COLOR, UMBRAL_ALERTA, UMBRAL_PELIGRO, UMBRAL_SOBRECUMPLIMIENTO
+    NIVEL_COLOR,
+    UMBRAL_ALERTA,
+    UMBRAL_PELIGRO,
+    UMBRAL_SOBRECUMPLIMIENTO,
 )
 from core import calculos as _calculos
 from core.semantica import categorizar_cumplimiento
@@ -22,6 +25,7 @@ def _get_cached(key: str) -> pd.DataFrame | None:
     if key in _CACHE_MANUAL:
         data, timestamp = _CACHE_MANUAL[key]
         import time
+
         if time.time() - timestamp < _CACHE_TTL_MANUAL:
             return data
         else:
@@ -32,6 +36,7 @@ def _get_cached(key: str) -> pd.DataFrame | None:
 def _set_cached(key: str, data: pd.DataFrame) -> None:
     """Guardar en caché manual."""
     import time
+
     _CACHE_MANUAL[key] = (data, time.time())
 
 
@@ -40,9 +45,11 @@ def _validate_cached_result(df: pd.DataFrame, context: str) -> bool:
     if df.empty:
         # Log para debugging
         import sys
+
         print(f"WARNING: Caché vacío en {context}, invalidando...", file=sys.stderr)
         return False
     return True
+
 
 # Aliases decimales para compatibilidad
 UMBRAL_ALERTA_DEC = UMBRAL_ALERTA
@@ -90,8 +97,6 @@ def _id_limpio(x) -> str:
         return str(x).strip()
 
 
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 def load_pdi_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
@@ -125,7 +130,9 @@ def load_cna_catalog() -> pd.DataFrame:
 
     df.columns = [str(c).strip() for c in df.columns]
     c_factor = _find_col(df, ["Factor", "FACTOR"])
-    c_car = _find_col(df, ["Caracteristicas", "Características", "Caracteristica", "CARACTERISTICA"])
+    c_car = _find_col(
+        df, ["Caracteristicas", "Características", "Caracteristica", "CARACTERISTICA"]
+    )
     if not c_factor or not c_car:
         return pd.DataFrame(columns=["Factor", "Caracteristica"])
 
@@ -142,7 +149,7 @@ def load_worksheet_flags() -> pd.DataFrame:
     cached = _get_cached("worksheet_flags")
     if cached is not None and not cached.empty:
         return cached
-    
+
     # Cargar sin dependencia en st.cache_data
     if not RAW_XLSX.exists():
         return pd.DataFrame()
@@ -171,7 +178,7 @@ def load_worksheet_flags() -> pd.DataFrame:
         optional_cols.append(c_proyecto)
     if c_subproceso:
         optional_cols.append(c_subproceso)
-    
+
     if not needed:
         return pd.DataFrame()
 
@@ -213,10 +220,10 @@ def load_worksheet_flags() -> pd.DataFrame:
 
     out = out[out["Id"] != ""].copy()
     result = out.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
-    
+
     # Guardar en caché manual
     _set_cached("worksheet_flags", result)
-    
+
     return result
 
 
@@ -226,7 +233,7 @@ def load_cierres() -> pd.DataFrame:
     cached = _get_cached("cierres")
     if cached is not None and not cached.empty:
         return cached
-        
+
     if not OUT_XLSX.exists():
         return pd.DataFrame()
 
@@ -235,8 +242,10 @@ def load_cierres() -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
-    sheet = "Cierre historico" if "Cierre historico" in xl.sheet_names else (
-        "Consolidado Cierres" if "Consolidado Cierres" in xl.sheet_names else None
+    sheet = (
+        "Cierre historico"
+        if "Cierre historico" in xl.sheet_names
+        else ("Consolidado Cierres" if "Consolidado Cierres" in xl.sheet_names else None)
     )
     if not sheet:
         return pd.DataFrame()
@@ -259,7 +268,17 @@ def load_cierres() -> pd.DataFrame:
     c_sentido = _find_col(df, ["Sentido"])
     c_tipo = _find_col(df, ["Tipo_Registro", "Tipo Registro"])
     c_meta_s = _find_col(df, ["Meta_Signo", "Meta s", "Meta Signo", "MetaS"])
-    c_ejec_s = _find_col(df, ["Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS", "Ejecucion Signo", "Ejecución Signo"])
+    c_ejec_s = _find_col(
+        df,
+        [
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+            "Ejecucion Signo",
+            "Ejecución Signo",
+        ],
+    )
     c_dec_meta = _find_col(df, ["Decimales", "Decimales_Meta", "DecMeta"])
     c_dec_ejec = _find_col(df, ["DecimalesEje", "Decimales_Ejecucion", "DecEjec"])
 
@@ -295,36 +314,35 @@ def load_cierres() -> pd.DataFrame:
     # NOTA: Cumplimiento es calculado oficialmente en scripts/etl/cumplimiento.py
     # Los readers leen valores pre-calculados del Excel (cols L, M).
     # NO recalcular aquí. Véase: Problema #4 - Consolidación de cálculos
-    
+
     # Leer cumplimiento pre-calculado del Excel
     c_cumpl = _find_col(df, ["Cumplimiento", "cumplimiento_dec"])
     c_cumpl_real = _find_col(df, ["CumplReal", "cumplimiento_real"])
-    
+
     out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
-    out["cumplimiento_real"] = pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
+    out["cumplimiento_real"] = (
+        pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
+    )
 
     out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
-    
+
     # Detectar si es métrica para establecer "Nivel de cumplimiento"
     es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
-    
+
     # Problema #5 FIX: Usar categorizar_cumplimiento() directamente (que SÍ considera Plan Anual)
     # en lugar de _nivel_desde_cumplimiento() que era incompleta
     out["Nivel de cumplimiento"] = out.apply(
-        lambda row: categorizar_cumplimiento(
-            row["cumplimiento_dec"],
-            id_indicador=row.get("Id")
-        ),
-        axis=1
+        lambda row: categorizar_cumplimiento(row["cumplimiento_dec"], id_indicador=row.get("Id")),
+        axis=1,
     )
     out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
     out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
 
     result = out.reset_index(drop=True)
-    
+
     # Guardar en caché manual
     _set_cached("cierres", result)
-    
+
     return result
 
 
@@ -337,10 +355,16 @@ def cierre_por_corte(df_cierres: pd.DataFrame, anio: int, mes: int) -> pd.DataFr
     cutoff_date = pd.Timestamp(int(anio), int(mes), 1) + pd.offsets.MonthEnd(0)
 
     if "Anio" in df.columns and "Mes" in df.columns:
-        ym = pd.to_numeric(df["Anio"], errors="coerce") * 100 + pd.to_numeric(df["Mes"], errors="coerce")
+        ym = pd.to_numeric(df["Anio"], errors="coerce") * 100 + pd.to_numeric(
+            df["Mes"], errors="coerce"
+        )
         by_period = ym.notna() & (ym <= cutoff)
         if "Fecha" in df.columns:
-            by_date = ym.isna() & df["Fecha"].notna() & (pd.to_datetime(df["Fecha"], errors="coerce") <= cutoff_date)
+            by_date = (
+                ym.isna()
+                & df["Fecha"].notna()
+                & (pd.to_datetime(df["Fecha"], errors="coerce") <= cutoff_date)
+            )
             df = df[by_period | by_date].copy()
         else:
             df = df[by_period].copy()
@@ -366,9 +390,9 @@ def _preparar_indicadores_con_cierre(
 ) -> pd.DataFrame:
     """
     Función GENÉRICA para preparar indicadores estratégicos con cierre (PDI o CNA).
-    
+
     Problema #6 FIX: Consolidación de preparar_pdi_con_cierre + preparar_cna_con_cierre.
-    
+
     PARÁMETROS:
       anio: Año a consultar
       mes: Mes a consultar
@@ -377,42 +401,57 @@ def _preparar_indicadores_con_cierre(
       catalog_merge_cols: Lista de columnas para merge del catálogo
                          ej: ["Linea", "Objetivo"] para PDI
                          ej: ["Factor", "Caracteristica"] para CNA
-    
+
     RETORNA:
       DataFrame con indicadores enriquecidos + cierre + catálogo
     """
     base = load_worksheet_flags()
     catalog = catalog_loader()
     cierres = load_cierres()
-    
+
     if base.empty or cierres.empty:
         return pd.DataFrame()
-    
+
     # Filtrar por flag específico
     if flag_column not in base.columns:
         return pd.DataFrame()
-    
+
     indicators = base[base[flag_column] == 1].copy()
     if indicators.empty:
         return pd.DataFrame()
-    
+
     # Excluir proyectos
     if "Proyecto" in indicators.columns:
         indicators = indicators[indicators["Proyecto"] != 1].copy()
     if indicators.empty:
         return pd.DataFrame()
-    
+
     close = cierre_por_corte(cierres, anio, mes)
-    
+
     # Cols estándar de cierre
-    cols_close = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
+    cols_close = [
+        "Id",
+        "Indicador",
+        "cumplimiento_pct",
+        "Nivel de cumplimiento",
+        "Anio",
+        "Mes",
+        "Fecha",
+    ]
     for _ec in [
-        "Meta", "Ejecucion", "Sentido",
-        "Meta_Signo", "Ejecucion_Signo", "Decimales", "DecimalesEje", "Decimales_Meta", "Decimales_Ejecucion",
+        "Meta",
+        "Ejecucion",
+        "Sentido",
+        "Meta_Signo",
+        "Ejecucion_Signo",
+        "Decimales",
+        "DecimalesEje",
+        "Decimales_Meta",
+        "Decimales_Ejecucion",
     ]:
         if _ec in close.columns:
             cols_close.append(_ec)
-    
+
     # Merge con cierre
     merged = indicators.merge(
         close[cols_close],
@@ -420,20 +459,20 @@ def _preparar_indicadores_con_cierre(
         how="left",
         suffixes=("", "_cierre"),
     )
-    
+
     # Unificar Indicador desde cierre si falta
     if "Indicador_cierre" in merged.columns:
         merged["Indicador"] = merged["Indicador"].fillna(merged["Indicador_cierre"])
         merged = merged.drop(columns=["Indicador_cierre"])
-    
+
     # Merge con catálogo si existen las columnas
     if not catalog.empty and all(c in merged.columns for c in catalog_merge_cols):
         merged = merged.merge(catalog, on=catalog_merge_cols, how="left")
-    
+
     # Normalizar cumplimiento_pct
     merged["cumplimiento_pct"] = pd.to_numeric(merged.get("cumplimiento_pct"), errors="coerce")
     merged["Nivel de cumplimiento"] = merged["Nivel de cumplimiento"].fillna(PENDIENTE)
-    
+
     # Filtrar filas sin datos de origen
     def _has_source(row):
         for c in ["Meta", "Ejecucion", "Cumplimiento"]:
@@ -442,17 +481,17 @@ def _preparar_indicadores_con_cierre(
                 if pd.notna(v) and str(v).strip() != "":
                     return True
         return False
-    
+
     if not merged.empty:
         merged = merged[merged.apply(_has_source, axis=1)].reset_index(drop=True)
-    
+
     return merged
 
 
 def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     """
     Preparar indicadores Plan Estratégico (PDI) con cierre.
-    
+
     Problema #6 FIX: Ahora usa función genérica _preparar_indicadores_con_cierre.
     """
     return _preparar_indicadores_con_cierre(
@@ -467,7 +506,7 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
 def preparar_cna_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     """
     Preparar indicadores CNA con cierre.
-    
+
     Problema #6 FIX: Ahora usa función genérica _preparar_indicadores_con_cierre.
     """
     return _preparar_indicadores_con_cierre(

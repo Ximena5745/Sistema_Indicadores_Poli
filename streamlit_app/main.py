@@ -11,6 +11,7 @@ def load_css(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
+
 def _inject_styles():
     """Inyecta estilos locales con ruta robusta para local y cloud."""
     base = Path(__file__).resolve().parent / "styles"

@@ -12,6 +12,7 @@ Pestañas:
   3. QC Datos      — panel de calidad desde artefactos de ingesta
   4. Trazabilidad  — por indicador: artefactos, fechas, histórico de reportes
 """
+
 from datetime import date
 import json
 from pathlib import Path
@@ -25,6 +26,7 @@ try:
     from services.data_loader import cargar_dataset, cargar_acciones_mejora
 except (ImportError, ModuleNotFoundError):
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from core.config import CACHE_TTL, NIVEL_COLOR, NIVEL_BG, NIVEL_ICON, COLORES
     from services.data_loader import cargar_dataset, cargar_acciones_mejora
@@ -34,60 +36,81 @@ try:
     from ..utils.formatting import id_limpio as _id_limpio, to_num as _to_num
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from utils.formatting import id_limpio as _id_limpio, to_num as _to_num
 
 # ── Rutas ─────────────────────────────────────────────────────────────────────
-_ROOT      = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[2]
 _ARTIFACTS = _ROOT / "data" / "output" / "artifacts"
 
 # ── Constantes visuales (alineadas con resumen_general) ───────────────────────
 _NO_APLICA = "No aplica"
-_PEND      = "Pendiente de reporte"
+_PEND = "Pendiente de reporte"
 
 _NIVEL_COLOR_EXT = {
     **NIVEL_COLOR,
     "Sobrecumplimiento": COLORES["sobrecumplimiento"],
     _NO_APLICA: "#78909C",
-    _PEND:      "#BDBDBD",
+    _PEND: "#BDBDBD",
 }
 _NIVEL_BG_EXT = {
     **NIVEL_BG,
     _NO_APLICA: "#ECEFF1",
-    _PEND:      "#F5F5F5",
+    _PEND: "#F5F5F5",
 }
 _NIVEL_ICON_EXT = {
     **NIVEL_ICON,
     _NO_APLICA: "⚫",
-    _PEND:      "⚪",
+    _PEND: "⚪",
 }
 
 _KANBAN_COLS = [
-    ("Peligro",           "#FFCDD2", "#C62828", "🔴"),
-    ("Alerta",            "#FEF9E7", "#F57F17", "🟡"),
-    ("Cumplimiento",      "#E8F5E9", "#2E7D32", "🟢"),
+    ("Peligro", "#FFCDD2", "#C62828", "🔴"),
+    ("Alerta", "#FEF9E7", "#F57F17", "🟡"),
+    ("Cumplimiento", "#E8F5E9", "#2E7D32", "🟢"),
     ("Sobrecumplimiento", "#E3F2FD", "#1565C0", "🔵"),
-    (_PEND,               "#F5F5F5", "#616161", "⚪"),
+    (_PEND, "#F5F5F5", "#616161", "⚪"),
 ]
 
-_ORDEN_SEV = {"Peligro": 0, "Alerta": 1, "Cumplimiento": 2, "Sobrecumplimiento": 3,
-              _NO_APLICA: -1, _PEND: -1}
+_ORDEN_SEV = {
+    "Peligro": 0,
+    "Alerta": 1,
+    "Cumplimiento": 2,
+    "Sobrecumplimiento": 3,
+    _NO_APLICA: -1,
+    _PEND: -1,
+}
 
 _MESES = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
 ]
 _MES_NUM = {m: i + 1 for i, m in enumerate(_MESES)}
 
 # ── Ventana de periodicidad en meses ─────────────────────────────────────────
 _VENTANA: dict[str, int] = {
-    "mensual": 1, "bimestral": 2, "trimestral": 3, "semestral": 6, "anual": 12,
+    "mensual": 1,
+    "bimestral": 2,
+    "trimestral": 3,
+    "semestral": 6,
+    "anual": 12,
 }
 
 
 def _nm(s: str) -> str:
     s = str(s or "").strip().lower()
-    for a, b in (("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u")):
+    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u")):
         s = s.replace(a, b)
     return s
 
@@ -99,6 +122,7 @@ def _ventana(periodicidad: str) -> int:
 # ══════════════════════════════════════════════════════════════════════════════
 # CARGA DE DATOS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def _cargar_base() -> pd.DataFrame:
@@ -133,6 +157,7 @@ def _cargar_artefactos_qc() -> list[dict]:
 # ══════════════════════════════════════════════════════════════════════════════
 # TRANSFORMACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _preparar_df(
     df_all: pd.DataFrame,
@@ -191,20 +216,24 @@ def _detectar_vencidos(df: pd.DataFrame) -> pd.DataFrame:
 
     d = df.copy()
     d["Fecha"] = pd.to_datetime(d["Fecha"], errors="coerce")
-    d["ym"] = (
-        d["Fecha"].dt.year.fillna(0).astype(int) * 12
-        + d["Fecha"].dt.month.fillna(0).astype(int)
+    d["ym"] = d["Fecha"].dt.year.fillna(0).astype(int) * 12 + d["Fecha"].dt.month.fillna(0).astype(
+        int
     )
     d["ventana"] = d["Periodicidad"].apply(_ventana)
     d["diff"] = ym_hoy - d["ym"]
     venc = d[d["diff"] > d["ventana"]].copy()
-    cols = [c for c in ["Id", "Indicador", "Proceso", "Periodicidad", "Categoria", "diff"] if c in venc.columns]
+    cols = [
+        c
+        for c in ["Id", "Indicador", "Proceso", "Periodicidad", "Categoria", "diff"]
+        if c in venc.columns
+    ]
     return venc[cols].rename(columns={"diff": "Meses sin reporte"})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # GRÁFICOS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _fig_donut(df: pd.DataFrame) -> go.Figure:
     if "Categoria" not in df.columns or df.empty:
@@ -214,19 +243,28 @@ def _fig_donut(df: pd.DataFrame) -> go.Figure:
     labels = [c for c in cats if c in counts.index]
     values = [int(counts[c]) for c in labels]
     colors = [_NIVEL_COLOR_EXT.get(c, "#BDBDBD") for c in labels]
-    total  = sum(values)
-    fig = go.Figure(go.Pie(
-        labels=labels, values=values, hole=0.55,
-        marker=dict(colors=colors, line=dict(color="white", width=2)),
-        textinfo="label+value", textfont=dict(size=11),
-        hovertemplate="<b>%{label}</b><br>%{value} (%{percent})<extra></extra>",
-    ))
+    total = sum(values)
+    fig = go.Figure(
+        go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.55,
+            marker=dict(colors=colors, line=dict(color="white", width=2)),
+            textinfo="label+value",
+            textfont=dict(size=11),
+            hovertemplate="<b>%{label}</b><br>%{value} (%{percent})<extra></extra>",
+        )
+    )
     fig.update_layout(
-        height=380, showlegend=True,
+        height=380,
+        showlegend=True,
         legend=dict(orientation="h", y=-0.15, x=0),
         margin=dict(t=10, b=60, l=10, r=10),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        annotations=[dict(text=f"<b>{total}</b><br>total", x=0.5, y=0.5, font_size=15, showarrow=False)],
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        annotations=[
+            dict(text=f"<b>{total}</b><br>total", x=0.5, y=0.5, font_size=15, showarrow=False)
+        ],
     )
     return fig
 
@@ -251,7 +289,11 @@ def _option_donut(df: pd.DataFrame) -> dict:
                 "emphasis": {"label": {"show": True, "fontSize": 14, "fontWeight": "bold"}},
                 "labelLine": {"show": False},
                 "data": [
-                    {"value": v, "name": l, "itemStyle": {"color": _NIVEL_COLOR_EXT.get(l, "#BDBDBD")}}
+                    {
+                        "value": v,
+                        "name": l,
+                        "itemStyle": {"color": _NIVEL_COLOR_EXT.get(l, "#BDBDBD")},
+                    }
                     for v, l in zip(values, labels)
                 ],
             }
@@ -262,17 +304,15 @@ def _option_donut(df: pd.DataFrame) -> dict:
 
 def _fig_proceso(df: pd.DataFrame) -> go.Figure:
     col = (
-        "ProcesoPadre" if "ProcesoPadre" in df.columns
+        "ProcesoPadre"
+        if "ProcesoPadre" in df.columns
         else ("Proceso" if "Proceso" in df.columns else None)
     )
     if not col or df.empty or "Categoria" not in df.columns:
         return go.Figure()
 
     cats = [c for c, *_ in _KANBAN_COLS]
-    stats = (
-        df.groupby([col, "Categoria"], dropna=False)
-        .size().unstack(fill_value=0).reset_index()
-    )
+    stats = df.groupby([col, "Categoria"], dropna=False).size().unstack(fill_value=0).reset_index()
     for c in cats:
         if c not in stats.columns:
             stats[c] = 0
@@ -286,18 +326,26 @@ def _fig_proceso(df: pd.DataFrame) -> go.Figure:
     for cat in cats:
         if cat not in stats.columns:
             continue
-        fig.add_trace(go.Bar(
-            y=procs, x=stats[cat].tolist(), orientation="h", name=cat,
-            marker_color=_NIVEL_COLOR_EXT.get(cat, "#BDBDBD"),
-            text=[v if v else "" for v in stats[cat].tolist()],
-            textposition="inside", insidetextanchor="middle",
-            textfont=dict(size=10, color="white"),
-        ))
+        fig.add_trace(
+            go.Bar(
+                y=procs,
+                x=stats[cat].tolist(),
+                orientation="h",
+                name=cat,
+                marker_color=_NIVEL_COLOR_EXT.get(cat, "#BDBDBD"),
+                text=[v if v else "" for v in stats[cat].tolist()],
+                textposition="inside",
+                insidetextanchor="middle",
+                textfont=dict(size=10, color="white"),
+            )
+        )
     fig.update_layout(
-        barmode="stack", height=h,
+        barmode="stack",
+        height=h,
         yaxis=dict(autorange="reversed", tickfont=dict(size=10)),
         margin=dict(t=10, b=40, l=200, r=20),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", y=-0.12),
     )
     return fig
@@ -306,6 +354,7 @@ def _fig_proceso(df: pd.DataFrame) -> go.Figure:
 # ══════════════════════════════════════════════════════════════════════════════
 # RENDER
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def render() -> None:
     st.title("Tablero Operativo")
@@ -318,7 +367,13 @@ def render() -> None:
     anios: list[int] = []
     if not df_all.empty:
         if "Anio" in df_all.columns:
-            anios = sorted(pd.to_numeric(df_all["Anio"], errors="coerce").dropna().astype(int).unique().tolist())
+            anios = sorted(
+                pd.to_numeric(df_all["Anio"], errors="coerce")
+                .dropna()
+                .astype(int)
+                .unique()
+                .tolist()
+            )
         elif "Fecha" in df_all.columns:
             df_all["Fecha"] = pd.to_datetime(df_all["Fecha"], errors="coerce")
             anios = sorted(df_all["Fecha"].dt.year.dropna().astype(int).unique().tolist())
@@ -329,23 +384,30 @@ def render() -> None:
         with fc1:
             default_idx = len(anios) if anios else 0
             anio_sel = st.selectbox(
-                "Año", options=["Todos"] + anios, index=default_idx, key="to_anio",
+                "Año",
+                options=["Todos"] + anios,
+                index=default_idx,
+                key="to_anio",
             )
         with fc2:
             mes_sel = st.selectbox("Mes", options=["Todos"] + _MESES, key="to_mes")
         with fc3:
-            procs_op = ["Todos"] + sorted(
-                df_all["Proceso"].dropna().astype(str).unique().tolist()
-            ) if not df_all.empty and "Proceso" in df_all.columns else ["Todos"]
+            procs_op = (
+                ["Todos"] + sorted(df_all["Proceso"].dropna().astype(str).unique().tolist())
+                if not df_all.empty and "Proceso" in df_all.columns
+                else ["Todos"]
+            )
             proceso_sel = st.selectbox("Proceso", procs_op, key="to_proc")
         with fc4:
-            perios_op = ["Todas"] + sorted(
-                df_all["Periodicidad"].dropna().astype(str).unique().tolist()
-            ) if not df_all.empty and "Periodicidad" in df_all.columns else ["Todas"]
+            perios_op = (
+                ["Todas"] + sorted(df_all["Periodicidad"].dropna().astype(str).unique().tolist())
+                if not df_all.empty and "Periodicidad" in df_all.columns
+                else ["Todas"]
+            )
             period_sel = st.selectbox("Periodicidad", perios_op, key="to_perio")
 
-    anio_v   = int(anio_sel) if anio_sel != "Todos" and anio_sel else None
-    mes_v    = _MES_NUM.get(mes_sel) if mes_sel != "Todos" else None
+    anio_v = int(anio_sel) if anio_sel != "Todos" and anio_sel else None
+    mes_v = _MES_NUM.get(mes_sel) if mes_sel != "Todos" else None
     df = _preparar_df(df_all, anio_v, mes_v, proceso_sel, period_sel)
 
     if df.empty:
@@ -361,25 +423,42 @@ def render() -> None:
     # TAB 1 — RESUMEN
     # ═══════════════════════════════════════════════════════════════════════
     with tab_res:
-        total   = len(df)
+        total = len(df)
         peligro = int((df["Categoria"] == "Peligro").sum()) if "Categoria" in df.columns else 0
-        alerta  = int((df["Categoria"] == "Alerta").sum())  if "Categoria" in df.columns else 0
-        pend    = int((df["Categoria"] == _PEND).sum())     if "Categoria" in df.columns else 0
-        cum_s   = pd.to_numeric(df.get("Cumplimiento", pd.Series(dtype=float)), errors="coerce").dropna()
-        prom_c  = float(cum_s.mean() * 100) if not cum_s.empty else None
+        alerta = int((df["Categoria"] == "Alerta").sum()) if "Categoria" in df.columns else 0
+        pend = int((df["Categoria"] == _PEND).sum()) if "Categoria" in df.columns else 0
+        cum_s = pd.to_numeric(
+            df.get("Cumplimiento", pd.Series(dtype=float)), errors="coerce"
+        ).dropna()
+        prom_c = float(cum_s.mean() * 100) if not cum_s.empty else None
 
         try:
-            from ..components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
+            from ..components.renderers import (
+                kpi_card,
+                generate_sparkline_counts,
+                generate_sparkline_agg,
+            )
         except ImportError:
             import sys
+
             sys.path.insert(0, str(Path(__file__).parent.parent))
-            from components.renderers import kpi_card, generate_sparkline_counts, generate_sparkline_agg
+            from components.renderers import (
+                kpi_card,
+                generate_sparkline_counts,
+                generate_sparkline_agg,
+            )
         # Generar sparklines (usamos `df_all` para series históricas)
         spark_total = generate_sparkline_counts(df_all, periods=6)
-        spark_peligro = generate_sparkline_counts(df_all, group_col='Categoria', filter_val='Peligro', periods=6)
-        spark_alerta = generate_sparkline_counts(df_all, group_col='Categoria', filter_val='Alerta', periods=6)
-        spark_sinrep = generate_sparkline_counts(df_all, group_col='Categoria', filter_val=_PEND, periods=6)
-        spark_prom = generate_sparkline_agg(df_all, value_col='Cumplimiento', agg='mean', periods=6)
+        spark_peligro = generate_sparkline_counts(
+            df_all, group_col="Categoria", filter_val="Peligro", periods=6
+        )
+        spark_alerta = generate_sparkline_counts(
+            df_all, group_col="Categoria", filter_val="Alerta", periods=6
+        )
+        spark_sinrep = generate_sparkline_counts(
+            df_all, group_col="Categoria", filter_val=_PEND, periods=6
+        )
+        spark_prom = generate_sparkline_agg(df_all, value_col="Cumplimiento", agg="mean", periods=6)
 
         k1, k2, k3, k4, k5 = st.columns(5)
         with k1:
@@ -389,14 +468,36 @@ def render() -> None:
                 st.metric("Total indicadores", total)
         with k2:
             try:
-                kpi_card("🔴 Peligro", peligro, delta=(f"{peligro / total * 100:.1f}%" if total else ""), category="Peligro", sparkline=spark_peligro)
+                kpi_card(
+                    "🔴 Peligro",
+                    peligro,
+                    delta=(f"{peligro / total * 100:.1f}%" if total else ""),
+                    category="Peligro",
+                    sparkline=spark_peligro,
+                )
             except Exception:
-                st.metric("🔴 Peligro", peligro, delta=(f"{peligro / total * 100:.1f}%" if total else ""), delta_color="inverse")
+                st.metric(
+                    "🔴 Peligro",
+                    peligro,
+                    delta=(f"{peligro / total * 100:.1f}%" if total else ""),
+                    delta_color="inverse",
+                )
         with k3:
             try:
-                kpi_card("🟡 Alerta", alerta, delta=(f"{alerta / total * 100:.1f}%" if total else ""), category="Alerta", sparkline=spark_alerta)
+                kpi_card(
+                    "🟡 Alerta",
+                    alerta,
+                    delta=(f"{alerta / total * 100:.1f}%" if total else ""),
+                    category="Alerta",
+                    sparkline=spark_alerta,
+                )
             except Exception:
-                st.metric("🟡 Alerta", alerta, delta=(f"{alerta / total * 100:.1f}%" if total else ""), delta_color="inverse")
+                st.metric(
+                    "🟡 Alerta",
+                    alerta,
+                    delta=(f"{alerta / total * 100:.1f}%" if total else ""),
+                    delta_color="inverse",
+                )
         with k4:
             try:
                 kpi_card("⚪ Sin reporte", pend, sparkline=spark_sinrep)
@@ -404,28 +505,44 @@ def render() -> None:
                 st.metric("⚪ Sin reporte", pend)
         with k5:
             try:
-                kpi_card("Cumplimiento promedio", f"{prom_c:.1f}%" if prom_c is not None else "N/D", sparkline=spark_prom)
+                kpi_card(
+                    "Cumplimiento promedio",
+                    f"{prom_c:.1f}%" if prom_c is not None else "N/D",
+                    sparkline=spark_prom,
+                )
             except Exception:
-                st.metric("Cumplimiento promedio", f"{prom_c:.1f}%" if prom_c is not None else "N/D")
+                st.metric(
+                    "Cumplimiento promedio", f"{prom_c:.1f}%" if prom_c is not None else "N/D"
+                )
 
         try:
             try:
                 from ..components.renderers import render_narrative_panel, render_alert_strip
             except ImportError:
                 import sys
+
                 sys.path.insert(0, str(Path(__file__).parent.parent))
                 from components.renderers import render_narrative_panel, render_alert_strip
             # Mostrar advertencia si promedio muy bajo
             if prom_c is not None and prom_c < 70:
-                render_alert_strip(f"Promedio de cumplimiento bajo: {prom_c:.1f}% — revisar procesos críticos.", level='warning')
-            render_narrative_panel("Resumen rápido", f"Total: {total} · Peligro: {peligro} · Alerta: {alerta} · Sin reporte: {pend}", collapsed=True)
+                render_alert_strip(
+                    f"Promedio de cumplimiento bajo: {prom_c:.1f}% — revisar procesos críticos.",
+                    level="warning",
+                )
+            render_narrative_panel(
+                "Resumen rápido",
+                f"Total: {total} · Peligro: {peligro} · Alerta: {alerta} · Sin reporte: {pend}",
+                collapsed=True,
+            )
         except Exception:
             pass
 
         # Alertas de frecuencia de reporte
         venc = _detectar_vencidos(df)
         if not venc.empty:
-            st.warning(f"⚠️ **{len(venc)} indicadores** sin reporte dentro de su ventana de periodicidad.")
+            st.warning(
+                f"⚠️ **{len(venc)} indicadores** sin reporte dentro de su ventana de periodicidad."
+            )
             with st.expander("Ver indicadores con reporte vencido", expanded=False):
                 st.dataframe(venc, use_container_width=True, hide_index=True, height=260)
 
@@ -437,11 +554,12 @@ def render() -> None:
                     from ..components.renderers import render_echarts
                 except ImportError:
                     import sys
+
                     sys.path.insert(0, str(Path(__file__).parent.parent))
                     from components.renderers import render_echarts
                 opt = _option_donut(df)
-                if opt and opt.get('option'):
-                    render_echarts(opt['option'], height=opt.get('height', 380))
+                if opt and opt.get("option"):
+                    render_echarts(opt["option"], height=opt.get("height", 380))
                 else:
                     st.plotly_chart(_fig_donut(df), use_container_width=True, key="to_res_donut")
             except Exception:
@@ -453,11 +571,12 @@ def render() -> None:
                     from ..components.renderers import render_echarts
                 except ImportError:
                     import sys
+
                     sys.path.insert(0, str(Path(__file__).parent.parent))
                     from components.renderers import render_echarts
                 opt_h = _option_proceso(df)
-                if opt_h and isinstance(opt_h, dict) and opt_h.get('option'):
-                    render_echarts(opt_h['option'], height=opt_h.get('height', 420))
+                if opt_h and isinstance(opt_h, dict) and opt_h.get("option"):
+                    render_echarts(opt_h["option"], height=opt_h.get("height", 420))
                 else:
                     st.plotly_chart(_fig_proceso(df), use_container_width=True, key="to_res_proc")
             except Exception:
@@ -472,10 +591,13 @@ def render() -> None:
             abiertas = df_acc[df_acc[estado_col] != "Cerrada"] if estado_col else df_acc
             vencidas = (
                 int((abiertas["Estado_Tiempo"] == "Vencida").sum())
-                if "Estado_Tiempo" in abiertas.columns else None
+                if "Estado_Tiempo" in abiertas.columns
+                else None
             )
-            avance_s = pd.to_numeric(abiertas.get("AVANCE", pd.Series(dtype=float)), errors="coerce").dropna()
-            prom_av  = float(avance_s.mean()) if not avance_s.empty else None
+            avance_s = pd.to_numeric(
+                abiertas.get("AVANCE", pd.Series(dtype=float)), errors="coerce"
+            ).dropna()
+            prom_av = float(avance_s.mean()) if not avance_s.empty else None
 
             ac1, ac2, ac3 = st.columns(3)
             ac1.metric("Acciones abiertas", len(abiertas))
@@ -496,8 +618,8 @@ def render() -> None:
         cols_kan = st.columns(len(_KANBAN_COLS))
         for idx, (cat, bg, fg, icon) in enumerate(_KANBAN_COLS):
             cnt = int((df["Categoria"] == cat).sum()) if "Categoria" in df.columns else 0
-            active  = st.session_state["to_kanban_filtro"] == cat
-            border  = f"3px solid {fg}" if active else f"1px solid {fg}55"
+            active = st.session_state["to_kanban_filtro"] == cat
+            border = f"3px solid {fg}" if active else f"1px solid {fg}55"
             opacity = "1.0" if active or cnt else "0.55"
             with cols_kan[idx]:
                 st.markdown(
@@ -519,30 +641,50 @@ def render() -> None:
 
         st.markdown("---")
         filtro_k = st.session_state.get("to_kanban_filtro")
-        df_kan   = df[df["Categoria"] == filtro_k].copy() if filtro_k else df.copy()
-        caption  = (
+        df_kan = df[df["Categoria"] == filtro_k].copy() if filtro_k else df.copy()
+        caption = (
             f"**{filtro_k}** — {len(df_kan)} indicadores · Haz clic en el botón activo para limpiar."
-            if filtro_k else f"Todos los indicadores ({len(df_kan)}) · Selecciona una columna para filtrar."
+            if filtro_k
+            else f"Todos los indicadores ({len(df_kan)}) · Selecciona una columna para filtrar."
         )
         st.caption(caption)
 
         # Búsqueda adicional dentro de la vista kanban
-        busq = st.text_input("Buscar por ID o nombre", key="to_kan_busq", placeholder="Texto libre...")
+        busq = st.text_input(
+            "Buscar por ID o nombre", key="to_kan_busq", placeholder="Texto libre..."
+        )
         if busq.strip():
-            _m = (
-                df_kan["Id"].astype(str).str.contains(busq.strip(), case=False, na=False)
-                | df_kan.get("Indicador", pd.Series(dtype=str)).astype(str).str.contains(busq.strip(), case=False, na=False)
+            _m = df_kan["Id"].astype(str).str.contains(
+                busq.strip(), case=False, na=False
+            ) | df_kan.get("Indicador", pd.Series(dtype=str)).astype(str).str.contains(
+                busq.strip(), case=False, na=False
             )
             df_kan = df_kan[_m]
 
-        disp_cols = [c for c in ["Id", "Indicador", "Proceso", "Periodicidad", "Categoria", "Cumplimiento", "Fecha"] if c in df_kan.columns]
-        disp_df   = df_kan[disp_cols].copy()
+        disp_cols = [
+            c
+            for c in [
+                "Id",
+                "Indicador",
+                "Proceso",
+                "Periodicidad",
+                "Categoria",
+                "Cumplimiento",
+                "Fecha",
+            ]
+            if c in df_kan.columns
+        ]
+        disp_df = df_kan[disp_cols].copy()
         if "Cumplimiento" in disp_df.columns:
             disp_df["Cumplimiento"] = pd.to_numeric(disp_df["Cumplimiento"], errors="coerce").apply(
                 lambda v: f"{v * 100:.1f}%" if pd.notna(v) else "—"
             )
         if "Fecha" in disp_df.columns:
-            disp_df["Fecha"] = pd.to_datetime(disp_df["Fecha"], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
+            disp_df["Fecha"] = (
+                pd.to_datetime(disp_df["Fecha"], errors="coerce")
+                .dt.strftime("%d/%m/%Y")
+                .fillna("—")
+            )
 
         st.dataframe(
             disp_df,
@@ -550,13 +692,13 @@ def render() -> None:
             hide_index=True,
             height=440,
             column_config={
-                "Id":           st.column_config.TextColumn("ID", width="small"),
-                "Indicador":    st.column_config.TextColumn("Indicador", width="large"),
-                "Proceso":      st.column_config.TextColumn("Proceso", width="medium"),
+                "Id": st.column_config.TextColumn("ID", width="small"),
+                "Indicador": st.column_config.TextColumn("Indicador", width="large"),
+                "Proceso": st.column_config.TextColumn("Proceso", width="medium"),
                 "Periodicidad": st.column_config.TextColumn("Periodicidad", width="small"),
-                "Categoria":    st.column_config.TextColumn("Estado", width="medium"),
+                "Categoria": st.column_config.TextColumn("Estado", width="medium"),
                 "Cumplimiento": st.column_config.TextColumn("Cumplimiento", width="small"),
-                "Fecha":        st.column_config.TextColumn("Última fecha", width="small"),
+                "Fecha": st.column_config.TextColumn("Última fecha", width="small"),
             },
         )
 
@@ -566,17 +708,19 @@ def render() -> None:
     with tab_qc:
         artefactos = _cargar_artefactos_qc()
         # Filtrar solo los de ingesta (no pipeline_run que tienen estructura diferente)
-        ingesta_arts = [a for a in artefactos if a.get("_tipo") != "pipeline_run" and "resumen" in a]
+        ingesta_arts = [
+            a for a in artefactos if a.get("_tipo") != "pipeline_run" and "resumen" in a
+        ]
 
         if not ingesta_arts:
             st.info("No se encontraron artefactos de ingesta en data/output/artifacts/.")
         else:
             # KPIs globales
-            t_arch  = sum(a["resumen"].get("total_archivos", 0) for a in ingesta_arts)
-            t_exit  = sum(a["resumen"].get("exitosos", 0) for a in ingesta_arts)
-            t_fall  = sum(a["resumen"].get("fallidos", 0) for a in ingesta_arts)
-            t_reg   = sum(a["resumen"].get("total_registros", 0) for a in ingesta_arts)
-            t_val   = sum(a["resumen"].get("total_validaciones", 0) for a in ingesta_arts)
+            t_arch = sum(a["resumen"].get("total_archivos", 0) for a in ingesta_arts)
+            t_exit = sum(a["resumen"].get("exitosos", 0) for a in ingesta_arts)
+            t_fall = sum(a["resumen"].get("fallidos", 0) for a in ingesta_arts)
+            t_reg = sum(a["resumen"].get("total_registros", 0) for a in ingesta_arts)
+            t_val = sum(a["resumen"].get("total_validaciones", 0) for a in ingesta_arts)
 
             qa1, qa2, qa3, qa4, qa5 = st.columns(5)
             qa1.metric("Ejecuciones", len(ingesta_arts))
@@ -601,17 +745,19 @@ def render() -> None:
                 for det in art.get("detalle", []):
                     warns = [v for v in det.get("validaciones", []) if v.get("estado") == "WARNING"]
                     fails = [v for v in det.get("validaciones", []) if v.get("estado") == "FAIL"]
-                    rows.append({
-                        "Ejecución":         str(fecha_run)[:19],
-                        "Plantilla":         det.get("plantilla", "—"),
-                        "Archivo":           det.get("archivo", "—"),
-                        "Leídos":            det.get("registros_leidos", 0),
-                        "Válidos":           det.get("registros_validos", 0),
-                        "Estado":            "✅" if det.get("exitosa") else "❌",
-                        "Errores":           len(det.get("errores", [])),
-                        "Adv.":              len(warns),
-                        "Fallos validación": len(fails),
-                    })
+                    rows.append(
+                        {
+                            "Ejecución": str(fecha_run)[:19],
+                            "Plantilla": det.get("plantilla", "—"),
+                            "Archivo": det.get("archivo", "—"),
+                            "Leídos": det.get("registros_leidos", 0),
+                            "Válidos": det.get("registros_validos", 0),
+                            "Estado": "✅" if det.get("exitosa") else "❌",
+                            "Errores": len(det.get("errores", [])),
+                            "Adv.": len(warns),
+                            "Fallos validación": len(fails),
+                        }
+                    )
 
             if rows:
                 st.markdown("#### Detalle por archivo")
@@ -624,25 +770,29 @@ def render() -> None:
                 fecha_run = art["resumen"].get("fecha", "—")
                 for det in art.get("detalle", []):
                     for v in det.get("validaciones", []):
-                        issues.append({
-                            "Ejecución": str(fecha_run)[:10],
-                            "Archivo":   det.get("archivo", "—"),
-                            "Plantilla": det.get("plantilla", "—"),
-                            "Tipo":      v.get("tipo", "—"),
-                            "Campo":     v.get("campo", "—"),
-                            "Estado":    v.get("estado", "—"),
-                            "Mensaje":   v.get("mensaje", "—"),
-                        })
+                        issues.append(
+                            {
+                                "Ejecución": str(fecha_run)[:10],
+                                "Archivo": det.get("archivo", "—"),
+                                "Plantilla": det.get("plantilla", "—"),
+                                "Tipo": v.get("tipo", "—"),
+                                "Campo": v.get("campo", "—"),
+                                "Estado": v.get("estado", "—"),
+                                "Mensaje": v.get("mensaje", "—"),
+                            }
+                        )
                     for e in det.get("errores", []):
-                        issues.append({
-                            "Ejecución": str(fecha_run)[:10],
-                            "Archivo":   det.get("archivo", "—"),
-                            "Plantilla": det.get("plantilla", "—"),
-                            "Tipo":      "ERROR",
-                            "Campo":     "—",
-                            "Estado":    "ERROR",
-                            "Mensaje":   str(e),
-                        })
+                        issues.append(
+                            {
+                                "Ejecución": str(fecha_run)[:10],
+                                "Archivo": det.get("archivo", "—"),
+                                "Plantilla": det.get("plantilla", "—"),
+                                "Tipo": "ERROR",
+                                "Campo": "—",
+                                "Estado": "ERROR",
+                                "Mensaje": str(e),
+                            }
+                        )
 
             if issues:
                 df_iss = pd.DataFrame(issues)
@@ -650,11 +800,17 @@ def render() -> None:
                 warns_df = df_iss[df_iss["Estado"] == "WARNING"]
 
                 if not fails_df.empty:
-                    with st.expander(f"🔴 Errores y fallos de validación ({len(fails_df)})", expanded=True):
-                        st.dataframe(fails_df, use_container_width=True, hide_index=True, height=280)
+                    with st.expander(
+                        f"🔴 Errores y fallos de validación ({len(fails_df)})", expanded=True
+                    ):
+                        st.dataframe(
+                            fails_df, use_container_width=True, hide_index=True, height=280
+                        )
                 if not warns_df.empty:
                     with st.expander(f"🟡 Advertencias ({len(warns_df)})", expanded=False):
-                        st.dataframe(warns_df, use_container_width=True, hide_index=True, height=280)
+                        st.dataframe(
+                            warns_df, use_container_width=True, hide_index=True, height=280
+                        )
             else:
                 st.success("Sin issues de validación registrados.")
 
@@ -668,7 +824,9 @@ def render() -> None:
             "artefactos de ingesta relacionados e histórico de reportes."
         )
 
-        id_q = st.text_input("ID del indicador", key="to_traz_id", placeholder="Ej: 125, 3.15, PR-05")
+        id_q = st.text_input(
+            "ID del indicador", key="to_traz_id", placeholder="Ej: 125, 3.15, PR-05"
+        )
 
         if id_q.strip():
             id_norm = _id_limpio(id_q.strip())
@@ -678,7 +836,7 @@ def render() -> None:
             if not df_ind.empty:
                 row = df_ind.iloc[0]
                 nombre = str(row.get("Indicador", "—"))
-                cat    = str(row.get("Categoria",  "—"))
+                cat = str(row.get("Categoria", "—"))
                 bg_cat = _NIVEL_BG_EXT.get(cat, "#F5F5F5")
                 fg_cat = _NIVEL_COLOR_EXT.get(cat, "#333333")
                 st.markdown(
@@ -696,9 +854,13 @@ def render() -> None:
                 ic1.metric("Proceso", str(row.get("Proceso", "—"))[:35])
                 ic2.metric("Periodicidad", str(row.get("Periodicidad", "—")))
                 _cum_raw = _to_num(row.get("Cumplimiento"))
-                ic3.metric("Cumplimiento", f"{_cum_raw * 100:.1f}%" if _cum_raw is not None else "—")
+                ic3.metric(
+                    "Cumplimiento", f"{_cum_raw * 100:.1f}%" if _cum_raw is not None else "—"
+                )
                 _fecha_raw = pd.to_datetime(row.get("Fecha"), errors="coerce")
-                ic4.metric("Última fecha", _fecha_raw.strftime("%d/%m/%Y") if pd.notna(_fecha_raw) else "—")
+                ic4.metric(
+                    "Última fecha", _fecha_raw.strftime("%d/%m/%Y") if pd.notna(_fecha_raw) else "—"
+                )
             else:
                 st.info(f"ID **{id_norm}** no encontrado en el dataset filtrado.")
 
@@ -711,24 +873,31 @@ def render() -> None:
                 fecha_run = art.get("resumen", {}).get("fecha", "—")
                 for det in art.get("detalle", []):
                     plantilla = str(det.get("plantilla", "")).lower()
-                    if any(kw in plantilla for kw in ["consolidado", "resultados", "indicadores", "kawak"]):
+                    if any(
+                        kw in plantilla
+                        for kw in ["consolidado", "resultados", "indicadores", "kawak"]
+                    ):
                         v_list = [
                             f"{v.get('estado','—')}: {str(v.get('mensaje',''))[:70]}"
                             for v in det.get("validaciones", [])
                         ]
-                        art_rel.append({
-                            "Ejecución":       str(fecha_run)[:19],
-                            "Plantilla":       det.get("plantilla", "—"),
-                            "Archivo":         det.get("archivo", "—"),
-                            "Registros leídos": det.get("registros_leidos", 0),
-                            "Válidos":          det.get("registros_validos", 0),
-                            "Resultado":        "✅" if det.get("exitosa") else "❌",
-                            "Validaciones":     "; ".join(v_list) if v_list else "Sin issues",
-                        })
+                        art_rel.append(
+                            {
+                                "Ejecución": str(fecha_run)[:19],
+                                "Plantilla": det.get("plantilla", "—"),
+                                "Archivo": det.get("archivo", "—"),
+                                "Registros leídos": det.get("registros_leidos", 0),
+                                "Válidos": det.get("registros_validos", 0),
+                                "Resultado": "✅" if det.get("exitosa") else "❌",
+                                "Validaciones": "; ".join(v_list) if v_list else "Sin issues",
+                            }
+                        )
 
             if art_rel:
                 st.markdown("#### Artefactos de ingesta (plantillas relacionadas)")
-                st.dataframe(pd.DataFrame(art_rel), use_container_width=True, hide_index=True, height=240)
+                st.dataframe(
+                    pd.DataFrame(art_rel), use_container_width=True, hide_index=True, height=240
+                )
             else:
                 st.info(
                     "No se encontraron artefactos con plantillas de consolidado. "
@@ -744,16 +913,29 @@ def render() -> None:
                         df_hist = df_hist.sort_values("Fecha")
 
                     hist_cols = [
-                        c for c in ["Fecha", "Anio", "Mes", "Periodicidad", "Cumplimiento", "Categoria", "Proceso"]
+                        c
+                        for c in [
+                            "Fecha",
+                            "Anio",
+                            "Mes",
+                            "Periodicidad",
+                            "Cumplimiento",
+                            "Categoria",
+                            "Proceso",
+                        ]
                         if c in df_hist.columns
                     ]
                     dh = df_hist[hist_cols].copy()
                     if "Cumplimiento" in dh.columns:
-                        dh["Cumplimiento"] = pd.to_numeric(dh["Cumplimiento"], errors="coerce").apply(
-                            lambda v: f"{v * 100:.1f}%" if pd.notna(v) else "—"
-                        )
+                        dh["Cumplimiento"] = pd.to_numeric(
+                            dh["Cumplimiento"], errors="coerce"
+                        ).apply(lambda v: f"{v * 100:.1f}%" if pd.notna(v) else "—")
                     if "Fecha" in dh.columns:
-                        dh["Fecha"] = pd.to_datetime(dh["Fecha"], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
+                        dh["Fecha"] = (
+                            pd.to_datetime(dh["Fecha"], errors="coerce")
+                            .dt.strftime("%d/%m/%Y")
+                            .fillna("—")
+                        )
 
                     st.dataframe(dh, use_container_width=True, hide_index=True, height=300)
                 else:

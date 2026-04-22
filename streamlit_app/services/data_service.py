@@ -35,32 +35,38 @@ class DataService:
                 return pd.DataFrame()
             df = xl.parse("Proceso")
             df.columns = [str(c).strip() for c in df.columns]
-            return df[[c for c in ["Unidad", "Proceso", "Subproceso", "Tipo de proceso"] if c in df.columns]].dropna(how="all")
+            return df[
+                [
+                    c
+                    for c in ["Unidad", "Proceso", "Subproceso", "Tipo de proceso"]
+                    if c in df.columns
+                ]
+            ].dropna(how="all")
         except Exception:
             return pd.DataFrame()
 
     def get_tracking_data(self) -> pd.DataFrame:
         """
         Carga datos de seguimiento desde Resultados Consolidados.xlsx - Consolidado Semestral.
-        
+
         Según documentación oficial (FUENTES_POR_PAGINA.md):
         - Resumen por Proceso debe usar "Consolidado Semestral"
         - No usar "Seguimiento_Reporte.xlsx" para Meta/Ejecución/Cumplimiento
-        
+
         Returns:
             DataFrame con: Id, Indicador, Proceso, Meta, Ejecucion, Cumplimiento, Año, Mes
         """
         try:
             # Usar la función oficial que lee Consolidado Semestral
             df = cargar_dataset()
-            
+
             if df.empty:
                 return pd.DataFrame()
-            
+
             # Asegurar tipos de datos correctos (columnas vienen de cargar_dataset)
             # Ya vienen con tipos correctos: Anio=Int64, Mes=string
             # No necesita conversión adicional
-            
+
             return df
         except Exception:
             return pd.DataFrame()

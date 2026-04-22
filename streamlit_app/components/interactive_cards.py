@@ -8,39 +8,48 @@ import plotly.graph_objects as go
 
 try:
     from ..styles.design_system import (
-        COLORS, GRADIENTS, SHADOWS, ICONS, 
-        get_color_for_cumplimiento, get_icon_for_estado
+        COLORS,
+        GRADIENTS,
+        SHADOWS,
+        ICONS,
+        get_color_for_cumplimiento,
+        get_icon_for_estado,
     )
     from ..styles.design_system import get_line_color, get_palette_for_chart
     from ..utils.formatting import ejecucion_his_signo, meta_his_signo
 except ImportError:
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from styles.design_system import (
-        COLORS, GRADIENTS, SHADOWS, ICONS, 
-        get_color_for_cumplimiento, get_icon_for_estado
+        COLORS,
+        GRADIENTS,
+        SHADOWS,
+        ICONS,
+        get_color_for_cumplimiento,
+        get_icon_for_estado,
     )
     from styles.design_system import get_line_color, get_palette_for_chart
     from utils.formatting import ejecucion_his_signo, meta_his_signo
 
 
 def render_metric_card(
-    title, 
-    value, 
+    title,
+    value,
     subtitle=None,
-    trend=None, 
-    trend_value=None, 
-    icon="📊", 
+    trend=None,
+    trend_value=None,
+    icon="📊",
     color=None,
     linea=None,
     sparkline_data=None,
     on_click=None,
-    size="normal"
+    size="normal",
 ):
     """
     Renderiza una tarjeta de métrica interactiva con efectos hover.
-    
+
     Args:
         title: str - Título de la métrica
         value: str - Valor principal
@@ -59,24 +68,24 @@ def render_metric_card(
             color = get_line_color(linea)
         else:
             color = COLORS["primary"]
-    
+
     # Determinar icono y color de tendencia
     trend_config = {
         "up": ("↑", COLORS["success"]),
         "down": ("↓", COLORS["danger"]),
         "flat": ("→", COLORS["gray_500"]),
-        None: ("", COLORS["gray_500"])
+        None: ("", COLORS["gray_500"]),
     }
     trend_icon, trend_color = trend_config.get(trend, trend_config[None])
-    
+
     # Tamaños
     sizes = {
         "small": {"padding": "1rem", "title_size": "0.75rem", "value_size": "1.5rem"},
         "normal": {"padding": "1.5rem", "title_size": "0.85rem", "value_size": "2rem"},
-        "large": {"padding": "2rem", "title_size": "1rem", "value_size": "2.5rem"}
+        "large": {"padding": "2rem", "title_size": "1rem", "value_size": "2.5rem"},
     }
     size_config = sizes.get(size, sizes["normal"])
-    
+
     # Generar sparkline si hay datos
     sparkline_html = ""
     if sparkline_data and len(sparkline_data) > 1:
@@ -84,7 +93,7 @@ def render_metric_card(
         min_val = min(sparkline_data)
         max_val = max(sparkline_data)
         range_val = max_val - min_val if max_val != min_val else 1
-        
+
         points = []
         width = 100
         height = 30
@@ -92,10 +101,12 @@ def render_metric_card(
             x = (i / (len(sparkline_data) - 1)) * width
             y = height - ((val - min_val) / range_val) * height
             points.append(f"{x},{y}")
-        
+
         path = " ".join(points)
-        trend_line_color = COLORS["success"] if sparkline_data[-1] >= sparkline_data[0] else COLORS["danger"]
-        
+        trend_line_color = (
+            COLORS["success"] if sparkline_data[-1] >= sparkline_data[0] else COLORS["danger"]
+        )
+
         sparkline_html = f"""
         <svg width="{width}" height="{height}" style="margin-top: 0.75rem;">
             <polyline
@@ -107,7 +118,7 @@ def render_metric_card(
             <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="3" fill="{trend_line_color}"/>
         </svg>
         """
-    
+
     # HTML de la tarjeta
     card_html = f"""
     <div style="
@@ -169,9 +180,9 @@ def render_metric_card(
         
     </div>
     """
-    
+
     st.markdown(card_html, unsafe_allow_html=True)
-    
+
     # Manejar click con session_state
     if on_click:
         if st.button(f"Click {title}", key=f"card_btn_{title}", style="visibility: hidden;"):
@@ -181,23 +192,25 @@ def render_metric_card(
 def render_indicator_status_card(indicator_data, show_sparkline=True):
     """
     Tarjeta específica para mostrar el estado de un indicador.
-    
+
     Args:
         indicator_data: dict - Datos del indicador
         show_sparkline: bool - Mostrar sparkline de tendencia
     """
-    nombre = indicator_data.get('nombre', 'Indicador')
-    cumplimiento = indicator_data.get('cumplimiento', 0)
-    meta = indicator_data.get('meta', 0)
-    ejecucion = indicator_data.get('ejecucion', 0)
-    estado = indicator_data.get('estado', 'Sin dato')
-    tendencia = indicator_data.get('tendencia', [])
+    nombre = indicator_data.get("nombre", "Indicador")
+    cumplimiento = indicator_data.get("cumplimiento", 0)
+    meta = indicator_data.get("meta", 0)
+    ejecucion = indicator_data.get("ejecucion", 0)
+    estado = indicator_data.get("estado", "Sin dato")
+    tendencia = indicator_data.get("tendencia", [])
     meta_fmt = meta_his_signo(
         {
             "Meta": meta,
             "Meta_Signo": indicator_data.get("meta_signo", ""),
             "Decimales": indicator_data.get("decimales", 0),
-            "Decimales_Meta": indicator_data.get("decimales_meta", indicator_data.get("decimales", 0)),
+            "Decimales_Meta": indicator_data.get(
+                "decimales_meta", indicator_data.get("decimales", 0)
+            ),
             "DecimalesEje": indicator_data.get("decimales_ejec", 0),
         }
     )
@@ -209,21 +222,22 @@ def render_indicator_status_card(indicator_data, show_sparkline=True):
             "DecimalesEje": indicator_data.get("decimales_ejec", 0),
         }
     )
-    
+
     # Determinar color e icono según estado
     # Si el indicador tiene una 'linea' asociada, priorizamos el color de línea
-    linea = indicator_data.get('linea')
+    linea = indicator_data.get("linea")
     if linea:
         color = get_line_color(linea)
     else:
         color = get_color_for_cumplimiento(cumplimiento)
     icon = get_icon_for_estado(estado)
-    
+
     # Calcular brecha
     brecha = ejecucion - meta
     brecha_pct = (brecha / meta * 100) if meta > 0 else 0
-    
-    st.markdown(f"""
+
+    st.markdown(
+        f"""
     <div style="
         background: white;
         border-radius: 16px;
@@ -304,34 +318,37 @@ def render_indicator_status_card(indicator_data, show_sparkline=True):
         </div>
         
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_action_card(action_data):
     """
     Tarjeta para mostrar acciones de mejora u OM.
-    
+
     Args:
         action_data: dict - Datos de la acción
     """
-    codigo = action_data.get('codigo', 'OM-001')
-    descripcion = action_data.get('descripcion', 'Sin descripción')
-    responsable = action_data.get('responsable', 'Sin asignar')
-    fecha_limite = action_data.get('fecha_limite', 'Sin fecha')
-    estado = action_data.get('estado', 'Pendiente')
-    progreso = action_data.get('progreso', 0)
-    
+    codigo = action_data.get("codigo", "OM-001")
+    descripcion = action_data.get("descripcion", "Sin descripción")
+    responsable = action_data.get("responsable", "Sin asignar")
+    fecha_limite = action_data.get("fecha_limite", "Sin fecha")
+    estado = action_data.get("estado", "Pendiente")
+    progreso = action_data.get("progreso", 0)
+
     # Color según estado
     estado_colors = {
         "Completada": COLORS["success"],
         "En progreso": COLORS["info"],
         "Pendiente": COLORS["warning"],
         "Vencida": COLORS["danger"],
-        "Cancelada": COLORS["gray_500"]
+        "Cancelada": COLORS["gray_500"],
     }
     color = estado_colors.get(estado, COLORS["warning"])
-    
-    st.markdown(f"""
+
+    st.markdown(
+        f"""
     <div style="
         background: white;
         border-radius: 12px;
@@ -389,41 +406,43 @@ def render_action_card(action_data):
         </div>
         
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_kpi_row(metrics, columns=4):
     """
     Renderiza una fila de KPIs con diseño consistente.
-    
+
     Args:
         metrics: list - Lista de dicts con datos de métricas
         columns: int - Número de columnas
     """
     cols = st.columns(columns)
-    
+
     for idx, metric in enumerate(metrics):
         if idx >= columns:
             break
-            
+
         with cols[idx % columns]:
             render_metric_card(
-                title=metric.get('title', 'Métrica'),
-                value=metric.get('value', '-'),
-                subtitle=metric.get('subtitle'),
-                trend=metric.get('trend'),
-                trend_value=metric.get('trend_value'),
-                icon=metric.get('icon', '📊'),
-                color=metric.get('color', COLORS["primary"]),
-                sparkline_data=metric.get('sparkline_data'),
-                size=metric.get('size', 'normal')
+                title=metric.get("title", "Métrica"),
+                value=metric.get("value", "-"),
+                subtitle=metric.get("subtitle"),
+                trend=metric.get("trend"),
+                trend_value=metric.get("trend_value"),
+                icon=metric.get("icon", "📊"),
+                color=metric.get("color", COLORS["primary"]),
+                sparkline_data=metric.get("sparkline_data"),
+                size=metric.get("size", "normal"),
             )
 
 
 def render_expandable_card(title, content_html, icon="📋", default_expanded=False):
     """
     Tarjeta expandible para mostrar información adicional.
-    
+
     Args:
         title: str - Título de la sección
         content_html: str - Contenido HTML a mostrar
@@ -432,8 +451,9 @@ def render_expandable_card(title, content_html, icon="📋", default_expanded=Fa
     """
     expanded_class = "expanded" if default_expanded else ""
     display_style = "block" if default_expanded else "none"
-    
-    st.markdown(f"""
+
+    st.markdown(
+        f"""
     <div style="
         background: white;
         border-radius: 12px;
@@ -479,7 +499,9 @@ def render_expandable_card(title, content_html, icon="📋", default_expanded=Fa
         }}
     }}
     </script>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 # Exportar funciones

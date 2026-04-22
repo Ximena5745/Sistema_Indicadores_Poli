@@ -1343,6 +1343,67 @@ Incluir:
 
 ---
 
-**Última actualización:** 11 de abril de 2026  
+## 9. Configuración Centralizada
+
+### Ubicación de Configuración
+
+Desde **Fase 4 refactorización**, todas las funciones de UI importan directamente de `core.semantica`:
+
+```python
+# resumen_general.py
+from core.semantica import normalizar_y_categorizar, obtener_icono_categoria
+
+# resumen_por_proceso.py
+from core.semantica import normalizar_valor_a_porcentaje, categorizar_cumplimiento
+
+# gestion_om.py
+from core.semantica import categorizar_cumplimiento, obtener_color_categoria
+```
+
+### Cambiar Umbrales
+
+**Antes:** Actualizar en 8 lugares
+```
+❌ core/calculos.py
+❌ core/semantica.py
+❌ services/strategic_indicators.py
+❌ streamlit_app/pages/resumen_general.py
+❌ streamlit_app/pages/resumen_por_proceso.py
+❌ streamlit_app/pages/gestion_om.py
+(+ 2 más)
+```
+
+**Ahora:** Actualizar en 1 lugar
+```python
+# core/config.py
+UMBRAL_PELIGRO = 0.80
+UMBRAL_ALERTA = 1.00
+UMBRAL_SOBRECUMPLIMIENTO = 1.05
+
+# Plan Anual (especiales)
+UMBRAL_ALERTA_PA = 0.95
+UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00  # Tope máximo
+
+# ✅ Propaga automáticamente a toda la aplicación
+```
+
+### Indicadores Plan Anual
+
+**Detección dinámica:**
+```python
+# core/config.py - Se carga del Excel
+IDS_PLAN_ANUAL = load_plan_anual_ids_from_excel()
+# Retorna: {373, 390, 414, 415, 416, 417, 418, 420, 469, 470, 471, ...}
+
+# Uso en categorización
+if id_indicador in IDS_PLAN_ANUAL:
+    # Aplicar umbrales PA (0.95/1.00)
+else:
+    # Aplicar umbrales regulares (0.80/1.00/1.05)
+```
+
+---
+
+**Última actualización:** 21 de abril de 2026  
 **Próxima revisión:** 15 de mayo de 2026  
 **Contacto:** biinstitucional@poli.edu.co

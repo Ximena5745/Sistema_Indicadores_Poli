@@ -19,22 +19,25 @@ import pandas as pd
 import numpy as np
 from core.semantica import categorizar_cumplimiento
 from core.config import (
-    UMBRAL_PELIGRO, UMBRAL_ALERTA, UMBRAL_SOBRECUMPLIMIENTO,
-    UMBRAL_ALERTA_PA, UMBRAL_SOBRECUMPLIMIENTO_PA,
-    IDS_PLAN_ANUAL
+    UMBRAL_PELIGRO,
+    UMBRAL_ALERTA,
+    UMBRAL_SOBRECUMPLIMIENTO,
+    UMBRAL_ALERTA_PA,
+    UMBRAL_SOBRECUMPLIMIENTO_PA,
+    IDS_PLAN_ANUAL,
 )
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PROBLEMA #1: PLAN ANUAL MAL CATEGORIZADO — TESTS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestProblema1PlanAnualMalCategorizado:
     """
     PROBLEMA: Indicador ID=373 (Plan Anual) con cumplimiento=0.947
     - En data_loader.py → "Cumplimiento" ✅
     - En strategic_indicators.py → "Alerta" ❌ (DEFECTUOSA)
-    
+
     ESPERADO: Ambos deben retornar "Cumplimiento" ✅
     """
 
@@ -48,11 +51,11 @@ class TestProblema1PlanAnualMalCategorizado:
         test_id = "373"
         if test_id not in IDS_PLAN_ANUAL and IDS_PLAN_ANUAL:
             test_id = next(iter(IDS_PLAN_ANUAL))  # Usar primero disponible
-        
+
         # Si no hay ningún ID Plan Anual, skip (Excel no configurado)
         if not IDS_PLAN_ANUAL:
             pytest.skip("No hay indicadores Plan Anual cargados del Excel")
-        
+
         resultado = categorizar_cumplimiento(0.947, id_indicador=test_id)
         assert resultado == "Cumplimiento", (
             f"Plan Anual {test_id} con cumpl=0.947 debería ser 'Cumplimiento', "
@@ -66,7 +69,7 @@ class TestProblema1PlanAnualMalCategorizado:
         """
         # Usar ID que NO sea Plan Anual
         test_id = "9999"
-        
+
         resultado = categorizar_cumplimiento(0.947, id_indicador=test_id)
         assert resultado == "Alerta", (
             f"Indicador regular {test_id} con cumpl=0.947 debería ser 'Alerta', "
@@ -81,7 +84,7 @@ class TestProblema1PlanAnualMalCategorizado:
         if IDS_PLAN_ANUAL:
             test_id_pa = next(iter(IDS_PLAN_ANUAL))
             assert categorizar_cumplimiento(0.95, id_indicador=test_id_pa) == "Cumplimiento"
-        
+
         # Mismo valor en Regular debe ser Alerta
         assert categorizar_cumplimiento(0.95, id_indicador="9999") == "Alerta"
 
@@ -89,6 +92,7 @@ class TestProblema1PlanAnualMalCategorizado:
 # ══════════════════════════════════════════════════════════════════════════════
 # ESTÁNDAR DE CATEGORIZACIÓN — TESTS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestEstandarNivelesRegular:
     """
@@ -166,6 +170,7 @@ class TestEstandarNivelesPlanAnual:
 # CASOS ESPECIALES — TESTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestCasosEspeciales:
     """Casos especiales de entrada"""
 
@@ -202,6 +207,7 @@ class TestCasosEspeciales:
 # UMBRALES CORRECTOS — TESTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestUmbralesDefinidos:
     """Validar que los umbrales constantes están definidos correctamente"""
 
@@ -215,24 +221,33 @@ class TestUmbralesDefinidos:
 
     def test_umbral_sobrecumplimiento_es_105(self):
         """UMBRAL_SOBRECUMPLIMIENTO debe ser 1.05"""
-        assert UMBRAL_SOBRECUMPLIMIENTO == 1.05, f"UMBRAL_SOBRECUMPLIMIENTO debería ser 1.05, pero es {UMBRAL_SOBRECUMPLIMIENTO}"
+        assert (
+            UMBRAL_SOBRECUMPLIMIENTO == 1.05
+        ), f"UMBRAL_SOBRECUMPLIMIENTO debería ser 1.05, pero es {UMBRAL_SOBRECUMPLIMIENTO}"
 
     def test_umbral_alerta_pa_es_095(self):
         """UMBRAL_ALERTA_PA debe ser 0.95"""
-        assert UMBRAL_ALERTA_PA == 0.95, f"UMBRAL_ALERTA_PA debería ser 0.95, pero es {UMBRAL_ALERTA_PA}"
+        assert (
+            UMBRAL_ALERTA_PA == 0.95
+        ), f"UMBRAL_ALERTA_PA debería ser 0.95, pero es {UMBRAL_ALERTA_PA}"
 
     def test_umbral_sobrecumplimiento_pa_es_100(self):
         """UMBRAL_SOBRECUMPLIMIENTO_PA debe ser 1.00 (tope PA)"""
-        assert UMBRAL_SOBRECUMPLIMIENTO_PA == 1.00, f"UMBRAL_SOBRECUMPLIMIENTO_PA debería ser 1.00, pero es {UMBRAL_SOBRECUMPLIMIENTO_PA}"
+        assert (
+            UMBRAL_SOBRECUMPLIMIENTO_PA == 1.00
+        ), f"UMBRAL_SOBRECUMPLIMIENTO_PA debería ser 1.00, pero es {UMBRAL_SOBRECUMPLIMIENTO_PA}"
 
     def test_ids_plan_anual_es_frozenset(self):
         """IDS_PLAN_ANUAL debe ser frozenset (inmutable)"""
-        assert isinstance(IDS_PLAN_ANUAL, frozenset), f"IDS_PLAN_ANUAL debería ser frozenset, pero es {type(IDS_PLAN_ANUAL)}"
+        assert isinstance(
+            IDS_PLAN_ANUAL, frozenset
+        ), f"IDS_PLAN_ANUAL debería ser frozenset, pero es {type(IDS_PLAN_ANUAL)}"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # INTEGRACIÓN Y CONSISTENCIA — TESTS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestConsistenciaIntegracion:
     """Validar que toda la cadena es consistente"""
@@ -262,7 +277,7 @@ class TestConsistenciaIntegracion:
     def test_limites_contiguos_plan_anual(self):
         """Categorías PA cubren rango correctamente"""
         test_id = next(iter(IDS_PLAN_ANUAL))
-        
+
         assert categorizar_cumplimiento(0.0, test_id) == "Peligro"
         assert categorizar_cumplimiento(0.80 - 0.001, test_id) == "Peligro"
         assert categorizar_cumplimiento(0.80, test_id) == "Alerta"
@@ -275,14 +290,15 @@ class TestConsistenciaIntegracion:
 # MÉTRICA: ¿ESTÁ RESUELTO EL PROBLEMA #1?
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def test_resumen_problema_1_está_resuelto():
     """
     RESUMEN: Validar que PROBLEMA #1 está completamente resuelto
-    
+
     ANTES:
     ❌ Plan Anual ID=373 con cumpl=0.947 → "Alerta"
     ❌ Función _nivel_desde_cumplimiento() no detectaba Plan Anual
-    
+
     DESPUÉS:
     ✅ Plan Anual ID=373 con cumpl=0.947 → "Cumplimiento"
     ✅ Función categorizar_cumplimiento() detecta Plan Anual correctamente
@@ -298,14 +314,14 @@ def test_resumen_problema_1_está_resuelto():
             f"Plan Anual {test_id} con cumpl=0.947 sigue retornando '{resultado}' "
             f"en lugar de 'Cumplimiento'"
         )
-    
+
     # Validar que estándares están en config.py
     assert UMBRAL_PELIGRO == 0.80
     assert UMBRAL_ALERTA == 1.00
     assert UMBRAL_SOBRECUMPLIMIENTO == 1.05
     assert UMBRAL_ALERTA_PA == 0.95
     assert UMBRAL_SOBRECUMPLIMIENTO_PA == 1.00
-    
+
     print("✅ PROBLEMA #1 RESUELTO: Plan Anual categorizado correctamente")
 
 

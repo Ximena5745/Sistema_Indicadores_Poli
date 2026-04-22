@@ -3,32 +3,40 @@ core/calculos.py — Lógica de negocio: categorías, umbrales, salud institucio
 
 Sin dependencias de Streamlit → testeable con pytest directamente.
 """
+
 import pandas as pd
 import numpy as np
 
-from core.config import (UMBRAL_PELIGRO, UMBRAL_ALERTA, UMBRAL_SOBRECUMPLIMIENTO,
-                         IDS_PLAN_ANUAL, UMBRAL_ALERTA_PA, UMBRAL_SOBRECUMPLIMIENTO_PA)
+from core.config import (
+    UMBRAL_PELIGRO,
+    UMBRAL_ALERTA,
+    UMBRAL_SOBRECUMPLIMIENTO,
+    IDS_PLAN_ANUAL,
+    UMBRAL_ALERTA_PA,
+    UMBRAL_SOBRECUMPLIMIENTO_PA,
+)
 
 
 def normalizar_cumplimiento(valor):
     """
     Valida que cumplimiento esté en rango esperado [0, 1.3].
-    
+
     Notas:
     - Los datos ya vienen normalizados desde Excel (Consolidado Semestral)
     - Esta función es de VALIDACIÓN, no de conversión
     - Si valor está fuera de rango → log warning + retorna NaN
     - Rango: [0.0, 1.3] donde 1.3 = 130% (máximo capeado)
-    
+
     Args:
         valor: número o string a validar
-    
+
     Returns:
         valor validado ∈ [0, 1.3], o NaN si inválido
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     # Manejar NaN y tipos inválidos
     try:
         if pd.isna(valor):
@@ -37,7 +45,7 @@ def normalizar_cumplimiento(valor):
         # pd.isna falla con tipos complejos (arrays, dicts, etc)
         logger.warning(f"Tipo inválido para normalizar_cumplimiento: {type(valor)}")
         return np.nan
-    
+
     # Convertir string a float si aplica
     if isinstance(valor, str):
         valor_clean = valor.replace("%", "").strip()
@@ -49,19 +57,19 @@ def normalizar_cumplimiento(valor):
         except ValueError:
             logger.warning(f"No se puede convertir a float: '{valor}'")
             return np.nan
-    
+
     # Convertir a float
     try:
         valor = float(valor)
     except (ValueError, TypeError):
         logger.warning(f"Tipo inválido para normalizar_cumplimiento: {type(valor)} = {valor}")
         return np.nan
-    
+
     # Validar que esté en rango esperado [0, 1.3]
     if not (0.0 <= valor <= 1.3):
         logger.warning(f"Cumplimiento fuera de rango [0.0, 1.3]: {valor}")
         return np.nan
-    
+
     return valor
 
 
@@ -86,7 +94,7 @@ def categorizar_cumplimiento(cumplimiento, sentido="Positivo", id_indicador=None
     # Determinar umbrales según tipo de indicador
     es_pa = id_indicador is not None and str(id_indicador).strip() in IDS_PLAN_ANUAL
     u_alerta = UMBRAL_ALERTA_PA if es_pa else UMBRAL_ALERTA
-    u_sobre  = UMBRAL_SOBRECUMPLIMIENTO_PA if es_pa else UMBRAL_SOBRECUMPLIMIENTO
+    u_sobre = UMBRAL_SOBRECUMPLIMIENTO_PA if es_pa else UMBRAL_SOBRECUMPLIMIENTO
 
     if cumplimiento < UMBRAL_PELIGRO:
         return "Peligro"
@@ -142,7 +150,7 @@ def generar_recomendaciones(categoria, cum_series):
     cum_series = cum_series.dropna()
 
     if len(cum_series) >= 3:
-        ultima   = float(cum_series.iloc[-1])
+        ultima = float(cum_series.iloc[-1])
         anterior = float(cum_series.iloc[-3:-1].mean())
         if ultima > anterior + 2:
             tendencia = "Mejorando"
@@ -190,9 +198,13 @@ def generar_recomendaciones(categoria, cum_series):
             "Aunque cumple la meta, se observa una tendencia decreciente — identificar causas antes de que impacte el resultado."
         )
     elif tendencia == "Mejorando" and categoria == "Peligro":
-        recs.append("El indicador muestra una tendencia creciente — continuar con las acciones implementadas.")
+        recs.append(
+            "El indicador muestra una tendencia creciente — continuar con las acciones implementadas."
+        )
     elif tendencia == "Empeorando" and categoria == "Alerta":
-        recs.append("Se observa tendencia decreciente — priorizar medidas preventivas para evitar zona de peligro.")
+        recs.append(
+            "Se observa tendencia decreciente — priorizar medidas preventivas para evitar zona de peligro."
+        )
 
     return tendencia, recs
 
@@ -208,16 +220,8 @@ def obtener_ultimo_registro(df):
         return df
     if "Revisar" in df.columns:
         revisar = pd.to_numeric(df["Revisar"], errors="coerce").fillna(0)
-        return (
-            df[revisar == 1]
-            .drop_duplicates(subset="Id", keep="first")
-            .reset_index(drop=True)
-        )
-    return (
-        df.sort_values("Fecha")
-        .drop_duplicates(subset="Id", keep="last")
-        .reset_index(drop=True)
-    )
+        return df[revisar == 1].drop_duplicates(subset="Id", keep="first").reset_index(drop=True)
+    return df.sort_values("Fecha").drop_duplicates(subset="Id", keep="last").reset_index(drop=True)
 
 
 def calcular_kpis(df_ultimo):
@@ -239,8 +243,7 @@ def estado_tiempo_acciones(df):
     if "DIAS_VENCIDA" in df.columns and "ESTADO" in df.columns:
         df.loc[df["DIAS_VENCIDA"] > 0, "Estado_Tiempo"] = "Vencida"
         df.loc[
-            (df["DIAS_VENCIDA"] >= -30) & (df["DIAS_VENCIDA"] <= 0)
-            & (df["ESTADO"] != "Cerrada"),
+            (df["DIAS_VENCIDA"] >= -30) & (df["DIAS_VENCIDA"] <= 0) & (df["ESTADO"] != "Cerrada"),
             "Estado_Tiempo",
         ] = "Por vencer"
         df.loc[df["ESTADO"] == "Cerrada", "Estado_Tiempo"] = "Cerrada"
@@ -249,30 +252,29 @@ def estado_tiempo_acciones(df):
 
 def simple_categoria_desde_porcentaje(pct) -> str:
     """Categoriza valor en escala porcentual (0-100+) sin consideraciones especiales.
-    
+
     Regla simple (sin Plan Anual ni IDS_TOPE_100):
       < 80%   → Peligro
       80-99%  → Alerta
       ≥ 100%  → Cumplimiento
-    
+
     Args:
         pct: valor en rango 0-100+
-    
+
     Returns:
         'Peligro' | 'Alerta' | 'Cumplimiento' | 'Sin dato'
-    
+
     Nota: Para categorización completa con Plan Anual, usar categorizar_cumplimiento().
-    
+
     Referencia histórica: Este patrón reemplaza a core/niveles.nivel_desde_pct() (deprecado).
     """
     try:
         c = float(pct)
     except (TypeError, ValueError):
         return "Sin dato"
-    
-    if c < UMBRAL_PELIGRO * 100:      # < 80%
+
+    if c < UMBRAL_PELIGRO * 100:  # < 80%
         return "Peligro"
-    if c < UMBRAL_ALERTA * 100:       # 80-99%
+    if c < UMBRAL_ALERTA * 100:  # 80-99%
         return "Alerta"
     return "Cumplimiento"
-

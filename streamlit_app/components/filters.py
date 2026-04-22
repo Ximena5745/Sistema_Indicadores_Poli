@@ -1,7 +1,15 @@
 import streamlit as st
 
 
-def render_filters(data, config, key_prefix="filter", columns_per_row=3, collapsible: bool = False, collapsed_by_default: bool = True, compact: bool = True):
+def render_filters(
+    data,
+    config,
+    key_prefix="filter",
+    columns_per_row=3,
+    collapsible: bool = False,
+    collapsed_by_default: bool = True,
+    compact: bool = True,
+):
     """Renderiza filtros reutilizables.
 
     Args:
@@ -39,22 +47,26 @@ def render_filters(data, config, key_prefix="filter", columns_per_row=3, collaps
         # Checkbox para que el usuario fije la preferencia (visible siempre)
         c1, c2 = st.columns([1, 9])
         with c1:
-            st.checkbox("Mantener filtros cerrados", value=st.session_state[persist_key], key=persist_key)
+            st.checkbox(
+                "Mantener filtros cerrados", value=st.session_state[persist_key], key=persist_key
+            )
 
         expanded = not st.session_state[persist_key]
         with st.expander("🔎 Filtros avanzados", expanded=expanded):
             for start in range(0, len(secondary), columns_per_row):
-                row_items = secondary[start:start + columns_per_row]
+                row_items = secondary[start : start + columns_per_row]
                 cols = st.columns(min(columns_per_row, len(row_items)))
                 for col, (key, conf) in zip(cols, row_items):
                     with col:
-                        selections[key] = _render_single_filter(conf, key_prefix, key, compact=compact)
+                        selections[key] = _render_single_filter(
+                            conf, key_prefix, key, compact=compact
+                        )
 
     else:
         # Render all inline in rows
         for start in range(0, len(items), columns_per_row):
             cols = st.columns(min(columns_per_row, len(items) - start))
-            row_items = items[start:start + columns_per_row]
+            row_items = items[start : start + columns_per_row]
 
             for col, (key, conf) in zip(cols, row_items):
                 with col:
@@ -87,5 +99,7 @@ def _render_single_filter(conf: dict, key_prefix: str, key: str, compact: bool =
         options,
         index=options.index(default_value),
         key=f"{key_prefix}_{key}",
-        format_func=lambda x, ia=include_all, al=all_label, conf=conf: str(conf.get("all_display", "— Todos —")) if ia and x == al else str(x),
+        format_func=lambda x, ia=include_all, al=all_label, conf=conf: (
+            str(conf.get("all_display", "— Todos —")) if ia and x == al else str(x)
+        ),
     )

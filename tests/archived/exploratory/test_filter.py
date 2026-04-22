@@ -1,5 +1,6 @@
 import sys
-sys.path.insert(0, '.')
+
+sys.path.insert(0, ".")
 from streamlit_app.services.data_service import DataService
 from streamlit_app.pages.resumen_general_real import _filter_consolidado_by_year_month
 

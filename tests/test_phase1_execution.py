@@ -52,8 +52,19 @@ def test_formato_global_meta_y_df():
 
     df = pd.DataFrame(
         [
-            {"Meta": 1000, "Ejecucion": 950, "Meta_Signo": "%", "Ejecucion_Signo": "%", "DecimalesEje": 0},
-            {"Meta": 0, "Ejecucion": 0, "Meta_Signo": "Sin reporte", "Ejecucion_Signo": "Sin reporte"},
+            {
+                "Meta": 1000,
+                "Ejecucion": 950,
+                "Meta_Signo": "%",
+                "Ejecucion_Signo": "%",
+                "DecimalesEje": 0,
+            },
+            {
+                "Meta": 0,
+                "Ejecucion": 0,
+                "Meta_Signo": "Sin reporte",
+                "Ejecucion_Signo": "Sin reporte",
+            },
         ]
     )
     out = formatting.formatear_meta_ejecucion_df(df, meta_col="Meta", ejec_col="Ejecucion")
@@ -68,10 +79,34 @@ def test_cargar_indicadores_riesgo_filtra_y_ultima_fecha(monkeypatch):
 
     fake_df = pd.DataFrame(
         [
-            {"Id": "1", "Indicador": "A", "Proceso": "P1", "Categoria": "Peligro", "Fecha": "2026-01-01"},
-            {"Id": "1", "Indicador": "A", "Proceso": "P1", "Categoria": "Alerta", "Fecha": "2026-02-01"},
-            {"Id": "2", "Indicador": "B", "Proceso": "P2", "Categoria": "Cumplimiento", "Fecha": "2026-02-01"},
-            {"Id": "3", "Indicador": "C", "Proceso": "P3", "Categoria": "Peligro", "Fecha": "2026-03-01"},
+            {
+                "Id": "1",
+                "Indicador": "A",
+                "Proceso": "P1",
+                "Categoria": "Peligro",
+                "Fecha": "2026-01-01",
+            },
+            {
+                "Id": "1",
+                "Indicador": "A",
+                "Proceso": "P1",
+                "Categoria": "Alerta",
+                "Fecha": "2026-02-01",
+            },
+            {
+                "Id": "2",
+                "Indicador": "B",
+                "Proceso": "P2",
+                "Categoria": "Cumplimiento",
+                "Fecha": "2026-02-01",
+            },
+            {
+                "Id": "3",
+                "Indicador": "C",
+                "Proceso": "P3",
+                "Categoria": "Peligro",
+                "Fecha": "2026-03-01",
+            },
         ]
     )
 

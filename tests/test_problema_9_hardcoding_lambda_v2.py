@@ -126,7 +126,9 @@ class TestNormalizarValorP9Simple:
     def test_format_as_percentage_strings(self):
         """Format normalized values as percentage strings"""
         series = pd.Series([0.5, 0.95, 1.2])
-        normalized = series.apply(lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False))
+        normalized = series.apply(
+            lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False)
+        )
         formatted = normalized.apply(lambda v: f"{v:.1f}%")
         expected = pd.Series(["50.0%", "95.0%", "120.0%"])
         pd.testing.assert_series_equal(formatted, expected)
@@ -150,13 +152,17 @@ class TestNormalizarValorP9Simple:
 
     def test_integration_cumplimiento_normalization(self):
         """Simulates Cumplimiento normalization from gestion_om.py"""
-        df = pd.DataFrame({
-            "Cumplimiento": [0.8, 0.95, 1.0, 1.05, 1.2]
-        })
+        df = pd.DataFrame({"Cumplimiento": [0.8, 0.95, 1.0, 1.05, 1.2]})
         # Cumplimiento always comes as decimal (0-1.3)
-        df["Cumplimiento_pct"] = df["Cumplimiento"].apply(
-            lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v
-        ).round(1)
+        df["Cumplimiento_pct"] = (
+            df["Cumplimiento"]
+            .apply(
+                lambda v: (
+                    normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v
+                )
+            )
+            .round(1)
+        )
 
         expected = pd.Series([80.0, 95.0, 100.0, 105.0, 120.0], name="Cumplimiento_pct")
         pd.testing.assert_series_equal(df["Cumplimiento_pct"], expected)
@@ -168,20 +174,21 @@ class TestNormalizarValorP9Simple:
     def test_code_uses_tiene_porcentaje_not_threshold(self):
         """Verify function uses tiene_porcentaje logic, not hardcoded thresholds"""
         import inspect
+
         source = inspect.getsource(normalizar_valor_a_porcentaje)
-        assert 'tiene_porcentaje' in source
-        assert 'if tiene_porcentaje' in source
+        assert "tiene_porcentaje" in source
+        assert "if tiene_porcentaje" in source
 
     def test_gestion_om_refactored(self):
         """Verify gestion_om.py uses new API"""
         gestion_om_path = Path(__file__).parent.parent / "streamlit_app" / "pages" / "gestion_om.py"
         if gestion_om_path.exists():
-            with open(gestion_om_path, 'r', encoding='utf-8') as f:
+            with open(gestion_om_path, "r", encoding="utf-8") as f:
                 content = f.read()
             # Should import normalizar_valor_a_porcentaje
-            assert 'normalizar_valor_a_porcentaje' in content
+            assert "normalizar_valor_a_porcentaje" in content
             # Should NOT have old hardcoding patterns with umbral_decimal
-            assert 'umbral_decimal=1.5' not in content or 'tiene_porcentaje' in content
+            assert "umbral_decimal=1.5" not in content or "tiene_porcentaje" in content
 
 
 if __name__ == "__main__":

@@ -5,11 +5,13 @@ Muestra el Índice de Salud Institucional (ISI) con alertas y gauge interactivo
 
 import streamlit as st
 import plotly.graph_objects as go
+
 try:
     from ..styles.design_system import COLORS, GRADIENTS, ICONS, get_line_color
 except ImportError:
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from styles.design_system import COLORS, GRADIENTS, ICONS, get_line_color
 
@@ -17,13 +19,13 @@ except ImportError:
 def render_hero_section(isi_value, alertas, subtitle="Politécnico Grancolombiano", linea=None):
     """
     Renderiza la sección hero con ISI, alertas y gauge semicircular.
-    
+
     Args:
         isi_value: float - Valor del ISI (0-100)
         alertas: list - Lista de mensajes de alerta
         subtitle: str - Subtítulo institucional
     """
-    
+
     # Determinar color según valor ISI
     if isi_value >= 80:
         isi_color = COLORS["success"]
@@ -40,9 +42,10 @@ def render_hero_section(isi_value, alertas, subtitle="Politécnico Grancolombian
 
     # Color de acento por línea (si se proporciona) — prioriza identidad de línea
     accent = get_line_color(linea) if linea else isi_color
-    
+
     # CSS personalizado para el hero
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <style>
     .hero-container {{
         background: linear-gradient(135deg, {accent} 0%, {COLORS['primary']} 100%);
@@ -176,18 +179,21 @@ def render_hero_section(isi_value, alertas, subtitle="Politécnico Grancolombian
         transform: translateY(-2px);
     }}
     </style>
-    """, unsafe_allow_html=True)
-    
+    """,
+        unsafe_allow_html=True,
+    )
+
     # Layout en dos columnas
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         # Contenido del hero
         alertas_html = ""
         for alerta in alertas[:3]:  # Mostrar máximo 3 alertas
             alertas_html += f'<div class="alert-item"><span class="alert-icon">🔴</span><span>{alerta}</span></div>'
-        
-        st.markdown(f"""
+
+        st.markdown(
+            f"""
         <div class="hero-container">
             <div class="hero-title">🏛️ Sistema de Indicadores</div>
             <div class="hero-subtitle">{subtitle}</div>
@@ -214,63 +220,65 @@ def render_hero_section(isi_value, alertas, subtitle="Politécnico Grancolombian
                     <a href="#" class="quick-action-btn">⚡ Acciones urgentes</a>
                 </div>
         </div>
-        """, unsafe_allow_html=True)
-    
+        """,
+            unsafe_allow_html=True,
+        )
+
     with col2:
         # Gauge semicircular con Plotly
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number+delta",
-            value=isi_value,
-            number={
-                'suffix': "%",
-                'font': {'size': 48, 'color': 'white', 'family': 'Inter, sans-serif'},
-                'valueformat': '.1f'
-            },
-            delta={
-                'reference': 75,
-                'relative': False,
-                'valueformat': '.1f',
-                'increasing': {'color': COLORS["success"]},
-                'decreasing': {'color': COLORS["danger"]},
-                'font': {'size': 20, 'color': 'white'}
-            },
-            gauge={
-                'axis': {
-                    'range': [0, 100],
-                    'tickwidth': 1,
-                    'tickcolor': 'rgba(255,255,255,0.5)',
-                    'tickfont': {'color': 'rgba(255,255,255,0.7)'}
+        fig = go.Figure(
+            go.Indicator(
+                mode="gauge+number+delta",
+                value=isi_value,
+                number={
+                    "suffix": "%",
+                    "font": {"size": 48, "color": "white", "family": "Inter, sans-serif"},
+                    "valueformat": ".1f",
                 },
-                'bar': {
-                    'color': isi_color,
-                    'thickness': 0.75
+                delta={
+                    "reference": 75,
+                    "relative": False,
+                    "valueformat": ".1f",
+                    "increasing": {"color": COLORS["success"]},
+                    "decreasing": {"color": COLORS["danger"]},
+                    "font": {"size": 20, "color": "white"},
                 },
-                'bgcolor': 'rgba(255,255,255,0.1)',
-                'borderwidth': 2,
-                'bordercolor': 'rgba(255,255,255,0.3)',
-                'steps': [
-                    {'range': [0, 60], 'color': 'rgba(211,47,47,0.3)'},
-                    {'range': [60, 80], 'color': 'rgba(251,175,23,0.3)'},
-                    {'range': [80, 100], 'color': 'rgba(67,160,71,0.3)'}
-                ],
-                'threshold': {
-                    'line': {'color': 'white', 'width': 4},
-                    'thickness': 0.8,
-                    'value': isi_value
-                }
-            }
-        ))
-        
+                gauge={
+                    "axis": {
+                        "range": [0, 100],
+                        "tickwidth": 1,
+                        "tickcolor": "rgba(255,255,255,0.5)",
+                        "tickfont": {"color": "rgba(255,255,255,0.7)"},
+                    },
+                    "bar": {"color": isi_color, "thickness": 0.75},
+                    "bgcolor": "rgba(255,255,255,0.1)",
+                    "borderwidth": 2,
+                    "bordercolor": "rgba(255,255,255,0.3)",
+                    "steps": [
+                        {"range": [0, 60], "color": "rgba(211,47,47,0.3)"},
+                        {"range": [60, 80], "color": "rgba(251,175,23,0.3)"},
+                        {"range": [80, 100], "color": "rgba(67,160,71,0.3)"},
+                    ],
+                    "threshold": {
+                        "line": {"color": "white", "width": 4},
+                        "thickness": 0.8,
+                        "value": isi_value,
+                    },
+                },
+            )
+        )
+
         fig.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            font={'color': 'white', 'family': 'Inter, sans-serif'},
+            paper_bgcolor="rgba(0,0,0,0)",
+            font={"color": "white", "family": "Inter, sans-serif"},
             height=350,
             margin=dict(l=20, r=20, t=50, b=20),
-            showlegend=False
+            showlegend=False,
         )
-        
+
         # Contenedor con fondo del gradiente
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="
             background: linear-gradient(135deg, {accent} 0%, {COLORS['primary']} 100%);
             border-radius: 20px;
@@ -281,17 +289,19 @@ def render_hero_section(isi_value, alertas, subtitle="Politécnico Grancolombian
             align-items: center;
             justify-content: center;
         ">
-        """, unsafe_allow_html=True)
-        
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        
+        """,
+            unsafe_allow_html=True,
+        )
+
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
         st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_mini_kpi_card(title, value, trend=None, trend_value=None, icon="📊", color=None):
     """
     Renderiza una mini tarjeta KPI para usar en el hero o secciones.
-    
+
     Args:
         title: str - Título de la métrica
         value: str - Valor a mostrar
@@ -302,14 +312,15 @@ def render_mini_kpi_card(title, value, trend=None, trend_value=None, icon="📊"
     """
     if color is None:
         color = COLORS["primary"]
-    
+
     trend_html = ""
     if trend:
         trend_icon = "↑" if trend == "up" else "↓"
         trend_color = COLORS["success"] if trend == "up" else COLORS["danger"]
         trend_html = f'<span style="color: {trend_color}; font-weight: 600;">{trend_icon} {trend_value}</span>'
-    
-    st.markdown(f"""
+
+    st.markdown(
+        f"""
     <div style="
         background: white;
         border-radius: 12px;
@@ -328,13 +339,15 @@ def render_mini_kpi_card(title, value, trend=None, trend_value=None, icon="📊"
         </div>
         {trend_html}
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_alert_banner(message, type_="warning", dismissible=True):
     """
     Renderiza un banner de alerta flotante.
-    
+
     Args:
         message: str - Mensaje de alerta
         type_: str - 'success', 'warning', 'danger', 'info'
@@ -344,12 +357,13 @@ def render_alert_banner(message, type_="warning", dismissible=True):
         "success": (COLORS["success"], "✅"),
         "warning": (COLORS["warning"], "⚠️"),
         "danger": (COLORS["danger"], "🚨"),
-        "info": (COLORS["info"], "ℹ️")
+        "info": (COLORS["info"], "ℹ️"),
     }
-    
+
     color, icon = colors.get(type_, colors["info"])
-    
-    st.markdown(f"""
+
+    st.markdown(
+        f"""
     <div style="
         background: {color}15;
         border-left: 4px solid {color};
@@ -364,7 +378,9 @@ def render_alert_banner(message, type_="warning", dismissible=True):
         <span style="color: {COLORS["text_primary"]}; flex: 1;">{message}</span>
         {f'<button style="background: none; border: none; cursor: pointer; font-size: 1.25rem; color: {COLORS["gray_500"]};">×</button>' if dismissible else ''}
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 # Exportar funciones

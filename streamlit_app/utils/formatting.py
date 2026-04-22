@@ -173,7 +173,9 @@ def meta_his_signo(row):
     return _formatear_valor_por_signo(meta_s, meta, dec_eje, dec_meta)
 
 
-def formatear_meta_ejecucion_df(df: pd.DataFrame, meta_col: str = "Meta", ejec_col: str = "Ejecucion") -> pd.DataFrame:
+def formatear_meta_ejecucion_df(
+    df: pd.DataFrame, meta_col: str = "Meta", ejec_col: str = "Ejecucion"
+) -> pd.DataFrame:
     if df is None or df.empty:
         return df
 
@@ -185,7 +187,9 @@ def formatear_meta_ejecucion_df(df: pd.DataFrame, meta_col: str = "Meta", ejec_c
         )
     if ejec_col in out.columns:
         out[ejec_col] = out.apply(
-            lambda r: ejecucion_his_signo({**r.to_dict(), "Ejecucion": r.get(ejec_col), "Ejecución": r.get(ejec_col)}),
+            lambda r: ejecucion_his_signo(
+                {**r.to_dict(), "Ejecucion": r.get(ejec_col), "Ejecución": r.get(ejec_col)}
+            ),
             axis=1,
         )
     return out

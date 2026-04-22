@@ -3,7 +3,17 @@ def calcular_cascada(df):
     nivel4 = df.copy()
     nivel4["Nivel"] = 4
     nivel4["Total_Indicadores"] = 1
-    nivel4 = nivel4[["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "cumplimiento_pct", "Total_Indicadores"]]
+    nivel4 = nivel4[
+        [
+            "Nivel",
+            "Linea",
+            "Objetivo",
+            "Meta_PDI",
+            "Indicador",
+            "cumplimiento_pct",
+            "Total_Indicadores",
+        ]
+    ]
     nivel4 = nivel4.rename(columns={"cumplimiento_pct": "Cumplimiento"})
 
     # Nivel 3: Meta_PDI
@@ -14,7 +24,9 @@ def calcular_cascada(df):
     )
     nivel3["Nivel"] = 3
     nivel3["Indicador"] = None
-    nivel3 = nivel3[["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "Cumplimiento", "Total_Indicadores"]]
+    nivel3 = nivel3[
+        ["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "Cumplimiento", "Total_Indicadores"]
+    ]
 
     # Nivel 2: Objetivo
     nivel2 = (
@@ -25,7 +37,9 @@ def calcular_cascada(df):
     nivel2["Nivel"] = 2
     nivel2["Meta_PDI"] = None
     nivel2["Indicador"] = None
-    nivel2 = nivel2[["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "Cumplimiento", "Total_Indicadores"]]
+    nivel2 = nivel2[
+        ["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "Cumplimiento", "Total_Indicadores"]
+    ]
 
     # Nivel 1: Linea
     nivel1 = (
@@ -37,11 +51,15 @@ def calcular_cascada(df):
     nivel1["Objetivo"] = None
     nivel1["Meta_PDI"] = None
     nivel1["Indicador"] = None
-    nivel1 = nivel1[["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "Cumplimiento", "Total_Indicadores"]]
+    nivel1 = nivel1[
+        ["Nivel", "Linea", "Objetivo", "Meta_PDI", "Indicador", "Cumplimiento", "Total_Indicadores"]
+    ]
 
     # Unir todos los niveles
     cascada = pd.concat([nivel1, nivel2, nivel3, nivel4], ignore_index=True)
     return cascada
+
+
 """
 pages/resumen_general_real.py — Resumen General con datos reales de Consolidado Cierres.
 
@@ -56,6 +74,7 @@ try:
     from services.strategic_indicators import preparar_pdi_con_cierre
 except (ImportError, ModuleNotFoundError):
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from services.strategic_indicators import preparar_pdi_con_cierre
 
@@ -140,7 +159,7 @@ def _load_consolidado_cierres() -> pd.DataFrame:
 def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     """
     Asegura que exista columna 'Nivel de cumplimiento'.
-    
+
     Problema #7 FIX: Usa categorizar_cumplimiento() en lugar de hardcoding.
     """
     if "Nivel de cumplimiento" in df.columns:
@@ -154,7 +173,7 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     if "cumplimiento_pct" in df.columns:
         # Importar aquí para evitar circular imports
         from core.semantica import normalizar_y_categorizar
-        
+
         def _map_level_v2(row):
             """
             Usa core.semantica para categorizar (SINGLE SOURCE).
@@ -167,17 +186,18 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
                 pct = float(row["cumplimiento_pct"])
             except Exception:
                 return "Pendiente de reporte"
-            
+
             # Si pct es NaN, retornar
             import math
+
             if math.isnan(pct):
                 return "Pendiente de reporte"
-            
+
             # MEJORA FASE 2: Usar wrapper centralizado
             id_indicador = row.get("Id", None)
             categoria = normalizar_y_categorizar(pct, es_porcentaje=True, id_indicador=id_indicador)
             return categoria
-        
+
         df = df.copy()
         df["Nivel de cumplimiento"] = df.apply(_map_level_v2, axis=1)
         return df
@@ -223,9 +243,17 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         colors = ["#6B728E"]
     else:
         # Nivel 1: Linea
-        lines = df.groupby("Linea", dropna=False).agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
+        lines = (
+            df.groupby("Linea", dropna=False)
+            .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
+            .reset_index()
+        )
         # Nivel 2: Objetivo
-        grouped = df.groupby(["Linea", "Objetivo"], dropna=False).agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
+        grouped = (
+            df.groupby(["Linea", "Objetivo"], dropna=False)
+            .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
+            .reset_index()
+        )
         labels = []
         parents = []
         values = []
@@ -235,7 +263,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             labels.append(line["Linea"])
             parents.append("")
             values.append(1)  # valor fijo para estructura
-            customdata.append([line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0])
+            customdata.append(
+                [line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0]
+            )
             colors.append(LINEA_COLORS.get(line["Linea"], "#6B728E"))
         for _, row in grouped.iterrows():
             labels.append(row["Objetivo"])
@@ -243,16 +273,18 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             values.append(1)
             customdata.append([row["cumplimiento_pct"] if pd.notna(row["cumplimiento_pct"]) else 0])
             colors.append(LINEA_COLORS.get(row["Linea"], "#6B728E"))
-    fig = go.Figure(go.Sunburst(
-        labels=labels,
-        parents=parents,
-        values=values,
-        branchvalues="total",
-        marker=dict(colors=colors, line=dict(color="#ffffff", width=2)),
-        customdata=customdata,
-        hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
-        insidetextorientation="radial",
-    ))
+    fig = go.Figure(
+        go.Sunburst(
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            marker=dict(colors=colors, line=dict(color="#ffffff", width=2)),
+            customdata=customdata,
+            hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
+            insidetextorientation="radial",
+        )
+    )
     fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=600)
     return fig
 
@@ -260,7 +292,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if current.empty or previous.empty:
         return [], []
-    cur = current[["Id", "Indicador", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
+    cur = (
+        current[["Id", "Indicador", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
+    )
     prev = previous[["Id", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
     merged = cur.merge(prev, on="Id", suffixes=("", "_prev"))
     if merged.empty:
@@ -269,8 +303,14 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     best = merged.sort_values("variation", ascending=False).head(3)
     worst = merged.sort_values("variation").head(3)
     return (
-        [{"name": str(row["Indicador"]), "change": float(row["variation"])} for _, row in best.iterrows()],
-        [{"name": str(row["Indicador"]), "change": float(row["variation"])} for _, row in worst.iterrows()],
+        [
+            {"name": str(row["Indicador"]), "change": float(row["variation"])}
+            for _, row in best.iterrows()
+        ],
+        [
+            {"name": str(row["Indicador"]), "change": float(row["variation"])}
+            for _, row in worst.iterrows()
+        ],
     )
 
 
@@ -290,11 +330,11 @@ def _process_counts(df: pd.DataFrame, process_col: str) -> pd.DataFrame:
     group_col = "Id" if "Id" in df.columns else process_col
     pivot = (
         df[df["Nivel de cumplimiento"].isin(levels)]
-          .groupby([process_col, "Nivel de cumplimiento"])[group_col]
-          .nunique()
-          .reset_index(name="count")
-          .pivot(index=process_col, columns="Nivel de cumplimiento", values="count")
-          .fillna(0)
+        .groupby([process_col, "Nivel de cumplimiento"])[group_col]
+        .nunique()
+        .reset_index(name="count")
+        .pivot(index=process_col, columns="Nivel de cumplimiento", values="count")
+        .fillna(0)
     )
     for lvl in levels:
         if lvl not in pivot.columns:
@@ -303,22 +343,39 @@ def _process_counts(df: pd.DataFrame, process_col: str) -> pd.DataFrame:
 
 
 def _process_improvements(current: pd.DataFrame, previous: pd.DataFrame, process_col: str):
-    if current.empty or previous.empty or process_col not in current.columns or process_col not in previous.columns:
+    if (
+        current.empty
+        or previous.empty
+        or process_col not in current.columns
+        or process_col not in previous.columns
+    ):
         return [], []
     current = current[current["cumplimiento_pct"].notna()]
     previous = previous[previous["cumplimiento_pct"].notna()]
-    curr_avg = current.groupby(process_col)["cumplimiento_pct"].mean().reset_index(name="current_avg")
-    prev_avg = previous.groupby(process_col)["cumplimiento_pct"].mean().reset_index(name="previous_avg")
+    curr_avg = (
+        current.groupby(process_col)["cumplimiento_pct"].mean().reset_index(name="current_avg")
+    )
+    prev_avg = (
+        previous.groupby(process_col)["cumplimiento_pct"].mean().reset_index(name="previous_avg")
+    )
     merged = curr_avg.merge(prev_avg, on=process_col, how="inner")
     if merged.empty:
         return [], []
     merged["delta"] = merged["current_avg"] - merged["previous_avg"]
     top = merged.sort_values("delta", ascending=False).head(3)
-    alerts = merged[(merged["current_avg"] >= 50) & (merged["current_avg"] < 80) & (merged["delta"] < 0)]
+    alerts = merged[
+        (merged["current_avg"] >= 50) & (merged["current_avg"] < 80) & (merged["delta"] < 0)
+    ]
     alerts = alerts.sort_values("delta").head(3)
     return (
-        [{"name": str(row[process_col]), "change": float(row["delta"])} for _, row in top.iterrows()],
-        [{"name": str(row[process_col]), "change": float(row["delta"])} for _, row in alerts.iterrows()],
+        [
+            {"name": str(row[process_col]), "change": float(row["delta"])}
+            for _, row in top.iterrows()
+        ],
+        [
+            {"name": str(row[process_col]), "change": float(row["delta"])}
+            for _, row in alerts.iterrows()
+        ],
     )
 
 
@@ -326,8 +383,14 @@ def _format_insights(items: list[dict], positive: bool = True):
     if not items:
         return []
     if positive:
-        return [f"- **{item['name']}** mejora +{item['change']:.1f}% respecto al año anterior." for item in items]
-    return [f"- **{item['name']}** empeora {item['change']:.1f}% respecto al año anterior." for item in items]
+        return [
+            f"- **{item['name']}** mejora +{item['change']:.1f}% respecto al año anterior."
+            for item in items
+        ]
+    return [
+        f"- **{item['name']}** empeora {item['change']:.1f}% respecto al año anterior."
+        for item in items
+    ]
 
 
 def render():
@@ -335,7 +398,9 @@ def render():
     st.markdown("#### Fuente real: Consolidado Cierres — Resultados Consolidados.xlsx")
     consolidado = _load_consolidado_cierres()
     if consolidado.empty:
-        st.error("No se pudo cargar la hoja 'Consolidado Cierres' desde data/output/Resultados Consolidados.xlsx.")
+        st.error(
+            "No se pudo cargar la hoja 'Consolidado Cierres' desde data/output/Resultados Consolidados.xlsx."
+        )
         return
 
     years = _available_years(consolidado)
@@ -345,8 +410,18 @@ def render():
 
     # Meses en español para despliegue
     MESES_NOMBRES = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
     ]
 
     col_year, col_month = st.columns(2)
@@ -361,10 +436,16 @@ def render():
             default_idx = last_avail - 1
         else:
             default_idx = 11
-        selected_month_name = st.selectbox("Mes de análisis", options=MESES_NOMBRES, index=default_idx)
+        selected_month_name = st.selectbox(
+            "Mes de análisis", options=MESES_NOMBRES, index=default_idx
+        )
         selected_month = MESES_NOMBRES.index(selected_month_name) + 1
 
-    month_label = MESES_NOMBRES[selected_month - 1] if selected_month and 1 <= selected_month <= 12 else "último disponible"
+    month_label = (
+        MESES_NOMBRES[selected_month - 1]
+        if selected_month and 1 <= selected_month <= 12
+        else "último disponible"
+    )
     st.caption(f"Corte seleccionado: {selected_year} — Mes {month_label}")
 
     pdi_df = preparar_pdi_con_cierre(selected_year, selected_month if selected_month else 12)
@@ -383,7 +464,11 @@ def render():
 
     prev_year = selected_year - 1
     prev_month = _latest_month_for_year(consolidado, prev_year)
-    prev_pdi_df = preparar_pdi_con_cierre(prev_year, prev_month if prev_month else 12) if prev_month else pd.DataFrame()
+    prev_pdi_df = (
+        preparar_pdi_con_cierre(prev_year, prev_month if prev_month else 12)
+        if prev_month
+        else pd.DataFrame()
+    )
 
     best_improvements, worst_declines = _compute_trends(pdi_df, prev_pdi_df)
     # --- Nueva lógica de cascada ---
@@ -401,7 +486,13 @@ def render():
 
     kpi_cols = st.columns(5)
     colors = ["#0B5FFF", "#1A3A5C", "#43A047", "#FBAF17", "#D32F2F"]
-    values = [count_total, counts["Sobrecumplimiento"], counts["Cumplimiento"], counts["Alerta"], counts["Peligro"]]
+    values = [
+        count_total,
+        counts["Sobrecumplimiento"],
+        counts["Cumplimiento"],
+        counts["Alerta"],
+        counts["Peligro"],
+    ]
     labels = ["Total indicadores PDI", "Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]
     for col, label, value, color in zip(kpi_cols, labels, values, colors):
         with col:
@@ -428,24 +519,38 @@ def render():
         st.markdown("- No hay comparativas disponibles contra el año anterior.")
 
     st.markdown("### Insights Estratégicos (IA)")
-    best_line = pdi_df.groupby("Linea").agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
+    best_line = (
+        pdi_df.groupby("Linea").agg(cumplimiento_pct=("cumplimiento_pct", "mean")).reset_index()
+    )
     best_line = best_line.sort_values("cumplimiento_pct", ascending=False).head(1)
     line_name = str(best_line.iloc[0]["Linea"]) if not best_line.empty else ""
     line_avg = float(best_line.iloc[0]["cumplimiento_pct"]) if not best_line.empty else 0
-    health_rate = round(((counts["Sobrecumplimiento"] + counts["Cumplimiento"]) / max(count_total, 1)) * 100, 1)
+    health_rate = round(
+        ((counts["Sobrecumplimiento"] + counts["Cumplimiento"]) / max(count_total, 1)) * 100, 1
+    )
     insights = []
     if health_rate >= 70:
         insights.append(f"✅ El {health_rate}% de los indicadores PDI están en niveles saludables.")
     elif health_rate >= 50:
-        insights.append(f"⚠️ El {health_rate}% de los indicadores PDI están en cumplimiento, con riesgo en algunos objetivos.")
+        insights.append(
+            f"⚠️ El {health_rate}% de los indicadores PDI están en cumplimiento, con riesgo en algunos objetivos."
+        )
     else:
-        insights.append(f"🚨 Solo el {health_rate}% de los indicadores PDI cumplen expectativas; se requiere acción prioritaria.")
+        insights.append(
+            f"🚨 Solo el {health_rate}% de los indicadores PDI cumplen expectativas; se requiere acción prioritaria."
+        )
     if line_name:
-        insights.append(f"🌟 La línea \"{line_name}\" lidera con {line_avg:.1f}% de cumplimiento promedio.")
+        insights.append(
+            f'🌟 La línea "{line_name}" lidera con {line_avg:.1f}% de cumplimiento promedio.'
+        )
     if best_improvements:
-        insights.append(f"📈 Mejora destacada: \"{best_improvements[0]['name']}\" (+{best_improvements[0]['change']:.1f}%).")
+        insights.append(
+            f"📈 Mejora destacada: \"{best_improvements[0]['name']}\" (+{best_improvements[0]['change']:.1f}%)."
+        )
     if worst_declines:
-        insights.append(f"📉 Atención a \"{worst_declines[0]['name']}\" ({worst_declines[0]['change']:.1f}%).")
+        insights.append(
+            f"📉 Atención a \"{worst_declines[0]['name']}\" ({worst_declines[0]['change']:.1f}%)."
+        )
     for insight in insights:
         st.markdown(f"- {insight}")
 
@@ -462,24 +567,62 @@ def render():
         st.warning("No hay datos por proceso para el año seleccionado.")
         return
 
-    total_process = int(process_data["Id"].nunique()) if "Id" in process_data.columns else len(process_data)
+    total_process = (
+        int(process_data["Id"].nunique()) if "Id" in process_data.columns else len(process_data)
+    )
     st.markdown(f"**Total indicadores por proceso:** {total_process}")
     proc_counts = _process_counts(process_data, process_col)
     if not proc_counts.empty:
         fig = go.Figure()
-        fig.add_trace(go.Bar(name='Sobrecumplimiento', x=proc_counts[process_col], y=proc_counts['Sobrecumplimiento'], marker_color='#1A3A5C'))
-        fig.add_trace(go.Bar(name='Cumplimiento', x=proc_counts[process_col], y=proc_counts['Cumplimiento'], marker_color='#43A047'))
-        fig.add_trace(go.Bar(name='Alerta', x=proc_counts[process_col], y=proc_counts['Alerta'], marker_color='#FBAF17'))
-        fig.add_trace(go.Bar(name='Peligro', x=proc_counts[process_col], y=proc_counts['Peligro'], marker_color='#D32F2F'))
-        fig.update_layout(barmode='stack', xaxis_tickangle=-45, height=480, margin=dict(t=40, b=150))
+        fig.add_trace(
+            go.Bar(
+                name="Sobrecumplimiento",
+                x=proc_counts[process_col],
+                y=proc_counts["Sobrecumplimiento"],
+                marker_color="#1A3A5C",
+            )
+        )
+        fig.add_trace(
+            go.Bar(
+                name="Cumplimiento",
+                x=proc_counts[process_col],
+                y=proc_counts["Cumplimiento"],
+                marker_color="#43A047",
+            )
+        )
+        fig.add_trace(
+            go.Bar(
+                name="Alerta",
+                x=proc_counts[process_col],
+                y=proc_counts["Alerta"],
+                marker_color="#FBAF17",
+            )
+        )
+        fig.add_trace(
+            go.Bar(
+                name="Peligro",
+                x=proc_counts[process_col],
+                y=proc_counts["Peligro"],
+                marker_color="#D32F2F",
+            )
+        )
+        fig.update_layout(
+            barmode="stack", xaxis_tickangle=-45, height=480, margin=dict(t=40, b=150)
+        )
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No hay información de niveles de cumplimiento por proceso en el período seleccionado.")
+        st.info(
+            "No hay información de niveles de cumplimiento por proceso en el período seleccionado."
+        )
 
     previous_process_data = consolidado[consolidado["Año"] == prev_year].copy()
     if selected_month:
-        previous_process_data = previous_process_data[previous_process_data["Mes_num"] == prev_month]
-    process_top, process_alert = _process_improvements(process_data, previous_process_data, process_col)
+        previous_process_data = previous_process_data[
+            previous_process_data["Mes_num"] == prev_month
+        ]
+    process_top, process_alert = _process_improvements(
+        process_data, previous_process_data, process_col
+    )
 
     st.markdown("### Procesos con Mayor Mejora vs Año Anterior")
     if process_top:
@@ -495,11 +638,17 @@ def render():
     else:
         st.markdown("- No se detectaron procesos en alerta con empeoramiento.")
 
-    health_process = proc_counts[['Sobrecumplimiento', 'Cumplimiento']].sum(axis=1).sum()
+    health_process = proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
     health_pct = round(health_process / max(total_process, 1) * 100, 1)
     st.markdown("### Insights Operativos (IA)")
     if process_top:
-        st.markdown(f"- 🚀 {process_top[0]['name']} registra la mayor mejora respecto al año anterior.")
+        st.markdown(
+            f"- 🚀 {process_top[0]['name']} registra la mayor mejora respecto al año anterior."
+        )
     if process_alert:
-        st.markdown(f"- ⚠️ {process_alert[0]['name']} está en alerta y empeoró respecto al año anterior.")
-    st.markdown(f"- ✅ El {health_pct}% de los indicadores por proceso están en niveles saludables.")
+        st.markdown(
+            f"- ⚠️ {process_alert[0]['name']} está en alerta y empeoró respecto al año anterior."
+        )
+    st.markdown(
+        f"- ✅ El {health_pct}% de los indicadores por proceso están en niveles saludables."
+    )
