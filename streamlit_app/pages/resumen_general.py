@@ -1076,7 +1076,17 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 def _render_strategy_card(
     title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
 ):
-    # --- Renderizado de tarjeta con gráfico integrado ---
+    """
+    Renderiza una tarjeta de estrategia con gráfico embebido de cumplimiento histórico.
+    
+    Args:
+        title: Título de la tarjeta (nombre de línea estratégica)
+        indicators: Cantidad de indicadores en la línea
+        cumplimiento: Porcentaje de cumplimiento actual (%)
+        color: Color principal de la tarjeta
+        icon: Icono representativo
+        historico: DataFrame con columnas 'Año' y 'Cumplimiento' (opcional)
+    """
     import streamlit as st
     from streamlit.components.v1 import html as st_html
 
@@ -1095,36 +1105,88 @@ def _render_strategy_card(
         </div>
     </div>
     """
-    # Renderizar la tarjeta HTML primero
     st.markdown(card_html, unsafe_allow_html=True)
-    # Insertar el gráfico Plotly justo después, usando CSS negativo para integrarlo visualmente
+    
     if historico is not None and not historico.empty:
         import plotly.graph_objects as go
 
+        anos = historico["Año"].values
+        cumplimientos = historico["Cumplimiento"].values
+
         fig = go.Figure()
+
         fig.add_trace(
             go.Scatter(
-                x=historico["Año"],
-                y=historico["Cumplimiento"],
+                x=anos,
+                y=cumplimientos,
                 mode="lines+markers",
-                line=dict(color=color, width=2),
-                marker=dict(size=8, color=color),
-                hovertemplate="Año: %{x}<br>Cumplimiento: %{y:.1f}%<extra></extra>",
+                line=dict(color=color, width=2.5),
+                marker=dict(size=10, color=color, line=dict(color="white", width=1.5)),
+                hovertemplate=(
+                    "<b>Año: %{x}</b><br>"
+                    "Cumplimiento: %{y:.1f}%<br>"
+                    "<extra></extra>"
+                ),
+                name="Cumplimiento",
             )
         )
+
+        fig.add_hline(
+            y=100,
+            line_dash="dash",
+            line_color="#6B7280",
+            line_width=1.5,
+            annotation_text="Meta 100%",
+            annotation_position="bottom right",
+            annotation_font_size=9,
+            annotation_font_color="#6B7280",
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=anos,
+                y=[100] * len(anos),
+                mode="lines",
+                line=dict(color="#6B7280", width=1, dash="dash"),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+
         fig.update_layout(
-            margin=dict(l=0, r=0, t=0, b=0),
-            height=80,
-            xaxis=dict(showgrid=False, visible=False),
-            yaxis=dict(showgrid=False, visible=False),
+            margin=dict(l=5, r=5, t=5, b=5),
+            height=90,
+            xaxis=dict(
+                showgrid=False,
+                visible=False,
+                tickmode="linear",
+                dtick=1,
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(0,0,0,0.05)",
+                visible=False,
+                range=[min(min(cumplimientos) * 0.9, 85), max(max(cumplimientos) * 1.1, 115)],
+            ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
+            showlegend=False,
+            hovermode="x unified",
         )
-        # Usar un contenedor con margen negativo para que el gráfico quede "dentro" de la tarjeta visualmente
+
         st.markdown(
-            f"<div style='margin-top:-3.2rem; margin-bottom:0.2rem;'>", unsafe_allow_html=True
+            f"<div style='margin-top:-3.4rem; margin-bottom:0.2rem;'>", unsafe_allow_html=True
         )
-        st.plotly_chart(fig, use_container_width=True, height=80)
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            height=90,
+            config={
+                "displayModeBar": False,
+                "staticPlot": False,
+                "responsive": True,
+            },
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -1372,21 +1434,12 @@ def render():
                         if historico.shape[0] <= 1:
                             historico = None
                 elif row is not None and "Linea" in row and "Linea" not in consolidado.columns:
-                    # Diagnóstico: registrar advertencia si falta la columna
                     import logging
 
                     logging.warning(
                         "No se encontró la columna 'Linea' en el consolidado para el histórico de la tarjeta '%s'",
                         row["Linea"],
                     )
-                    # --- DOCUMENTACIÓN DE FÓRMULA GLOBAL DE CUMPLIMIENTO ---
-                    # Cumplimiento (%) por línea estratégica = promedio de cumplimiento_pct de todos los indicadores de la línea en el cierre anual.
-                    # Fórmula por indicador:
-                    #   - Si sentido es ASCENDENTE: cumplimiento = ejecucion / meta
-                    #   - Si sentido es DESCENDENTE: cumplimiento = meta / ejecucion
-                    #   - Se aplica tope según tipo de indicador (1.0 o 1.3)
-                    #   - El valor final se multiplica por 100 para porcentaje.
-                    #   - El promedio de todos los indicadores de la línea para el año de cierre es el valor mostrado en la tarjeta.
                 with ficha_cols[idx % 6]:
                     _render_strategy_card(
                         title=card_def["label"],

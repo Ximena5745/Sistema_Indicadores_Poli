@@ -170,7 +170,101 @@ def _cargar_avance_om() -> dict:
 
 ---
 
-## 8. Referencias
+## 9. Función Centralizada de Cálculo (Living Documentation + Data Contract)
+
+### 9.1 Función: `normalizar_y_categorizar()`
+
+**Ubicación:** `core/semantica.py:432`
+
+**Propósito:** Wrapper que combina normalización de cumplimiento + categorización en una sola función. Centraliza la lógica de conversión automática y garantiza consistencia en formato de entrada/salida.
+
+**Data Contract:**
+
+```python
+def normalizar_y_categorizar(
+    valor: float | str,
+    es_porcentaje: bool | None = None,
+    id_indicador: str | int | None = None,
+    sentido: str = "Positivo"
+) -> str:
+    """
+    RETORNA: Categoría - "Peligro" | "Alerta" | "Cumplimiento" | "Sobrecumplimiento" | "Sin dato"
+    
+    PARÁMETROS:
+    - valor: float, str, NaN - Valor de cumplimiento (puede ser porcentaje o decimal)
+    - es_porcentaje: None (auto-detectar), True (0-130), False (0-1.3)
+    - id_indicador: ID del indicador para auto-detectar Plan Anual
+    - sentido: "Positivo" o "Negativo"
+    """
+    pass
+```
+
+**Valores de Retorno por Tipo de Indicador:**
+
+| Tipo Indicador | Rango | Categoría Retornada |
+|----------------|-------|---------------------|
+| REGULAR | < 80% | Peligro |
+| REGULAR | 80% - 99.99% | Alerta |
+| REGULAR | 100% - 104.99% | Cumplimiento |
+| REGULAR | ≥ 105% | Sobrecumplimiento |
+| PLAN ANUAL | < 80% | Peligro |
+| PLAN ANUAL | 80% - 94.99% | Alerta |
+| PLAN ANUAL | ≥ 95% | Cumplimiento |
+
+### 9.2 Función: `_render_strategy_card()`
+
+**Ubicación:** `streamlit_app/pages/resumen_general.py:1136`
+
+**Propósito:** Renderiza una tarjeta de estrategia con gráfico embebido de cumplimiento histórico por línea estratégica.
+
+**Data Contract:**
+
+```python
+def _render_strategy_card(
+    title: str,
+    indicators: int,
+    cumplimiento: float,
+    color: str,
+    icon: str,
+    historico: pd.DataFrame | None = None
+) -> None:
+    """
+    PARÁMETROS:
+    - title: Título de la tarjeta (nombre de línea estratégica)
+    - indicators: Cantidad de indicadores en la línea
+    - cumplimiento: Porcentaje de cumplimiento actual (%)
+    - color: Color principal de la tarjeta
+    - icon: Icono representativo
+    - historico: DataFrame con columnas 'Año' y 'Cumplimiento' (opcional)
+    
+    VISUALIZACIÓN:
+    - Gráfico de línea con marcadores
+    - Línea de meta (100%) punteada
+    - Tooltip interactivo mostrando: Año, Cumplimiento %
+    
+    DATOS REQUERIDOS (historico):
+    - Columna 'Año': int (años disponibles: 2022-2025)
+    - Columna 'Cumplimiento': float (porcentaje 0-130)
+    """
+    pass
+```
+
+### 9.3 Cálculo de Cumplimiento por Línea
+
+**Fórmula:**
+```
+Cumplimiento_Línea = promedio(cumplimiento_pct de todos los indicadores de la línea en cierre anual)
+```
+
+**Proceso:**
+1. Filtrar datos por línea estratégica y mes de cierre (diciembre = 12)
+2. Agrupar por año
+3. Calcular promedio de `cumplimiento_pct`
+4. Mostrar en tarjeta + gráfico histórico
+
+---
+
+## 10. Referencias
 
 - **Código fuente:** [`core/semantica.py`](../../core/semantica.py)
 - **Configuración:** [`core/config.py`](../../core/config.py)
