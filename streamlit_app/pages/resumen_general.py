@@ -1410,20 +1410,13 @@ def render():
 
                 n_ind = int(row["N_Indicadores"]) if row is not None else 0
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
-                # Detectar columna de año automáticamente
+                
                 historico = None
-                # --- DEFENSA: solo generar histórico si 'Linea' existe en consolidado ---
-                if row is not None and "Linea" in row and "Linea" in consolidado.columns:
+                if row is not None and "Linea" in pdi_estrategico.columns:
                     linea_hist = row["Linea"]
-                    df_hist = consolidado[consolidado["Linea"] == linea_hist].copy()
-                    year_col = next(
-                        (c for c in df_hist.columns if c.lower() in ["año", "anio", "year"]), None
-                    )
-                    if year_col and "cumplimiento_pct" in df_hist.columns:
-                        if "Mes" in df_hist.columns:
-                            df_hist = df_hist[df_hist["Mes"] == 12]
-                        elif "Mes_num" in df_hist.columns:
-                            df_hist = df_hist[df_hist["Mes_num"] == 12]
+                    df_hist = pdi_estrategico[pdi_estrategico["Linea"] == linea_hist].copy()
+                    year_col = "Anio"
+                    if year_col in df_hist.columns and "cumplimiento_pct" in df_hist.columns:
                         historico = (
                             df_hist.groupby(year_col, dropna=False)["cumplimiento_pct"]
                             .mean()
@@ -1431,22 +1424,7 @@ def render():
                             .rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
                         )
                         historico = historico.sort_values("Año")
-                        # Permitir gráfico incluso con 1 solo año (mostrará punto único)
-                elif row is not None and "Linea" in row and "Linea" not in consolidado.columns:
-                    import logging
-
-                    logging.warning(
-                        "No se encontró la columna 'Linea' en el consolidado para el histórico de la tarjeta '%s'",
-                        row["Linea"],
-                    )
                 with ficha_cols[idx % 6]:
-                    # DEBUG: Verificar datos históricos
-                    if historico is not None and not historico.empty:
-                        import streamlit as st
-                        with st.expander("DEBUG"):
-                            st.write(f"Linea: {card_def['label']}")
-                            st.write(f"Historico shape: {historico.shape}")
-                            st.write(historico)
                     _render_strategy_card(
                         title=card_def["label"],
                         indicators=n_ind,
