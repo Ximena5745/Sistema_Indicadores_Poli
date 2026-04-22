@@ -1076,11 +1076,11 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 def _render_strategy_card(
     title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
 ):
-    """Renderiza una tarjeta de estrategia con mini gráfico SVG."""
+    """Renderiza una tarjeta de estrategia con mini gráfico."""
     import streamlit as st
 
-    # Generar mini gráfico SVG si hay datos históricos
-    sparkline_svg = ""
+    # Generar mini gráfico si hay datos históricos
+    chart_html = ""
     if historico is not None and not historico.empty and len(historico) >= 1:
         try:
             anos = sorted([int(a) for a in historico["Año"].values])
@@ -1090,37 +1090,21 @@ def _render_strategy_card(
                 valores.append(valor)
             
             if len(valores) >= 1:
-                min_val = min(valores) * 0.95
-                max_val = max(valores) * 1.05
-                if max_val == min_val:
-                    max_val = min_val + 10
-                
-                width = 80
-                height = 30
-                points = []
+                # Crear mini barras horizontales
+                bars = ""
+                max_val = max(valores)
                 for i, (a, v) in enumerate(zip(anos, valores)):
-                    x = (i / max(len(anos) - 1, 1)) * width if len(anos) > 1 else width / 2
-                    y = height - ((v - min_val) / (max_val - min_val)) * height
-                    points.append(f"{x},{y}")
+                    bar_width = (v / max_val) * 100
+                    color_bar = color if v >= 100 else "#F59E0B"
+                    bars += f"""<div style="display:flex;align-items:center;margin:2px 0;font-size:11px;">
+                        <span style="width:30px;color:#666;">{a}</span>
+                        <div style="flex:1;height:8px;background:#eee;border-radius:2px;margin:0 5px;">
+                            <div style="width:{bar_width}%;height:100%;background:{color_bar};border-radius:2px;"></div>
+                        </div>
+                        <span style="width:40px;text-align:right;color:{color};">{v:.0f}%</span>
+                    </div>"""
                 
-                path_d = "M" + " L".join(points)
-                
-                meta_y = height - ((100 - min_val) / (max_val - min_val)) * height
-                meta_y = max(0, min(height, meta_y))
-                
-                circles = ""
-                for i in range(len(points)):
-                    coords = points[i].split(",")
-                    circles += f'<circle cx="{coords[0]}" cy="{coords[1]}" r="2" fill="{color}"/>'
-                
-                tooltip_text = " | ".join([f"Año {a}: {v:.1f}%" for a,v in zip(anos, valores)])
-                
-                sparkline_svg = """<svg width="80" height="30" viewBox="0 0 80 30" style="display:block;margin:5px auto;vertical-align:bottom;">""" + \
-                    f'<line x1="0" y1="{meta_y}" x2="{width}" y2="{meta_y}" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="2"/>' + \
-                    f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' + \
-                    circles + \
-                    f'<title>{tooltip_text}</title></svg>' + \
-                    """<style>svg { display: inline-block; vertical-align: text-bottom; }</style>"""
+                chart_html = f"""<div style="margin-top:5px;padding-top:5px;border-top:1px solid #eee;">{bars}</div>"""
         except Exception:
             pass
 
@@ -1132,10 +1116,10 @@ def _render_strategy_card(
         """<p class='rg-meta'>""" + str(indicators) + """ indicadores</p>""" + \
         """</div></div>""" + \
         """<p class='rg-card-title'>""" + title + """</p>""" + \
-        sparkline_svg + \
+        chart_html + \
         """</div>"""
     
-    st.html(card_html)
+    st.markdown(card_html, unsafe_allow_html=True)
 
 
 def _render_chip(value: int, label: str, color: str):
