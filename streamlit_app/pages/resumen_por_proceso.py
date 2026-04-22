@@ -84,21 +84,36 @@ def _mes_to_num(value: object) -> float | None:
 
 
 def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
+    """
+    Normaliza valores de cumplimiento a porcentaje (0-100 o 0-130).
+    
+    Problema #8 FIX: Usa normalizar_valor_a_porcentaje() de core/semantica.
+    Elimina hardcoding de heurística "si max_abs <= 2".
+    """
+    from core.semantica import normalizar_valor_a_porcentaje
+    
+    # Caso 1: Cumplimiento_norm (ya normalizado)
     if "Cumplimiento_norm" in df.columns:
         vals = pd.to_numeric(df["Cumplimiento_norm"], errors="coerce")
-        return vals * 100
-
+        # Cumplimiento_norm ya está en porcentaje, retornar como está
+        return vals
+    
+    # Caso 2: Cumplimiento (puede ser decimal o porcentaje)
     if "Cumplimiento" in df.columns:
-        vals = pd.to_numeric(df["Cumplimiento"].apply(_to_float), errors="coerce")
-        max_abs = vals.abs().max(skipna=True) if not vals.dropna().empty else 0
-        return vals * 100 if max_abs <= 2 else vals
-
+        def _norm_cumpl(val):
+            """Normaliza un valor individual."""
+            return normalizar_valor_a_porcentaje(val)
+        
+        return df["Cumplimiento"].apply(_norm_cumpl)
+    
+    # Caso 3: Meta/Ejecucion (calcular ratio)
     if {"Meta", "Ejecucion"}.issubset(df.columns):
         meta = pd.to_numeric(df["Meta"].apply(_to_float), errors="coerce")
         ejec = pd.to_numeric(df["Ejecucion"].apply(_to_float), errors="coerce")
         ratio = (ejec / meta.replace({0: pd.NA})) * 100
         return pd.to_numeric(ratio, errors="coerce")
-
+    
+    # Caso 4: No hay datos disponibles
     return pd.Series(index=df.index, dtype="float64")
 
 

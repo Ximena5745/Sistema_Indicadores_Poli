@@ -17,7 +17,7 @@ import pandas as pd
 import openpyxl
 
 from .config import IDS_PLAN_ANUAL, IDS_TOPE_100
-from .cumplimiento import _calc_cumpl
+from .cumplimiento import _calc_cumpl, _calc_cumpl_con_tope_dinamico
 from .normalizacion import COL_ALIASES, MESES_ES, make_llave, _id_str
 
 logger = logging.getLogger(__name__)
@@ -79,12 +79,16 @@ def formula_R(r: int) -> str:
 def _materializar_cumplimiento(ws) -> None:
     """
     Recalcula Cumplimiento y Cumplimiento Real para TODAS las filas
-    usando valores reales de Meta, Ejecucion y Sentido de la misma fila.
+    usando valores reales de Meta, Ejecucion, Sentido e Id de la misma fila.
 
     Necesario porque las fórmulas Excel pueden apuntar a filas incorrectas
     tras inserciones/borrados.
+    
+    PROBLEM #4 FIX: Ahora aplica toques dinámicos según IDS_PLAN_ANUAL e IDS_TOPE_100
+    en lugar de usar tope fijo 1.3.
     """
     cm = _build_col_map(ws)
+    idx_id      = cm.get("Id")
     idx_meta    = cm.get("Meta")
     idx_ejec    = cm.get("Ejecucion")
     idx_sentido = cm.get("Sentido")
@@ -99,10 +103,20 @@ def _materializar_cumplimiento(ws) -> None:
         meta    = row[idx_meta    - 1].value
         ejec    = row[idx_ejec    - 1].value
         sentido = row[idx_sentido - 1].value or "Positivo"
+        id_ind  = row[idx_id - 1].value if idx_id else None  # Obtener ID para tope dinámico
+        
         if (isinstance(meta, str) and meta.startswith("=")) or \
            (isinstance(ejec, str) and ejec.startswith("=")):
             continue
-        cumpl_capped, cumpl_real = _calc_cumpl(meta, ejec, str(sentido))
+        
+        # Usar función con tope dinámico según ID
+        cumpl_capped, cumpl_real = _calc_cumpl_con_tope_dinamico(
+            meta, ejec, str(sentido),
+            id_indicador=id_ind,
+            ids_plan_anual=IDS_PLAN_ANUAL,
+            ids_tope_100=IDS_TOPE_100
+        )
+        
         c_cumpl = row[idx_cumpl - 1]
         c_cumpl.value = cumpl_capped
         if cumpl_capped is not None:

@@ -138,6 +138,11 @@ def _load_consolidado_cierres() -> pd.DataFrame:
 
 
 def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Asegura que exista columna 'Nivel de cumplimiento'.
+    
+    Problema #7 FIX: Usa categorizar_cumplimiento() en lugar de hardcoding.
+    """
     if "Nivel de cumplimiento" in df.columns:
         return df
     if "Categoria" in df.columns:
@@ -147,19 +152,36 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
     if "cumplimiento_pct" in df.columns:
-        def _map_level(value):
+        # Importar aquí para evitar circular imports
+        from core.semantica import categorizar_cumplimiento
+        
+        def _map_level_v2(row):
+            """
+            Usa core.semantica para categorizar (SINGLE SOURCE).
+            Problema #7: Eliminación de hardcoding 105/100/80.
+            Los valores en cumplimiento_pct están en porcentaje (0-100 o 0-130),
+            pero categorizar_cumplimiento espera formato decimal (0-1 o 0-1.3).
+            """
+            if pd.isna(row["cumplimiento_pct"]):
+                return "Pendiente de reporte"
             try:
-                pct = float(value)
+                pct = float(row["cumplimiento_pct"])
+                cumpl_decimal = pct / 100.0  # Convertir porcentaje a decimal
             except Exception:
                 return "Pendiente de reporte"
-            if pct >= 105:
-                return "Sobrecumplimiento"
-            if pct >= 100:
-                return "Cumplimiento"
-            if pct >= 80:
-                return "Alerta"
-            return "Peligro"
-        df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_map_level)
+            
+            # Si cumpl_decimal es NaN, retornar
+            import math
+            if math.isnan(cumpl_decimal):
+                return "Pendiente de reporte"
+            
+            # Usar la función centralizada de semantica con ID si disponible
+            id_indicador = row.get("Id", None)
+            categoria = categorizar_cumplimiento(cumpl_decimal, id_indicador=id_indicador)
+            return categoria
+        
+        df = df.copy()
+        df["Nivel de cumplimiento"] = df.apply(_map_level_v2, axis=1)
         return df
     df["Nivel de cumplimiento"] = "Pendiente de reporte"
     return df

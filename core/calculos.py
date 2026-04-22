@@ -11,17 +11,58 @@ from core.config import (UMBRAL_PELIGRO, UMBRAL_ALERTA, UMBRAL_SOBRECUMPLIMIENTO
 
 
 def normalizar_cumplimiento(valor):
-    """Garantiza escala decimal [0..n]. Divide /100 solo si valor > 2."""
-    if pd.isna(valor):
-        return np.nan
-    if isinstance(valor, str):
-        valor = valor.replace("%", "").replace(",", ".").strip()
-        try:
-            valor = float(valor)
-        except ValueError:
+    """
+    Valida que cumplimiento esté en rango esperado [0, 1.3].
+    
+    Notas:
+    - Los datos ya vienen normalizados desde Excel (Consolidado Semestral)
+    - Esta función es de VALIDACIÓN, no de conversión
+    - Si valor está fuera de rango → log warning + retorna NaN
+    - Rango: [0.0, 1.3] donde 1.3 = 130% (máximo capeado)
+    
+    Args:
+        valor: número o string a validar
+    
+    Returns:
+        valor validado ∈ [0, 1.3], o NaN si inválido
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Manejar NaN y tipos inválidos
+    try:
+        if pd.isna(valor):
             return np.nan
-    valor = float(valor)
-    return valor / 100 if valor > 2 else valor
+    except (ValueError, TypeError):
+        # pd.isna falla con tipos complejos (arrays, dicts, etc)
+        logger.warning(f"Tipo inválido para normalizar_cumplimiento: {type(valor)}")
+        return np.nan
+    
+    # Convertir string a float si aplica
+    if isinstance(valor, str):
+        valor_clean = valor.replace("%", "").strip()
+        # Formato latinoamericano: . para miles, , para decimales
+        # Remover . (separador de miles), luego reemplazar , por . (decimal)
+        valor_clean = valor_clean.replace(".", "").replace(",", ".")
+        try:
+            valor = float(valor_clean)
+        except ValueError:
+            logger.warning(f"No se puede convertir a float: '{valor}'")
+            return np.nan
+    
+    # Convertir a float
+    try:
+        valor = float(valor)
+    except (ValueError, TypeError):
+        logger.warning(f"Tipo inválido para normalizar_cumplimiento: {type(valor)} = {valor}")
+        return np.nan
+    
+    # Validar que esté en rango esperado [0, 1.3]
+    if not (0.0 <= valor <= 1.3):
+        logger.warning(f"Cumplimiento fuera de rango [0.0, 1.3]: {valor}")
+        return np.nan
+    
+    return valor
 
 
 def categorizar_cumplimiento(cumplimiento, sentido="Positivo", id_indicador=None):

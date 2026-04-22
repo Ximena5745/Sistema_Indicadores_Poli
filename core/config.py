@@ -62,9 +62,101 @@ UMBRAL_PELIGRO           = 0.80
 UMBRAL_ALERTA            = 1.00
 UMBRAL_SOBRECUMPLIMIENTO = 1.05
 
+# ── Rango válido para Cumplimiento (normalizado) ───────────────────────────
+# Los datos de Cumplimiento deben estar en rango [0.0, 1.3]
+# donde 1.3 = 130% (máximo permitido tras cappeo)
+RANGO_CUMPLIMIENTO_MIN = 0.0
+RANGO_CUMPLIMIENTO_MAX = 1.3
+RANGO_CUMPLIMIENTO = (RANGO_CUMPLIMIENTO_MIN, RANGO_CUMPLIMIENTO_MAX)
+
 # ── Indicadores Plan Anual (PA) — umbrales especiales ─────────────────────────
-# Cumplen desde 95% y su tope de cumplimiento es 100% (no hay sobrecumplimiento).
-IDS_PLAN_ANUAL = {"373", "390", "414", "415", "416", "417", "418", "420", "469", "470", "471"}
+# GENERADOS DINÁMICAMENTE desde "Indicadores por CMI.xlsx"
+# 
+# Cumplen desde 95% y su tope de cumplimiento es 100%.
+# Un indicador es Plan Anual si en el Excel:
+#   - Columna "Plan anual" = 1
+#   - O columna "Proyecto" = 1
+#
+# Función que extrae IDs dinámicamente (sin hardcoding):
+
+def _cargar_ids_plan_anual():
+    """
+    Extrae dinámicamente IDs de Plan Anual desde 'Indicadores por CMI.xlsx'.
+    
+    NO hardcodea. Se actualiza automáticamente si el Excel cambia.
+    
+    Criterio: Un indicador es Plan Anual si:
+      - Columna "Plan anual" = 1, O
+      - Columna "Proyecto" = 1
+    
+    Retorna: frozenset de strings (IDs)
+    Fallback: set vacío si Excel no existe o error
+    """
+    import pandas as pd
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    xlsx_path = DATA_RAW / "Indicadores por CMI.xlsx"
+    
+    # Si no existe, retornar set vacío (fallback seguro)
+    if not xlsx_path.exists():
+        logger.warning(f"Archivo no encontrado: {xlsx_path}. IDS_PLAN_ANUAL vacío.")
+        return frozenset()
+    
+    try:
+        # Leer Excel
+        df = pd.read_excel(xlsx_path, engine="openpyxl")
+        
+        # Normalizar nombres de columnas (minúsculas, sin espacios)
+        df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+        
+        # Buscar columnas relevantes (con flexibilidad en nombres)
+        col_id = None
+        col_plan_anual = None
+        col_proyecto = None
+        
+        for col in df.columns:
+            if col in ["id", "id_indicador", "indicador_id"]:
+                col_id = col
+            if col in ["plan_anual", "plan anual", "plan_anuales"]:
+                col_plan_anual = col
+            if col in ["proyecto", "proyecto_id"]:
+                col_proyecto = col
+        
+        # Si no encuentra columnas necesarias, fallback
+        if col_id is None or (col_plan_anual is None and col_proyecto is None):
+            logger.warning(
+                f"Columnas no encontradas en {xlsx_path}. "
+                f"Esperado: 'id' (o similar), 'plan_anual' (o similar). "
+                f"Encontrado: {list(df.columns)}"
+            )
+            return frozenset()
+        
+        # Extraer IDs donde (Plan anual=1) OR (Proyecto=1)
+        mascara = pd.Series([False] * len(df))
+        
+        if col_plan_anual:
+            mascara |= (df[col_plan_anual] == 1)
+        
+        if col_proyecto:
+            mascara |= (df[col_proyecto] == 1)
+        
+        ids = df.loc[mascara, col_id].astype(str).tolist()
+        ids_plan_anual = frozenset(ids)
+        
+        logger.info(f"Cargados {len(ids_plan_anual)} indicadores Plan Anual: {ids_plan_anual}")
+        
+        return ids_plan_anual
+        
+    except Exception as e:
+        logger.error(f"Error al cargar IDS_PLAN_ANUAL desde {xlsx_path}: {e}")
+        return frozenset()
+
+
+# Cargar dinámicamente (se ejecuta en tiempo de importación)
+IDS_PLAN_ANUAL = _cargar_ids_plan_anual()
+
 UMBRAL_ALERTA_PA            = 0.95   # PA cumple desde 95%
 UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00   # tope 100%
 

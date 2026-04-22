@@ -16,7 +16,8 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-from core.calculos import normalizar_cumplimiento, categorizar_cumplimiento, estado_tiempo_acciones
+from core.calculos import normalizar_cumplimiento, estado_tiempo_acciones
+from core.semantica import categorizar_cumplimiento
 from core.config import DATA_RAW, DATA_OUTPUT
 from services.procesos import obtener_proceso_padre
 
@@ -169,8 +170,11 @@ def _reconstruir_columnas_formula(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
-    """Paso 4b: Detectar métricas/sin-reporte, recalcular y categorizar cumplimiento."""
-    from core.config import IDS_PLAN_ANUAL
+    """Paso 4b: Detectar métricas/sin-reporte y categorizar cumplimiento.
+    
+    NOTA: Cumplimiento es pre-calculado en scripts/etl/cumplimiento.py.
+    Esta función solo detecta tipo de registro y categoriza valores existentes.
+    """
 
     _col_tipo_reg = next((c for c in ["TipoRegistro", "Tipo_Registro"] if c in df.columns), None)
     _col_ejec_signo = next((c for c in ["EjecS", "Ejecucion_Signo"] if c in df.columns), None)
@@ -198,24 +202,11 @@ def _aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
 
     _mask_sin_reporte = (~_mask_metrica) & (_mask_sin_meta | _mask_no_aplica)
 
-    # Recalcular cumplimiento faltante
-    if "Cumplimiento" in df.columns and "Meta" in df.columns and "Ejecucion" in df.columns:
-        mask_nan = df["Cumplimiento"].isna() & ~_mask_metrica & ~_mask_sin_reporte
-        if mask_nan.any():
-            def _recalc_cumpl(row: pd.Series) -> float:
-                try:
-                    m, e = float(row["Meta"]), float(row["Ejecucion"])
-                except (TypeError, ValueError):
-                    return float("nan")
-                if m == 0 or pd.isna(m) or pd.isna(e):
-                    return float("nan")
-                sentido = str(row.get("Sentido", "Positivo"))
-                raw = (e / m) if sentido == "Positivo" else (m / e if e != 0 else float("nan"))
-                if pd.isna(raw):
-                    return float("nan")
-                tope = 1.0 if str(row.get("Id", "")).strip() in IDS_PLAN_ANUAL else 1.3
-                return min(max(raw, 0.0), tope)
-            df.loc[mask_nan, "Cumplimiento"] = df[mask_nan].apply(_recalc_cumpl, axis=1)
+    # NOTA: Cumplimiento es calculado oficialmente en scripts/etl/cumplimiento.py
+    # durante actualizar_consolidado.py. Los readers (data_loader, etc) deben
+    # leer valores pre-calculados del Excel, NO recalcular.
+    # Véase: Problema #4 - Consolidación de cálculos
+    pass
 
     # Normalizar
     df["Cumplimiento_norm"] = (
@@ -229,7 +220,6 @@ def _aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     df["Categoria"] = df.apply(
         lambda r: categorizar_cumplimiento(
             r["Cumplimiento_norm"],
-            r.get("Sentido", "Positivo"),
             id_indicador=r.get("Id"),
         ),
         axis=1,

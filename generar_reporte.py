@@ -54,6 +54,22 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Importar lógica centralizada de categorización
+try:
+    from core.semantica import categorizar_cumplimiento
+except ImportError:
+    # Fallback si no se puede importar
+    def categorizar_cumplimiento(c, id_indicador=None):
+        """Fallback local si semantica no está disponible."""
+        try:
+            v = float(c)
+        except (TypeError, ValueError):
+            return "Sin dato"
+        if v >= 1.05: return "Sobrecumplimiento"
+        if v >= 1.00: return "Cumplimiento"
+        if v >= 0.80: return "Alerta"
+        return "Peligro"
+
 # ── Configuración ──────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -967,16 +983,13 @@ def escribir_tracking_mensual(ws, df: pd.DataFrame):
 #  CIERRES HISTÓRICOS — leer + escribir
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _nivel_cumplimiento(c) -> str:
-    """Clasifica un valor de cumplimiento decimal en nivel de semáforo."""
-    try:
-        v = float(c)
-    except (TypeError, ValueError):
-        return "Sin dato"
-    if v >= UMBRAL_SOBRECUMPLIMIENTO_D: return "Sobrecumplimiento"
-    if v >= UMBRAL_ALERTA_D:            return "Cumplimiento"
-    if v >= UMBRAL_PELIGRO_D:           return "Alerta"
-    return "Peligro"
+def _nivel_cumplimiento(c, id_indicador=None) -> str:
+    """Clasifica un valor de cumplimiento decimal en nivel de semáforo.
+    
+    Usa core.semantica para consistencia con el resto del sistema.
+    """
+    categoria = categorizar_cumplimiento(c, id_indicador=id_indicador)
+    return categoria
 
 
 def leer_consolidado_cierres(ruta: str, ids_activos: set) -> pd.DataFrame:

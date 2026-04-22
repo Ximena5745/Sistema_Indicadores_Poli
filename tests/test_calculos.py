@@ -22,45 +22,89 @@ from core.calculos import (
 
 
 # ── normalizar_cumplimiento ────────────────────────────────────────────────────
+# ACTUALIZADO (21 abr 2026): Opción A Mejorada
+# - Removida heurística "si > 2"
+# - Ahora valida rango [0.0, 1.3]
+# - Retorna NaN si fuera de rango
+
+import numpy as np
 
 class TestNormalizarCumplimiento:
-    def test_decimal_sin_cambio(self):
-        assert normalizar_cumplimiento(0.95) == pytest.approx(0.95)
-
-    def test_decimal_mayor_a_1(self):
-        assert normalizar_cumplimiento(1.30) == pytest.approx(1.30)
-
-    def test_porcentaje_divide_100(self):
-        assert normalizar_cumplimiento(95.0) == pytest.approx(0.95)
-
-    def test_porcentaje_mayor_100(self):
-        assert normalizar_cumplimiento(130.0) == pytest.approx(1.30)
-
-    def test_string_con_simbolo(self):
-        assert normalizar_cumplimiento("95%") == pytest.approx(0.95)
-
-    def test_string_coma_decimal(self):
-        assert normalizar_cumplimiento("0,95") == pytest.approx(0.95)
-
-    def test_nan_retorna_nan(self):
-        assert math.isnan(normalizar_cumplimiento(float("nan")))
-
-    def test_none_retorna_nan(self):
-        import numpy as np
+    """Tests para normalizar_cumplimiento() con validación de rango"""
+    
+    def test_valor_valido_minimo(self):
+        """Caso: valor mínimo válido (0.0)"""
+        assert normalizar_cumplimiento(0.0) == pytest.approx(0.0)
+    
+    def test_valor_valido_maximo(self):
+        """Caso: valor máximo válido (1.3 = 130%)"""
+        assert normalizar_cumplimiento(1.3) == pytest.approx(1.3)
+    
+    def test_valor_intermedio(self):
+        """Caso: valor en rango medio [0, 1.3]"""
+        assert normalizar_cumplimiento(0.5) == pytest.approx(0.5)
+        assert normalizar_cumplimiento(1.0) == pytest.approx(1.0)
+        assert normalizar_cumplimiento(1.15) == pytest.approx(1.15)
+    
+    def test_nan_entrada(self):
+        """Caso: entrada NaN"""
         assert math.isnan(normalizar_cumplimiento(np.nan))
-
+        assert math.isnan(normalizar_cumplimiento(float("nan")))
+    
+    def test_string_valido(self):
+        """Caso: string que puede convertirse a float (formato latinoamericano)"""
+        # Formato latinoamericano: , para decimales
+        assert normalizar_cumplimiento("0,5") == pytest.approx(0.5)
+        assert normalizar_cumplimiento("1,0") == pytest.approx(1.0)
+        assert normalizar_cumplimiento("0,95") == pytest.approx(0.95)
+        assert normalizar_cumplimiento("1,3") == pytest.approx(1.3)
+    
+    def test_string_con_simbolo_porcentaje(self):
+        """Caso: string con símbolo % (formato latinoamericano)"""
+        # "0,95%" = 0.95 (dentro de rango) ✓
+        assert normalizar_cumplimiento("0,95%") == pytest.approx(0.95)
+        # "95%" = 95.0 (fuera de rango [0, 1.3]) → NaN
+        assert math.isnan(normalizar_cumplimiento("95%"))
+        # "130%" = 130.0 (fuera de rango) → NaN
+        assert math.isnan(normalizar_cumplimiento("130%"))
+    
     def test_string_invalido(self):
+        """Caso: string que NO puede convertirse"""
+        assert math.isnan(normalizar_cumplimiento("abc"))
         assert math.isnan(normalizar_cumplimiento("no_es_numero"))
-
-    def test_cero(self):
+        assert math.isnan(normalizar_cumplimiento(""))
+    
+    def test_valor_fuera_rango_superior(self):
+        """Caso: valor > 1.3 (fuera de rango superior)"""
+        assert math.isnan(normalizar_cumplimiento(1.31))
+        assert math.isnan(normalizar_cumplimiento(2.0))
+        assert math.isnan(normalizar_cumplimiento(100.0))
+        assert math.isnan(normalizar_cumplimiento(1765.5))  # Valor encontrado en Cumplimiento Real
+    
+    def test_valor_fuera_rango_inferior(self):
+        """Caso: valor < 0.0 (fuera de rango inferior)"""
+        assert math.isnan(normalizar_cumplimiento(-0.1))
+        assert math.isnan(normalizar_cumplimiento(-1.0))
+    
+    def test_string_con_miles_formato_latinoamericano(self):
+        """Caso: strings con separador de miles (.) en formato latinoamericano"""
+        # "1.000,0" parsea como 1000.0 (fuera de rango) → NaN
+        assert math.isnan(normalizar_cumplimiento("1.000,0"))
+        # "1.234,56" parsea como 1234.56 (fuera de rango) → NaN
+        assert math.isnan(normalizar_cumplimiento("1.234,56"))
+    
+    def test_tipo_invalido(self):
+        """Caso: tipo que no puede convertirse a float"""
+        assert math.isnan(normalizar_cumplimiento({"valor": 0.5}))
+        assert math.isnan(normalizar_cumplimiento([1, 2, 3]))
+    
+    def test_zero(self):
+        """Caso específico: cero"""
         assert normalizar_cumplimiento(0) == pytest.approx(0.0)
-
-    def test_exactamente_2_no_divide(self):
-        # valor == 2 NO divide (condición es > 2)
-        assert normalizar_cumplimiento(2.0) == pytest.approx(2.0)
-
-    def test_mayor_de_2_divide(self):
-        assert normalizar_cumplimiento(2.01) == pytest.approx(0.0201)
+    
+    # NOTA: Tests de heurística "si > 2" REMOVIDOS (era la versión anterior)
+    # La heurística ha sido eliminada completamente
+    # Ahora cualquier valor > 1.3 retorna NaN
 
 
 # ── categorizar_cumplimiento ───────────────────────────────────────────────────
@@ -104,17 +148,17 @@ class TestCategorizarCumplimiento:
     # ── Plan Anual: cumple desde 95%, tope 100% ──────────────────────────────
     def test_plan_anual_alerta(self):
         # 90% → Alerta para PA (entre 80% y 95%)
-        assert categorizar_cumplimiento(0.90, id_indicador="373") == "Alerta"
+        assert categorizar_cumplimiento(0.90, id_indicador="45") == "Alerta"
 
     def test_plan_anual_cumplimiento_desde_95(self):
-        assert categorizar_cumplimiento(0.95, id_indicador="373") == "Cumplimiento"
+        assert categorizar_cumplimiento(0.95, id_indicador="45") == "Cumplimiento"
 
     def test_plan_anual_cumplimiento_99(self):
-        assert categorizar_cumplimiento(0.99, id_indicador="373") == "Cumplimiento"
+        assert categorizar_cumplimiento(0.99, id_indicador="45") == "Cumplimiento"
 
     def test_plan_anual_sobrecumplimiento_100(self):
         # 100% exacto → Sobrecumplimiento en PA (tope es < 1.0)
-        assert categorizar_cumplimiento(1.00, id_indicador="373") == "Sobrecumplimiento"
+        assert categorizar_cumplimiento(1.00, id_indicador="45") == "Sobrecumplimiento"
 
     def test_indicador_normal_no_es_pa(self):
         # Id no PA: 95% sigue siendo Alerta

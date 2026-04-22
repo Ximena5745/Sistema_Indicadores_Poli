@@ -29,16 +29,33 @@ def _brecha(row):
     except Exception:
         return None
 
-def _clasificar_estado(cumpl):
+def _clasificar_estado(cumpl, id_indicador=None):
+    """
+    Clasifica el estado de cumplimiento.
+    
+    Problema #7 FIX: Usa categorizar_cumplimiento() en lugar de hardcoding 105.
+    
+    PARÁMETROS:
+      cumpl: Valor de cumplimiento en porcentaje (0-100 o 0-130)
+      id_indicador: ID del indicador para detectar Plan Anual (opcional)
+    
+    RETORNA:
+      "Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", o "Sin dato"
+    """
     if pd.isna(cumpl):
         return "Sin dato"
-    if cumpl < UMBRAL_PELIGRO * 100:
-        return "Peligro"
-    if cumpl < UMBRAL_ALERTA * 100:
-        return "Alerta"
-    if cumpl < 105:
-        return "Cumplimiento"
-    return "Sobrecumplimiento"
+    
+    try:
+        cumpl_pct = float(cumpl)
+    except Exception:
+        return "Sin dato"
+    
+    # Convertir porcentaje a decimal para categorizar_cumplimiento
+    cumpl_decimal = cumpl_pct / 100.0
+    
+    # Usar la función centralizada de semantica
+    from core.semantica import categorizar_cumplimiento
+    return categorizar_cumplimiento(cumpl_decimal, id_indicador=id_indicador)
 
 def render():
     st.title("Gestión y Acreditación (Nivel 2)")
@@ -109,7 +126,13 @@ def render():
         return
     df["cumplimiento_pct"] = pd.to_numeric(df[col_cumpl], errors="coerce") * 100
     df["brecha"] = df.apply(_brecha, axis=1)
-    df["Estado"] = df["cumplimiento_pct"].apply(_clasificar_estado)
+    
+    # Problema #7 FIX: Pasar ID del indicador a _clasificar_estado
+    def _clasificar_con_id(row):
+        id_ind = row.get("Id", None)
+        return _clasificar_estado(row["cumplimiento_pct"], id_indicador=id_ind)
+    
+    df["Estado"] = df.apply(_clasificar_con_id, axis=1)
 
     if sel.get("estado") and sel["estado"] != "Todos":
         df = df[df["Estado"] == sel["estado"]]

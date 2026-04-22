@@ -59,6 +59,7 @@ try:
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
+    from core.semantica import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
 except (ImportError, ModuleNotFoundError):
@@ -69,6 +70,7 @@ except (ImportError, ModuleNotFoundError):
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
+    from core.semantica import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
 
@@ -201,26 +203,31 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
 
     if "cumplimiento_pct" in df.columns:
-        def _map_level(value):
-            import math
-            if pd.isna(value):
+        def _map_level_v2(row):
+            """
+            Usa core.semantica para categorizar.
+            Los valores en cumplimiento_pct están en porcentaje (0-100),
+            pero categorizar_cumplimiento espera formato decimal (0-1).
+            """
+            if pd.isna(row["cumplimiento_pct"]):
                 return "Pendiente de reporte"
             try:
-                pct = float(value)
+                pct = float(row["cumplimiento_pct"])
+                cumpl_decimal = pct / 100.0  # Convertir porcentaje a decimal
             except Exception:
                 return "Pendiente de reporte"
+            
+            import math
             if math.isnan(pct):
                 return "Pendiente de reporte"
-            if pct >= 105:
-                return "Sobrecumplimiento"
-            if pct >= 100:
-                return "Cumplimiento"
-            if pct >= 80:
-                return "Alerta"
-            return "Peligro"
+            
+            # Usar la función centralizada de semantica
+            id_indicador = row.get("Id", None)
+            categoria = categorizar_cumplimiento(cumpl_decimal, id_indicador=id_indicador)
+            return categoria
 
         df = df.copy()
-        df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_map_level)
+        df["Nivel de cumplimiento"] = df.apply(_map_level_v2, axis=1)
         return df
 
     # 2) Si no hay 'cumplimiento_pct' pero existe 'Categoria', usarla
@@ -1176,20 +1183,16 @@ def render():
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
                 # Detectar columna de año automáticamente
                 historico = None
-                # --- HISTÓRICO SOLO CIERRE ANUAL: un punto por año y línea, usando todo el consolidado ---
-                if row is not None and "Linea" in row:
+                # --- DEFENSA: solo generar histórico si 'Linea' existe en consolidado ---
+                if row is not None and "Linea" in row and "Linea" in consolidado.columns:
                     linea_hist = row["Linea"]
-                    # Usar el consolidado completo para obtener todos los años disponibles
                     df_hist = consolidado[consolidado["Linea"] == linea_hist].copy()
-                    # Detectar columna de año
                     year_col = next((c for c in df_hist.columns if c.lower() in ["año", "anio", "year"]), None)
-                    # Filtrar solo mes 12 (cierre anual)
                     if year_col and "cumplimiento_pct" in df_hist.columns:
                         if "Mes" in df_hist.columns:
                             df_hist = df_hist[df_hist["Mes"] == 12]
                         elif "Mes_num" in df_hist.columns:
                             df_hist = df_hist[df_hist["Mes_num"] == 12]
-                        # Agrupar por año y calcular cumplimiento promedio
                         historico = (
                             df_hist.groupby(year_col, dropna=False)["cumplimiento_pct"]
                             .mean()
@@ -1197,9 +1200,12 @@ def render():
                             .rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
                         )
                         historico = historico.sort_values("Año")
-                        # Si solo hay un año, no mostrar gráfico
                         if historico.shape[0] <= 1:
                             historico = None
+                elif row is not None and "Linea" in row and "Linea" not in consolidado.columns:
+                    # Diagnóstico: registrar advertencia si falta la columna
+                    import logging
+                    logging.warning("No se encontró la columna 'Linea' en el consolidado para el histórico de la tarjeta '%s'", row["Linea"])
                     # --- DOCUMENTACIÓN DE FÓRMULA GLOBAL DE CUMPLIMIENTO ---
                     # Cumplimiento (%) por línea estratégica = promedio de cumplimiento_pct de todos los indicadores de la línea en el cierre anual.
                     # Fórmula por indicador:

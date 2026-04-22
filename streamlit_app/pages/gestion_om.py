@@ -5,6 +5,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from core.semantica import categorizar_cumplimiento, obtener_icono_categoria, obtener_color_categoria, normalizar_valor_a_porcentaje
+
 _RUTA_KPI_DIAG = (
     Path(__file__).resolve().parents[2] / "data" / "output" / "artifacts" / "kpi_diagnostico.json"
 )
@@ -80,10 +82,10 @@ def _cargar_avance_om() -> dict:
         if pd.isna(n):
             return pd.NA
 
-        # Si viene en escala 0..1 sin símbolo %, interpretarlo como fracción y convertir a 0..100
-        if not has_percent and abs(n) <= 1.5:
-            n = n * 100
-        return float(n)
+        # Normalizar escala (0-1 a 0-100) usando centralizado normalizar_valor_a_porcentaje
+        # tiene_porcentaje=True si tiene %, None para detectar automáticamente
+        n = normalizar_valor_a_porcentaje(n, tiene_porcentaje=has_percent if has_percent else None)
+        return float(n) if pd.notna(n) else pd.NA
 
     dfs = []
     for f in base_path.glob("*.xlsx"):
@@ -285,7 +287,8 @@ def _normalizar_campos_plan_accion(plan_df: pd.DataFrame) -> pd.DataFrame:
     # Formatear avance como porcentaje; si viene en escala 0-1, convertir a 0-100
     if "Avance (%)" in df_show.columns:
         avance_num = pd.to_numeric(df_show["Avance (%)"], errors="coerce")
-        avance_num = avance_num.apply(lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5 else v)
+        # Usar centralizado normalizar_valor_a_porcentaje (Problema #9 FIX)
+        avance_num = avance_num.apply(lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v)
         df_show["Avance (%)"] = avance_num.apply(lambda v: "-" if pd.isna(v) else f"{v:.1f}%")
 
     return df_show.reset_index(drop=True)
@@ -732,11 +735,10 @@ def _matriz_mitigacion_peligro(df_riesgo: pd.DataFrame, df_reg: pd.DataFrame, df
     # Cumplimiento puede estar en columnas 'Cumplimiento' (0-100 o 0-1) o 'Cumplimiento_norm' (0-1)
     if "Cumplimiento" in m.columns:
         m["Cumplimiento_pct"] = pd.to_numeric(m.get("Cumplimiento"), errors="coerce")
-        # si está en rango 0..1, convertir a 0..100
-        if m["Cumplimiento_pct"].max(skipna=True) <= 1.5:
-            m["Cumplimiento_pct"] = (m["Cumplimiento_pct"] * 100).round(1)
-        else:
-            m["Cumplimiento_pct"] = m["Cumplimiento_pct"].round(1)
+        # Usar centralizado normalizar_valor_a_porcentaje para escala (Problema #9 FIX)
+        m["Cumplimiento_pct"] = m["Cumplimiento_pct"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, tiene_porcentaje=False) if pd.notna(v) else v
+        ).round(1)
     elif "Cumplimiento_norm" in m.columns:
         m["Cumplimiento_pct"] = (pd.to_numeric(m.get("Cumplimiento_norm"), errors="coerce") * 100).round(1)
     else:
@@ -879,16 +881,13 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
     df_display = df[cols].copy()
     df_display.columns = [rename_map.get(c, c) for c in df_display.columns]
     
+    # Función helper para íconos: convertir % a decimal y categorizar con semantica
     def _icono_cumpl(val):
         if pd.isna(val):
             return "⚪"
-        if val >= 105:
-            return "🔵"
-        elif val >= 100:
-            return "🟢"
-        elif val >= 80:
-            return "🟡"
-        return "🔴"
+        cumpl_decimal = val / 100.0  # Convertir porcentaje a decimal
+        categoria = categorizar_cumplimiento(cumpl_decimal)
+        return obtener_icono_categoria(categoria)
     
     df_display["Cumplimiento"] = df_display["Cumplimiento"].apply(lambda x: f"{_icono_cumpl(x)} {x}%" if pd.notna(x) else "-")
     
@@ -900,45 +899,36 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
 
 
 def barra_avance_om(pct):
+    """Barra de progreso con color e ícono basado en cumplimiento normalizado.
+    Usa core.semantica para consistencia."""
     if pd.isna(pct) or pct == 0:
         color = "#F3F4F6"
         icon = "⚪"
         return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>'''
 
-    color = "#F87171"
-    icon = "🔴"
-    if pct >= 105:
-        color = "#2563EB"
-        icon = "🔵"
-    elif pct >= 100:
-        color = "#22C55E"
-        icon = "🟢"
-    elif pct >= 80:
-        color = "#FACC15"
-        icon = "🟡"
+    # Convertir porcentaje a decimal para categorizar
+    cumpl_decimal = pct / 100.0
+    categoria = categorizar_cumplimiento(cumpl_decimal)
+    color = obtener_color_categoria(categoria)
+    icon = obtener_icono_categoria(categoria)
 
     return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:{min(100,pct)}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {pct:.1f}%</span></div>'''
 
 
 def barra_cumplimiento(pct):
-    """Barra de cumplimiento: 0% también se muestra en rojo."""
+    """Barra de cumplimiento: 0% también se muestra en rojo.
+    Usa core.semantica para consistencia."""
     if pd.isna(pct):
         color = "#F3F4F6"
         icon = "⚪"
         return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>'''
 
     n = float(pct)
-    color = "#F87171"
-    icon = "🔴"
-    if n >= 105:
-        color = "#2563EB"
-        icon = "🔵"
-    elif n >= 100:
-        color = "#22C55E"
-        icon = "🟢"
-    elif n >= 80:
-        color = "#FACC15"
-        icon = "🟡"
+    # Convertir porcentaje a decimal para categorizar
+    cumpl_decimal = n / 100.0
+    categoria = categorizar_cumplimiento(cumpl_decimal)
+    color = obtener_color_categoria(categoria)
+    icon = obtener_icono_categoria(categoria)
 
     width = 2 if n <= 0 else min(100, n)
     return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:{width}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {n:.1f}%</span></div>'''
@@ -956,16 +946,15 @@ def badge_tipo_accion(tipo):
 
 
 def _icono_cumplimiento(cumpl_val) -> str:
+    """Retorna ícono para cumplimiento (porcentaje).
+    Usa core.semantica para consistencia."""
     n = pd.to_numeric(cumpl_val, errors="coerce")
     if pd.isna(n):
         return "⚪"
-    if n >= 105:
-        return "🔵"
-    if n >= 100:
-        return "🟢"
-    if n >= 80:
-        return "🟡"
-    return "🔴"
+    # Convertir porcentaje a decimal para categorizar
+    cumpl_decimal = n / 100.0
+    categoria = categorizar_cumplimiento(cumpl_decimal)
+    return obtener_icono_categoria(categoria)
 
 
 def render():

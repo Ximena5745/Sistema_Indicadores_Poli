@@ -6,10 +6,11 @@ import pandas as pd
 import streamlit as st
 
 from core.config import (
-    IDS_PLAN_ANUAL, IDS_TOPE_100, CACHE_TTL,
+    CACHE_TTL,
     NIVEL_COLOR, UMBRAL_ALERTA, UMBRAL_PELIGRO, UMBRAL_SOBRECUMPLIMIENTO
 )
 from core import calculos as _calculos
+from core.semantica import categorizar_cumplimiento
 
 # Caché manual simple (no depende de Streamlit)
 _CACHE_MANUAL = {}
@@ -89,21 +90,9 @@ def _id_limpio(x) -> str:
         return str(x).strip()
 
 
-def _nivel_desde_cumplimiento(cumplimiento_dec) -> str:
-    try:
-        c = float(cumplimiento_dec)
-    except (TypeError, ValueError):
-        return PENDIENTE
-    if c >= UMBRAL_SOBRECUMPLIMIENTO_DEC:
-        return SOBRECUMPLIMIENTO
-    if c >= UMBRAL_ALERTA_DEC:
-        return "Cumplimiento"
-    if c >= UMBRAL_PELIGRO_DEC:
-        return "Alerta"
-    return "Peligro"
 
 
-@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
+# ──────────────────────────────────────────────────────────────────────────────
 def load_pdi_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
         return pd.DataFrame(columns=["Linea", "Objetivo"])
@@ -303,23 +292,31 @@ def load_cierres() -> pd.DataFrame:
         out.loc[out["Anio"].isna(), "Anio"] = out.loc[out["Anio"].isna(), "Fecha"].dt.year
         out.loc[out["Mes"].isna(), "Mes"] = out.loc[out["Mes"].isna(), "Fecha"].dt.month
 
-    meta_n = out["Meta"]
-    ejec_n = out["Ejecucion"]
-    valid = meta_n.notna() & ejec_n.notna() & (meta_n != 0)
-    sentido_neg = out["Sentido"].str.lower() == "negativo"
+    # NOTA: Cumplimiento es calculado oficialmente en scripts/etl/cumplimiento.py
+    # Los readers leen valores pre-calculados del Excel (cols L, M).
+    # NO recalcular aquí. Véase: Problema #4 - Consolidación de cálculos
+    
+    # Leer cumplimiento pre-calculado del Excel
+    c_cumpl = _find_col(df, ["Cumplimiento", "cumplimiento_dec"])
+    c_cumpl_real = _find_col(df, ["CumplReal", "cumplimiento_real"])
+    
+    out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
+    out["cumplimiento_real"] = pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
 
-    ratio_real = (ejec_n / meta_n).clip(lower=0).where(~sentido_neg, (meta_n / ejec_n).clip(lower=0))
-    ids_str = out["Id"].astype(str).str.strip()
-    tope = pd.Series(1.3, index=out.index)
-    tope[ids_str.isin(IDS_PLAN_ANUAL | IDS_TOPE_100)] = 1.0
-    ratio_cap = ratio_real.clip(upper=tope)
-
-    es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
-    out["cumplimiento_dec"] = pd.NA
-    out.loc[valid & ~es_metrica, "cumplimiento_dec"] = ratio_cap[valid & ~es_metrica]
     out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
-
-    out["Nivel de cumplimiento"] = out["cumplimiento_dec"].apply(_nivel_desde_cumplimiento)
+    
+    # Detectar si es métrica para establecer "Nivel de cumplimiento"
+    es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
+    
+    # Problema #5 FIX: Usar categorizar_cumplimiento() directamente (que SÍ considera Plan Anual)
+    # en lugar de _nivel_desde_cumplimiento() que era incompleta
+    out["Nivel de cumplimiento"] = out.apply(
+        lambda row: categorizar_cumplimiento(
+            row["cumplimiento_dec"],
+            id_indicador=row.get("Id")
+        ),
+        axis=1
+    )
     out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
     out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
 
@@ -360,24 +357,54 @@ def cierre_por_corte(df_cierres: pd.DataFrame, anio: int, mes: int) -> pd.DataFr
     return df.reset_index(drop=True)
 
 
-def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
+def _preparar_indicadores_con_cierre(
+    anio: int,
+    mes: int,
+    flag_column: str,
+    catalog_loader,
+    catalog_merge_cols: list,
+) -> pd.DataFrame:
+    """
+    Función GENÉRICA para preparar indicadores estratégicos con cierre (PDI o CNA).
+    
+    Problema #6 FIX: Consolidación de preparar_pdi_con_cierre + preparar_cna_con_cierre.
+    
+    PARÁMETROS:
+      anio: Año a consultar
+      mes: Mes a consultar
+      flag_column: Nombre columna de flag ("FlagPlanEstrategico", "FlagCNA", etc.)
+      catalog_loader: Función que carga el catálogo (load_pdi_catalog, load_cna_catalog)
+      catalog_merge_cols: Lista de columnas para merge del catálogo
+                         ej: ["Linea", "Objetivo"] para PDI
+                         ej: ["Factor", "Caracteristica"] para CNA
+    
+    RETORNA:
+      DataFrame con indicadores enriquecidos + cierre + catálogo
+    """
     base = load_worksheet_flags()
-    pdi_catalog = load_pdi_catalog()
+    catalog = catalog_loader()
     cierres = load_cierres()
+    
     if base.empty or cierres.empty:
         return pd.DataFrame()
-
-    plan = base[base["FlagPlanEstrategico"] == 1].copy()
-    if plan.empty:
+    
+    # Filtrar por flag específico
+    if flag_column not in base.columns:
         return pd.DataFrame()
-
-    # Excluir indicadores de tipo Proyecto (Proyecto=1)
-    if "Proyecto" in plan.columns:
-        plan = plan[plan["Proyecto"] != 1].copy()
-    if plan.empty:
+    
+    indicators = base[base[flag_column] == 1].copy()
+    if indicators.empty:
         return pd.DataFrame()
-
+    
+    # Excluir proyectos
+    if "Proyecto" in indicators.columns:
+        indicators = indicators[indicators["Proyecto"] != 1].copy()
+    if indicators.empty:
+        return pd.DataFrame()
+    
     close = cierre_por_corte(cierres, anio, mes)
+    
+    # Cols estándar de cierre
     cols_close = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
     for _ec in [
         "Meta", "Ejecucion", "Sentido",
@@ -385,59 +412,29 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     ]:
         if _ec in close.columns:
             cols_close.append(_ec)
-    merged = plan.merge(
+    
+    # Merge con cierre
+    merged = indicators.merge(
         close[cols_close],
         on="Id",
         how="left",
         suffixes=("", "_cierre"),
     )
-
+    
+    # Unificar Indicador desde cierre si falta
     if "Indicador_cierre" in merged.columns:
         merged["Indicador"] = merged["Indicador"].fillna(merged["Indicador_cierre"])
         merged = merged.drop(columns=["Indicador_cierre"])
-
-    if not pdi_catalog.empty and "Linea" in merged.columns and "Objetivo" in merged.columns:
-        merged = merged.merge(pdi_catalog, on=["Linea", "Objetivo"], how="left")
-
-    # Asegurar que exista columna `cumplimiento_pct` usando las fuentes disponibles
-    # 1) Si ya existe (desde load_cierres), respetarla.
-    if "cumplimiento_pct" not in merged.columns:
-        merged["cumplimiento_pct"] = pd.NA
-
-    # 2) Si existe columna 'Cumplimiento' (posible capitalización desde Excel), intentar parsearla
-    if "Cumplimiento" in merged.columns:
-        # eliminar % y normalizar coma decimal
-        merged.loc[merged["cumplimiento_pct"].isna(), "cumplimiento_pct"] = (
-            pd.to_numeric(
-                merged.loc[merged["cumplimiento_pct"].isna(), "Cumplimiento"].astype(str)
-                .str.replace('%', '', regex=False)
-                .str.replace(',', '.', regex=False)
-                .str.strip(),
-                errors="coerce",
-            )
-        )
-
-    # 3) Si aún falta, pero hay Meta/Ejecucion, calcular a nivel fila (similar a load_cierres)
-    for cols in [("Meta", "Ejecucion"), ("Meta", "Ejecucion_cierre")]:
-        meta_col, ejec_col = cols
-        if meta_col in merged.columns and ejec_col in merged.columns:
-            meta_n = pd.to_numeric(merged[meta_col], errors="coerce")
-            ejec_n = pd.to_numeric(merged[ejec_col], errors="coerce")
-            valid = meta_n.notna() & ejec_n.notna() & (meta_n != 0)
-            if valid.any():
-                sentido_col = "Sentido" if "Sentido" in merged.columns else ("Sentido_cierre" if "Sentido_cierre" in merged.columns else None)
-                sentido_neg = merged[sentido_col].astype(str).str.lower() == "negativo" if sentido_col is not None else pd.Series([False] * len(merged))
-                ratio = pd.Series(pd.NA, index=merged.index)
-                ratio.loc[valid & ~sentido_neg] = (ejec_n[valid & ~sentido_neg] / meta_n[valid & ~sentido_neg])
-                ratio.loc[valid & sentido_neg] = (meta_n[valid & sentido_neg] / ejec_n[valid & sentido_neg])
-                merged.loc[merged["cumplimiento_pct"].isna(), "cumplimiento_pct"] = pd.to_numeric(ratio, errors="coerce") * 100
-
-    # 4) Normalizar tipo numérico para cumplimiento_pct
+    
+    # Merge con catálogo si existen las columnas
+    if not catalog.empty and all(c in merged.columns for c in catalog_merge_cols):
+        merged = merged.merge(catalog, on=catalog_merge_cols, how="left")
+    
+    # Normalizar cumplimiento_pct
     merged["cumplimiento_pct"] = pd.to_numeric(merged.get("cumplimiento_pct"), errors="coerce")
-
     merged["Nivel de cumplimiento"] = merged["Nivel de cumplimiento"].fillna(PENDIENTE)
-
-    # Omitir filas que no contienen ninguna fuente de cumplimiento: Meta, Ejecucion o Cumplimiento
+    
+    # Filtrar filas sin datos de origen
     def _has_source(row):
         for c in ["Meta", "Ejecucion", "Cumplimiento"]:
             if c in merged.columns:
@@ -445,46 +442,41 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
                 if pd.notna(v) and str(v).strip() != "":
                     return True
         return False
-
+    
     if not merged.empty:
         merged = merged[merged.apply(_has_source, axis=1)].reset_index(drop=True)
-
+    
     return merged
+
+
+def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
+    """
+    Preparar indicadores Plan Estratégico (PDI) con cierre.
+    
+    Problema #6 FIX: Ahora usa función genérica _preparar_indicadores_con_cierre.
+    """
+    return _preparar_indicadores_con_cierre(
+        anio,
+        mes,
+        flag_column="FlagPlanEstrategico",
+        catalog_loader=load_pdi_catalog,
+        catalog_merge_cols=["Linea", "Objetivo"],
+    )
 
 
 def preparar_cna_con_cierre(anio: int, mes: int) -> pd.DataFrame:
-    base = load_worksheet_flags()
-    cna_catalog = load_cna_catalog()
-    cierres = load_cierres()
-    if base.empty or cierres.empty:
-        return pd.DataFrame()
-
-    cna = base[base["FlagCNA"] == 1].copy()
-    if cna.empty:
-        return pd.DataFrame()
-
-    close = cierre_por_corte(cierres, anio, mes)
-    cols_close_cna = ["Id", "Indicador", "cumplimiento_pct", "Nivel de cumplimiento", "Anio", "Mes", "Fecha"]
-    for _ec in [
-        "Meta", "Ejecucion", "Sentido",
-        "Meta_Signo", "Ejecucion_Signo", "Decimales", "DecimalesEje", "Decimales_Meta", "Decimales_Ejecucion",
-    ]:
-        if _ec in close.columns:
-            cols_close_cna.append(_ec)
-    merged = cna.merge(
-        close[cols_close_cna],
-        on="Id",
-        how="left",
-        suffixes=("", "_cierre"),
+    """
+    Preparar indicadores CNA con cierre.
+    
+    Problema #6 FIX: Ahora usa función genérica _preparar_indicadores_con_cierre.
+    """
+    return _preparar_indicadores_con_cierre(
+        anio,
+        mes,
+        flag_column="FlagCNA",
+        catalog_loader=load_cna_catalog,
+        catalog_merge_cols=["Factor", "Caracteristica"],
     )
 
-    if "Indicador_cierre" in merged.columns:
-        merged["Indicador"] = merged["Indicador"].fillna(merged["Indicador_cierre"])
-        merged = merged.drop(columns=["Indicador_cierre"])
 
-    if not cna_catalog.empty and "Factor" in merged.columns and "Caracteristica" in merged.columns:
-        merged = merged.merge(cna_catalog, on=["Factor", "Caracteristica"], how="left")
-
-    merged["Nivel de cumplimiento"] = merged["Nivel de cumplimiento"].fillna(PENDIENTE)
-
-    return merged
+# ──────────────────────────────────────────────────────────────────────────────

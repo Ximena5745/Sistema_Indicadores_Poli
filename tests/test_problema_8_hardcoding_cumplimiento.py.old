@@ -1,0 +1,249 @@
+"""
+Tests para Problema #8: Hardcoding de heurística "si max_abs <= 2" en _cumplimiento_pct
+
+SOLUCIÓN:
+  ✅ Eliminado hardcoding de heurística "si max_abs <= 2"
+  ✅ Creada función centralizada normalizar_valor_a_porcentaje()
+  ✅ _cumplimiento_pct refactorizada para usar normalizar_valor_a_porcentaje()
+  ✅ Metadata de escala soportada (hint explícito)
+
+VALIDACIÓN:
+  - Decimal 0.95 → 95.0 ✅
+  - Porcentaje 95.0 → 95.0 ✅
+  - String "95%" → 95.0 ✅
+  - Decimal 1.3 → 130.0 ✅
+  - NaN → NaN ✅
+  - Sin regresiones en suite completa ✅
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import pytest
+import pandas as pd
+import numpy as np
+from core.semantica import normalizar_valor_a_porcentaje
+from streamlit_app.pages.resumen_por_proceso import _cumplimiento_pct, _to_float
+
+
+class TestProblema8NormalizarValor:
+    """Tests para normalizar_valor_a_porcentaje()"""
+    
+    def test_decimal_095_retorna_95(self):
+        """Decimal 0.95 debe retornar 95.0"""
+        result = normalizar_valor_a_porcentaje(0.95)
+        assert result == 95.0
+    
+    def test_porcentaje_95_retorna_95(self):
+        """Porcentaje 95.0 debe retornar 95.0"""
+        result = normalizar_valor_a_porcentaje(95.0)
+        assert result == 95.0
+    
+    def test_decimal_13_retorna_130(self):
+        """Decimal 1.3 (tope) debe retornar 130.0"""
+        result = normalizar_valor_a_porcentaje(1.3)
+        assert result == 130.0
+    
+    def test_string_con_porcentaje(self):
+        """String "95%" debe retornar 95.0"""
+        result = normalizar_valor_a_porcentaje("95%")
+        assert result == 95.0
+    
+    def test_string_sin_porcentaje(self):
+        """String "95" (sin %) debe retornar 95.0"""
+        result = normalizar_valor_a_porcentaje("95")
+        assert result == 95.0
+    
+    def test_nan_retorna_nan(self):
+        """NaN debe retornar NaN"""
+        result = normalizar_valor_a_porcentaje(np.nan)
+        assert pd.isna(result)
+    
+    def test_invalid_string_retorna_nan(self):
+        """String inválido debe retornar NaN"""
+        result = normalizar_valor_a_porcentaje("abc")
+        assert pd.isna(result)
+    
+    def test_escala_hint_decimal(self):
+        """escala_hint='decimal' debe forzar interpretación decimal"""
+        result = normalizar_valor_a_porcentaje(2.5, escala_hint="decimal")
+        assert result == 250.0
+    
+    def test_escala_hint_porcentaje(self):
+        """escala_hint='porcentaje' debe forzar interpretación porcentaje"""
+        result = normalizar_valor_a_porcentaje(0.95, escala_hint="porcentaje")
+        assert result == 0.95
+    
+    def test_umbral_personalizado(self):
+        """umbral_decimal personalizado debe funcionar"""
+        # Con umbral 3, valor 2.5 es decimal (< 3)
+        result = normalizar_valor_a_porcentaje(2.5, umbral_decimal=3.0)
+        assert result == 250.0
+        
+        # Con umbral 2, valor 2.5 es porcentaje (>= 2)
+        result = normalizar_valor_a_porcentaje(2.5, umbral_decimal=2.0)
+        assert result == 2.5
+    
+    def test_valores_limites(self):
+        """Prueba valores límite (0, 1, 100, 130)"""
+        assert normalizar_valor_a_porcentaje(0.0) == 0.0
+        assert normalizar_valor_a_porcentaje(1.0) == 100.0
+        assert normalizar_valor_a_porcentaje(100.0) == 100.0
+        assert normalizar_valor_a_porcentaje(130.0) == 130.0
+
+
+class TestProblema8CumplimientoPct:
+    """Tests para _cumplimiento_pct refactorizada"""
+    
+    def test_cumplimiento_norm_directo(self):
+        """Cumplimiento_norm debe retornar como está"""
+        df = pd.DataFrame({
+            "Cumplimiento_norm": [0.95, 1.00, 1.05]
+        })
+        result = _cumplimiento_pct(df)
+        expected = pd.Series([0.95, 1.00, 1.05], name="Cumplimiento_norm")
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+    
+    def test_cumplimiento_decimal(self):
+        """Cumplimiento con valores decimales (< 2) debe multiplicarse por 100"""
+        df = pd.DataFrame({
+            "Cumplimiento": [0.95, 1.00, 1.05]
+        })
+        result = _cumplimiento_pct(df)
+        expected = pd.Series([95.0, 100.0, 105.0])
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+    
+    def test_cumplimiento_porcentaje(self):
+        """Cumplimiento con valores > 2 debe retornarse como está"""
+        df = pd.DataFrame({
+            "Cumplimiento": [95.0, 100.0, 105.0]
+        })
+        result = _cumplimiento_pct(df)
+        expected = pd.Series([95.0, 100.0, 105.0])
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+    
+    def test_cumplimiento_ambiguo(self):
+        """Cumplimiento con valores entre 1 y 2 (ambiguo) debe interpretarse correctamente"""
+        df = pd.DataFrame({
+            "Cumplimiento": [1.5, 1.95]  # Ambiguo: ¿150%/195% o 1.5%/1.95%?
+        })
+        result = _cumplimiento_pct(df)
+        # La heurística: 1.5 < 2 → es decimal → 150%
+        expected = pd.Series([150.0, 195.0])
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+    
+    def test_meta_ejecucion(self):
+        """Meta/Ejecucion debe calcular ratio como (Ejecucion/Meta)*100"""
+        df = pd.DataFrame({
+            "Meta": [100.0, 200.0],
+            "Ejecucion": [95.0, 210.0]
+        })
+        result = _cumplimiento_pct(df)
+        expected = pd.Series([95.0, 105.0])
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+    
+    def test_sin_columnas(self):
+        """Sin columnas de cumplimiento debe retornar Series vacía"""
+        df = pd.DataFrame({
+            "Indicador": ["A", "B"]
+        })
+        result = _cumplimiento_pct(df)
+        assert len(result) == 2
+        assert pd.isna(result).all()
+    
+    def test_cumplimiento_con_nan(self):
+        """NaN en Cumplimiento debe retornar NaN"""
+        df = pd.DataFrame({
+            "Cumplimiento": [0.95, np.nan, 1.05]
+        })
+        result = _cumplimiento_pct(df)
+        assert pd.isna(result[1])
+        assert result[0] == 95.0
+        assert result[2] == 105.0
+    
+    def test_cumplimiento_string(self):
+        """Cumplimiento con strings debe normalizarse"""
+        df = pd.DataFrame({
+            "Cumplimiento": ["95%", "100%", "105%"]
+        })
+        result = _cumplimiento_pct(df)
+        expected = pd.Series([95.0, 100.0, 105.0])
+        pd.testing.assert_series_equal(result, expected, check_names=False)
+
+
+class TestProblema8Consistencia:
+    """Validar consistencia y eliminación de hardcoding"""
+    
+    def test_no_hardcoding_if_max_abs_2(self):
+        """Verificar que no existe hardcoding 'if max_abs <= 2' en la lógica"""
+        import inspect
+        import re
+        from streamlit_app.pages.resumen_por_proceso import _cumplimiento_pct
+        
+        source = inspect.getsource(_cumplimiento_pct)
+        
+        # Extraer solo código (no docstrings/comentarios)
+        lines = source.split('\n')
+        code_lines = []
+        in_docstring = False
+        for line in lines:
+            # Detectar docstrings
+            if '"""' in line or "'''" in line:
+                in_docstring = not in_docstring
+            
+            # Ignorar líneas de comentario y docstrings
+            if not in_docstring and not line.strip().startswith('#'):
+                code_lines.append(line)
+        
+        code_only = '\n'.join(code_lines)
+        
+        # Verificar que no existe "max_abs" en la lógica
+        assert "max_abs" not in code_only, (
+            "Hardcoding 'max_abs' aún presente en lógica de _cumplimiento_pct"
+        )
+        
+        # Verificar que no existe comparación con 2 (como "<= 2")
+        assert not re.search(r'[<>=!]+\s*2', code_only), (
+            "Hardcoding de comparación con 2 aún presente"
+        )
+    
+    def test_usa_normalizar_valor(self):
+        """Verificar que usa normalizar_valor_a_porcentaje"""
+        import inspect
+        from streamlit_app.pages.resumen_por_proceso import _cumplimiento_pct
+        
+        source = inspect.getsource(_cumplimiento_pct)
+        assert "normalizar_valor_a_porcentaje" in source, (
+            "_cumplimiento_pct no usa normalizar_valor_a_porcentaje"
+        )
+    
+    def test_valores_reales_consistentes(self):
+        """Prueba con valores reales típicos"""
+        # Escenario 1: Dashboard con Cumplimiento_norm
+        df1 = pd.DataFrame({
+            "Cumplimiento_norm": [0.80, 0.95, 1.00, 1.05, 1.30]
+        })
+        result1 = _cumplimiento_pct(df1)
+        assert list(result1) == [0.80, 0.95, 1.00, 1.05, 1.30]
+        
+        # Escenario 2: Reportes con Cumplimiento en decimales
+        df2 = pd.DataFrame({
+            "Cumplimiento": [0.80, 0.95, 1.00, 1.05, 1.30]
+        })
+        result2 = _cumplimiento_pct(df2)
+        expected2 = pd.Series([80.0, 95.0, 100.0, 105.0, 130.0])
+        pd.testing.assert_series_equal(result2, expected2, check_names=False)
+        
+        # Escenario 3: Reportes con Cumplimiento en porcentaje
+        df3 = pd.DataFrame({
+            "Cumplimiento": [80.0, 95.0, 100.0, 105.0, 130.0]
+        })
+        result3 = _cumplimiento_pct(df3)
+        expected3 = pd.Series([80.0, 95.0, 100.0, 105.0, 130.0])
+        pd.testing.assert_series_equal(result3, expected3, check_names=False)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

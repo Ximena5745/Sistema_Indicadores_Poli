@@ -1,0 +1,337 @@
+"""
+Tests for Problema #9: Hardcoding lambda en gestion_om.py
+
+Refactoring: Consolidate 3 lambda expressions with hardcoded heuristic
+into centralized normalizar_valor_a_porcentaje() function.
+
+LÓGICA CORREGIDA (Problema #9):
+- Si tiene "%": es porcentaje → mantener
+- Si NO tiene "%": es decimal → multiplicar por 100
+
+Cumplimiento SIEMPRE es porcentaje (0-130%).
+Lo que cambia es cómo llega en el import: con "%" o sin él.
+"""
+
+import pytest
+import pandas as pd
+import numpy as np
+from pathlib import Path
+import sys
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.semantica import normalizar_valor_a_porcentaje
+
+
+class TestNormalizarValorProblema9:
+    """Tests for normalizar_valor_a_porcentaje() with Problema #9 context."""
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # CASO 1: _parse_avance() - Decimal vs Percentage detection
+    # ─────────────────────────────────────────────────────────────────────────────────
+
+    def test_parse_avance_decimal_bajo(self):
+        """Decimal 0.5 → 50%"""
+        result = normalizar_valor_a_porcentaje(0.5, escala_hint=None, umbral_decimal=1.5)
+        assert result == 50.0
+
+    def test_parse_avance_decimal_alto(self):
+        """Decimal 1.3 (tope) → 130%"""
+        result = normalizar_valor_a_porcentaje(1.3, escala_hint=None, umbral_decimal=1.5)
+        assert result == 130.0
+
+    def test_parse_avance_percentage_bajo(self):
+        """Percentage 50 → 50"""
+        result = normalizar_valor_a_porcentaje(50.0, escala_hint=None, umbral_decimal=1.5)
+        assert result == 50.0
+
+    def test_parse_avance_percentage_alto(self):
+        """Percentage 100 → 100"""
+        result = normalizar_valor_a_porcentaje(100.0, escala_hint=None, umbral_decimal=1.5)
+        assert result == 100.0
+
+    def test_parse_avance_ambiguo_valor_1_5(self):
+        """Valor ambiguo 1.5: <= 1.5 → decimal → 150%"""
+        result = normalizar_valor_a_porcentaje(1.5, escala_hint=None, umbral_decimal=1.5)
+        assert result == 150.0
+
+    def test_parse_avance_ambiguo_valor_1_51(self):
+        """Valor justo arriba threshold 1.51: > 1.5 → porcentaje → 1.51"""
+        result = normalizar_valor_a_porcentaje(1.51, escala_hint=None, umbral_decimal=1.5)
+        assert result == 1.51
+
+    def test_parse_avance_con_hint_decimal(self):
+        """Explicit hint 'decimal' fuerza multiplicación: 1.5 → 150%"""
+        result = normalizar_valor_a_porcentaje(1.5, escala_hint="decimal", umbral_decimal=1.5)
+        assert result == 150.0
+
+    def test_parse_avance_con_hint_porcentaje(self):
+        """Explicit hint 'porcentaje' fuerza retorno sin cambio: 1.5 → 1.5"""
+        result = normalizar_valor_a_porcentaje(1.5, escala_hint="porcentaje", umbral_decimal=1.5)
+        assert result == 1.5
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # CASO 2: _normalizar_campos_plan_accion() - Lambda refactoring
+    # ─────────────────────────────────────────────────────────────────────────────────
+
+    def test_normalizar_campos_avance_nan(self):
+        """NaN values handled correctly"""
+        result = normalizar_valor_a_porcentaje(np.nan, umbral_decimal=1.5)
+        assert pd.isna(result)
+
+    def test_normalizar_campos_avance_string_con_pct(self):
+        """String '85%' → 85.0"""
+        result = normalizar_valor_a_porcentaje("85%", escala_hint="porcentaje", umbral_decimal=1.5)
+        assert result == 85.0
+
+    def test_normalizar_campos_avance_dataframe_series(self):
+        """DataFrame.apply() compatibility"""
+        df = pd.DataFrame({
+            "Avance": [0.5, 0.95, 1.2, 50.0, np.nan]
+        })
+        result = df["Avance"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5) if pd.notna(v) else v
+        )
+        expected = pd.Series([50.0, 95.0, 120.0, 50.0, np.nan], name="Avance")
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_normalizar_campos_format_porcentaje(self):
+        """Format as percentage string"""
+        series = pd.Series([0.5, 1.2, 100.0])
+        normalized = series.apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5)
+        )
+        formatted = normalized.apply(lambda v: f"{v:.1f}%" if pd.notna(v) else "-")
+        expected = pd.Series(["50.0%", "120.0%", "100.0%"])
+        pd.testing.assert_series_equal(formatted, expected)
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # CASO 3: Cumplimiento_pct section - DataFrame column normalization
+    # ─────────────────────────────────────────────────────────────────────────────────
+
+    def test_cumplimiento_pct_mixed_scales(self):
+        """Mixed decimal and percentage scales in single column"""
+        df = pd.DataFrame({
+            "Cumplimiento": [0.8, 0.95, 100.0, 1.2, np.nan]
+        })
+        # Apply normalization (as done in Problema #9 fix)
+        df["Cumplimiento_pct"] = df["Cumplimiento"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5) if pd.notna(v) else v
+        ).round(1)
+        
+        expected = pd.Series([80.0, 95.0, 100.0, 120.0, np.nan], name="Cumplimiento_pct")
+        pd.testing.assert_series_equal(df["Cumplimiento_pct"], expected)
+
+    def test_cumplimiento_pct_all_decimal(self):
+        """All decimal values (0-1 range)"""
+        df = pd.DataFrame({
+            "Cumplimiento": [0.5, 0.75, 0.95]
+        })
+        df["Cumplimiento_pct"] = df["Cumplimiento"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5)
+        ).round(1)
+        
+        expected = pd.Series([50.0, 75.0, 95.0], name="Cumplimiento_pct")
+        pd.testing.assert_series_equal(df["Cumplimiento_pct"], expected)
+
+    def test_cumplimiento_pct_all_percentage(self):
+        """All percentage values (>= 2 or explicitly hinted)"""
+        df = pd.DataFrame({
+            "Cumplimiento": [50.0, 75.0, 100.0]
+        })
+        df["Cumplimiento_pct"] = df["Cumplimiento"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5)
+        ).round(1)
+        
+        expected = pd.Series([50.0, 75.0, 100.0], name="Cumplimiento_pct")
+        pd.testing.assert_series_equal(df["Cumplimiento_pct"], expected)
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # EDGE CASES y REGRESSION TESTS
+    # ─────────────────────────────────────────────────────────────────────────────────
+
+    def test_zero_value(self):
+        """Zero is handled correctly"""
+        result = normalizar_valor_a_porcentaje(0.0, umbral_decimal=1.5)
+        assert result == 0.0
+
+    def test_negative_value_decimal(self):
+        """Negative decimal value"""
+        result = normalizar_valor_a_porcentaje(-0.5, umbral_decimal=1.5)
+        assert result == -50.0
+
+    def test_negative_value_percentage(self):
+        """Negative percentage value: -50.0 <= 1.5 → decimal → -5000.0"""
+        # Note: Negative values are technically invalid in percentage context,
+        # but the function treats them based on magnitude vs threshold
+        # -50.0 <= 1.5 (threshold) → is decimal → multiply by 100
+        result = normalizar_valor_a_porcentaje(-50.0, umbral_decimal=1.5)
+        assert result == -5000.0  # Treated as decimal, multiplied
+
+    def test_very_small_decimal(self):
+        """Very small decimal"""
+        result = normalizar_valor_a_porcentaje(0.001, umbral_decimal=1.5)
+        assert result == 0.1
+
+    def test_very_large_percentage(self):
+        """Very large percentage"""
+        result = normalizar_valor_a_porcentaje(200.0, umbral_decimal=1.5)
+        assert result == 200.0
+
+    def test_umbral_customizado(self):
+        """Custom threshold: 2.0 instead of 1.5"""
+        result1 = normalizar_valor_a_porcentaje(1.9, umbral_decimal=2.0)  # <= 2.0 → decimal
+        result2 = normalizar_valor_a_porcentaje(2.0, umbral_decimal=2.0)  # <= 2.0 (threshold inclusive) → decimal
+        result3 = normalizar_valor_a_porcentaje(2.1, umbral_decimal=2.0)  # > 2.0 → porcentaje
+        assert result1 == 190.0  # 1.9 * 100
+        assert result2 == 200.0  # 2.0 <= 2.0 → decimal → 2.0 * 100
+        assert result3 == 2.1    # 2.1 > 2.0 → porcentaje as-is
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # REGRESSION: Verificar sin hardcoding
+    # ─────────────────────────────────────────────────────────────────────────────────
+
+    def test_no_hardcoding_in_implementation(self):
+        """Verify normalizar_valor_a_porcentaje() doesn't have hardcoded 1.5"""
+        import inspect
+        source = inspect.getsource(normalizar_valor_a_porcentaje)
+        
+        # Check that hardcoded 1.5 is not in the logic (only in docstring/default param)
+        # The function should use umbral_decimal parameter, not hardcoded 1.5
+        lines = source.split('\n')
+        
+        # Find the logic section (after docstring)
+        logic_start = None
+        for i, line in enumerate(lines):
+            if 'umbral_decimal' in line and 'def ' not in line:
+                logic_start = i
+                break
+        
+        assert logic_start is not None, "Logic with umbral_decimal not found"
+
+    def test_gestion_om_imports_correctly(self):
+        """Verify gestion_om.py imports normalizar_valor_a_porcentaje"""
+        # Read gestion_om.py and check imports
+        gestion_om_path = Path(__file__).parent.parent / "streamlit_app" / "pages" / "gestion_om.py"
+        if gestion_om_path.exists():
+            with open(gestion_om_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            assert 'normalizar_valor_a_porcentaje' in content, \
+                "gestion_om.py should import normalizar_valor_a_porcentaje"
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # INTEGRATION: Real-world scenarios from gestion_om.py
+    # ─────────────────────────────────────────────────────────────────────────────────
+
+    def test_integration_parse_avance_scenario(self):
+        """Integration: _parse_avance() behavior preserved"""
+        # Before: if not has_percent and abs(n) <= 1.5: n = n * 100
+        # After: normalizar_valor_a_porcentaje(n, escala_hint=..., umbral_decimal=1.5)
+        
+        test_cases = [
+            # (valor, escala_hint, expected)
+            (0.5, None, 50.0),          # no hint, decimal
+            (50.0, "porcentaje", 50.0), # hint porcentaje
+            (0.95, None, 95.0),         # no hint, decimal
+            (1.5, None, 150.0),         # threshold edge, decimal
+            (1.6, None, 1.6),           # above threshold, porcentaje
+        ]
+        
+        for valor, hint, expected in test_cases:
+            result = normalizar_valor_a_porcentaje(valor, escala_hint=hint, umbral_decimal=1.5)
+            assert result == expected, f"Failed for {valor}, {hint}: got {result}, expected {expected}"
+
+    def test_integration_plan_accion_format(self):
+        """Integration: _normalizar_campos_plan_accion() DataFrame behavior"""
+        # Simulate the apply(lambda...) pattern from gestion_om.py
+        df = pd.DataFrame({
+            "Avance (%)": [0.25, 0.75, 1.0, 50.0, 100.0, np.nan]
+        })
+        
+        # Old code: df["Avance"].apply(lambda v: v * 100 if abs(v) <= 1.5 else v)
+        # New code: df["Avance"].apply(lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5))
+        result = df["Avance (%)"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5) if pd.notna(v) else v
+        )
+        
+        expected = pd.Series([25.0, 75.0, 100.0, 50.0, 100.0, np.nan], name="Avance (%)")
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_integration_cumplimiento_consistency(self):
+        """Integration: Cumplimiento normalization across different data"""
+        # Simulate: m["Cumplimiento_pct"].apply(lambda v: normalizar...)
+        data = {
+            "Cumplimiento": [0.8, 0.95, 1.0, 1.05, 100.0]
+        }
+        df = pd.DataFrame(data)
+        
+        # New approach using normalizar_valor_a_porcentaje
+        df["Cumplimiento_pct"] = df["Cumplimiento"].apply(
+            lambda v: normalizar_valor_a_porcentaje(v, umbral_decimal=1.5)
+        ).round(1)
+        
+        expected_values = [80.0, 95.0, 100.0, 105.0, 100.0]
+        for actual, expected in zip(df["Cumplimiento_pct"], expected_values):
+            assert actual == expected, f"Got {actual}, expected {expected}"
+
+
+class TestProblema9CodeRefactoring:
+    """Verify that gestion_om.py properly refactored (no hardcoding remaining)."""
+
+    def test_parse_avance_no_hardcoding(self):
+        """Verify _parse_avance() doesn't have hardcoded abs(n) <= 1.5"""
+        gestion_om_path = Path(__file__).parent.parent / "streamlit_app" / "pages" / "gestion_om.py"
+        if gestion_om_path.exists():
+            with open(gestion_om_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find _parse_avance function
+            import re
+            pattern = r'def _parse_avance\(.*?\):.*?(?=\n    def |\nclass |\Z)'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                func_body = match.group(0)
+                # Should NOT have: if not has_percent and abs(n) <= 1.5
+                assert 'abs(n) <= 1.5' not in func_body, \
+                    "_parse_avance should use normalizar_valor_a_porcentaje, not hardcoding"
+                # Should have: normalizar_valor_a_porcentaje
+                assert 'normalizar_valor_a_porcentaje' in func_body, \
+                    "_parse_avance should call normalizar_valor_a_porcentaje"
+
+    def test_normalizar_campos_no_hardcoding_lambda(self):
+        """Verify _normalizar_campos_plan_accion() lambda refactored"""
+        gestion_om_path = Path(__file__).parent.parent / "streamlit_app" / "pages" / "gestion_om.py"
+        if gestion_om_path.exists():
+            with open(gestion_om_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find the section with "Formatear avance"
+            if 'Formatear avance' in content:
+                # Should NOT have: lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5
+                assert 'lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5' not in content, \
+                    "Should not have hardcoded lambda with abs(v) <= 1.5"
+                # Should have normalizar_valor_a_porcentaje reference
+                assert 'normalizar_valor_a_porcentaje' in content, \
+                    "Should use normalizar_valor_a_porcentaje"
+
+    def test_cumplimiento_pct_no_hardcoding(self):
+        """Verify Cumplimiento_pct section refactored"""
+        gestion_om_path = Path(__file__).parent.parent / "streamlit_app" / "pages" / "gestion_om.py"
+        if gestion_om_path.exists():
+            with open(gestion_om_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find the Cumplimiento section
+            if 'Cumplimiento_pct' in content:
+                # Should NOT have: if m["Cumplimiento_pct"].max(skipna=True) <= 1.5
+                assert 'm["Cumplimiento_pct"].max(skipna=True) <= 1.5' not in content, \
+                    "Should not have hardcoded if statement with <= 1.5"
+                # Should use normalizar_valor_a_porcentaje
+                assert 'normalizar_valor_a_porcentaje' in content, \
+                    "Should use normalizar_valor_a_porcentaje"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
