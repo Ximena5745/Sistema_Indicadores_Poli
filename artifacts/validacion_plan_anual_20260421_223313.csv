@@ -1,0 +1,10 @@
+ID,Indicador,Cumplimiento_Raw,Cumplimiento_Dec,Categoría_Antigua,Categoría_Nueva,Cambio
+88,Ejecución del plan de trabajo,0.9934426229508201,0.9934426229508201,Alerta,Cumplimiento,True
+88,Ejecución del plan de trabajo,1.0,1.0,Cumplimiento,Cumplimiento,False
+88,Ejecución del plan de trabajo,1.0,1.0,Cumplimiento,Cumplimiento,False
+88,Ejecución del plan de trabajo,1.0,1.0,Cumplimiento,Cumplimiento,False
+463,Cumplimiento de las acciones del Plan de mejoramiento GPW,0.95,0.95,Alerta,Cumplimiento,True
+463,Cumplimiento de las acciones del Plan de mejoramiento GPW,1.0,1.0,Cumplimiento,Cumplimiento,False
+473,Programas con alineación curricular,1.0,1.0,Cumplimiento,Cumplimiento,False
+473,Programas con planes de estudios definidos,1.0,1.0,Cumplimiento,Cumplimiento,False
+473,Programas con planes de estudios definidos,1.0,1.0,Cumplimiento,Cumplimiento,False

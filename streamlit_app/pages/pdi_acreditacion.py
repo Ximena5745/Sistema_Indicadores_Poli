@@ -50,12 +50,9 @@ def _clasificar_estado(cumpl, id_indicador=None):
     except Exception:
         return "Sin dato"
     
-    # Convertir porcentaje a decimal para categorizar_cumplimiento
-    cumpl_decimal = cumpl_pct / 100.0
-    
-    # Usar la función centralizada de semantica
-    from core.semantica import categorizar_cumplimiento
-    return categorizar_cumplimiento(cumpl_decimal, id_indicador=id_indicador)
+    # MEJORA FASE 2: Usar wrapper centralizado
+    from core.semantica import normalizar_y_categorizar
+    return normalizar_y_categorizar(cumpl_pct, es_porcentaje=True, id_indicador=id_indicador)
 
 def render():
     st.title("Gestión y Acreditación (Nivel 2)")

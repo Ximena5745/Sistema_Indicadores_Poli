@@ -192,16 +192,25 @@ def recalcular_cumplimiento_faltante(meta, ejecucion, sentido="Positivo", id_ind
     
     PROPÓSITO:
         Centralizar la lógica de recálculo que estaba duplicada en 3 lugares:
-        1. services/data_loader.py líneas 248-276
-        2. services/strategic_indicators.py load_cierres()
-        3. services/strategic_indicators.py preparar_pdi_con_cierre()
+        1. services/data_loader.py líneas 248-276 (defectuosa)
+        2. services/strategic_indicators.py load_cierres() (defectuosa)
+        3. scripts/etl/cumplimiento.py (CORRECTA, ahora centralizada)
+    
+    SOLUCIÓN PROBLEMA #2:
+        Unifica 3 implementaciones divergentes en 1 lógica oficial global.
+        Implementa casos especiales correctamente:
+        - Meta=0 & Ejec=0 → 1.0 (éxito perfecto, cero es logro)
+        - Negativo & Ejec=0 → 1.0 (cero es perfecto en indicadores de "menos es mejor")
     
     LÓGICA:
         1. Validar meta y ejecucion no sean None
         2. Convertir a float
-        3. Si sentido="Positivo": cumplimiento = ejecucion / meta
-           Si sentido="Negativo": cumplimiento = meta / ejecucion
-        4. Aplicar validación: no dividir por 0
+        3. CASOS ESPECIALES (nuevos en Problema #2):
+           - Si Meta=0 y Ejec=0: retorna 1.0 (éxito)
+           - Si Sentido=Negativo y Ejec=0 (Meta>0): retorna 1.0 (perfecto)
+        4. Cálculo estándar:
+           - Si sentido="Positivo": cumplimiento = ejecucion / meta
+           - Si sentido="Negativo": cumplimiento = meta / ejecucion
         5. Aplicar tope según tipo de indicador:
            - Plan Anual: [0, 1.0]
            - Regular: [0, 1.3]
@@ -225,7 +234,7 @@ def recalcular_cumplimiento_faltante(meta, ejecucion, sentido="Positivo", id_ind
     -------
     float
         Cumplimiento recalculado: [0, 1.0] para PA, [0, 1.3] para regular
-        Retorna NaN si no se puede calcular (meta=0, entrada inválida, etc.)
+        Retorna NaN si no se puede calcular (entrada inválida, meta=0 pero ejec≠0, etc.)
     
     Ejemplos
     --------
@@ -238,8 +247,11 @@ def recalcular_cumplimiento_faltante(meta, ejecucion, sentido="Positivo", id_ind
     >>> recalcular_cumplimiento_faltante(100, 150, sentido="Positivo", id_indicador="45")  # PA
     1.0  # Tope PA más restrictivo
     
-    >>> recalcular_cumplimiento_faltante(100, 0, sentido="Negativo")  # Meta/0
-    nan  # División por cero evitada
+    >>> recalcular_cumplimiento_faltante(0, 0, sentido="Positivo")  # CASO ESPECIAL
+    1.0  # Meta=0 & Ejec=0 = éxito perfecto
+    
+    >>> recalcular_cumplimiento_faltante(1.6, 0, sentido="Negativo")  # CASO ESPECIAL
+    1.0  # Negativo & Ejec=0 = cero es perfecto
     """
     # Validar entradas
     if meta is None or ejecucion is None:
@@ -259,20 +271,42 @@ def recalcular_cumplimiento_faltante(meta, ejecucion, sentido="Positivo", id_ind
         logger.debug(f"Meta o Ejecucion es NaN: meta={m}, ejec={e}")
         return float("nan")
     
-    # Calcular según sentido
+    # Normalizar sentido
+    sentido_str = str(sentido).strip().lower() if sentido else "positivo"
+    
+    # ════════════════════════════════════════════════════════════════════════════
+    # CASOS ESPECIALES (PROBLEMA #2 - Nuevos)
+    # ════════════════════════════════════════════════════════════════════════════
+    
+    # CASO ESPECIAL 1: Meta=0 & Ejecución=0 → 1.0 (100% éxito perfecto)
+    # Interpretación: "Meta de cero logros (muertes, accidentes), cero logrados = perfecto"
+    # Ejemplo: Mortalidad Laboral (meta=0 muertes, ejecutado=0 muertes)
+    if m == 0 and e == 0:
+        logger.debug("CASO ESPECIAL: Meta=0 y Ejec=0 → 100% (éxito perfecto)")
+        return 1.0
+    
+    # CASO ESPECIAL 2: Sentido Negativo & Ejecución=0 (Meta>0) → 1.0 (100% perfecto)
+    # Interpretación: "Indicador donde menos es mejor, cero logrado es perfecto"
+    # Ejemplo: Accidentalidad (meta=1.6 accidentes permitidos, ejecutado=0 accidentes = perfecto)
+    if sentido_str == "negativo" and e == 0 and m > 0:
+        logger.debug("CASO ESPECIAL Negativo: Ejec=0 y Meta>0 → 100% (cero es perfecto)")
+        return 1.0
+    
+    # ════════════════════════════════════════════════════════════════════════════
+    # CÁLCULO ESTÁNDAR
+    # ════════════════════════════════════════════════════════════════════════════
+    
     try:
-        sentido_str = str(sentido).strip().lower() if sentido else "positivo"
-        
         if sentido_str == "positivo":
             # Más es mejor: cumplimiento = ejecución / meta
             if m == 0:
-                logger.debug(f"Meta es 0, no se puede dividir")
+                logger.debug(f"Positivo & Meta=0 & Ejec≠0: no se puede dividir")
                 return float("nan")
             raw = e / m
         elif sentido_str == "negativo":
             # Menos es mejor: cumplimiento = meta / ejecución
             if e == 0:
-                logger.debug(f"Ejecución es 0 (sentido negativo), no se puede dividir")
+                logger.debug(f"Negativo & Ejec=0 & Meta=0: ya fue manejado como caso especial")
                 return float("nan")
             raw = m / e
         else:
@@ -382,6 +416,85 @@ def normalizar_valor_a_porcentaje(valor, tiene_porcentaje=None):
     else:
         # Es decimal (0-1.3), convertir a porcentaje (0-130)
         return valor * 100.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FUNCIÓN WRAPPER: NORMALIZACIÓN + CATEGORIZACIÓN EN UNA SOLA LLAMADA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def normalizar_y_categorizar(valor, 
+                             es_porcentaje=None,
+                             id_indicador=None,
+                             sentido="Positivo"):
+    """
+    Wrapper que combina normalización de cumplimiento + categorización en una sola función.
+    
+    PROPÓSITO:
+      - Centralizar la lógica de conversión automática
+      - Reemplazar conversiones manuales repetidas en dashboards
+      - Garantizar consistencia en formato de entrada/salida
+    
+    PARÁMETROS
+    ----------
+    valor : float, str, NaN
+        Valor de cumplimiento (puede ser porcentaje o decimal)
+    
+    es_porcentaje : None, True, False
+        Hint sobre el formato del valor:
+        - None: detectar automáticamente (si tiene "%" en string)
+        - True: es porcentaje (0-130)
+        - False: es decimal (0-1.3)
+    
+    id_indicador : str, int, opcional
+        ID del indicador para auto-detectar Plan Anual
+    
+    sentido : str
+        "Positivo" o "Negativo" (para futuros usos en recalcular_cumplimiento_faltante)
+    
+    RETORNA
+    -------
+    str
+        Categoría: "Peligro" | "Alerta" | "Cumplimiento" | "Sobrecumplimiento" | "Sin dato"
+    
+    EJEMPLOS
+    --------
+    >>> normalizar_y_categorizar(95, es_porcentaje=True, id_indicador="373")
+    'Cumplimiento'
+    
+    >>> normalizar_y_categorizar(0.95, es_porcentaje=False, id_indicador="123")
+    'Alerta'
+    
+    >>> normalizar_y_categorizar("95%", id_indicador="373")
+    'Cumplimiento'
+    
+    >>> normalizar_y_categorizar(105, es_porcentaje=True)
+    'Sobrecumplimiento'
+    
+    PROBLEMAS SOLUCIONADOS
+    ----------------------
+    Reemplaza el antipatrón repetido en 4+ dashboards:
+    
+    ANTES (código duplicado):
+        cumpl_decimal = pct / 100.0  # Conversión manual
+        categoria = categorizar_cumplimiento(cumpl_decimal, id_indicador=id_ind)
+    
+    DESPUÉS (centralizado):
+        categoria = normalizar_y_categorizar(pct, es_porcentaje=True, id_indicador=id_ind)
+    """
+    # Paso 1: Normalizar a decimal (0-1.3)
+    valor_decimal = normalizar_valor_a_porcentaje(valor, tiene_porcentaje=es_porcentaje)
+    
+    # Si el valor normalizado es un porcentaje (0-130), convertir a decimal
+    # Lógica: normalizar_valor_a_porcentaje retorna porcentaje (0-130)
+    # categorizar_cumplimiento espera decimal (0-1.3)
+    if pd.notna(valor_decimal) and valor_decimal > 1.3:
+        # Es un porcentaje que necesita conversión a decimal
+        valor_decimal = valor_decimal / 100.0
+    
+    # Paso 2: Categorizar usando lógica oficial
+    categoria = categorizar_cumplimiento(valor_decimal, id_indicador=id_indicador)
+    
+    return categoria
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -153,31 +153,29 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
     if "cumplimiento_pct" in df.columns:
         # Importar aquí para evitar circular imports
-        from core.semantica import categorizar_cumplimiento
+        from core.semantica import normalizar_y_categorizar
         
         def _map_level_v2(row):
             """
             Usa core.semantica para categorizar (SINGLE SOURCE).
             Problema #7: Eliminación de hardcoding 105/100/80.
-            Los valores en cumplimiento_pct están en porcentaje (0-100 o 0-130),
-            pero categorizar_cumplimiento espera formato decimal (0-1 o 0-1.3).
+            Los valores en cumplimiento_pct están en porcentaje (0-100 o 0-130).
             """
             if pd.isna(row["cumplimiento_pct"]):
                 return "Pendiente de reporte"
             try:
                 pct = float(row["cumplimiento_pct"])
-                cumpl_decimal = pct / 100.0  # Convertir porcentaje a decimal
             except Exception:
                 return "Pendiente de reporte"
             
-            # Si cumpl_decimal es NaN, retornar
+            # Si pct es NaN, retornar
             import math
-            if math.isnan(cumpl_decimal):
+            if math.isnan(pct):
                 return "Pendiente de reporte"
             
-            # Usar la función centralizada de semantica con ID si disponible
+            # MEJORA FASE 2: Usar wrapper centralizado
             id_indicador = row.get("Id", None)
-            categoria = categorizar_cumplimiento(cumpl_decimal, id_indicador=id_indicador)
+            categoria = normalizar_y_categorizar(pct, es_porcentaje=True, id_indicador=id_indicador)
             return categoria
         
         df = df.copy()

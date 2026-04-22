@@ -206,14 +206,12 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
         def _map_level_v2(row):
             """
             Usa core.semantica para categorizar.
-            Los valores en cumplimiento_pct están en porcentaje (0-100),
-            pero categorizar_cumplimiento espera formato decimal (0-1).
+            Los valores en cumplimiento_pct están en porcentaje (0-100).
             """
             if pd.isna(row["cumplimiento_pct"]):
                 return "Pendiente de reporte"
             try:
                 pct = float(row["cumplimiento_pct"])
-                cumpl_decimal = pct / 100.0  # Convertir porcentaje a decimal
             except Exception:
                 return "Pendiente de reporte"
             
@@ -221,9 +219,10 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
             if math.isnan(pct):
                 return "Pendiente de reporte"
             
-            # Usar la función centralizada de semantica
+            # MEJORA FASE 2: Usar wrapper centralizado
+            from core.semantica import normalizar_y_categorizar
             id_indicador = row.get("Id", None)
-            categoria = categorizar_cumplimiento(cumpl_decimal, id_indicador=id_indicador)
+            categoria = normalizar_y_categorizar(pct, es_porcentaje=True, id_indicador=id_indicador)
             return categoria
 
         df = df.copy()

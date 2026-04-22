@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from core.semantica import categorizar_cumplimiento, obtener_icono_categoria, obtener_color_categoria, normalizar_valor_a_porcentaje
+from core.semantica import categorizar_cumplimiento, obtener_icono_categoria, obtener_color_categoria, normalizar_valor_a_porcentaje, normalizar_y_categorizar
 
 _RUTA_KPI_DIAG = (
     Path(__file__).resolve().parents[2] / "data" / "output" / "artifacts" / "kpi_diagnostico.json"
@@ -881,12 +881,12 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
     df_display = df[cols].copy()
     df_display.columns = [rename_map.get(c, c) for c in df_display.columns]
     
-    # Función helper para íconos: convertir % a decimal y categorizar con semantica
+    # Función helper para íconos: usar función centralizada
     def _icono_cumpl(val):
         if pd.isna(val):
             return "⚪"
-        cumpl_decimal = val / 100.0  # Convertir porcentaje a decimal
-        categoria = categorizar_cumplimiento(cumpl_decimal)
+        # MEJORA FASE 2: Usar wrapper centralizado
+        categoria = normalizar_y_categorizar(val, es_porcentaje=True)
         return obtener_icono_categoria(categoria)
     
     df_display["Cumplimiento"] = df_display["Cumplimiento"].apply(lambda x: f"{_icono_cumpl(x)} {x}%" if pd.notna(x) else "-")
@@ -906,9 +906,8 @@ def barra_avance_om(pct):
         icon = "⚪"
         return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>'''
 
-    # Convertir porcentaje a decimal para categorizar
-    cumpl_decimal = pct / 100.0
-    categoria = categorizar_cumplimiento(cumpl_decimal)
+    # MEJORA FASE 2: Usar wrapper centralizado
+    categoria = normalizar_y_categorizar(pct, es_porcentaje=True)
     color = obtener_color_categoria(categoria)
     icon = obtener_icono_categoria(categoria)
 
@@ -924,9 +923,8 @@ def barra_cumplimiento(pct):
         return f'''<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>'''
 
     n = float(pct)
-    # Convertir porcentaje a decimal para categorizar
-    cumpl_decimal = n / 100.0
-    categoria = categorizar_cumplimiento(cumpl_decimal)
+    # MEJORA FASE 2: Usar wrapper centralizado
+    categoria = normalizar_y_categorizar(n, es_porcentaje=True)
     color = obtener_color_categoria(categoria)
     icon = obtener_icono_categoria(categoria)
 
@@ -951,9 +949,8 @@ def _icono_cumplimiento(cumpl_val) -> str:
     n = pd.to_numeric(cumpl_val, errors="coerce")
     if pd.isna(n):
         return "⚪"
-    # Convertir porcentaje a decimal para categorizar
-    cumpl_decimal = n / 100.0
-    categoria = categorizar_cumplimiento(cumpl_decimal)
+    # MEJORA FASE 2: Usar wrapper centralizado
+    categoria = normalizar_y_categorizar(n, es_porcentaje=True)
     return obtener_icono_categoria(categoria)
 
 

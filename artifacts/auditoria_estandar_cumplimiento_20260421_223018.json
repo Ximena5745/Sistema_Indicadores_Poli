@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-04-21T22:30:18.372658",
+  "status": "WARNING",
+  "summary": {
+    "successes": 15,
+    "warnings": 4,
+    "errors": 0
+  },
+  "details": {
+    "successes": [
+      "\u2705 UMBRAL_PELIGRO = 0.8",
+      "\u2705 UMBRAL_ALERTA = 1.0",
+      "\u2705 UMBRAL_SOBRECUMPLIMIENTO = 1.05",
+      "\u2705 UMBRAL_ALERTA_PA = 0.95",
+      "\u2705 UMBRAL_SOBRECUMPLIMIENTO_PA = 1.0",
+      "\u2705 IDS_PLAN_ANUAL existe (107 IDs)",
+      "\u2705 Funci\u00f3n categorizar_cumplimiento() definida",
+      "\u2705 Funci\u00f3n detecta Plan Anual",
+      "\u2705 Documentaci\u00f3n menciona regla Plan Anual",
+      "\u2705 services/data_loader.py importa de semantica.py",
+      "\u2705 services/strategic_indicators.py importa de semantica.py",
+      "\u2705 tests/test_problema_1_plan_anual_mal_categorizado.py (26 tests)",
+      "\u2705 tests/test_semantica.py (21 tests)",
+      "\u2705 tests/test_calculos.py (44 tests)",
+      "\u2705 Tests de cobertura encontrados (3 archivos)"
+    ],
+    "warnings": [
+      "\u26a0\ufe0f  Posible l\u00f3gica inline en: auditoria_estandar_nivel_cumplimiento.py (patr\u00f3n: if\\s+\\w+\\s*<\\s*0\\.80\\s*:)",
+      "\u26a0\ufe0f  Posible l\u00f3gica inline en: data_preparator.py (patr\u00f3n: if\\s+\\w+\\s*<\\s*0\\.80\\s*:)",
+      "\u26a0\ufe0f  Posible l\u00f3gica inline en: predictor.py (patr\u00f3n: if\\s+\\w+\\s*<\\s*0\\.80\\s*:)",
+      "\u26a0\ufe0f  3 archivos pueden tener l\u00f3gica inline"
+    ],
+    "errors": []
+  }
+}
