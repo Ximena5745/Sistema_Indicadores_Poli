@@ -1520,8 +1520,8 @@ def render():
                 _render_chip(value, label, color)
 
         # Se eliminan tablas adicionales bajo metricas clave para evitar duplicidad visual.
-    else:
-        st.warning("No hay indicadores de CMI Estratégico para el corte seleccionado.")
+    # else:
+    #     st.warning("No hay indicadores de CMI Estratégico para el corte seleccionado.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
