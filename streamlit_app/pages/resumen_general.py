@@ -1330,8 +1330,54 @@ def render():
             for _, row in lineas_resumen.iterrows():
                 norm_to_row[_norm_key(str(row["Linea"]))] = row
 
+            # Función para cargar histórico completo de todas las líneas
+            def _get_historico_lineas():
+                """Carga datos históricos de todas las líneas estratégicas."""
+                import pandas as pd
+                from pathlib import Path
+                from services.strategic_indicators import load_cierres
+                from services.cmi_filters import filter_df_for_cmi_estrategico
+                
+                cierres = load_cierres()
+                
+                if cierres.empty:
+                    return pd.DataFrame()
+                
+                try:
+                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
+                    df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
+                    
+                    if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
+                        cierres = cierres.copy()
+                        cierres["Id"] = cierres["Id"].astype(str)
+                        df_cmi = df_cmi.copy()
+                        df_cmi["Id"] = df_cmi["Id"].astype(str)
+                        
+                        id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
+                        cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
+                    else:
+                        cierres_con_linea = cierres
+                except Exception:
+                    cierres_con_linea = cierres
+                
+                cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
+                
+                if "cumplimiento_pct" not in cierres_con_linea.columns:
+                    cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
+                        lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
+                    )
+                
+                return cierres_con_linea
+
+            # Cargar histórico una sola vez
+            historico_df = None
+            try:
+                historico_df = _get_historico_lineas()
+            except Exception:
+                pass
+
             # Layout mejorado: hasta 6 fichas por fila, responsivo
-            # st.markdown("<div style='margin-bottom:0.5rem;'><b>Cumplimiento por Línea Estratégica PDI 2022-2026</b></div>", unsafe_allow_html=True)
             ficha_cols = st.columns(6)
             for idx, card_def in enumerate(strategic_defs):
                 row = norm_to_row.get(card_def["key"])
@@ -1343,25 +1389,24 @@ def render():
                 n_ind = int(row["N_Indicadores"]) if row is not None else 0
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
                 
-                # Cargar histórico desde datos originales sin filtro de año
+                # Generar histórico desde datos completos
                 historico = None
-                try:
-                    df_all_years = preparar_pdi_con_cierre(2025, 12)
-                    df_all_years = filter_df_for_cmi_estrategico(df_all_years, id_column="Id")
-                    
-                    if "Linea" in df_all_years.columns and "cumplimiento_pct" in df_all_years.columns and "Anio" in df_all_years.columns:
-                        df_hist = df_all_years[df_all_years["Linea"] == row["Linea"]].copy()
+                if row is not None and historico_df is not None and not historico_df.empty:
+                    try:
+                        linea_nombre = row["Linea"]
+                        df_hist = historico_df[historico_df["Linea"] == linea_nombre].copy()
                         
-                        if not df_hist.empty:
+                        if not df_hist.empty and "Anio" in df_hist.columns and "cumplimiento_pct" in df_hist.columns:
                             historico = (
                                 df_hist.groupby("Anio", dropna=False)["cumplimiento_pct"]
                                 .mean()
                                 .reset_index()
-                                .rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
                             )
+                            historico = historico[historico["Anio"].notna()]
+                            historico = historico.rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
                             historico = historico.sort_values("Año")
-                except Exception:
-                    pass
+                    except Exception:
+                        pass
                 
                 with ficha_cols[idx % 6]:
                     _render_strategy_card(
@@ -1372,80 +1417,81 @@ def render():
                         icon=card_def["icon"],
                         historico=historico,
                     )
-            # Gráfica alineación de objetivos estratégicos
-            st.markdown(
-                "<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>",
-                unsafe_allow_html=True,
-            )
-            sunburst = _build_sunburst(pdi_estrategico)
-            st.plotly_chart(sunburst, use_container_width=True)
+    
+    # Gráfica alineación de objetivos estratégicos
+    st.markdown(
+        "<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>",
+        unsafe_allow_html=True,
+    )
+    sunburst = _build_sunburst(pdi_estrategico)
+    st.plotly_chart(sunburst, use_container_width=True)
 
-            # Perspectivas IA estrategicas: linea resumen + 2 columnas
-            prev_year_e = year_estrategico - 1
-            prev_month_e = _latest_month_for_year(consolidado, prev_year_e)
-            best_improvements_e = []
-            worst_declines_e = []
-            if prev_month_e:
-                prev_pdi_e = preparar_pdi_con_cierre(prev_year_e, prev_month_e)
-                prev_pdi_e = filter_df_for_cmi_estrategico(prev_pdi_e, id_column="Id")
-                best_improvements_e, worst_declines_e = _compute_trends(pdi_estrategico, prev_pdi_e)
+    # Perspectivas IA estrategicas: linea resumen + 2 columnas
+    prev_year_e = year_estrategico - 1
+    prev_month_e = _latest_month_for_year(consolidado, prev_year_e)
+    best_improvements_e = []
+    worst_declines_e = []
+    if prev_month_e:
+        prev_pdi_e = preparar_pdi_con_cierre(prev_year_e, prev_month_e)
+        prev_pdi_e = filter_df_for_cmi_estrategico(prev_pdi_e, id_column="Id")
+        best_improvements_e, worst_declines_e = _compute_trends(pdi_estrategico, prev_pdi_e)
 
-            count_total_e = len(pdi_estrategico)
-            counts_e = {
-                "Sobrecumplimiento": int(
-                    (pdi_estrategico["Nivel de cumplimiento"] == "Sobrecumplimiento").sum()
-                ),
-                "Cumplimiento": int(
-                    (pdi_estrategico["Nivel de cumplimiento"] == "Cumplimiento").sum()
-                ),
-                "Alerta": int((pdi_estrategico["Nivel de cumplimiento"] == "Alerta").sum()),
-                "Peligro": int((pdi_estrategico["Nivel de cumplimiento"] == "Peligro").sum()),
-            }
-            health_rate_e = round(
-                ((counts_e["Sobrecumplimiento"] + counts_e["Cumplimiento"]) / max(count_total_e, 1))
-                * 100,
-                1,
-            )
-            best_rows_html = _build_ia_rows(best_improvements_e)
-            worst_rows_html = _build_ia_rows(worst_declines_e)
-            st.markdown(
-                f"""
-                <div class='rg-ia'>
-                    <h4>Perspectivas IA Estrategicas</h4>
-                    <div class='rg-bubble'>
-                        {health_rate_e}% en niveles saludables | Sobrecumplimiento: {counts_e['Sobrecumplimiento']} | Cumplimiento: {counts_e['Cumplimiento']} | Alerta: {counts_e['Alerta']} | Peligro: {counts_e['Peligro']}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            ia_c1, ia_c2 = st.columns(2)
-            with ia_c1:
-                st.markdown(
-                    f"""
-                    <div class='rg-ia'>
-                        <div class='rg-ia-inline-title'>Indicadores que mejoraron (PDI)</div>
-                        <table class='rg-ia-table'>
-                            <thead><tr><th>Indicador</th><th>Variacion</th></tr></thead>
-                            <tbody>{best_rows_html}</tbody>
-                        </table>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            with ia_c2:
-                st.markdown(
-                    f"""
-                    <div class='rg-ia'>
-                        <div class='rg-ia-inline-title'>Indicadores en riesgo (PDI)</div>
-                        <table class='rg-ia-table'>
-                            <thead><tr><th>Indicador</th><th>Variacion</th></tr></thead>
-                            <tbody>{worst_rows_html}</tbody>
-                        </table>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+    count_total_e = len(pdi_estrategico)
+    counts_e = {
+        "Sobrecumplimiento": int(
+            (pdi_estrategico["Nivel de cumplimiento"] == "Sobrecumplimiento").sum()
+        ),
+        "Cumplimiento": int(
+            (pdi_estrategico["Nivel de cumplimiento"] == "Cumplimiento").sum()
+        ),
+        "Alerta": int((pdi_estrategico["Nivel de cumplimiento"] == "Alerta").sum()),
+        "Peligro": int((pdi_estrategico["Nivel de cumplimiento"] == "Peligro").sum()),
+    }
+    health_rate_e = round(
+        ((counts_e["Sobrecumplimiento"] + counts_e["Cumplimiento"]) / max(count_total_e, 1))
+        * 100,
+        1,
+    )
+    best_rows_html = _build_ia_rows(best_improvements_e)
+    worst_rows_html = _build_ia_rows(worst_declines_e)
+    st.markdown(
+        f"""
+        <div class='rg-ia'>
+            <h4>Perspectivas IA Estrategicas</h4>
+            <div class='rg-bubble'>
+                {health_rate_e}% en niveles saludables | Sobrecumplimiento: {counts_e['Sobrecumplimiento']} | Cumplimiento: {counts_e['Cumplimiento']} | Alerta: {counts_e['Alerta']} | Peligro: {counts_e['Peligro']}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    ia_c1, ia_c2 = st.columns(2)
+    with ia_c1:
+        st.markdown(
+            f"""
+            <div class='rg-ia'>
+                <div class='rg-ia-inline-title'>Indicadores que mejoraron (PDI)</div>
+                <table class='rg-ia-table'>
+                    <thead><tr><th>Indicador</th><th>Variacion</th></tr></thead>
+                    <tbody>{best_rows_html}</tbody>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with ia_c2:
+        st.markdown(
+            f"""
+            <div class='rg-ia'>
+                <div class='rg-ia-inline-title'>Indicadores en riesgo (PDI)</div>
+                <table class='rg-ia-table'>
+                    <thead><tr><th>Indicador</th><th>Variacion</th></tr></thead>
+                    <tbody>{worst_rows_html}</tbody>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         # Metricas resumen en chips
         st.markdown("##### Metricas Clave de Negocio")
