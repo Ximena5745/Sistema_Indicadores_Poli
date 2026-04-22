@@ -1076,58 +1076,55 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 def _render_strategy_card(
     title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
 ):
-    """Renderiza una tarjeta de estrategia con gráfico embebido."""
+    """Renderiza una tarjeta de estrategia con mini gráfico SVG."""
     import streamlit as st
 
-    # Generar el gráfico como HTML primero
-    chart_html = ""
-    
-    if historico is not None and not historico.empty and len(historico) > 0:
-        import plotly.graph_objects as go
-
-        anos = [int(a) for a in historico["Año"].values]
-        cumplimientos = list(historico["Cumplimiento"].values)
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=anos,
-                y=cumplimientos,
-                mode="lines+markers",
-                line=dict(color=color, width=2.5),
-                marker=dict(size=8, color=color),
-                hovertemplate=(
-                    "<b>Año: %{x}</b><br>"
-                    "Cumplimiento: %{y:.1f}%<br>"
-                    "<extra></extra>"
-                ),
-                name="Cumplimiento",
-            )
-        )
-
-        fig.add_hline(
-            y=100,
-            line_dash="dash",
-            line_color="#6B7280",
-            line_width=1,
-        )
-
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=70,
-            xaxis=dict(showgrid=False, visible=False),
-            yaxis=dict(showgrid=False, visible=False),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            showlegend=False,
-        )
-
-        chart_html = fig.to_html(
-            full_html=False,
-            include_plotlyjs="cdn",
-            config={"displayModeBar": False, "staticPlot": True},
-        )
+    # Generar mini gráfico SVG si hay datos históricos
+    sparkline_svg = ""
+    if historico is not None and not historico.empty and len(historico) >= 1:
+        try:
+            anos = sorted([int(a) for a in historico["Año"].values])
+            valores = []
+            for a in anos:
+                valor = historico[historico["Año"] == a]["Cumplimiento"].values[0]
+                valores.append(valor)
+            
+            if len(valores) >= 1:
+                # Normalizar a coordenadas SVG
+                min_val = min(valores) * 0.95
+                max_val = max(valores) * 1.05
+                if max_val == min_val:
+                    max_val = min_val + 10
+                
+                width = 80
+                height = 25
+                points = []
+                for i, (a, v) in enumerate(zip(anos, valores)):
+                    x = (i / max(len(anos) - 1, 1)) * width if len(anos) > 1 else width / 2
+                    y = height - ((v - min_val) / (max_val - min_val)) * height
+                    points.append(f"{x},{y}")
+                
+                # Crear path
+                path_d = "M" + " L".join(points)
+                
+                # Crear línea de meta
+                meta_y = height - ((100 - min_val) / (max_val - min_val)) * height
+                meta_y = max(0, min(height, meta_y))
+                
+                sparkline_svg = f'''
+                <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto 0;">
+                    <!-- Línea de meta -->
+                    <line x1="0" y1="{meta_y}" x2="{width}" y2="{meta_y}" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="2"/>
+                    <!-- Línea de datos -->
+                    <path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Puntos -->
+                    {''.join(f'<circle cx="{points[i].split(",")[0]}" cy="{points[i].split(",")[1]}" r="2" fill="{color}"/>' for i in range(len(points)))}
+                    <!-- Tooltip -->
+                    <title>{" | ".join([f"Año {a}: {v:.1f}%" for a,v in zip(anos, valores)])}</title>
+                </svg>
+                '''
+        except Exception:
+            pass
 
     card_html = f"""
     <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%);'>
@@ -1139,7 +1136,7 @@ def _render_strategy_card(
             </div>
         </div>
         <p class='rg-card-title'>{title}</p>
-        {chart_html}
+        {sparkline_svg}
     </div>
     """
     st.markdown(card_html, unsafe_allow_html=True)
@@ -1372,11 +1369,8 @@ def render():
                     df_all_years = preparar_pdi_con_cierre(2025, 12)
                     df_all_years = filter_df_for_cmi_estrategico(df_all_years, id_column="Id")
                     
-                    st.markdown(f"<!-- DEBUG 1: df_all_years shape={df_all_years.shape}, Linea cols={'Linea' in df_all_years.columns} -->")
-                    
                     if "Linea" in df_all_years.columns and "cumplimiento_pct" in df_all_years.columns and "Anio" in df_all_years.columns:
                         df_hist = df_all_years[df_all_years["Linea"] == row["Linea"]].copy()
-                        st.markdown(f"<!-- DEBUG 2: row['Linea']={row['Linea']}, df_hist shape={df_hist.shape} -->")
                         
                         if not df_hist.empty:
                             historico = (
@@ -1386,9 +1380,7 @@ def render():
                                 .rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
                             )
                             historico = historico.sort_values("Año")
-                            st.markdown(f"<!-- DEBUG 3: historico={historico.to_dict()} -->")
-                except Exception as e:
-                    st.markdown(f"<!-- DEBUG ERROR: {e} -->")
+                except Exception:
                     pass
                 
                 with ficha_cols[idx % 6]:
