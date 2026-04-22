@@ -1431,8 +1431,7 @@ def render():
                             .rename(columns={year_col: "Año", "cumplimiento_pct": "Cumplimiento"})
                         )
                         historico = historico.sort_values("Año")
-                        if historico.shape[0] <= 1:
-                            historico = None
+                        # Permitir gráfico incluso con 1 solo año (mostrará punto único)
                 elif row is not None and "Linea" in row and "Linea" not in consolidado.columns:
                     import logging
 
@@ -1441,6 +1440,13 @@ def render():
                         row["Linea"],
                     )
                 with ficha_cols[idx % 6]:
+                    # DEBUG: Verificar datos históricos
+                    if historico is not None and not historico.empty:
+                        import streamlit as st
+                        with st.expander("DEBUG"):
+                            st.write(f"Linea: {card_def['label']}")
+                            st.write(f"Historico shape: {historico.shape}")
+                            st.write(historico)
                     _render_strategy_card(
                         title=card_def["label"],
                         indicators=n_ind,
