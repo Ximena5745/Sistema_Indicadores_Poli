@@ -1090,61 +1090,52 @@ def _render_strategy_card(
                 valores.append(valor)
             
             if len(valores) >= 1:
-                # Normalizar a coordenadas SVG
                 min_val = min(valores) * 0.95
                 max_val = max(valores) * 1.05
                 if max_val == min_val:
                     max_val = min_val + 10
                 
                 width = 80
-                height = 25
+                height = 30
                 points = []
                 for i, (a, v) in enumerate(zip(anos, valores)):
                     x = (i / max(len(anos) - 1, 1)) * width if len(anos) > 1 else width / 2
                     y = height - ((v - min_val) / (max_val - min_val)) * height
                     points.append(f"{x},{y}")
                 
-                # Crear path
                 path_d = "M" + " L".join(points)
                 
-                # Crear línea de meta
                 meta_y = height - ((100 - min_val) / (max_val - min_val)) * height
                 meta_y = max(0, min(height, meta_y))
                 
-                # Crear puntos como lista de strings
                 circles = ""
                 for i in range(len(points)):
                     coords = points[i].split(",")
                     circles += f'<circle cx="{coords[0]}" cy="{coords[1]}" r="2" fill="{color}"/>'
                 
-                # Tooltip text
                 tooltip_text = " | ".join([f"Año {a}: {v:.1f}%" for a,v in zip(anos, valores)])
                 
-                sparkline_svg = f"""
-                <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto 0;">
-                    <line x1="0" y1="{meta_y}" x2="{width}" y2="{meta_y}" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="2"/>
-                    <path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    {circles}
-                    <title>{tooltip_text}</title>
-                </svg>
-                """
+                sparkline_svg = """<svg width="80" height="30" viewBox="0 0 80 30" style="display:block;margin:5px auto;vertical-align:bottom;">""" + \
+                    f'<line x1="0" y1="{meta_y}" x2="{width}" y2="{meta_y}" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="2"/>' + \
+                    f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' + \
+                    circles + \
+                    f'<title>{tooltip_text}</title></svg>' + \
+                    """<style>svg { display: inline-block; vertical-align: text-bottom; }</style>"""
         except Exception:
             pass
 
-    card_html = f"""
-    <div class='rg-card' style='border-left: 4px solid {color}; background: linear-gradient(140deg, #FFFFFF 0%, {color}1E 100%);'>
-        <div class='rg-card-head'>
-            <div class='rg-icon' style='color:{color};'>{icon}</div>
-            <div style='text-align:right;'>
-                <p class='rg-main-value' style='color:{color}; margin-bottom:0.2rem;'>{cumplimiento:.1f}%</p>
-                <p class='rg-meta'>{indicators} indicadores</p>
-            </div>
-        </div>
-        <p class='rg-card-title'>{title}</p>
-        {sparkline_svg}
-    </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
+    card_html = """<div class='rg-card' style='border-left: 4px solid """ + color + """; background: linear-gradient(140deg, #FFFFFF 0%, """ + color + """1E 100%);'>""" + \
+        """<div class='rg-card-head'>""" + \
+        """<div class='rg-icon' style='color:""" + color + """;'>""" + icon + """</div>""" + \
+        """<div style='text-align:right;'>""" + \
+        """<p class='rg-main-value' style='color:""" + color + """; margin-bottom:0.2rem;'>""" + f"{cumplimiento:.1f}%" + """</p>""" + \
+        """<p class='rg-meta'>""" + str(indicators) + """ indicadores</p>""" + \
+        """</div></div>""" + \
+        """<p class='rg-card-title'>""" + title + """</p>""" + \
+        sparkline_svg + \
+        """</div>"""
+    
+    st.html(card_html)
 
 
 def _render_chip(value: int, label: str, color: str):
