@@ -1111,18 +1111,23 @@ def _render_strategy_card(
                 meta_y = height - ((100 - min_val) / (max_val - min_val)) * height
                 meta_y = max(0, min(height, meta_y))
                 
-                sparkline_svg = f'''
+                # Crear puntos como lista de strings
+                circles = ""
+                for i in range(len(points)):
+                    coords = points[i].split(",")
+                    circles += f'<circle cx="{coords[0]}" cy="{coords[1]}" r="2" fill="{color}"/>'
+                
+                # Tooltip text
+                tooltip_text = " | ".join([f"Año {a}: {v:.1f}%" for a,v in zip(anos, valores)])
+                
+                sparkline_svg = f"""
                 <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto 0;">
-                    <!-- Línea de meta -->
                     <line x1="0" y1="{meta_y}" x2="{width}" y2="{meta_y}" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="2"/>
-                    <!-- Línea de datos -->
                     <path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Puntos -->
-                    {''.join(f'<circle cx="{points[i].split(",")[0]}" cy="{points[i].split(",")[1]}" r="2" fill="{color}"/>' for i in range(len(points)))}
-                    <!-- Tooltip -->
-                    <title>{" | ".join([f"Año {a}: {v:.1f}%" for a,v in zip(anos, valores)])}</title>
+                    {circles}
+                    <title>{tooltip_text}</title>
                 </svg>
-                '''
+                """
         except Exception:
             pass
 

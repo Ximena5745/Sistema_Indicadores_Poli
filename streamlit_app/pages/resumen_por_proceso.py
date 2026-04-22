@@ -92,11 +92,11 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
     """
     from core.semantica import normalizar_valor_a_porcentaje
 
-    # Caso 1: Cumplimiento_norm (ya normalizado)
+    # Caso 1: Cumplimiento_norm (ya normalizado en DECIMAL [0-1.3], convertir a PORCENTAJE)
     if "Cumplimiento_norm" in df.columns:
         vals = pd.to_numeric(df["Cumplimiento_norm"], errors="coerce")
-        # Cumplimiento_norm ya está en porcentaje, retornar como está
-        return vals
+        # Cumplimiento_norm viene en decimal (0-1.3), multiplicar por 100 para porcentaje
+        return vals * 100
 
     # Caso 2: Cumplimiento (puede ser decimal o porcentaje)
     if "Cumplimiento" in df.columns:
