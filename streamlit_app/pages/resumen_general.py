@@ -1076,18 +1076,17 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 def _render_strategy_card(
     title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
 ):
-    """
-    Renderiza una tarjeta de estrategia con gráfico embebido de cumplimiento histórico.
-    """
+    """Renderiza una tarjeta de estrategia con gráfico embebido."""
     import streamlit as st
 
     # Generar el gráfico como HTML primero
     chart_html = ""
+    
     if historico is not None and not historico.empty and len(historico) > 0:
         import plotly.graph_objects as go
 
         anos = [int(a) for a in historico["Año"].values]
-        cumplimientos = historico["Cumplimiento"].values
+        cumplimientos = list(historico["Cumplimiento"].values)
 
         fig = go.Figure()
 
@@ -1372,8 +1371,13 @@ def render():
                 try:
                     df_all_years = preparar_pdi_con_cierre(2025, 12)
                     df_all_years = filter_df_for_cmi_estrategico(df_all_years, id_column="Id")
+                    
+                    st.markdown(f"<!-- DEBUG 1: df_all_years shape={df_all_years.shape}, Linea cols={'Linea' in df_all_years.columns} -->")
+                    
                     if "Linea" in df_all_years.columns and "cumplimiento_pct" in df_all_years.columns and "Anio" in df_all_years.columns:
                         df_hist = df_all_years[df_all_years["Linea"] == row["Linea"]].copy()
+                        st.markdown(f"<!-- DEBUG 2: row['Linea']={row['Linea']}, df_hist shape={df_hist.shape} -->")
+                        
                         if not df_hist.empty:
                             historico = (
                                 df_hist.groupby("Anio", dropna=False)["cumplimiento_pct"]
@@ -1382,7 +1386,9 @@ def render():
                                 .rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
                             )
                             historico = historico.sort_values("Año")
-                except Exception:
+                            st.markdown(f"<!-- DEBUG 3: historico={historico.to_dict()} -->")
+                except Exception as e:
+                    st.markdown(f"<!-- DEBUG ERROR: {e} -->")
                     pass
                 
                 with ficha_cols[idx % 6]:
