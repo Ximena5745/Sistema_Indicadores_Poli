@@ -67,13 +67,15 @@ def load_cmi_worksheet() -> pd.DataFrame:
         Proyecto, Subprocesos, entre otras.
     """
     if not CMI_XLSX.exists():
+        print("Error: El archivo 'Indicadores por CMI.xlsx' no existe en la ruta esperada.")
         return pd.DataFrame()
 
     try:
         df = pd.read_excel(CMI_XLSX, sheet_name="Worksheet", engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         return df
-    except Exception:
+    except Exception as e:
+        print(f"Error al cargar la hoja 'Worksheet': {e}")
         return pd.DataFrame()
 
 
@@ -85,6 +87,14 @@ def get_cmi_estrategico_ids() -> set[str]:
     """
     df = load_cmi_worksheet()
     if df.empty:
+        print("Advertencia: El DataFrame cargado desde 'Indicadores por CMI.xlsx' está vacío.")
+        return set()
+
+    # Verificar columnas necesarias
+    required_columns = ["Indicadores Plan estrategico", "Proyecto", "Id"]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Indicadores por CMI.xlsx'.")
         return set()
 
     # Aplicar filtros
@@ -104,6 +114,9 @@ def get_cmi_estrategico_ids() -> set[str]:
                     ids.add(str(val).strip())
             except:
                 ids.add(str(val).strip())
+
+    if not ids:
+        print("Advertencia: No se encontraron IDs válidos para CMI Estratégico.")
 
     return ids
 
