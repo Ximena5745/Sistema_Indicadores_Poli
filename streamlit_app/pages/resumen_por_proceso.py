@@ -18,6 +18,7 @@ from components.charts import grafico_historico_indicador, tabla_historica_indic
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
+from core.proceso_types import TIPOS_PROCESO, get_tipo_color
 
 MESES_OPCIONES = [
     "Enero",
@@ -36,6 +37,8 @@ MESES_OPCIONES = [
 
 MES_MAP = {m.upper(): i + 1 for i, m in enumerate(MESES_OPCIONES)}
 
+# ── Estilos y funciones de renderizado de resumen_general.py ──────────────────
+
 NIVELES_COLORS = {
     "sobrecumplimiento": "#1565C0",
     "cumplimiento": "#2E7D32",
@@ -43,6 +46,101 @@ NIVELES_COLORS = {
     "peligro": "#C62828",
     "sin dato": "#6E7781",
 }
+
+def _render_process_card_rg(name: str, indicadores: int, variation: float, color: str):
+    """Renderiza tarjeta de proceso con variación (copiado de resumen_general.py)"""
+    up = variation >= 0
+    variation_color = "#16A34A" if variation >= 0 else "#D32F2F"
+    arrow = "↑" if up else "↓"
+    spark = _sparkline_svg("#2A6BB0", up=up)
+    st.markdown(
+        f"""
+        <div style='border-radius:12px;background:#FFFFFF;border:1px solid #DAE4F1;
+                    box-shadow:0 3px 8px rgba(0,0,0,0.06);padding:0.75rem;min-height:140px;
+                    border-top:4px solid {color};'>
+            <p style='font-size:0.84rem;font-weight:700;margin:0;color:{color};'>{name}</p>
+            <p style='font-size:0.75rem;color:#546D88;margin:0.2rem 0;'> {indicadores} indicadores</p>
+            <p style='font-size:1.5rem;font-weight:800;margin:0.3rem 0;line-height:1.1;color:{variation_color};'>
+                {abs(variation):.1f}% {arrow}
+            </p>
+            <p style='font-size:0.75rem;color:#546D88;margin:0;'>Variación</p>
+            <div style='display:flex;justify-content:flex-end;margin-top:0.2rem;'>{spark}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _sparkline_svg(color: str, up: bool = True) -> str:
+    if up:
+        path = "M2,24 C10,20 16,18 22,15 C28,12 34,18 40,14 C46,10 52,7 58,5"
+    else:
+        path = "M2,7 C10,10 16,12 22,15 C28,18 34,13 40,17 C46,21 52,24 58,26"
+    return (
+        "<svg width='62' height='30' viewBox='0 0 62 30' xmlns='http://www.w3.org/2000/svg'>"
+        f"<path d='{path}' fill='none' stroke='{color}' stroke-width='2.3' stroke-linecap='round'/></svg>"
+    )
+
+
+def _build_ia_rows_rpp(rows: list[dict]) -> str:
+    """Build IA rows HTML para perspectivas operativas (copiado de resumen_general.py)"""
+    if not rows:
+        return "<tr><td colspan='2'>Sin datos comparativos</td></tr>"
+    out = ""
+    for row in rows[:5]:
+        change = float(row.get("change", 0.0) or 0.0)
+        sign = "+" if change >= 0 else ""
+        color = "#84F0A2" if change >= 0 else "#FF9FA3"
+        out += (
+            "<tr>"
+            f"<td>{row.get('name', '')}</td>"
+            f"<td style='color:{color};font-weight:700;'>{sign}{change:.1f}%</td>"
+            "</tr>"
+        )
+    return out
+
+
+def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, display_col: str) -> tuple[list, list]:
+    """Calcula mejores y peores variaciones entre períodos."""
+    if base_df.empty or prev_df.empty:
+        return [], []
+
+    curr_proc = (
+        base_df.groupby(display_col, dropna=False)
+        .agg(indicadores=("Indicador", "count"), actual=("Cumplimiento_pct", "mean"))
+        .reset_index()
+    )
+    prev_proc = (
+        prev_df.groupby(display_col, dropna=False)
+        .agg(prev=("Cumplimiento_pct", "mean"))
+        .reset_index()
+    )
+    merged = curr_proc.merge(prev_proc, on=display_col, how="left")
+    if merged.empty:
+        return [], []
+    merged["change"] = merged["actual"] - merged["prev"]
+    merged = merged.dropna(subset=["change"])
+
+    best = [
+        {"name": str(r[display_col]), "change": float(r["change"])}
+        for _, r in merged.sort_values("change", ascending=False).head(5).iterrows()
+    ]
+    worst = [
+        {"name": str(r[display_col]), "change": float(r["change"])}
+        for _, r in merged.sort_values("change", ascending=True).head(5).iterrows()
+    ]
+    return best, worst
+
+
+def _get_prev_month_for_year(tracking_df: pd.DataFrame, year: int) -> int | None:
+    """Obtiene el último mes disponible del año anterior."""
+    if tracking_df.empty or "Anio" not in tracking_df.columns:
+        return None
+    subset = tracking_df[tracking_df["Anio"] == year].copy()
+    if subset.empty or "Mes_num" not in subset.columns:
+        return None
+    months = pd.to_numeric(subset["Mes_num"], errors="coerce").dropna().astype(int)
+    return int(months.max()) if not months.empty else None
 
 
 def _norm_text(value: object) -> str:

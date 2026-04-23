@@ -704,8 +704,8 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if merged.empty:
         return [], []
     merged["variation"] = merged["cumplimiento_pct"] - merged["cumplimiento_pct_prev"]
-    best = merged.sort_values("variation", ascending=False).head(3)
-    worst = merged.sort_values("variation").head(3)
+    best = merged.sort_values("variation", ascending=False).head(5)
+    worst = merged.sort_values("variation").head(5)
     return (
         [
             {
@@ -1501,43 +1501,68 @@ def render():
         1,
     )
     # ── Tablas de variación con Línea coloreada ─────────────────────────────
+    _LINEA_COLORS_BADGE = {
+        "expansion": ("#FBAF17", "#FFFFFF"),
+        "transformacion organizacional": ("#0891b2", "#FFFFFF"),
+        "calidad": ("#EC0677", "#FFFFFF"),
+        "experiencia": ("#1FB2DE", "#FFFFFF"),
+        "sostenibilidad": ("#A6CE38", "#1A2E05"),
+        "educacion para toda la vida": ("#0F385A", "#FFFFFF"),
+    }
+
     def _build_trend_rows_with_linea(rows: list[dict], positive: bool) -> str:
         if not rows:
-            return "<tr><td colspan='3' style='color:#888;font-size:0.8rem;padding:0.4rem;'>Sin datos comparativos</td></tr>"
+            return "<tr><td colspan='3' style='color:#94A3B8;font-size:0.8rem;padding:0.6rem;'>Sin datos comparativos</td></tr>"
         out = ""
         for row in rows[:5]:
             change = float(row.get("change", 0.0) or 0.0)
             sign = "+" if change >= 0 else ""
             val_color = "#16A34A" if change >= 0 else "#DC2626"
+            val_bg = "#F0FDF4" if change >= 0 else "#FFF1F2"
             linea = row.get("linea", "")
-            # Color por línea
             _lc = _norm_key(linea)
-            linea_color = {
-                "expansion": "#FBAF17",
-                "transformacion organizacional": "#0891b2",
-                "calidad": "#EC0677",
-                "experiencia": "#1FB2DE",
-                "sostenibilidad": "#A6CE38",
-                "educacion para toda la vida": "#0F385A",
-            }.get(_lc, "#6B728E")
-            # badge de línea
+            bg_col, txt_col = _LINEA_COLORS_BADGE.get(_lc, ("#64748B", "#FFFFFF"))
+            # Abreviar nombre de línea largo
+            linea_short = (
+                linea.replace("Transformación organizacional", "Transformación")
+                     .replace("transformacion organizacional", "Transformación")
+                     .replace("Educación para toda la vida", "Edu. toda la vida")
+                     .replace("educacion para toda la vida", "Edu. toda la vida")
+            )
             badge = (
-                f"<span style='background:{linea_color}20;color:{linea_color};"
-                f"border:1px solid {linea_color}60;border-radius:6px;"
-                f"padding:2px 7px;font-size:0.72rem;font-weight:600;white-space:nowrap;'>{linea}</span>"
+                f"<span style='"
+                f"background:{bg_col};color:{txt_col};"
+                f"border-radius:999px;"
+                f"padding:3px 10px;"
+                f"font-size:0.72rem;font-weight:700;"
+                f"white-space:nowrap;"
+                f"display:inline-block;"
+                f"'>{linea_short}</span>"
                 if linea else ""
             )
             out += (
                 "<tr style='border-bottom:1px solid #F1F5F9;'>"
-                f"<td style='padding:0.45rem 0.4rem;font-size:0.82rem;color:#1E293B;'>{row.get('name', '')}</td>"
+                f"<td style='padding:0.45rem 0.5rem;font-size:0.82rem;color:#1E293B;'>{row.get('name', '')}</td>"
                 f"<td style='padding:0.45rem 0.4rem;'>{badge}</td>"
-                f"<td style='padding:0.45rem 0.4rem;font-weight:700;font-size:0.82rem;color:{val_color};white-space:nowrap;'>{sign}{change:.1f}%</td>"
+                f"<td style='padding:0.4rem 0.5rem;'>"
+                f"<span style='background:{val_bg};color:{val_color};border-radius:6px;"
+                f"padding:3px 8px;font-weight:700;font-size:0.82rem;white-space:nowrap;'>{sign}{change:.1f}%</span>"
+                f"</td>"
                 "</tr>"
             )
         return out
 
     best_rows_html = _build_trend_rows_with_linea(best_improvements_e, positive=True)
     worst_rows_html = _build_trend_rows_with_linea(worst_declines_e, positive=False)
+
+    # Texto del período comparado
+    _mes_nombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+    if prev_month_e:
+        _mes_base = _mes_nombres[prev_month_e - 1] if 1 <= prev_month_e <= 12 else str(prev_month_e)
+        _periodo_txt = f"Comparando <strong>{year_estrategico}</strong> (cierre anual) vs <strong>{prev_year_e}</strong> ({_mes_base})"
+    else:
+        _periodo_txt = f"Solo datos de <strong>{year_estrategico}</strong> — sin período anterior disponible"
 
     # ── Narrativa ejecutiva dinámica ────────────────────────────────────────────
     if health_rate_e >= 85:
@@ -1631,7 +1656,8 @@ def render():
 
     # ── Tablas de mejoras/riesgos (antes de gráficas) ───────────────────────
     ia_c1, ia_c2 = st.columns(2)
-    _th = "color:#334155;padding:0.4rem 0.4rem;border-bottom:2px solid #E2E8F0;font-size:0.8rem;font-weight:700;text-align:left;"
+    _th = "color:#475569;padding:0.4rem 0.5rem;border-bottom:2px solid #E2E8F0;font-size:0.78rem;font-weight:700;text-align:left;"
+    _footer_style = "margin:0.6rem 0 0 0;font-size:0.73rem;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:0.45rem;"
     with ia_c1:
         st.markdown(
             f"""
@@ -1647,6 +1673,7 @@ def render():
                     </tr></thead>
                     <tbody>{best_rows_html}</tbody>
                 </table>
+                <p style='{_footer_style}'>🗓️ {_periodo_txt}</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1666,6 +1693,7 @@ def render():
                     </tr></thead>
                     <tbody>{worst_rows_html}</tbody>
                 </table>
+                <p style='{_footer_style}'>🗓️ {_periodo_txt}</p>
             </div>
             """,
             unsafe_allow_html=True,
