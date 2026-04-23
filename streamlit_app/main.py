@@ -117,6 +117,9 @@ def main():
                     <div class='title'>Fecha de actualización</div>
                     <div class='value'>{updated_at}</div>
                 </div>
+                <div class='sidebar-v2-footer'>
+                    Gerencia de Planeación y Gestión Institucional
+                </div>
                 """,
                 unsafe_allow_html=True,
             )
