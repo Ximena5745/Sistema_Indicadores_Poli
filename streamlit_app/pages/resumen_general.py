@@ -1431,6 +1431,9 @@ def render():
     historico_df = None
     if categoria == "Indicadores":
         pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), 12)
+        if pdi_estrategico is None or pdi_estrategico.empty:
+            st.error("No se encontraron datos para los indicadores estratégicos del año seleccionado.")
+            return
         pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
         linea_summary = _build_linea_summary_from_df(pdi_estrategico)
         objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
