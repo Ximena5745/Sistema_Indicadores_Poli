@@ -7,6 +7,7 @@ import streamlit as st
 
 try:
     from services.cmi_filters import filter_df_for_cmi_estrategico
+    from services.strategic_indicators import load_cierres
 except (ImportError, ModuleNotFoundError):
     import sys
 

@@ -35,20 +35,24 @@ def main():
     try:
         from streamlit_app.pages import (
             cmi_estrategico,
+            gestion_om,
             plan_mejoramiento,
             resumen_general,
             resumen_por_proceso,
             seguimiento_reportes,
             tablero_operativo,
+            pdi_acreditacion,
         )
     except (ImportError, ModuleNotFoundError):
         from .pages import (
             cmi_estrategico,
+            gestion_om,
             plan_mejoramiento,
             resumen_general,
             resumen_por_proceso,
             seguimiento_reportes,
             tablero_operativo,
+            pdi_acreditacion,
         )
 
     # Valor seguro por defecto
@@ -74,21 +78,19 @@ def main():
                 unsafe_allow_html=True,
             )
 
-            st.markdown("<div class='sidebar-v2-section'>PRINCIPAL</div>", unsafe_allow_html=True)
+            st.markdown("<div class='sidebar-v2-section'>ESTRATÉGICO</div>", unsafe_allow_html=True)
 
             menu_labels = [
                 "◫  Resumen General",
                 "⌂  CMI Estratégico",
                 "◷  CMI por Procesos",
-                "△  Indicadores en Riesgo",
-                "◧  Seguimiento Operativo",
+                "◐  Plan de Mejoramiento",
             ]
             menu_map = {
                 "◫  Resumen General": "Resumen General",
                 "⌂  CMI Estratégico": "CMI Estratégico",
                 "◷  CMI por Procesos": "CMI por Procesos",
-                "△  Indicadores en Riesgo": "Indicadores en Riesgo",
-                "◧  Seguimiento Operativo": "Seguimiento Operativo",
+                "◐  Plan de Mejoramiento": "Plan de Mejoramiento",
             }
 
             current_index = menu_labels.index("◫  Resumen General")
@@ -105,6 +107,32 @@ def main():
             menu = menu_map[selected_menu]
 
             st.markdown("<div class='sidebar-v2-divider'></div>", unsafe_allow_html=True)
+
+            st.markdown("<div class='sidebar-v2-section'>OPERATIVO</div>", unsafe_allow_html=True)
+
+            menu_labels_op = [
+                "◧  Seguimiento Operativo",
+                "△  Indicadores en Riesgo",
+            ]
+            menu_map_op = {
+                "◧  Seguimiento Operativo": "Seguimiento Operativo",
+                "△  Indicadores en Riesgo": "Indicadores en Riesgo",
+            }
+
+            current_index_op = 0
+            if menu == "Seguimiento Operativo":
+                current_index_op = 0
+            elif menu == "Indicadores en Riesgo":
+                current_index_op = 1
+
+            selected_menu_op = st.radio(
+                "navegación operativa",
+                options=menu_labels_op,
+                index=current_index_op,
+                key="sidebar_op_nav",
+                label_visibility="collapsed",
+            )
+            menu = menu_map_op[selected_menu_op]
 
             updated_at = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -134,7 +162,7 @@ def main():
     elif menu == "CMI por Procesos":
         resumen_por_proceso.render()
 
-    elif menu == "Indicadores en Riesgo":
+    elif menu == "Plan de Mejoramiento":
         plan_mejoramiento.render()
 
     elif menu == "Seguimiento Operativo":
@@ -143,6 +171,9 @@ def main():
             tablero_operativo.render()
         with tab_b:
             seguimiento_reportes.render()
+
+    elif menu == "Indicadores en Riesgo":
+        gestion_om.render()
 
 
 if __name__ == "__main__":
