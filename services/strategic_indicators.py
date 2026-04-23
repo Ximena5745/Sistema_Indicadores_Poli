@@ -391,17 +391,56 @@ def _preparar_indicadores_con_cierre(
     if base.empty or cierres.empty:
         return pd.DataFrame()
 
-    # Filtrar por flag específico
+    def _normalize_flag_series(series: pd.Series) -> pd.Series:
+        numeric = pd.to_numeric(series, errors="coerce")
+        if numeric.isna().any():
+            raw = series.astype(str).str.strip().str.lower()
+            mapped = raw.map(
+                {
+                    "1": 1,
+                    "1.0": 1,
+                    "si": 1,
+                    "true": 1,
+                    "x": 1,
+                    "0": 0,
+                    "0.0": 0,
+                    "no": 0,
+                    "false": 0,
+                    "": 0,
+                }
+            )
+            numeric = numeric.fillna(mapped)
+        return numeric
+
+    def _normalize_id_value(val) -> str:
+        if pd.isna(val):
+            return ""
+        if isinstance(val, int):
+            return str(val)
+        if isinstance(val, float):
+            return str(int(val)) if val.is_integer() else str(val).strip()
+        text = str(val).strip()
+        try:
+            num = float(text)
+            if num.is_integer():
+                return str(int(num))
+        except Exception:
+            return text
+        return text
+
+    # Filtrar por flag especifico
     if flag_column not in base.columns:
         return pd.DataFrame()
 
-    indicators = base[base[flag_column] == 1].copy()
+    flag_vals = _normalize_flag_series(base[flag_column])
+    indicators = base[flag_vals == 1].copy()
     if indicators.empty:
         return pd.DataFrame()
 
     # Excluir proyectos
     if "Proyecto" in indicators.columns:
-        indicators = indicators[indicators["Proyecto"] != 1].copy()
+        proyecto_vals = _normalize_flag_series(indicators["Proyecto"])
+        indicators = indicators[proyecto_vals != 1].copy()
     if indicators.empty:
         return pd.DataFrame()
 
@@ -431,13 +470,18 @@ def _preparar_indicadores_con_cierre(
         if _ec in close.columns:
             cols_close.append(_ec)
 
-    # Merge con cierre
+    # Merge con cierre (normalizando Id para evitar desalineacion por tipos)
+    indicators = indicators.copy()
+    close = close.copy()
+    indicators["_Id_norm"] = indicators["Id"].map(_normalize_id_value)
+    close["_Id_norm"] = close["Id"].map(_normalize_id_value)
+
     merged = indicators.merge(
-        close[cols_close],
-        on="Id",
+        close[cols_close + ["_Id_norm"]],
+        on="_Id_norm",
         how="left",
         suffixes=("", "_cierre"),
-    )
+    ).drop(columns=["_Id_norm"])
 
     # Unificar Indicador desde cierre si falta
     if "Indicador_cierre" in merged.columns:

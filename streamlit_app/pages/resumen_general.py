@@ -1433,8 +1433,74 @@ def render():
         pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), 12)
         if pdi_estrategico is None or pdi_estrategico.empty:
             st.error("No se encontraron datos para los indicadores estratégicos del año seleccionado.")
+            # Debug: mostrar estado de fuentes y filtros base
+            try:
+                from services.strategic_indicators import load_worksheet_flags, load_cierres
+
+                base = load_worksheet_flags()
+                cierres = load_cierres()
+                st.info(
+                    {
+                        "year": int(year_estrategico),
+                        "base_filas": int(len(base)),
+                        "cierres_filas": int(len(cierres)),
+                        "cols_base": [
+                            c
+                            for c in ["Id", "FlagPlanEstrategico", "Proyecto", "Linea", "Objetivo"]
+                            if c in base.columns
+                        ],
+                        "cols_cierres": [
+                            c
+                            for c in ["Id", "Anio", "Mes", "Meta", "Ejecucion", "cumplimiento_pct"]
+                            if c in cierres.columns
+                        ],
+                    }
+                )
+            except Exception:
+                st.info("Debug: no se pudieron cargar las fuentes base para validar.")
             return
+        raw_pdi = pdi_estrategico.copy()
         pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
+        if pdi_estrategico.empty:
+            from services.cmi_filters import get_cmi_estrategico_ids
+
+            def _norm_id(val):
+                if pd.isna(val):
+                    return ""
+                if isinstance(val, int):
+                    return str(val)
+                if isinstance(val, float):
+                    return str(int(val)) if val.is_integer() else str(val).strip()
+                text = str(val).strip()
+                try:
+                    num = float(text)
+                    if num.is_integer():
+                        return str(int(num))
+                except Exception:
+                    return text
+                return text
+
+            raw_ids = set(raw_pdi["Id"].dropna().map(_norm_id)) if "Id" in raw_pdi.columns else set()
+            valid_ids = get_cmi_estrategico_ids()
+            intersection = raw_ids.intersection(valid_ids)
+            only_raw = sorted(list(raw_ids - valid_ids))
+            only_valid = sorted(list(valid_ids - raw_ids))
+
+            with st.expander("Diagnostico CMI Estrategico (filtro)", expanded=True):
+                st.write(
+                    {
+                        "filas_antes_filtro": int(len(raw_pdi)),
+                        "ids_antes_filtro": int(len(raw_ids)),
+                        "ids_validos_excel": int(len(valid_ids)),
+                        "interseccion_ids": int(len(intersection)),
+                    }
+                )
+                if only_raw:
+                    st.caption("IDs en consolidado que NO estan marcados como CMI estrategico en Excel")
+                    st.dataframe(pd.DataFrame({"Id": only_raw[:50]}))
+                if only_valid:
+                    st.caption("IDs marcados en Excel que NO aparecen en consolidado del corte")
+                    st.dataframe(pd.DataFrame({"Id": only_valid[:50]}))
         linea_summary = _build_linea_summary_from_df(pdi_estrategico)
         objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
         pdi_base_df = pdi_estrategico.copy()
