@@ -1507,7 +1507,6 @@ def render():
         # Historico solo para indicadores
         try:
             from services.strategic_indicators import load_cierres
-            from services.cmi_filters import filter_df_for_cmi_estrategico
             cierres = load_cierres()
             if not cierres.empty:
                 indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
