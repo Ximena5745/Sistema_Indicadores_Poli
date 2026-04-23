@@ -35,24 +35,20 @@ def main():
     try:
         from streamlit_app.pages import (
             cmi_estrategico,
-            gestion_om,
             plan_mejoramiento,
             resumen_general,
             resumen_por_proceso,
             seguimiento_reportes,
             tablero_operativo,
-            pdi_acreditacion,
         )
     except (ImportError, ModuleNotFoundError):
         from .pages import (
             cmi_estrategico,
-            gestion_om,
             plan_mejoramiento,
             resumen_general,
             resumen_por_proceso,
             seguimiento_reportes,
             tablero_operativo,
-            pdi_acreditacion,
         )
 
     # Valor seguro por defecto
@@ -82,21 +78,17 @@ def main():
 
             menu_labels = [
                 "◫  Resumen General",
-                "⌂  Resumen Estratégico",
-                "◷  Resumen por Procesos",
+                "⌂  CMI Estratégico",
+                "◷  CMI por Procesos",
+                "△  Indicadores en Riesgo",
                 "◧  Seguimiento Operativo",
-                "◌  Indicadores en Riesgo",
-                "△  Alertas Activas",
-                "⚙  Configuración",
             ]
             menu_map = {
                 "◫  Resumen General": "Resumen General",
-                "⌂  Resumen Estratégico": "Resumen Estratégico",
-                "◷  Resumen por Procesos": "Resumen por Procesos",
+                "⌂  CMI Estratégico": "CMI Estratégico",
+                "◷  CMI por Procesos": "CMI por Procesos",
+                "△  Indicadores en Riesgo": "Indicadores en Riesgo",
                 "◧  Seguimiento Operativo": "Seguimiento Operativo",
-                "◌  Indicadores en Riesgo": "Indicadores en Riesgo",
-                "△  Alertas Activas": "Alertas Activas",
-                "⚙  Configuración": "Configuración",
             }
 
             current_index = menu_labels.index("◫  Resumen General")
@@ -104,13 +96,15 @@ def main():
                 current_index = list(menu_map.values()).index(menu)
 
             selected_menu = st.radio(
-                "Navegación principal",
+                "navegación principal",
                 options=menu_labels,
                 index=current_index,
                 key="sidebar_main_nav",
                 label_visibility="collapsed",
             )
             menu = menu_map[selected_menu]
+
+            st.markdown("<div class='sidebar-v2-divider'></div>", unsafe_allow_html=True)
 
             updated_at = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -134,11 +128,14 @@ def main():
     if menu == "Resumen General":
         resumen_general.render()
 
-    elif menu == "Resumen Estratégico":
+    elif menu == "CMI Estratégico":
         cmi_estrategico.render()
 
-    elif menu == "Resumen por Procesos":
+    elif menu == "CMI por Procesos":
         resumen_por_proceso.render()
+
+    elif menu == "Indicadores en Riesgo":
+        plan_mejoramiento.render()
 
     elif menu == "Seguimiento Operativo":
         tab_a, tab_b = st.tabs(["Tablero Operativo", "Seguimiento reportes"])
@@ -146,15 +143,6 @@ def main():
             tablero_operativo.render()
         with tab_b:
             seguimiento_reportes.render()
-
-    elif menu == "Indicadores en Riesgo":
-        plan_mejoramiento.render()
-
-    elif menu == "Alertas Activas":
-        gestion_om.render()
-
-    elif menu == "Configuración":
-        pdi_acreditacion.render()
 
 
 if __name__ == "__main__":

@@ -209,15 +209,6 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
         objetivo_df["cumplimiento_pct"] = pd.to_numeric(objetivo_df["cumplimiento_pct"], errors="coerce")
     return out, objetivo_df
 
-def _get_sin_gestion_df():
-    """Carga CMI xlsx y retorna DF de indicadores con Plan anual == 3."""
-    from services.cmi_filters import load_cmi_worksheet
-    df = load_cmi_worksheet()
-    if df.empty or "Plan anual" not in df.columns:
-        return pd.DataFrame()
-    sin_gestion = df[df["Plan anual"] == 3].copy()
-    cols = [c for c in ["Id","Indicador","Linea"] if c in sin_gestion.columns]
-    return sin_gestion[cols] if cols else sin_gestion
 try:
     ss = st.session_state
 except Exception:
@@ -1661,12 +1652,6 @@ def render():
     }
     health_rate_e = round(((counts_e["Sobrecumplimiento"] + counts_e["Cumplimiento"]) / max(count_total_e, 1)) * 100, 1)
 
-    # --- Tabla de Indicadores sin gestión ---
-    if categoria in ["Indicadores", "Consolidado"]:
-        sin_gestion_df = _get_sin_gestion_df()
-        if not sin_gestion_df.empty:
-            st.markdown("<div style='margin-top:2rem;'><b>Indicadores sin gestión (Plan anual = 3)</b></div>", unsafe_allow_html=True)
-            st.dataframe(sin_gestion_df, hide_index=True, use_container_width=True)
     # ── Tablas de variación con Línea coloreada ─────────────────────────────
     _LINEA_COLORS_BADGE = {
         "expansion": ("#FBAF17", "#FFFFFF"),

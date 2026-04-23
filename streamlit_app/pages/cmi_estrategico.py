@@ -6,17 +6,6 @@ import plotly.express as px
 import streamlit as st
 
 try:
-    from ..utils.formatting import formatear_meta_ejecucion_df
-except ImportError:
-    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
-
-try:
-    from services.strategic_indicators import (
-        NIVEL_COLOR_EXT,
-        load_pdi_catalog,
-        preparar_pdi_con_cierre,
-        load_cierres,
-    )
     from services.cmi_filters import filter_df_for_cmi_estrategico
 except (ImportError, ModuleNotFoundError):
     import sys
@@ -29,6 +18,19 @@ except (ImportError, ModuleNotFoundError):
         load_cierres,
     )
     from services.cmi_filters import filter_df_for_cmi_estrategico
+
+
+def _get_sin_gestion_df():
+    """Carga CMI xlsx y retorna DF de indicadores con Plan anual == 3."""
+    from services.cmi_filters import load_cmi_worksheet
+
+    df = load_cmi_worksheet()
+    if df.empty or "Plan anual" not in df.columns:
+        return pd.DataFrame()
+    sin_gestion = df[df["Plan anual"] == 3].copy()
+    cols = [c for c in ["Id", "Indicador", "Linea"] if c in sin_gestion.columns]
+    return sin_gestion[cols] if cols else sin_gestion
+
 
 CORTE_SEMESTRAL = {
     "Junio": 6,
@@ -259,7 +261,14 @@ def render():
         fig_niv.update_layout(margin=dict(l=10, r=10, t=50, b=10))
         st.plotly_chart(fig_niv, use_container_width=True, key="cmi_pdi_nivel_pie")
 
-    st.markdown("### Indicadores PDI")
+    sin_gestion_df = _get_sin_gestion_df()
+    if not sin_gestion_df.empty:
+        st.markdown(
+            "<div style='margin-top:2rem;'><b>Indicadores sin gestión (Plan anual = 3)</b></div>",
+            unsafe_allow_html=True,
+        )
+        st.dataframe(sin_gestion_df, hide_index=True, use_container_width=True)
+
     st.markdown("### Indicadores PDI")
     _cols_pdi = [
         "Id",

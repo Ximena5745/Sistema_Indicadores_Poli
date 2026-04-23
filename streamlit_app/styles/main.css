@@ -137,6 +137,12 @@ body {
     margin-bottom: 12px;
 }
 
+.sidebar-v2-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+    margin: 16px 0;
+}
+
 [data-testid="stSidebar"] [data-testid="stRadio"] {
     margin-top: 8px;
     background: transparent !important;
