@@ -168,6 +168,9 @@ def filter_df_for_cmi_estrategico(df: pd.DataFrame, id_column: str = "Id") -> pd
     if not valid_ids:
         return df
 
+    # Validación adicional para inspeccionar los IDs obtenidos
+    print("IDs válidos obtenidos para CMI Estratégico:", valid_ids)
+
     # Normalizar IDs en el DataFrame
     def normalize_id(val):
         if pd.isna(val):
