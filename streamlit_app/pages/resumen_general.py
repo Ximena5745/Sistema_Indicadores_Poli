@@ -692,8 +692,12 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if current.empty or previous.empty:
         return [], []
+    # Incluir Linea si existe para mostrarla en tablas
+    extra_cols = [c for c in ["Linea"] if c in current.columns]
     cur = (
-        current[["Id", "Indicador", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
+        current[["Id", "Indicador", "cumplimiento_pct"] + extra_cols]
+        .dropna(subset=["cumplimiento_pct"])
+        .copy()
     )
     prev = previous[["Id", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
     merged = cur.merge(prev, on="Id", suffixes=("", "_prev"))
@@ -704,11 +708,19 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     worst = merged.sort_values("variation").head(3)
     return (
         [
-            {"name": str(row["Indicador"]), "change": float(row["variation"])}
+            {
+                "name": str(row["Indicador"]),
+                "change": float(row["variation"]),
+                "linea": str(row["Linea"]) if "Linea" in merged.columns else "",
+            }
             for _, row in best.iterrows()
         ],
         [
-            {"name": str(row["Indicador"]), "change": float(row["variation"])}
+            {
+                "name": str(row["Indicador"]),
+                "change": float(row["variation"]),
+                "linea": str(row["Linea"]) if "Linea" in merged.columns else "",
+            }
             for _, row in worst.iterrows()
         ],
     )
@@ -1238,25 +1250,25 @@ def render():
         st.error("No se encontraron años válidos en los datos.")
         return
 
-    hdr_l, hdr_r = st.columns([4.5, 1.5])
-    with hdr_l:
-        st.markdown(
-            """
-            <div class='rg-header'>
+    st.markdown(
+        """
+        <div class='rg-header' style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;'>
+            <div>
                 <h1 class='rg-header-title'>CMI ESTRATÉGICO</h1>
-                <p class='rg-header-subtitle'>Dashboard Estratégico Integral — Prototipo Completo Validado</p>
+                <p class='rg-header-subtitle'>Dashboard Estratégico Integral — Sistema de Indicadores Institucional</p>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with hdr_r:
-        st.markdown("<div class='rg-filter-label'>Año</div>", unsafe_allow_html=True)
-        year_estrategico = st.selectbox(
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    # Selector de año integrado visualmente debajo del título
+    _seg_col, _ = st.columns([2, 5])
+    with _seg_col:
+        year_estrategico = st.segmented_control(
             "Año",
             options=years,
-            index=len(years) - 1,
+            default=years[-1],
             key="cmi_estrategico_year",
-            label_visibility="collapsed",
         )
 
     # Meses en español para despliegue
@@ -1285,6 +1297,26 @@ def render():
     # Filtro adicional por línea estratégica
     pdi_catalog = load_pdi_catalog()
     # lineas_disponibles and linea_seleccionada logic removed
+
+    # ── CHIPS DE MÉTRICAS AL INICIO ──────────────────────────────────────────
+    _count_total_chips = len(pdi_estrategico)
+    _counts_chips = {
+        "Sobrecumplimiento": int((pdi_estrategico["Nivel de cumplimiento"] == "Sobrecumplimiento").sum()) if not pdi_estrategico.empty else 0,
+        "Cumplimiento": int((pdi_estrategico["Nivel de cumplimiento"] == "Cumplimiento").sum()) if not pdi_estrategico.empty else 0,
+        "Alerta": int((pdi_estrategico["Nivel de cumplimiento"] == "Alerta").sum()) if not pdi_estrategico.empty else 0,
+        "Peligro": int((pdi_estrategico["Nivel de cumplimiento"] == "Peligro").sum()) if not pdi_estrategico.empty else 0,
+    }
+    _chip_cols = st.columns(5)
+    _chip_cfg = [
+        (_count_total_chips, "Total indicadores", "#0B5FFF"),
+        (_counts_chips["Sobrecumplimiento"], "Sobrecumplimiento", "#173D66"),
+        (_counts_chips["Cumplimiento"], "Cumplimiento", "#16A34A"),
+        (_counts_chips["Alerta"], "Alerta", "#F59E0B"),
+        (_counts_chips["Peligro"], "Peligro", "#D32F2F"),
+    ]
+    for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
+        with _cc:
+            _render_chip(_cv, _cl, _co)
 
     # Mostrar tarjetas KPI para CMI Estrategico
     if not pdi_estrategico.empty:
@@ -1468,8 +1500,44 @@ def render():
         * 100,
         1,
     )
-    best_rows_html = _build_ia_rows(best_improvements_e)
-    worst_rows_html = _build_ia_rows(worst_declines_e)
+    # ── Tablas de variación con Línea coloreada ─────────────────────────────
+    def _build_trend_rows_with_linea(rows: list[dict], positive: bool) -> str:
+        if not rows:
+            return "<tr><td colspan='3' style='color:#888;font-size:0.8rem;padding:0.4rem;'>Sin datos comparativos</td></tr>"
+        out = ""
+        for row in rows[:5]:
+            change = float(row.get("change", 0.0) or 0.0)
+            sign = "+" if change >= 0 else ""
+            val_color = "#16A34A" if change >= 0 else "#DC2626"
+            linea = row.get("linea", "")
+            # Color por línea
+            _lc = _norm_key(linea)
+            linea_color = {
+                "expansion": "#FBAF17",
+                "transformacion organizacional": "#0891b2",
+                "calidad": "#EC0677",
+                "experiencia": "#1FB2DE",
+                "sostenibilidad": "#A6CE38",
+                "educacion para toda la vida": "#0F385A",
+            }.get(_lc, "#6B728E")
+            # badge de línea
+            badge = (
+                f"<span style='background:{linea_color}20;color:{linea_color};"
+                f"border:1px solid {linea_color}60;border-radius:6px;"
+                f"padding:2px 7px;font-size:0.72rem;font-weight:600;white-space:nowrap;'>{linea}</span>"
+                if linea else ""
+            )
+            out += (
+                "<tr style='border-bottom:1px solid #F1F5F9;'>"
+                f"<td style='padding:0.45rem 0.4rem;font-size:0.82rem;color:#1E293B;'>{row.get('name', '')}</td>"
+                f"<td style='padding:0.45rem 0.4rem;'>{badge}</td>"
+                f"<td style='padding:0.45rem 0.4rem;font-weight:700;font-size:0.82rem;color:{val_color};white-space:nowrap;'>{sign}{change:.1f}%</td>"
+                "</tr>"
+            )
+        return out
+
+    best_rows_html = _build_trend_rows_with_linea(best_improvements_e, positive=True)
+    worst_rows_html = _build_trend_rows_with_linea(worst_declines_e, positive=False)
 
     # ── Narrativa ejecutiva dinámica ────────────────────────────────────────────
     if health_rate_e >= 85:
@@ -1539,6 +1607,7 @@ def render():
         f'{mejor_linea_txt}{alerta_txt}{mejora_txt}{riesgo_txt}'
     )
 
+    # ── Narrativa ejecutiva (antes de gráficas y fichas) ───────────────────────
     st.markdown(
         f"""
         <div style='
@@ -1548,47 +1617,33 @@ def render():
             border-radius: 14px;
             padding: 1.1rem 1.3rem;
             box-shadow: 0 4px 18px rgba(37,99,235,0.10);
-            margin-bottom: 1rem;
+            margin-bottom: 1.2rem;
         '>
             <div style='display:flex; align-items:center; gap:0.5rem; margin-bottom:0.55rem;'>
                 <span style='font-size:1.25rem;'>{estado_icon}</span>
-                <span style='
-                    font-size:1rem;
-                    font-weight:800;
-                    color:#1E3A5F;
-                    letter-spacing:0.01em;
-                '>Narrativa Ejecutiva</span>
+                <span style='font-size:1rem;font-weight:800;color:#1E3A5F;letter-spacing:0.01em;'>Narrativa Ejecutiva</span>
             </div>
-            <p style='
-                margin:0;
-                font-size:0.93rem;
-                line-height:1.65;
-                color:#1E293B;
-            '>{narrativa}</p>
+            <p style='margin:0;font-size:0.93rem;line-height:1.65;color:#1E293B;'>{narrativa}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+    # ── Tablas de mejoras/riesgos (antes de gráficas) ───────────────────────
     ia_c1, ia_c2 = st.columns(2)
+    _th = "color:#334155;padding:0.4rem 0.4rem;border-bottom:2px solid #E2E8F0;font-size:0.8rem;font-weight:700;text-align:left;"
     with ia_c1:
         st.markdown(
             f"""
-            <div style='
-                background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
-                border: 1px solid #86EFAC;
-                border-left: 5px solid #16A34A;
-                border-radius: 12px;
-                padding: 0.85rem 1rem;
-                box-shadow: 0 3px 10px rgba(22,163,74,0.10);
-            '>
-                <div style='font-size:0.82rem;font-weight:700;color:#15803D;margin-bottom:0.5rem;'>
-                    ↗ Indicadores que mejoraron (PDI)
-                </div>
-                <table style='width:100%;border-collapse:collapse;font-size:0.8rem;'>
+            <div style='background:#FFFFFF;border:1px solid #D1FAE5;border-left:5px solid #16A34A;
+                        border-radius:12px;padding:0.85rem 1rem;
+                        box-shadow:0 2px 10px rgba(22,163,74,0.08);'>
+                <div style='font-size:0.85rem;font-weight:700;color:#15803D;margin-bottom:0.6rem;'>↗ Indicadores que mejoraron</div>
+                <table style='width:100%;border-collapse:collapse;'>
                     <thead><tr>
-                        <th style='text-align:left;color:#166534;padding:0.3rem 0.2rem;border-bottom:1px solid #86EFAC;'>Indicador</th>
-                        <th style='text-align:left;color:#166534;padding:0.3rem 0.2rem;border-bottom:1px solid #86EFAC;'>Variación</th>
+                        <th style='{_th}'>Indicador</th>
+                        <th style='{_th}'>Línea</th>
+                        <th style='{_th}'>Variación</th>
                     </tr></thead>
                     <tbody>{best_rows_html}</tbody>
                 </table>
@@ -1599,21 +1654,15 @@ def render():
     with ia_c2:
         st.markdown(
             f"""
-            <div style='
-                background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
-                border: 1px solid #FCA5A5;
-                border-left: 5px solid #DC2626;
-                border-radius: 12px;
-                padding: 0.85rem 1rem;
-                box-shadow: 0 3px 10px rgba(220,38,38,0.10);
-            '>
-                <div style='font-size:0.82rem;font-weight:700;color:#B91C1C;margin-bottom:0.5rem;'>
-                    ↘ Indicadores en riesgo (PDI)
-                </div>
-                <table style='width:100%;border-collapse:collapse;font-size:0.8rem;'>
+            <div style='background:#FFFFFF;border:1px solid #FECACA;border-left:5px solid #DC2626;
+                        border-radius:12px;padding:0.85rem 1rem;
+                        box-shadow:0 2px 10px rgba(220,38,38,0.08);'>
+                <div style='font-size:0.85rem;font-weight:700;color:#B91C1C;margin-bottom:0.6rem;'>↘ Indicadores en riesgo</div>
+                <table style='width:100%;border-collapse:collapse;'>
                     <thead><tr>
-                        <th style='text-align:left;color:#991B1B;padding:0.3rem 0.2rem;border-bottom:1px solid #FCA5A5;'>Indicador</th>
-                        <th style='text-align:left;color:#991B1B;padding:0.3rem 0.2rem;border-bottom:1px solid #FCA5A5;'>Variación</th>
+                        <th style='{_th}'>Indicador</th>
+                        <th style='{_th}'>Línea</th>
+                        <th style='{_th}'>Variación</th>
                     </tr></thead>
                     <tbody>{worst_rows_html}</tbody>
                 </table>
@@ -1621,36 +1670,6 @@ def render():
             """,
             unsafe_allow_html=True,
         )
-
-        # Metricas resumen en chips
-        st.markdown("##### Métricas Clave de Negocio")
-        count_total_e = len(pdi_estrategico)
-        counts_e = {
-            "Sobrecumplimiento": int(
-                (pdi_estrategico["Nivel de cumplimiento"] == "Sobrecumplimiento").sum()
-            ),
-            "Cumplimiento": int((pdi_estrategico["Nivel de cumplimiento"] == "Cumplimiento").sum()),
-            "Alerta": int((pdi_estrategico["Nivel de cumplimiento"] == "Alerta").sum()),
-            "Peligro": int((pdi_estrategico["Nivel de cumplimiento"] == "Peligro").sum()),
-        }
-
-        kpi_cols = st.columns(5)
-        colors = ["#0B5FFF", "#173D66", "#16A34A", "#F59E0B", "#D32F2F"]
-        values = [
-            count_total_e,
-            counts_e["Sobrecumplimiento"],
-            counts_e["Cumplimiento"],
-            counts_e["Alerta"],
-            counts_e["Peligro"],
-        ]
-        labels = ["Total indicadores", "Metricas de negocio", "Cumplimiento", "Alerta", "Peligro"]
-        for col, label, value, color in zip(kpi_cols, labels, values, colors):
-            with col:
-                _render_chip(value, label, color)
-
-        # Se eliminan tablas adicionales bajo metricas clave para evitar duplicidad visual.
-    # else:
-    #     st.warning("No hay indicadores de CMI Estratégico para el corte seleccionado.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 

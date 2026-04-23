@@ -1510,15 +1510,15 @@ function showTab(tabName, levelNum) {
         }
 
         function showTab(tabId, level) {
-            // Determinar el prefijo según el nivel
-            var prefix = '';
+            // Prefijo - para nivel 1 es "tab-", nivel 2 es "tab-tactico-", nivel 3 es "tab-operativo-"
+            var prefix = 'tab-';
             if (level === 2) prefix = 'tab-tactico-';
             else if (level === 3) prefix = 'tab-operativo-';
             
             // El ID completo del contenido
             var targetId = prefix + tabId;
             
-            console.log('showTab llamado: tabId=' + tabId + ', level=' + level + ', targetId=' + targetId);
+            console.log('showTab: tab=' + tabId + ' lv=' + level + ' target=' + targetId);
             
             // Encontrar la página actual
             var pageEl = document.getElementById('page-level-' + level);
