@@ -22,6 +22,9 @@ def _inject_styles():
             css_path = Path(f"streamlit_app/styles/{css_name}")
         if css_path.exists():
             styles = load_css(str(css_path))
+            # Agregar timestamp para forzar recarga
+            import time
+            styles += f"\n/* Updated: {int(time.time())} */"
             st.markdown(f"<style>{styles}</style>", unsafe_allow_html=True)
 
 
