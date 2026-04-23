@@ -1,0 +1,12 @@
+{
+  "oms": [
+    {
+      "id": "OM-AUD-1",
+      "indicador": "102",
+      "titulo": "Auditoria estandar",
+      "estado": "Abierta",
+      "avance": 20,
+      "fecha": "2026-04-21"
+    }
+  ]
+}

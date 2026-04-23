@@ -863,24 +863,32 @@ def _inject_dashboard_styles():
     st.markdown(
         """
         <style>
-        .rg-nav {
-            background: linear-gradient(90deg, #0D2746 0%, #153B67 50%, #1D4E89 100%);
-            border-radius: 12px;
-            padding: 0.7rem 1rem;
+        .rg-header {
+            background: #FFFFFF;
+            border: 1px solid #D9E3F1;
+            border-radius: 16px;
+            padding: 1rem 1.2rem;
+            box-shadow: 0 8px 20px rgba(8, 34, 75, 0.08);
             margin-bottom: 1rem;
-            color: #EAF2FF;
-            font-size: 0.92rem;
-            display: flex;
-            gap: 1.2rem;
-            align-items: center;
-            overflow-x: auto;
-            white-space: nowrap;
         }
-        .rg-nav .active {
-            background: rgba(255,255,255,0.18);
-            padding: 0.35rem 0.7rem;
-            border-radius: 8px;
+        .rg-header-title {
+            margin: 0;
+            color: #0E2A4D;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+        .rg-header-subtitle {
+            margin: 0.35rem 0 0 0;
+            color: #4B6580;
+            font-size: 1.05rem;
+            font-weight: 500;
+        }
+        .rg-filter-label {
+            color: #173A62;
+            font-size: 1rem;
             font-weight: 700;
+            margin-bottom: 0.35rem;
         }
         .rg-panel {
             background: linear-gradient(180deg, #F9FBFF 0%, #EEF4FB 100%);
@@ -901,17 +909,6 @@ def _inject_dashboard_styles():
             margin-top: 0.2rem;
             margin-bottom: 0.2rem;
             font-size: 0.88rem;
-        }
-        .rg-btn {
-            display: inline-block;
-            background: #0E2A4D;
-            color: #FFFFFF;
-            border-radius: 8px;
-            padding: 0.5rem 0.8rem;
-            font-size: 0.82rem;
-            font-weight: 600;
-            text-decoration: none;
-            border: 1px solid #1F3D65;
         }
         .rg-card {
             border-radius: 14px;
@@ -1229,29 +1226,6 @@ def _build_ia_rows(rows: list[dict]) -> str:
 def render():
     _inject_dashboard_styles()
 
-    st.markdown(
-        """
-        <div class='rg-nav'>
-            <span><strong>Sistema de Indicadores</strong></span>
-            <span class='active'>Vision Estrategica</span>
-            <span>Vision Por Procesos</span>
-            <span>Operaciones</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    top_l, top_r = st.columns([5, 1])
-    with top_l:
-        st.markdown(
-            "<h1 class='rg-title'>CMI ESTRATEGICO - Vision General</h1>", unsafe_allow_html=True
-        )
-    with top_r:
-        st.markdown(
-            "<div style='margin-top:1.1rem; text-align:right;'><span class='rg-btn'>Descargar app</span></div>",
-            unsafe_allow_html=True,
-        )
-
     consolidado = _load_consolidado_cierres()
     if consolidado.empty:
         st.error(
@@ -1263,6 +1237,27 @@ def render():
     if not years:
         st.error("No se encontraron años válidos en los datos.")
         return
+
+    hdr_l, hdr_r = st.columns([4.5, 1.5])
+    with hdr_l:
+        st.markdown(
+            """
+            <div class='rg-header'>
+                <h1 class='rg-header-title'>CMI ESTRATÉGICO</h1>
+                <p class='rg-header-subtitle'>Dashboard Estratégico Integral — Prototipo Completo Validado</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with hdr_r:
+        st.markdown("<div class='rg-filter-label'>Año</div>", unsafe_allow_html=True)
+        year_estrategico = st.selectbox(
+            "Año",
+            options=years,
+            index=len(years) - 1,
+            key="cmi_estrategico_year",
+            label_visibility="collapsed",
+        )
 
     # Meses en español para despliegue
     MESES_NOMBRES = [
@@ -1282,13 +1277,6 @@ def render():
 
     # Seccion 1: CMI Estrategico
     st.markdown("<div class='rg-panel'>", unsafe_allow_html=True)
-    st.markdown("##### Filtros")
-    col_year_e, col_month_e, col_linea = st.columns(3)
-
-    with col_year_e:
-        year_estrategico = st.segmented_control(
-            "Año de análisis", options=years, default=years[-1], key="cmi_estrategico_year"
-        )
 
     # Cargar datos y aplicar filtro CMI Estratégico
     pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), 12)
@@ -1482,25 +1470,126 @@ def render():
     )
     best_rows_html = _build_ia_rows(best_improvements_e)
     worst_rows_html = _build_ia_rows(worst_declines_e)
+
+    # ── Narrativa ejecutiva dinámica ────────────────────────────────────────────
+    if health_rate_e >= 85:
+        estado_inst = "sobresaliente"
+        estado_color = "#16A34A"
+        estado_icon = "✅"
+    elif health_rate_e >= 70:
+        estado_inst = "satisfactorio"
+        estado_color = "#2563EB"
+        estado_icon = "📊"
+    elif health_rate_e >= 50:
+        estado_inst = "moderado con oportunidades de mejora"
+        estado_color = "#D97706"
+        estado_icon = "⚠️"
+    else:
+        estado_inst = "crítico y requiere atención prioritaria"
+        estado_color = "#DC2626"
+        estado_icon = "🚨"
+
+    mejor_linea_txt = ""
+    if not pdi_estrategico.empty and "Linea" in pdi_estrategico.columns:
+        _top_linea = (
+            pdi_estrategico.groupby("Linea")["cumplimiento_pct"]
+            .mean()
+            .reset_index()
+            .sort_values("cumplimiento_pct", ascending=False)
+        )
+        if not _top_linea.empty:
+            _ln = _top_linea.iloc[0]
+            mejor_linea_txt = (
+                f'La línea <strong>{_ln["Linea"]}</strong> lidera el cumplimiento '
+                f'con un promedio de <strong>{_ln["cumplimiento_pct"]:.1f}%</strong>. '
+            )
+
+    alerta_txt = ""
+    if counts_e["Alerta"] + counts_e["Peligro"] > 0:
+        alerta_txt = (
+            f'Se identifican <strong>{counts_e["Alerta"]} indicadores en alerta</strong> y '
+            f'<strong>{counts_e["Peligro"]} en peligro</strong> que requieren seguimiento inmediato. '
+        )
+    else:
+        alerta_txt = "No se registran indicadores en estado crítico en este corte. "
+
+    mejora_txt = ""
+    if best_improvements_e:
+        top_m = best_improvements_e[0]
+        mejora_txt = (
+            f'El indicador <strong>"{top_m["name"]}"</strong> registra la mayor mejora '
+            f'con <strong>+{top_m["change"]:.1f}%</strong> respecto al período anterior. '
+        )
+
+    riesgo_txt = ""
+    if worst_declines_e:
+        top_r = worst_declines_e[0]
+        riesgo_txt = (
+            f'Se recomienda atención sobre <strong>"{top_r["name"]}"</strong>, '
+            f'que presenta una variación de <strong>{top_r["change"]:.1f}%</strong>.'
+        )
+
+    narrativa = (
+        f'La institución presenta un desempeño estratégico <strong style="color:{estado_color};">'
+        f'{estado_inst}</strong>: el <strong>{health_rate_e}%</strong> de los indicadores PDI '
+        f'se encuentran en niveles saludables '
+        f'(<strong>{counts_e["Sobrecumplimiento"]}</strong> en sobrecumplimiento y '
+        f'<strong>{counts_e["Cumplimiento"]}</strong> en cumplimiento sobre '
+        f'<strong>{count_total_e}</strong> totales). '
+        f'{mejor_linea_txt}{alerta_txt}{mejora_txt}{riesgo_txt}'
+    )
+
     st.markdown(
         f"""
-        <div class='rg-ia'>
-            <h4>Perspectivas IA Estrategicas</h4>
-            <div class='rg-bubble'>
-                {health_rate_e}% en niveles saludables | Sobrecumplimiento: {counts_e['Sobrecumplimiento']} | Cumplimiento: {counts_e['Cumplimiento']} | Alerta: {counts_e['Alerta']} | Peligro: {counts_e['Peligro']}
+        <div style='
+            background: linear-gradient(135deg, #FFFFFF 0%, #F0F6FF 100%);
+            border: 1.5px solid #BFDBFE;
+            border-left: 6px solid {estado_color};
+            border-radius: 14px;
+            padding: 1.1rem 1.3rem;
+            box-shadow: 0 4px 18px rgba(37,99,235,0.10);
+            margin-bottom: 1rem;
+        '>
+            <div style='display:flex; align-items:center; gap:0.5rem; margin-bottom:0.55rem;'>
+                <span style='font-size:1.25rem;'>{estado_icon}</span>
+                <span style='
+                    font-size:1rem;
+                    font-weight:800;
+                    color:#1E3A5F;
+                    letter-spacing:0.01em;
+                '>Narrativa Ejecutiva</span>
             </div>
+            <p style='
+                margin:0;
+                font-size:0.93rem;
+                line-height:1.65;
+                color:#1E293B;
+            '>{narrativa}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
     ia_c1, ia_c2 = st.columns(2)
     with ia_c1:
         st.markdown(
             f"""
-            <div class='rg-ia'>
-                <div class='rg-ia-inline-title'>Indicadores que mejoraron (PDI)</div>
-                <table class='rg-ia-table'>
-                    <thead><tr><th>Indicador</th><th>Variacion</th></tr></thead>
+            <div style='
+                background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+                border: 1px solid #86EFAC;
+                border-left: 5px solid #16A34A;
+                border-radius: 12px;
+                padding: 0.85rem 1rem;
+                box-shadow: 0 3px 10px rgba(22,163,74,0.10);
+            '>
+                <div style='font-size:0.82rem;font-weight:700;color:#15803D;margin-bottom:0.5rem;'>
+                    ↗ Indicadores que mejoraron (PDI)
+                </div>
+                <table style='width:100%;border-collapse:collapse;font-size:0.8rem;'>
+                    <thead><tr>
+                        <th style='text-align:left;color:#166534;padding:0.3rem 0.2rem;border-bottom:1px solid #86EFAC;'>Indicador</th>
+                        <th style='text-align:left;color:#166534;padding:0.3rem 0.2rem;border-bottom:1px solid #86EFAC;'>Variación</th>
+                    </tr></thead>
                     <tbody>{best_rows_html}</tbody>
                 </table>
             </div>
@@ -1510,10 +1599,22 @@ def render():
     with ia_c2:
         st.markdown(
             f"""
-            <div class='rg-ia'>
-                <div class='rg-ia-inline-title'>Indicadores en riesgo (PDI)</div>
-                <table class='rg-ia-table'>
-                    <thead><tr><th>Indicador</th><th>Variacion</th></tr></thead>
+            <div style='
+                background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+                border: 1px solid #FCA5A5;
+                border-left: 5px solid #DC2626;
+                border-radius: 12px;
+                padding: 0.85rem 1rem;
+                box-shadow: 0 3px 10px rgba(220,38,38,0.10);
+            '>
+                <div style='font-size:0.82rem;font-weight:700;color:#B91C1C;margin-bottom:0.5rem;'>
+                    ↘ Indicadores en riesgo (PDI)
+                </div>
+                <table style='width:100%;border-collapse:collapse;font-size:0.8rem;'>
+                    <thead><tr>
+                        <th style='text-align:left;color:#991B1B;padding:0.3rem 0.2rem;border-bottom:1px solid #FCA5A5;'>Indicador</th>
+                        <th style='text-align:left;color:#991B1B;padding:0.3rem 0.2rem;border-bottom:1px solid #FCA5A5;'>Variación</th>
+                    </tr></thead>
                     <tbody>{worst_rows_html}</tbody>
                 </table>
             </div>
@@ -1522,7 +1623,7 @@ def render():
         )
 
         # Metricas resumen en chips
-        st.markdown("##### Metricas Clave de Negocio")
+        st.markdown("##### Métricas Clave de Negocio")
         count_total_e = len(pdi_estrategico)
         counts_e = {
             "Sobrecumplimiento": int(
@@ -1555,7 +1656,7 @@ def render():
 
     # Seccion 2: CMI por Procesos
     st.markdown("---")
-    st.header("CMI POR PROCESOS - Desempeño Operativo")
+    st.header("CMI POR PROCESOS")
     st.caption("Fuente real: Consolidado Cierres — Resultados Consolidados.xlsx")
 
     st.markdown("<div class='rg-panel'>", unsafe_allow_html=True)
@@ -1860,7 +1961,7 @@ def render():
             st.markdown(
                 f"""
                 <div class='rg-ia'>
-                    <h4>Perspectivas Operativas IA</h4>
+                    <h4>Perspectivas Operativas</h4>
                     <div class='rg-bubble'>{op_summary}</div>
                 </div>
                 """,

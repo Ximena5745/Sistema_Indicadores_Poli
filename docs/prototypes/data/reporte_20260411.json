@@ -1,0 +1,22 @@
+{
+  "generado": "2026-04-11T01:50:20",
+  "archivos": {
+    "resultados_consolidados": {
+      "path": "data\\output\\Resultados Consolidados.xlsx",
+      "hojas": {
+        "Consolidado Cierres": {
+          "rows": 984,
+          "columns": 19,
+          "ids_unicos": 390,
+          "fecha_min": "2022-09-30",
+          "fecha_max": "2026-02-28",
+          "nulos": {
+            "Meta": 71,
+            "Ejecucion": 17,
+            "Cumplimiento": 984
+          }
+        }
+      }
+    }
+  }
+}

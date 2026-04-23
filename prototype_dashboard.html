@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGIND - Sistema de Indicadores Institucionales</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="">
+    <style>
+        :root {
+            --primary: #0D2746;
+            --primary-light: #1D4E89;
+            --secondary: #2563EB;
+            --accent: #FBAF17;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --bg-light: #F8FAFC;
+            --bg-white: #FFFFFF;
+            --bg-card: #FFFFFF;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --text-muted: #94A3B8;
+            --border: #E2E8F0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+            
+            --line-expansion: #FBAF17;
+            --line-transformacion: #06B6D4;
+            --line-calidad: #EC0677;
+            --line-experiencia: #0EA5E9;
+            --line-sostenibilidad: #84CC16;
+            --line-educacion: #6366F1;
+            
+            --danger-bg: #FEF2F2;
+            --warning-bg: #FFFBEB;
+            --success-bg: #ECFDF5;
+            --info-bg: #EFF6FF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .app-container { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .app-header {
+            background: var(--primary);
+            color: white;
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; }
+
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: var(--accent); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary); font-weight: 700; font-size: 14px;
+        }
+
+        .header-nav { display: flex; gap: 4px; }
+
+        .nav-tab {
+            padding: 8px 16px; border-radius: 6px;
+            cursor: pointer; font-weight: 500; font-size: 13px;
+            transition: all 0.2s; opacity: 0.8;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+        .nav-tab.active { background: rgba(255,255,255,0.2); opacity: 1; }
+
+        .header-right { display: flex; align-items: center; gap: 16px; }
+
+        .header-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+
+        .header-icon:hover { background: rgba(255,255,255,0.1); }
+
+        .notification-badge { position: relative; }
+        .notification-badge::after {
+            content: ''; position: absolute; top: 6px; right: 6px;
+            width: 8px; height: 8px; background: var(--danger);
+            border-radius: 50%; border: 2px solid var(--primary);
+        }
+
+        .user-profile {
+            display: flex; align-items: center; gap: 10px;
+            cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: all 0.2s;
+        }
+        .user-profile:hover { background: rgba(255,255,255,0.1); }
+
+        .user-avatar {
+            width: 32px; height: 32px; background: var(--accent); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary); font-weight: 600; font-size: 12px;
+        }
+
+        .main-content { display: flex; flex: 1; overflow: hidden; }
+
+        .sidebar {
+            width: 280px; background: var(--bg-white);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+
+        .sidebar-title {
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px;
+        }
+
+        .filter-group { margin-bottom: 20px; }
+
+        .filter-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+
+        .filter-select, .filter-input {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 13px; background: var(--bg-white);
+            color: var(--text-primary); transition: all 0.2s;
+        }
+
+        .filter-select:focus, .filter-input:focus {
+            outline: none; border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 20px; }
+
+        .filter-section { margin-bottom: 24px; }
+
+        .filter-chip-container { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .filter-chip {
+            padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; border: 1px solid var(--border);
+            background: var(--bg-white); color: var(--text-secondary);
+        }
+
+        .filter-chip:hover { border-color: var(--secondary); color: var(--secondary); }
+        .filter-chip.active { background: var(--secondary); border-color: var(--secondary); color: white; }
+
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
+
+        .checkbox-item { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .checkbox-item input { width: 16px; height: 16px; accent-color: var(--secondary); }
+
+        .content-panel { flex: 1; overflow-y: auto; padding: 24px; }
+
+        .breadcrumb {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 12px; color: var(--text-muted); margin-bottom: 20px;
+        }
+
+        .breadcrumb-item a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .breadcrumb-item a:hover { color: var(--secondary); }
+        .breadcrumb-separator { color: var(--text-muted); }
+        .breadcrumb-item.active { color: var(--text-primary); font-weight: 500; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+
+        .page-title { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+        .kpi-card {
+            background: var(--bg-white); border-radius: 12px; padding: 20px;
+            box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.2s;
+        }
+
+        .kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+        .kpi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .kpi-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+        .kpi-value { font-size: 32px; font-weight: 700; color: var(--text-primary); line-height: 1; margin-bottom: 8px; }
+        .kpi-footer { display: flex; justify-content: space-between; align-items: center; }
+        .kpi-meta { font-size: 12px; color: var(--text-muted); }
+
+        .kpi-change { font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 12px; }
+        .kpi-change.positive { background: var(--success-bg); color: var(--success); }
+        .kpi-change.negative { background: var(--danger-bg); color: var(--danger); }
+        .kpi-change.neutral { background: var(--bg-light); color: var(--text-muted); }
+
+        .charts-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; margin-bottom: 24px; }
+
+        .chart-card {
+            background: var(--bg-white); border-radius: 12px; padding: 20px;
+            box-shadow: var(--shadow); border: 1px solid var(--border);
+        }
+
+        .chart-card.full { grid-column: span 12; }
+        .chart-card.half { grid-column: span 6; }
+        .chart-card.third { grid-column: span 4; }
+        .chart-card.quarter { grid-column: span 3; }
+
+        @media (max-width: 1200px) {
+            .chart-card.half { grid-column: span 12; }
+            .chart-card.third { grid-column: span 6; }
+            .chart-card.quarter { grid-column: span 6; }
+        }
+
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .chart-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+        .chart-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .chart-actions { display: flex; gap: 8px; }
+
+        .chart-action {
+            width: 32px; height: 32px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s; color: var(--text-muted);
+            background: transparent; border: none;
+        }
+        .chart-action:hover { background: var(--bg-light); color: var(--text-primary); }
+
+        .gauge-container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .gauge-svg { width: 180px; height: 100px; }
+        .gauge-value { font-size: 36px; font-weight: 700; margin-top: -40px; }
+        .gauge-label { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+        .bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding: 20px 0; }
+        .bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+        .bar { width: 100%; max-width: 40px; border-radius: 6px 6px 0 0; transition: all 0.3s; position: relative; }
+        .bar:hover { opacity: 0.8; }
+        .bar-label { font-size: 10px; color: var(--text-muted); text-align: center; }
+        .bar-value { font-size: 11px; font-weight: 600; position: absolute; top: -24px; left: 50%; transform: translateX(-50%); }
+
+        .donut-container { display: flex; align-items: center; gap: 24px; padding: 20px; }
+        .donut-svg { width: 140px; height: 140px; transform: rotate(-90deg); }
+        .donut-legend { display: flex; flex-direction: column; gap: 12px; }
+
+        .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+        .legend-label { color: var(--text-secondary); flex: 1; }
+        .legend-value { font-weight: 600; }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+
+        .data-table th {
+            text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+            background: var(--bg-light); border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .data-table tr:hover td { background: var(--bg-light); }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+        }
+
+        .status-badge.success { background: var(--success-bg); color: var(--success); }
+        .status-badge.warning { background: var(--warning-bg); color: var(--warning); }
+        .status-badge.danger { background: var(--danger-bg); color: var(--danger); }
+        .status-badge.info { background: var(--info-bg); color: var(--secondary); }
+
+        .tabs-container {
+            display: flex; gap: 4px; border-bottom: 1px solid var(--border);
+            margin-bottom: 24px; overflow-x: auto;
+        }
+
+        .tab-item {
+            padding: 12px 20px; font-size: 13px; font-weight: 500;
+            color: var(--text-secondary); cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;
+        }
+
+        .tab-item:hover { color: var(--text-primary); }
+        .tab-item.active { color: var(--secondary); border-bottom-color: var(--secondary); }
+
+        .line-chart { position: relative; height: 220px; padding: 20px; }
+        .line-chart svg { width: 100%; height: 100%; }
+
+        .heatmap-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+        .heatmap-cell {
+            aspect-ratio: 1; border-radius: 4px; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 600; color: white;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .heatmap-cell:hover { transform: scale(1.1); z-index: 1; }
+
+        .alert-card {
+            background: var(--bg-white); border-radius: 12px; padding: 16px;
+            border-left: 4px solid; box-shadow: var(--shadow);
+        }
+
+        .alert-card.critical { border-color: var(--danger); }
+        .alert-card.warning { border-color: var(--warning); }
+        .alert-card.info { border-color: var(--secondary); }
+
+        .alert-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .alert-title { font-size: 14px; font-weight: 600; }
+        .alert-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; }
+        .alert-badge.critical { background: var(--danger-bg); color: var(--danger); }
+        .alert-badge.warning { background: var(--warning-bg); color: var(--warning); }
+
+        .alert-description { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+        .alert-meta { display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); }
+
+        .forecast-container { display: flex; gap: 16px; padding: 20px 0; }
+        .forecast-item { flex: 1; padding: 16px; border-radius: 12px; background: var(--bg-light); }
+        .forecast-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .forecast-value { font-size: 28px; font-weight: 700; }
+        .forecast-range { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .ai-panel {
+            background: linear-gradient(135deg, #1D4E89 0%, #0D2746 100%);
+            border-radius: 16px; padding: 24px; color: white; margin-bottom: 24px;
+        }
+
+        .ai-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+
+        .ai-badge {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.2); padding: 6px 12px;
+            border-radius: 20px; font-size: 11px; font-weight: 600;
+        }
+
+        .ai-insight { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+
+        .ai-insight-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .ai-insight-text { font-size: 13px; opacity: 0.9; line-height: 1.6; }
+
+        .ai-chat { display: flex; gap: 12px; margin-top: 16px; }
+
+        .ai-chat-input {
+            flex: 1; padding: 12px 16px; border-radius: 12px;
+            border: none; background: rgba(255,255,255,0.15);
+            color: white; font-size: 13px;
+        }
+        .ai-chat-input::placeholder { color: rgba(255,255,255,0.6); }
+
+        .ai-chat-btn {
+            width: 44px; height: 44px; border-radius: 12px; border: none;
+            background: var(--accent); color: var(--primary); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+
+        .sunburst-container { display: flex; align-items: center; gap: 24px; }
+        .sunburst-svg { width: 220px; height: 220px; }
+        .sunburst-legend { display: flex; flex-direction: column; gap: 12px; }
+
+        .app-footer {
+            background: var(--bg-white); border-top: 1px solid var(--border);
+            padding: 12px 24px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 11px; color: var(--text-muted);
+        }
+
+        .footer-links { display: flex; gap: 20px; }
+        .footer-link { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .footer-link:hover { color: var(--text-primary); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .animate-fade { animation: fadeIn 0.3s ease-out; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-light); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        .hidden { display: none !important; }
+        .clickable { cursor: pointer; }
+        .clickable:hover { background: var(--bg-light); }
+
+        .page-content { display: none !important; }
+        .page-content.active { display: block !important; animation: fadeIn 0.3s ease-out; }
+        
+        .tab-content { display: none !important; }
+        .tab-content.active { display: block !important; }
+
+        .progress-bar { height: 8px; background: var(--bg-light); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+        .tooltip { position: relative; }
+        .tooltip-text {
+            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: var(--primary); color: white; padding: 6px 12px;
+            border-radius: 6px; font-size: 11px; white-space: nowrap;
+            opacity: 0; visibility: hidden; transition: all 0.2s; z-index: 1000;
+        }
+        .tooltip:hover .tooltip-text { opacity: 1; visibility: visible; }
+
+        .kanban-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .kanban-column { background: var(--bg-light); border-radius: 12px; padding: 16px; min-height: 300px; }
+        .kanban-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid; }
+        .kanban-title { font-weight: 600; font-size: 13px; }
+        .kanban-count { background: var(--bg-white); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        
+        .kanban-card { background: var(--bg-white); border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow); cursor: pointer; transition: all 0.2s; }
+        .kanban-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+        .mini-chart { display: flex; align-items: flex-end; gap: 2px; height: 24px; margin: 8px 0; }
+        .mini-bar { flex: 1; background: var(--secondary); opacity: 0.5; border-radius: 2px 2px 0 0; }
+        .mini-bar:last-child { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-icon">PG</div>
+                    <span>SGIND</span>
+                </div>
+                <nav class="header-nav">
+                    <div class="nav-tab active" data-level="1" onclick="switchLevel(1)">Estrategico</div>
+                    <div class="nav-tab" data-level="2" onclick="switchLevel(2)">Tactico</div>
+                    <div class="nav-tab" data-level="3" onclick="switchLevel(3)">Operativo</div>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="header-icon tooltip">
+                    <i class="fas fa-search"></i><span class="tooltip-text">Buscar</span>
+                </div>
+                <div class="header-icon tooltip">
+                    <i class="fas fa-download"></i><span class="tooltip-text">Exportar</span>
+                </div>
+                <div class="header-icon notification-badge tooltip">
+                    <i class="fas fa-bell"></i><span class="tooltip-text">Notificaciones</span>
+                </div>
+                <div class="user-profile">
+                    <div class="user-avatar">RR</div>
+                    <span>Rector</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">Filtros Globales</div>
+                    <div class="filter-group">
+                        <label class="filter-label">Año</label>
+                        <select class="filter-select" id="filter-year">
+                            <option value="2026">2026</option>
+                            <option value="2025" selected>2025</option>
+                            <option value="2024">2024</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Período</label>
+                        <select class="filter-select" id="filter-period">
+                            <option value="12" selected>Diciembre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="9">Septiembre</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="sidebar-content">
+                    <div class="filter-section" id="level1-filters">
+                        <div class="sidebar-title">Líneas Estratégicas</div>
+                        <div class="filter-chip-container">
+                            <div class="filter-chip active" data-line="all" onclick="filterLine('all')">Todas</div>
+                            <div class="filter-chip" data-line="expansion" onclick="filterLine('expansion')">Expansión</div>
+                            <div class="filter-chip" data-line="transformacion" onclick="filterLine('transformacion')">Transformación</div>
+                            <div class="filter-chip" data-line="calidad" onclick="filterLine('calidad')">Calidad</div>
+                            <div class="filter-chip" data-line="experiencia" onclick="filterLine('experiencia')">Experiencia</div>
+                            <div class="filter-chip" data-line="sostenibilidad" onclick="filterLine('sostenibilidad')">Sostenibilidad</div>
+                            <div class="filter-chip" data-line="educacion" onclick="filterLine('educacion')">Educación</div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section hidden" id="level2-filters">
+                        <div class="sidebar-title">Procesos</div>
+                        <div class="filter-chip-container">
+                            <div class="filter-chip active" data-process="all">Todos</div>
+                            <div class="filter-chip" data-process="docencia">Docencia</div>
+                            <div class="filter-chip" data-process="investigacion">Investigación</div>
+                            <div class="filter-chip" data-process="extension">Extensión</div>
+                            <div class="filter-chip" data-process="gestion">Gestión</div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section hidden" id="level3-filters">
+                        <div class="sidebar-title">Estado</div>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" checked><span>Peligro</span></label>
+                            <label class="checkbox-item"><input type="checkbox" checked><span>Alerta</span></label>
+                            <label class="checkbox-item"><input type="checkbox" checked><span>Cumplimiento</span></label>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="content-panel">
+                <nav class="breadcrumb">
+                    <div class="breadcrumb-item"><i class="fas fa-home"></i><a href="#">Inicio</a></div>
+                    <span class="breadcrumb-separator">/</span>
+                    <div class="breadcrumb-item"><a href="#">Nivel 1</a></div>
+                    <span class="breadcrumb-separator">/</span>
+                    <div class="breadcrumb-item active">Resumen Ejecutivo</div>
+                </nav>
+
+                <!-- LEVEL 1: ESTRATÉGICO -->
+                <div class="page-content active" id="page-level-1">
+                    <div class="tabs-container">
+                        <div class="tab-item active" data-tab="resumen" onclick="showTab('resumen', 1)" style="cursor:pointer">Resumen Ejecutivo</div>
+                        <div class="tab-item" data-tab="cumplimiento" onclick="showTab('cumplimiento', 1)" style="cursor:pointer">Cumplimiento PDI</div>
+                        <div class="tab-item" data-tab="alertas" onclick="showTab('alertas', 1)" style="cursor:pointer">Alertas y Riesgos</div>
+                        <div class="tab-item" data-tab="pronostico" onclick="showTab('pronostico', 1)" style="cursor:pointer">Pronóstico</div>
+                        <div class="tab-item" data-tab="ia-insights" onclick="showTab('ia-insights', 1)" style="cursor:pointer">IA Insights</div>
+                    </div>
+
+                    <!-- TAB: RESUMEN EJECUTIVO -->
+                    <div class="tab-content active" id="tab-resumen">
+                        <div class="page-header">
+                            <div>
+                                <h1 class="page-title">Resumen Ejecutivo</h1>
+                                <p class="page-subtitle">Estado institucional a diciembre 2025</p>
+                            </div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header">
+                                    <span class="kpi-label">Indicadores Activos</span>
+                                    <div class="kpi-icon" style="background: var(--info-bg); color: var(--secondary);">
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                </div>
+                                <div class="kpi-value">1,247</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-meta">vs 1,230 anterior</span>
+                                    <span class="kpi-change positive">+1.4%</span>
+                                </div>
+                            </div>
+
+                            <div class="kpi-card">
+                                <div class="kpi-header">
+                                    <span class="kpi-label">Cumplimiento Global</span>
+                                    <div class="kpi-icon" style="background: var(--success-bg); color: var(--success);">
+                                        <i class="fas fa-check-circle"></i>
+                                    </div>
+                                </div>
+                                <div class="kpi-value">87.3%</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-meta">Meta: 100%</span>
+                                    <span class="kpi-change positive">+2.1%</span>
+                                </div>
+                            </div>
+
+                            <div class="kpi-card">
+                                <div class="kpi-header">
+                                    <span class="kpi-label">Indicadores en Peligro</span>
+                                    <div class="kpi-icon" style="background: var(--danger-bg); color: var(--danger);">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                </div>
+                                <div class="kpi-value" style="color: var(--danger);">42</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-meta">3.4% del total</span>
+                                    <span class="kpi-change negative">+5</span>
+                                </div>
+                            </div>
+
+                            <div class="kpi-card">
+                                <div class="kpi-header">
+                                    <span class="kpi-label">Proyección Cierre</span>
+                                    <div class="kpi-icon" style="background: var(--warning-bg); color: var(--warning);">
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                </div>
+                                <div class="kpi-value" style="color: var(--warning);">91.2%</div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-meta">Brecha: -8.8%</span>
+                                    <span class="kpi-change positive">+1.5%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ai-panel">
+                            <div class="ai-panel-header">
+                                <div>
+                                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Resumen Automático IA</h3>
+                                    <p style="font-size: 12px; opacity: 0.8;">Basado en análisis de datos del período</p>
+                                </div>
+                                <div class="ai-badge"><i class="fas fa-robot"></i> IA Activa</div>
+                            </div>
+                            <p style="font-size: 15px; line-height: 1.7; margin-bottom: 16px;">
+                                La institución cerró diciembre 2025 con <strong>87.3%</strong> de cumplimiento global, 
+                                <strong>+2.1pp</strong> respecto a noviembre. 
+                                <strong>Expansión</strong> lidera el desempeño con 92.1%, mientras 
+                                <strong>Transformación Organizacional</strong> requiere atención con 78.4%.
+                            </p>
+                            <div style="display: flex; gap: 24px; margin-bottom: 16px;">
+                                <div><div style="font-size: 11px; opacity: 0.7;">Hallazgos</div><div style="font-size: 20px; font-weight: 600;">3</div></div>
+                                <div><div style="font-size: 11px; opacity: 0.7;">Cambios</div><div style="font-size: 20px; font-weight: 600;">7</div></div>
+                                <div><div style="font-size: 11px; opacity: 0.7;">Riesgos</div><div style="font-size: 20px; font-weight: 600;">5</div></div>
+                                <div><div style="font-size: 11px; opacity: 0.7;">Recomend.</div><div style="font-size: 20px; font-weight: 600;">4</div></div>
+                            </div>
+                        </div>
+
+                        <div class="charts-grid">
+                            <div class="chart-card quarter">
+                                <div class="chart-header"><div class="chart-title">Cumplimiento Global</div></div>
+                                <div class="gauge-container">
+                                    <svg class="gauge-svg" viewBox="0 0 100 55">
+                                        <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#E2E8F0" stroke-width="8" stroke-linecap="round"/>
+                                        <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#10B981" stroke-width="8" stroke-linecap="round" stroke-dasharray="87.3 126" stroke-dashoffset="31"/>
+                                    </svg>
+                                    <div class="gauge-value" style="color: var(--success);">87.3%</div>
+                                    <div class="gauge-label">vs Meta 100%</div>
+                                </div>
+                            </div>
+
+                            <div class="chart-card quarter">
+                                <div class="chart-header"><div class="chart-title">Distribución por Estado</div></div>
+                                <div class="donut-container">
+                                    <svg class="donut-svg" viewBox="0 0 36 36">
+                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#10B981" stroke-width="4" stroke-dasharray="65 35" stroke-dashoffset="0"/>
+                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F59E0B" stroke-width="4" stroke-dasharray="20 80" stroke-dashoffset="-65"/>
+                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="10 90" stroke-dashoffset="-85"/>
+                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#E2E8F0" stroke-width="4" stroke-dasharray="5 95" stroke-dashoffset="-95"/>
+                                    </svg>
+                                    <div class="donut-legend">
+                                        <div class="legend-item"><div class="legend-dot" style="background: var(--success);"></div><span class="legend-label">Cumplimiento</span><span class="legend-value">65%</span></div>
+                                        <div class="legend-item"><div class="legend-dot" style="background: var(--warning);"></div><span class="legend-label">Alerta</span><span class="legend-value">20%</span></div>
+                                        <div class="legend-item"><div class="legend-dot" style="background: var(--danger);"></div><span class="legend-label">Peligro</span><span class="legend-value">10%</span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Cumplimiento por Línea</div></div>
+                                <div class="bar-chart" id="linea-chart"></div>
+                            </div>
+
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Evolución Histórica</div></div>
+                                <div class="line-chart" id="tendencia-chart"></div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full" style="margin-bottom: 24px;">
+                            <div class="chart-header"><div class="chart-title">Mapa de Calor - Línea x Trimestre</div></div>
+                            <div class="heatmap-grid" id="heatmap"></div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Alertas Activas</div></div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                                <div class="alert-card critical">
+                                    <div class="alert-header">
+                                        <div class="alert-title"><i class="fas fa-exclamation-circle" style="color: var(--danger); margin-right: 8px;"></i>Tasa de Graduación</div>
+                                        <span class="alert-badge critical">Crítico</span>
+                                    </div>
+                                    <p class="alert-description">Indicador en Peligro por 3° período. Cumplimiento 68% vs meta 85%.</p>
+                                    <div class="alert-meta">
+                                        <span><i class="fas fa-layer-group"></i> Experiencia</span>
+                                        <span><i class="fas fa-arrow-down"></i> -12.3%</span>
+                                    </div>
+                                </div>
+                                <div class="alert-card warning">
+                                    <div class="alert-header">
+                                        <div class="alert-title"><i class="fas fa-exclamation-triangle" style="color: var(--warning); margin-right: 8px;"></i>Publicaciones Scielo</div>
+                                        <span class="alert-badge warning">Alto</span>
+                                    </div>
+                                    <p class="alert-description">Tendencia descendente. Cumplimiento 78% vs meta 95%.</p>
+                                    <div class="alert-meta">
+                                        <span><i class="fas fa-layer-group"></i> Investigación</span>
+                                        <span><i class="fas fa-arrow-down"></i> -8.5%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: CUMPLIMIENTO PDI -->
+                    <div class="tab-content" id="tab-cumplimiento">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Cumplimiento PDI 2025</h1><p class="page-subtitle">Seguimiento por líneas estratégicas</p></div>
+                        </div>
+
+                        <div class="charts-grid">
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Distribución por Línea</div></div>
+                                <div class="sunburst-container">
+                                    <svg class="sunburst-svg" id="sunburst-svg"></svg>
+                                    <div class="sunburst-legend" id="sunburst-legend"></div>
+                                </div>
+                            </div>
+
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Top Indicadores Críticos</div></div>
+                                <table class="data-table">
+                                    <thead><tr><th>Indicador</th><th>Línea</th><th>Cump.</th><th>Tend.</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Tasa Graduación Pregrado</td><td><span class="filter-chip" style="background:#0EA5E9;color:white">Experiencia</span></td><td><span class="status-badge danger">68%</span></td><td><i class="fas fa-arrow-down" style="color:var(--danger)"></i></td></tr>
+                                        <tr><td>Publicaciones Scielo</td><td><span class="filter-chip" style="background:#06B6D4;color:white">Investigación</span></td><td><span class="status-badge warning">78%</span></td><td><i class="fas fa-arrow-down" style="color:var(--danger)"></i></td></tr>
+                                        <tr><td>Índice de Docencia</td><td><span class="filter-chip" style="background:#EC0677;color:white">Calidad</span></td><td><span class="status-badge warning">81%</span></td><td><i class="fas fa-minus" style="color:var(--text-muted)"></i></td></tr>
+                                        <tr><td>Proyectos Extensionistas</td><td><span class="filter-chip" style="background:#FBAF17;color:white">Extensión</span></td><td><span class="status-badge warning">85%</span></td><td><i class="fas fa-arrow-down" style="color:var(--warning)"></i></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Detalle por Línea Estratégica</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>Línea Estratégica</th><th>Indicadores</th><th>Cumplimiento</th><th>En Peligro</th><th>En Alerta</th><th>Tendencia</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="filter-chip" style="background:#FBAF17;color:white">Expansión</span></td><td>245</td><td><span class="status-badge success">92.1%</span></td><td>3</td><td>18</td><td><i class="fas fa-arrow-up" style="color:var(--success)"></i> +5.2%</td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#06B6D4;color:white">Transformación</span></td><td>198</td><td><span class="status-badge warning">78.4%</span></td><td>15</td><td>28</td><td><i class="fas fa-arrow-down" style="color:var(--danger)"></i> -4.1%</td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#EC0677;color:white">Calidad</span></td><td>312</td><td><span class="status-badge success">88.5%</span></td><td>8</td><td>35</td><td><i class="fas fa-arrow-up" style="color:var(--success)"></i> +2.3%</td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#0EA5E9;color:white">Experiencia</span></td><td>267</td><td><span class="status-badge warning">81.2%</span></td><td>12</td><td>42</td><td><i class="fas fa-arrow-down" style="color:var(--danger)"></i> -3.8%</td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#84CC16;color:white">Sostenibilidad</span></td><td>145</td><td><span class="status-badge success">91.5%</span></td><td>2</td><td>12</td><td><i class="fas fa-arrow-up" style="color:var(--success)"></i> +1.5%</td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#6366F1;color:white">Educación</span></td><td>80</td><td><span class="status-badge success">89.2%</span></td><td>2</td><td>8</td><td><i class="fas fa-arrow-up" style="color:var(--success)"></i> +0.8%</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: ALERTAS Y RIESGOS -->
+                    <div class="tab-content" id="tab-alertas">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Alertas y Riesgos</h1><p class="page-subtitle">42 indicadores requieren atención</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Total Alertas</span></div>
+                                <div class="kpi-value" style="color: var(--danger);">42</div>
+                                <div class="kpi-footer"><span class="kpi-meta">vs 35 anterior</span></div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Críticos</span></div>
+                                <div class="kpi-value" style="color: var(--danger);">8</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Altos</span></div>
+                                <div class="kpi-value" style="color: var(--warning);">15</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Con OM Activa</span></div>
+                                <div class="kpi-value" style="color: var(--secondary);">28</div>
+                            </div>
+                        </div>
+
+                        <div class="charts-grid">
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Matriz de Riesgo</div></div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 200px;">
+                                    <div style="background: var(--danger-bg); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <div style="font-size: 28px; font-weight: 700; color: var(--danger);">8</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">Crítico</div>
+                                    </div>
+                                    <div style="background: var(--warning-bg); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <div style="font-size: 28px; font-weight: 700; color: var(--warning);">15</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">Alto</div>
+                                    </div>
+                                    <div style="background: var(--info-bg); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <div style="font-size: 28px; font-weight: 700; color: var(--secondary);">12</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">Medio</div>
+                                    </div>
+                                    <div style="background: var(--success-bg); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <div style="font-size: 28px; font-weight: 700; color: var(--success);">7</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">Bajo</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Alertas por Línea</div></div>
+                                <div class="bar-chart" id="riesgo-linea-chart"></div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Lista de Alertas</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>ID</th><th>Indicador</th><th>Línea</th><th>Cump.</th><th>Variación</th><th>Nivel</th><th>Estado</th></tr></thead>
+                                <tbody>
+                                    <tr><td>IND-0156</td><td>Tasa de Graduación Pregrado</td><td>Experiencia</td><td><span class="status-badge danger">68%</span></td><td><span class="kpi-change negative">-12.3%</span></td><td><span class="status-badge danger">Crítico</span></td><td><button class="filter-select" style="width:auto;padding:6px 12px;">Crear OM</button></td></tr>
+                                    <tr><td>IND-0234</td><td>Publicaciones Scielo</td><td>Investigación</td><td><span class="status-badge warning">78%</span></td><td><span class="kpi-change negative">-8.5%</span></td><td><span class="status-badge warning">Alto</span></td><td><button class="filter-select" style="width:auto;padding:6px 12px;">Crear OM</button></td></tr>
+                                    <tr><td>IND-0089</td><td>Índice de Docencia</td><td>Calidad</td><td><span class="status-badge warning">81%</span></td><td><span class="kpi-change neutral">-2.1%</span></td><td><span class="status-badge info">Medio</span></td><td><button class="filter-select" style="width:auto;padding:6px 12px;">Revisar</button></td></tr>
+                                    <tr><td>IND-0312</td><td>Proyectos Extensionistas</td><td>Extensión</td><td><span class="status-badge warning">85%</span></td><td><span class="kpi-change negative">-5.2%</span></td><td><span class="status-badge warning">Alto</span></td><td><button class="filter-select" style="width:auto;padding:6px 12px;">Crear OM</button></td></tr>
+                                    <tr><td>IND-0178</td><td>Satisfacción Estudiantil</td><td>Experiencia</td><td><span class="status-badge warning">82%</span></td><td><span class="kpi-change neutral">+0.8%</span></td><td><span class="status-badge info">Medio</span></td><td><button class="filter-select" style="width:auto;padding:6px 12px;">Monitorear</button></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: PRONÓSTICO -->
+                    <div class="tab-content" id="tab-pronostico">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Pronóstico de Cierre</h1><p class="page-subtitle">Proyección anual basada en tendencias</p></div>
+                        </div>
+
+                        <div class="forecast-container">
+                            <div class="forecast-item" style="background: var(--success-bg);">
+                                <div class="forecast-label" style="color: var(--success);">Escenario Optimista</div>
+                                <div class="forecast-value" style="color: var(--success);">94.5%</div>
+                                <div class="forecast-range">Rango: 92-97%</div>
+                            </div>
+                            <div class="forecast-item" style="background: var(--warning-bg);">
+                                <div class="forecast-label" style="color: var(--warning);">Escenario Base</div>
+                                <div class="forecast-value" style="color: var(--warning);">91.2%</div>
+                                <div class="forecast-range">Rango: 89-93%</div>
+                            </div>
+                            <div class="forecast-item" style="background: var(--danger-bg);">
+                                <div class="forecast-label" style="color: var(--danger);">Escenario Pesimista</div>
+                                <div class="forecast-value" style="color: var(--danger);">86.8%</div>
+                                <div class="forecast-range">Rango: 84-89%</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Proyección por Línea</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>Línea</th><th>Actual</th><th>Proyección</th><th>Brecha</th><th>Mensual Req.</th><th>Probabilidad</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="filter-chip" style="background:#FBAF17;color:white">Expansión</span></td><td>92.1%</td><td style="color:var(--success);font-weight:600">95.2%</td><td style="color:var(--success)">+3.1%</td><td>1.2%/mes</td><td><span class="status-badge success">Alta (85%)</span></td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#06B6D4;color:white">Transformación</span></td><td>78.4%</td><td style="color:var(--danger);font-weight:600">82.1%</td><td style="color:var(--danger)">-17.9%</td><td>5.8%/mes</td><td><span class="status-badge danger">Baja (25%)</span></td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#EC0677;color:white">Calidad</span></td><td>88.5%</td><td style="color:var(--warning);font-weight:600">90.3%</td><td style="color:var(--warning)">-9.7%</td><td>2.3%/mes</td><td><span class="status-badge warning">Media (55%)</span></td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#0EA5E9;color:white">Experiencia</span></td><td>81.2%</td><td style="color:var(--danger);font-weight:600">84.5%</td><td style="color:var(--danger)">-15.5%</td><td>4.1%/mes</td><td><span class="status-badge warning">Media (45%)</span></td></tr>
+                                    <tr><td><span class="filter-chip" style="background:#84CC16;color:white">Sostenibilidad</span></td><td>91.5%</td><td style="color:var(--success);font-weight:600">93.8%</td><td style="color:var(--success)">+1.3%</td><td>1.4%/mes</td><td><span class="status-badge success">Alta (80%)</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: IA INSIGHTS -->
+                    <div class="tab-content" id="tab-ia-insights">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Centro de IA</h1><p class="page-subtitle">Análisis automatizado e inteligencia</p></div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                            <div class="ai-panel">
+                                <div class="ai-panel-header">
+                                    <div><h3 style="font-size:16px;font-weight:600;margin-bottom:4px;">Resumen Automático</h3><p style="font-size:12px;opacity:0.8">Generado por IA</p></div>
+                                </div>
+                                <div class="ai-insight">
+                                    <div class="ai-insight-title"><i class="fas fa-lightbulb"></i> Hallazgo Principal</div>
+                                    <div class="ai-insight-text">La institución ha mejorado +2.1pp vs mes anterior, impulsado por Expansión (+5.2pp). Transformación Organizacional presenta el mayor riesgo.</div>
+                                </div>
+                                <div class="ai-insight">
+                                    <div class="ai-insight-title"><i class="fas fa-chart-line"></i> Tendencia Detectada</div>
+                                    <div class="ai-insight-text">7 indicadores muestran deterioro acelerado. Sectores más afectados: Docencia y Proyectos de Investigación.</div>
+                                </div>
+                                <div class="ai-insight">
+                                    <div class="ai-insight-title"><i class="fas fa-exclamation-triangle"></i> Riesgo Predicho</div>
+                                    <div class="ai-insight-text">5 indicadores cruzarán a Peligro en 60 días. Probabilidad de cierre bajo meta: 78%.</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="chart-card" style="margin-bottom: 20px;">
+                                    <div class="chart-header"><div class="chart-title">Recomendaciones</div></div>
+                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                        <div class="ai-insight" style="background: var(--bg-light);">
+                                            <div class="ai-insight-title" style="color: var(--danger);"><i class="fas fa-exclamation-circle"></i> Prioridad Alta</div>
+                                            <div class="ai-insight-text">Crear OM para "Tasa de Graduación" - 3 meses en deterioro continuo.</div>
+                                        </div>
+                                        <div class="ai-insight" style="background: var(--bg-light);">
+                                            <div class="ai-insight-title" style="color: var(--warning);"><i class="fas fa-exclamation-triangle"></i> Prioridad Media</div>
+                                            <div class="ai-insight-text">Revisar proceso "Publicaciones Scielo" - Concentración atípica de riesgo.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chart-card">
+                                    <div class="chart-header"><div class="chart-title">Copiloto</div></div>
+                                    <div style="display:flex;flex-direction:column;gap:8px;">
+                                        <button class="filter-select" style="text-align:left;font-size:12px">¿Cuál es el indicador más crítico?</button>
+                                        <button class="filter-select" style="text-align:left;font-size:12px">¿Qué pasó con Investigación?</button>
+                                        <div class="ai-chat">
+                                            <input type="text" class="ai-chat-input" placeholder="Escribe tu pregunta...">
+                                            <button class="ai-chat-btn"><i class="fas fa-paper-plane"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEVEL 2: TÁCTICO -->
+                <div class="page-content" id="page-level-2">
+                    <div class="tabs-container">
+                        <div class="tab-item active" data-tab="seguimiento-area" onclick="showTab('seguimiento-area', 2)" style="cursor:pointer">Seguimiento por Área</div>
+                        <div class="tab-item" data-tab="gestion-om" onclick="showTab('gestion-om', 2)" style="cursor:pointer">Gestión OM</div>
+                        <div class="tab-item" data-tab="proyectos" onclick="showTab('proyectos', 2)" style="cursor:pointer">Proyectos</div>
+                        <div class="tab-item" data-tab="comparativas" onclick="showTab('comparativas', 2)" style="cursor:pointer">Comparativas</div>
+                    </div>
+
+                    <!-- TAB: SEGUIMIENTO POR ÁREA -->
+                    <div class="tab-content active" id="tab-tactico-seguimiento-area">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Seguimiento por Proceso</h1><p class="page-subtitle">Desempeño detallado por proceso y subproceso</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Procesos Activos</span></div>
+                                <div class="kpi-value">24</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Cumplimiento Promedio</span></div>
+                                <div class="kpi-value">85.4%</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Indicadores en Peligro</span></div>
+                                <div class="kpi-value" style="color:var(--danger)">18</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Indicadores por Proceso</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>Proceso</th><th>Indicadores</th><th>Cumplimiento</th><th>En Peligro</th><th>En Alerta</th><th>Tendencia</th></tr></thead>
+                                <tbody>
+                                    <tr class="clickable"><td><i class="fas fa-chevron-right" style="margin-right:8px;color:var(--text-muted)"></i>Docencia</td><td>345</td><td><span class="status-badge success">91.2%</span></td><td>12</td><td>28</td><td><i class="fas fa-arrow-up" style="color:var(--success)"></i></td></tr>
+                                    <tr class="clickable"><td><i class="fas fa-chevron-right" style="margin-right:8px;color:var(--text-muted)"></i>Investigación</td><td>289</td><td><span class="status-badge warning">82.5%</span></td><td>18</td><td>35</td><td><i class="fas fa-arrow-down" style="color:var(--danger)"></i></td></tr>
+                                    <tr class="clickable"><td><i class="fas fa-chevron-right" style="margin-right:8px;color:var(--text-muted)"></i>Extensión</td><td>198</td><td><span class="status-badge success">88.7%</span></td><td>8</td><td>22</td><td><i class="fas fa-minus" style="color:var(--text-muted)"></i></td></tr>
+                                    <tr class="clickable"><td><i class="fas fa-chevron-right" style="margin-right:8px;color:var(--text-muted)"></i>Gestión</td><td>245</td><td><span class="status-badge success">89.1%</span></td><td>14</td><td>25</td><td><i class="fas fa-arrow-up" style="color:var(--success)"></i></td></tr>
+                                    <tr class="clickable"><td><i class="fas fa-chevron-right" style="margin-right:8px;color:var(--text-muted)"></i>Planeación</td><td>170</td><td><span class="status-badge warning">78.3%</span></td><td>22</td><td>28</td><td><i class="fas fa-arrow-down" style="color:var(--danger)"></i></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: GESTIÓN OM -->
+                    <div class="tab-content" id="tab-tactico-gestion-om">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Gestión de Oportunidades de Mejora</h1><p class="page-subtitle">Panel OM vinculadas a indicadores en riesgo</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">OM Abiertas</span></div>
+                                <div class="kpi-value" style="color:var(--danger)">45</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">En Ejecución</span></div>
+                                <div class="kpi-value" style="color:var(--warning)">38</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Cerradas</span></div>
+                                <div class="kpi-value" style="color:var(--success)">156</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Avance Promedio</span></div>
+                                <div class="kpi-value">62%</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Estado de OM por Indicador</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>ID OM</th><th>Indicador</th><th>Avance</th><th>Responsable</th><th>Estado</th><th>Fecha Límite</th></tr></thead>
+                                <tbody>
+                                    <tr><td>OM-2025-0156</td><td>Tasa de Graduación</td><td><div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:45%;background:var(--secondary)"></div></div>45%</td><td>Decano</td><td><span class="status-badge warning">En Ejecución</span></td><td>15 Mar 2026</td></tr>
+                                    <tr><td>OM-2025-0234</td><td>Publicaciones Scielo</td><td><div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:72%;background:var(--secondary)"></div></div>72%</td><td>Director Inv.</td><td><span class="status-badge warning">En Ejecución</span></td><td>28 Feb 2026</td></tr>
+                                    <tr><td>OM-2025-0089</td><td>Índice de Docencia</td><td><div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:30%;background:var(--warning)"></div></div>30%</td><td>Coordinador</td><td><span class="status-badge danger">Retrasada</span></td><td>10 Feb 2026</td></tr>
+                                    <tr><td>OM-2025-0312</td><td>Proyectos Ext.</td><td><div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:85%;background:var(--success)"></div></div>85%</td><td>Director Ext.</td><td><span class="status-badge success">Cerrada</span></td><td>Ene 2026</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Kanban de OM</div></div>
+                            <div class="kanban-board">
+                                <div class="kanban-column">
+                                    <div class="kanban-header" style="border-color:var(--danger)">
+                                        <span class="kanban-title">Abierta</span><span class="kanban-count">12</span>
+                                    </div>
+                                    <div class="kanban-card">
+                                        <div style="font-size:12px;font-weight:600;margin-bottom:4px">OM-0156</div>
+                                        <div style="font-size:11px;color:var(--text-secondary)">Tasa Graduación</div>
+                                        <div class="mini-chart"><div class="mini-bar" style="height:40%"></div><div class="mini-bar" style="height:50%"></div><div class="mini-bar" style="height:45%"></div></div>
+                                    </div>
+                                    <div class="kanban-card">
+                                        <div style="font-size:12px;font-weight:600;margin-bottom:4px">OM-0234</div>
+                                        <div style="font-size:11px;color:var(--text-secondary)">Publicaciones</div>
+                                    </div>
+                                </div>
+                                <div class="kanban-column">
+                                    <div class="kanban-header" style="border-color:var(--warning)">
+                                        <span class="kanban-title">En Ejecución</span><span class="kanban-count">18</span>
+                                    </div>
+                                    <div class="kanban-card">
+                                        <div style="font-size:12px;font-weight:600;margin-bottom:4px">OM-0089</div>
+                                        <div style="font-size:11px;color:var(--text-secondary)">Índice Docencia</div>
+                                        <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:30%;background:var(--warning)"></div></div>
+                                    </div>
+                                </div>
+                                <div class="kanban-column">
+                                    <div class="kanban-header" style="border-color:var(--secondary)">
+                                        <span class="kanban-title">Revision</span><span class="kanban-count">8</span>
+                                    </div>
+                                    <div class="kanban-card">
+                                        <div style="font-size:12px;font-weight:600;margin-bottom:4px">OM-0178</div>
+                                        <div style="font-size:11px;color:var(--text-secondary)">Satisfacción</div>
+                                    </div>
+                                </div>
+                                <div class="kanban-column">
+                                    <div class="kanban-header" style="border-color:var(--success)">
+                                        <span class="kanban-title">Cerrada</span><span class="kanban-count">45</span>
+                                    </div>
+                                    <div class="kanban-card">
+                                        <div style="font-size:12px;font-weight:600;margin-bottom:4px">OM-0312</div>
+                                        <div style="font-size:11px;color:var(--text-secondary)">Proyectos Ext.</div>
+                                        <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:100%;background:var(--success)"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: PROYECTOS -->
+                    <div class="tab-content" id="tab-tactico-proyectos">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Proyectos Estratégicos</h1><p class="page-subtitle">Seguimiento de proyectos PDI</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Proyectos Activos</span></div>
+                                <div class="kpi-value">28</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">En Tiempo</span></div>
+                                <div class="kpi-value" style="color:var(--success)">18</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Con Retraso</span></div>
+                                <div class="kpi-value" style="color:var(--warning)">7</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Avance Promedio</span></div>
+                                <div class="kpi-value">65%</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Proyectos PDI</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>Proyecto</th><th>Línea PDI</th><th>Indicadores Vinculados</th><th>Avance</th><th>Estado</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Modernización Aulas</td><td><span class="filter-chip" style="background:#FBAF17;color:white">Transformación</span></td><td>8</td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:75%;background:var(--secondary)"></div></div>75%</td><td><span class="status-badge success">En Tiempo</span></td></tr>
+                                    <tr><td>Certificación ISO 9001</td><td><span class="filter-chip" style="background:#EC0677;color:white">Calidad</span></td><td>12</td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:45%;background:var(--warning)"></div></div>45%</td><td><span class="status-badge warning">En Riesgo</span></td></tr>
+                                    <tr><td>Expansión Sede</td><td><span class="filter-chip" style="background:#FBAF17;color:white">Expansión</span></td><td>15</td><td><div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:90%;background:var(--success)"></div></div>90%</td><td><span class="status-badge success">En Tiempo</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: COMPARATIVAS -->
+                    <div class="tab-content" id="tab-tactico-comparativas">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Análisis Comparativo</h1><p class="page-subtitle">Comparativas período a período</p></div>
+                        </div>
+
+                        <div class="charts-grid">
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Comparativa Anual</div></div>
+                                <div class="bar-chart" style="height:250px">
+                                    <div class="bar-item"><div class="bar" style="height:180px;background:var(--primary)"><span class="bar-value" style="color:var(--primary)">2022</span></div><span class="bar-label">72%</span></div>
+                                    <div class="bar-item"><div class="bar" style="height:200px;background:var(--primary-light)"><span class="bar-value" style="color:var(--primary-light)">2023</span></div><span class="bar-label">78%</span></div>
+                                    <div class="bar-item"><div class="bar" style="height:220px;background:var(--secondary)"><span class="bar-value" style="color:var(--secondary)">2024</span></div><span class="bar-label">85%</span></div>
+                                    <div class="bar-item"><div class="bar" style="height:235px;background:var(--accent)"><span class="bar-value" style="color:var(--accent)">2025</span></div><span class="bar-label">87%</span></div>
+                                </div>
+                            </div>
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Comparativa Mensual 2025</div></div>
+                                <div class="line-chart" id="comparativa-mensual"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEVEL 3: OPERATIVO -->
+                <div class="page-content" id="page-level-3">
+                    <div class="tabs-container">
+                        <div class="tab-item active" data-tab="explorador" onclick="showTab('explorador', 3)" style="cursor:pointer">Explorador</div>
+                        <div class="tab-item" data-tab="trazabilidad" onclick="showTab('trazabilidad', 3)" style="cursor:pointer">Trazabilidad</div>
+                        <div class="tab-item" data-tab="calidad" onclick="showTab('calidad', 3)" style="cursor:pointer">Calidad</div>
+                        <div class="tab-item" data-tab="auditorias" onclick="showTab('auditorias', 3)" style="cursor:pointer">Auditorías</div>
+                    </div>
+
+                    <!-- TAB: EXPLORADOR -->
+                    <div class="tab-content active" id="tab-operativo-explorador">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Explorador de Indicadores</h1><p class="page-subtitle">Consulta granular de cualquier indicador</p></div>
+                        </div>
+
+                        <div style="display:flex;gap:12px;margin-bottom:24px">
+                            <input type="text" class="filter-input" placeholder="Buscar por ID o nombre..." style="flex:1">
+                            <select class="filter-select" style="width:200px">
+                                <option>Todos los estados</option>
+                                <option>Peligro</option>
+                                <option>Alerta</option>
+                            </select>
+                            <button class="filter-select" style="width:auto;background:var(--secondary);color:white;border:none"><i class="fas fa-search"></i> Buscar</button>
+                        </div>
+
+                        <div class="chart-card full">
+                            <table class="data-table">
+                                <thead><tr><th>ID</th><th>Indicador</th><th>Proceso</th><th>Meta</th><th>Ejecución</th><th>Cumpl.</th><th>Período</th><th>Estado</th></tr></thead>
+                                <tbody>
+                                    <tr><td>IND-0156</td><td>Tasa de Graduación Pregrado</td><td>Docencia</td><td>85%</td><td>58%</td><td><span class="status-badge danger">68%</span></td><td>Dic 2025</td><td><button class="filter-select" style="width:auto;padding:4px 8px">Ver</button></td></tr>
+                                    <tr><td>IND-0234</td><td>Publicaciones Scielo</td><td>Investigación</td><td>95%</td><td>74%</td><td><span class="status-badge warning">78%</span></td><td>Dic 2025</td><td><button class="filter-select" style="width:auto;padding:4px 8px">Ver</button></td></tr>
+                                    <tr><td>IND-0089</td><td>Índice de Docencia</td><td>Docencia</td><td>90%</td><td>73%</td><td><span class="status-badge warning">81%</span></td><td>Dic 2025</td><td><button class="filter-select" style="width:auto;padding:4px 8px">Ver</button></td></tr>
+                                    <tr><td>IND-0312</td><td>Proyectos Extensionistas</td><td>Extensión</td><td>90%</td><td>77%</td><td><span class="status-badge warning">85%</span></td><td>Dic 2025</td><td><button class="filter-select" style="width:auto;padding:4px 8px">Ver</button></td></tr>
+                                    <tr><td>IND-0178</td><td>Satisfacción Estudiantil</td><td>Experiencia</td><td>90%</td><td>74%</td><td><span class="status-badge warning">82%</span></td><td>Dic 2025</td><td><button class="filter-select" style="width:auto;padding:4px 8px">Ver</button></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: TRAZABILIDAD -->
+                    <div class="tab-content" id="tab-operativo-trazabilidad">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Trazabilidad y QC</h1><p class="page-subtitle">Auditoría técnica del pipeline</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Última Ejecución</span></div>
+                                <div class="kpi-value" style="font-size:20px">22 Abr 2026</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Registros Procesados</span></div>
+                                <div class="kpi-value">62,847</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Éxito ETL</span></div>
+                                <div class="kpi-value" style="color:var(--success)">99.8%</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Log de Ejecuciones</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>Fecha</th><th>Hora</th><th>Fuente</th><th>Registros</th><th>Exitosos</th><th>Errores</th><th>Estado</th></tr></thead>
+                                <tbody>
+                                    <tr><td>22 Abr 2026</td><td>14:30</td><td>API Kawak</td><td>5,234</td><td>5,230</td><td>4</td><td><span class="status-badge warning">Parcial</span></td></tr>
+                                    <tr><td>22 Abr 2026</td><td>08:00</td><td>Excel Historico</td><td>12,456</td><td>12,456</td><td>0</td><td><span class="status-badge success">Exitoso</span></td></tr>
+                                    <tr><td>21 Abr 2026</td><td>14:30</td><td>API Kawak</td><td>5,189</td><td>5,189</td><td>0</td><td><span class="status-badge success">Exitoso</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: CALIDAD -->
+                    <div class="tab-content" id="tab-operativo-calidad">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Calidad de Datos</h1><p class="page-subtitle">Métricas de calidad desde Monitoreo</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Score Global</span></div>
+                                <div class="kpi-value" style="color:var(--success)">92%</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Cumple</span></div>
+                                <div class="kpi-value" style="color:var(--success)">78%</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Cumple Parcial</span></div>
+                                <div class="kpi-value" style="color:var(--warning)">15%</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">No Cumple</span></div>
+                                <div class="kpi-value" style="color:var(--danger)">7%</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card full">
+                            <div class="chart-header"><div class="chart-title">Por Criterio de Calidad</div></div>
+                            <table class="data-table">
+                                <thead><tr><th>Criterio</th><th>Score</th><th>Cumple</th><th>Parcial</th><th>No Cumple</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Oportunidad</td><td><span class="status-badge success">95%</span></td><td>92%</td><td>5%</td><td>3%</td></tr>
+                                    <tr><td>Completitud</td><td><span class="status-badge success">91%</span></td><td>85%</td><td>10%</td><td>5%</td></tr>
+                                    <tr><td>Consistencia</td><td><span class="status-badge warning">88%</span></td><td>78%</td><td>18%</td><td>4%</td></tr>
+                                    <tr><td>Precisión</td><td><span class="status-badge success">94%</span></td><td>88%</td><td>8%</td><td>4%</td></tr>
+                                    <tr><td>Protocolo</td><td><span class="status-badge success">92%</span></td><td>86%</td><td>10%</td><td>4%</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: AUDITORÍAS -->
+                    <div class="tab-content" id="tab-operativo-auditorias">
+                        <div class="page-header">
+                            <div><h1 class="page-title">Auditorías</h1><p class="page-subtitle">Hallazgos de auditoría interna y externa</p></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Fortalezas</span></div>
+                                <div class="kpi-value" style="color:var(--success)">24</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Oportunidades</span></div>
+                                <div class="kpi-value" style="color:var(--warning)">18</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">Hallazgos</span></div>
+                                <div class="kpi-value" style="color:var(--danger)">12</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header"><span class="kpi-label">No Conformidades</span></div>
+                                <div class="kpi-value" style="color:var(--danger)">3</div>
+                            </div>
+                        </div>
+
+                        <div class="charts-grid">
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Auditoría Interna</div></div>
+                                <div style="display:flex;flex-direction:column;gap:12px">
+                                    <div class="alert-card" style="border-left-color:var(--success)">
+                                        <div class="alert-title" style="color:var(--success)"><i class="fas fa-check-circle"></i> Fortaleza</div>
+                                        <div class="alert-description">Sistema de indicadores bien estructurado con trazabilidad clara.</div>
+                                    </div>
+                                    <div class="alert-card" style="border-left-color:var(--warning)">
+                                        <div class="alert-title" style="color:var(--warning)"><i class="fas fa-lightbulb"></i> Oportunidad</div>
+                                        <div class="alert-description">Mejorar frecuencia de actualización de datos.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-card half">
+                                <div class="chart-header"><div class="chart-title">Auditoría Externa Icontec</div></div>
+                                <div style="display:flex;flex-direction:column;gap:12px">
+                                    <div class="alert-card" style="border-left-color:var(--danger)">
+                                        <div class="alert-title" style="color:var(--danger)"><i class="fas fa-exclamation-circle"></i> No Conformidad</div>
+                                        <div class="alert-description">Falta evidencia de revisión de indicadores en algunos procesos.</div>
+                                    </div>
+                                    <div class="alert-card" style="border-left-color:var(--secondary)">
+                                        <div class="alert-title" style="color:var(--secondary)"><i class="fas fa-search"></i> Hallazgo</div>
+                                        <div class="alert-description">Se recomienda formalizar proceso de gestión de OM.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <div><span>Datos actualizados: 22 Abr 2026 14:30</span><span style="margin:0 8px">|</span><span>Versión: 1.0.0</span></div>
+            <div class="footer-links">
+                <a href="#" class="footer-link">Ayuda</a>
+                <a href="#" class="footer-link">Documentación</a>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const dataLineas = [
+            { nombre: 'Expansión', cumplimiento: 92.1, color: '#FBAF17' },
+            { nombre: 'Transformación', cumplimiento: 78.4, color: '#06B6D4' },
+            { nombre: 'Calidad', cumplimiento: 88.5, color: '#EC0677' },
+            { nombre: 'Experiencia', cumplimiento: 81.2, color: '#0EA5E9' },
+            { nombre: 'Sostenibilidad', cumplimiento: 91.5, color: '#84CC16' },
+            { nombre: 'Educación', cumplimiento: 89.2, color: '#6366F1' }
+        ];
+
+        const dataRiesgos = [
+            { nombre: 'Expansión', cantidad: 3, color: '#FBAF17' },
+            { nombre: 'Transformación', cantidad: 12, color: '#06B6D4' },
+            { nombre: 'Calidad', cantidad: 8, color: '#EC0677' },
+            { nombre: 'Experiencia', cantidad: 15, color: '#0EA5E9' },
+            { nombre: 'Sostenibilidad', cantidad: 2, color: '#84CC16' },
+            { nombre: 'Educación', cantidad: 2, color: '#6366F1' }
+        ];
+
+        const dataTendencia = [78, 82, 79, 85, 83, 88, 86, 84, 87, 85, 89, 87.3];
+        const dataHeatmap = [[95,92,88,85,90,87],[72,68,75,70,78,82],[85,88,86,82,85,89],[78,82,79,75,80,83],[90,92,89,91,94,92],[82,85,87,84,86,88]];
+
+        function initCharts() {
+            initBarChart();
+            initLineChart();
+            initHeatmap();
+            initSunburst();
+            initRiesgoChart();
+            initComparativa();
+        }
+
+        function initBarChart() {
+            const container = document.getElementById('linea-chart');
+            if (!container) return;
+            let html = '';
+            dataLineas.forEach(item => {
+                const height = item.cumplimiento * 1.8;
+                html += `<div class="bar-item"><div class="bar" style="height:${height}px;background:${item.color}"><span class="bar-value" style="color:${item.color}">${item.cumplimiento}%</span></div><span class="bar-label">${item.nombre.substring(0,4)}</span></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function initLineChart() {
+            const container = document.getElementById('tendencia-chart');
+            if (!container) return;
+            const max = Math.max(...dataTendencia);
+            const min = Math.min(...dataTendencia);
+            const range = max - min || 1;
+            let path = '';
+            let points = '';
+            dataTendencia.forEach((val, i) => {
+                const x = (i / (dataTendencia.length - 1)) * 100;
+                const y = 100 - ((val - min) / range) * 100;
+                points += (i === 0 ? '' : ' ') + `${x},${y}`;
+                path += (i === 0 ? 'M' : 'L') + ` ${x},${y}`;
+            });
+            const svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#2563EB;stop-opacity:0.3"/><stop offset="100%" style="stop-color:#2563EB;stop-opacity:0"/></linearGradient></defs><path d="${path} L 100,100 L 0,100 Z" fill="url(#g)"/><path d="${path}" fill="none" stroke="#2563EB" stroke-width="2"/>${points.split(' ').map(p => {const [x,y]=p.split(',');return `<circle cx="${x}"cy="${y}"r="2"fill="#2563EB"/>`}).join('')}</svg>`;
+            container.innerHTML = svg;
+        }
+
+        function initHeatmap() {
+            const container = document.getElementById('heatmap');
+            if (!container) return;
+            const meses = ['Ene','Feb','Mar','Abr','May','Jun'];
+            let html = '<div style="display:contents;font-size:10px;color:var(--text-muted);grid-row:1">';
+            meses.forEach(m => { html += `<div style="text-align:center;padding:4px">${m}</div>`; });
+            html += '</div>';
+            dataHeatmap.forEach((row, i) => {
+                html += `<div style="font-size:10px;color:var(--text-muted);writing-mode:vertical-rl;padding:4px">${dataLineas[i].nombre}</div>`;
+                row.forEach(val => {
+                    const color = val >= 90 ? '#10B981' : val >= 80 ? '#F59E0B' : '#EF4444';
+                    html += `<div class="heatmap-cell" style="background:${color}">${val}%</div>`;
+                });
+            });
+            container.innerHTML = html;
+            container.style.gridTemplateColumns = '60px repeat(6,1fr)';
+        }
+
+        function initSunburst() {
+            const container = document.getElementById('sunburst-svg');
+            if (!container) return;
+            let html = '';
+            let offset = 0;
+            dataLineas.forEach((item, i) => {
+                const dash = item.cumplimiento * 0.628;
+                const radius = 35 - i * 5;
+                const circumference = 2 * Math.PI * radius;
+                html += `<circle cx="50"cy="50"r="${radius}"fill="none"stroke="${item.color}"stroke-width="${8-i}"stroke-dasharray="${dash} ${circumference-dash}"stroke-dashoffset="${-offset}"stroke-linecap="round"/>`;
+                offset += dash;
+            });
+            container.innerHTML = html;
+            const legend = document.getElementById('sunburst-legend');
+            if (legend) {
+                let legendHtml = '';
+                dataLineas.forEach(item => {
+                    legendHtml += `<div class="legend-item"><div class="legend-dot"style="background:${item.color}"></div><span class="legend-label">${item.nombre}</span><span class="legend-value">${item.cumplimiento}%</span></div>`;
+                });
+                legend.innerHTML = legendHtml;
+            }
+        }
+
+        function initRiesgoChart() {
+            const container = document.getElementById('riesgo-linea-chart');
+            if (!container) return;
+            let html = '';
+            dataRiesgos.forEach(item => {
+                const height = item.cantidad * 12;
+                html += `<div class="bar-item"><div class="bar"style="height:${height}px;background:${item.color}"><span class="bar-value"style="color:${item.color}">${item.cantidad}</span></div><span class="bar-label">${item.nombre.substring(0,4)}</span></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function initComparativa() {
+            const container = document.getElementById('comparativa-mensual');
+            if (!container) return;
+            const data = [82,85,83,88,86,90,87,89,91,88,92,87.3];
+            let path = '';
+            data.forEach((val,i) => {
+                const x = (i/(data.length-1))*100;
+                const y = 100-((val-80)/15)*100;
+                path += (i===0?'M':'L')+` ${x},${y}`;
+            });
+            container.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${path}"fill="none"stroke="#2563EB"stroke-width="2"/></svg>`;
+        }
+
+function showTab(tabName, levelNum) {
+            console.log("CLICK: " + tabName + " nivel: " + levelNum);
+            
+            // Build correct ID - nivel 1 necesita "tab-" prefix
+            var tabId = "tab-" + tabName;
+            if (levelNum == 2) tabId = "tab-tactico-" + tabName;
+            if (levelNum == 3) tabId = "tab-operativo-" + tabName;
+            
+            console.log("targetId: " + tabId);
+            if (levelNum == 2) tabId = "tab-tactico-" + tabName;
+            if (levelNum == 3) tabId = "tab-operativo-" + tabName;
+            
+            // Hide all tab contents in this page only
+            var pageEl = document.getElementById("page-level-" + levelNum);
+            if (pageEl) {
+                var pageContents = pageEl.querySelectorAll(".tab-content");
+                for (var i = 0; i < pageContents.length; i++) {
+                    pageContents[i].classList.remove("active");
+                    pageContents[i].style.display = "none";
+                }
+            }
+            
+            // Get target - try multiple ID formats
+            var targetContent = document.getElementById(tabId);
+            if (!targetContent && levelNum == 1) {
+                // Try without prefix for level 1
+                targetContent = document.getElementById("tab-" + tabName);
+            }
+            
+            // Force show!
+            if (targetContent) {
+                targetContent.classList.add("active");
+                targetContent.style.display = "block";
+                targetContent.style.visibility = "visible";
+                targetContent.style.opacity = "1";
+            } else {
+                alert("NO Encontrado: " + tabId);
+            }
+            
+            // Update tabs in this page
+            if (pageEl) {
+                var tabs = pageEl.querySelectorAll(".tab-item");
+                for (var i = 0; i < tabs.length; i++) {
+                    tabs[i].classList.remove("active");
+                    if (tabs[i].getAttribute("data-tab") == tabName) {
+                        tabs[i].classList.add("active");
+                    }
+                }
+            }
+        }
+        
+        function switchLevel(levelNum) {
+            // Hide all pages
+            var allPages = document.querySelectorAll(".page-content");
+            for (var i = 0; i < allPages.length; i++) {
+                allPages[i].classList.remove("active");
+                allPages[i].style.display = "none";
+            }
+            
+            // Show target page
+            var targetPage = document.getElementById("page-level-" + levelNum);
+            if (targetPage) {
+                targetPage.classList.add("active");
+                targetPage.style.display = "block";
+            }
+            
+            // Update nav tabs
+            var navTabs = document.querySelectorAll(".header-nav .nav-tab");
+            for (var i = 0; i < navTabs.length; i++) {
+                navTabs[i].classList.remove("active");
+                if (navTabs[i].getAttribute("data-level") == levelNum) {
+                    navTabs[i].classList.add("active");
+                }
+            }
+            
+            // Update filters
+            document.getElementById("level1-filters").style.display = (levelNum == 1) ? "block" : "none";
+            document.getElementById("level2-filters").style.display = (levelNum == 2) ? "block" : "none";
+            document.getElementById("level3-filters").style.display = (levelNum == 3) ? "block" : "none";
+        }
+        
+        function switchLevel(levelNum) {
+            var allPages = document.querySelectorAll(".page-content");
+            for (var i = 0; i < allPages.length; i++) {
+                allPages[i].style.display = "none";
+                allPages[i].classList.remove("active");
+            }
+            
+            document.getElementById("page-level-" + levelNum).style.display = "block";
+            document.getElementById("page-level-" + levelNum).classList.add("active");
+            
+            var navTabs = document.querySelectorAll(".header-nav .nav-tab");
+            for (var i = 0; i < navTabs.length; i++) {
+                navTabs[i].classList.remove("active");
+            }
+            for (var i = 0; i < navTabs.length; i++) {
+                if (navTabs[i].getAttribute("data-level") == levelNum) {
+                    navTabs[i].classList.add("active");
+                }
+            }
+            
+            document.getElementById("level1-filters").style.display = (levelNum == 1) ? "block" : "none";
+            document.getElementById("level2-filters").style.display = (levelNum == 2) ? "block" : "none";
+            document.getElementById("level3-filters").style.display = (levelNum == 3) ? "block" : "none";
+        }
+
+        function showTab(tabId, level) {
+            // Determinar el prefijo según el nivel
+            var prefix = '';
+            if (level === 2) prefix = 'tab-tactico-';
+            else if (level === 3) prefix = 'tab-operativo-';
+            
+            // El ID completo del contenido
+            var targetId = prefix + tabId;
+            
+            console.log('showTab llamado: tabId=' + tabId + ', level=' + level + ', targetId=' + targetId);
+            
+            // Encontrar la página actual
+            var pageEl = document.getElementById('page-level-' + level);
+            if (!pageEl) {
+                console.log('ERROR: No se encontró page-level-' + level);
+                return;
+            }
+            
+            // Desactivar todos los tabs y contenidos en este nivel
+            var tabs = pageEl.querySelectorAll('.tab-item');
+            var contents = pageEl.querySelectorAll('.tab-content');
+            
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            for (var i = 0; i < contents.length; i++) {
+                contents[i].classList.remove('active');
+            }
+            
+            // Activar el tab correcto
+            var tabElements = pageEl.querySelectorAll('.tab-item');
+            for (var i = 0; i < tabElements.length; i++) {
+                if (tabElements[i].getAttribute('data-tab') === tabId) {
+                    tabElements[i].classList.add('active');
+                }
+            }
+            
+            // Activar el contenido correcto
+            var contentEl = document.getElementById(targetId);
+            if (contentEl) {
+                contentEl.classList.add('active');
+                console.log(' Activado: ' + targetId);
+            } else {
+                console.log('ERROR: No se encontro ' + targetId);
+            }
+            
+            // Inicializar gráficos
+            setTimeout(function() {
+                if (typeof initCharts === 'function') {
+                    initCharts();
+                }
+            }, 50);
+        }
+
+        function filterLine(line) {
+            document.querySelectorAll('#level1-filters .filter-chip').forEach(chip => {
+                chip.classList.remove('active');
+                if (chip.dataset.line === line) chip.classList.add('active');
+            });
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() { 
+            console.log('DASHBOARD CARGADO OK');
+            initCharts(); 
+        });
+        
+        // Also init on load
+        window.onload = function() {
+            console.log('WINDOW LOADED');
+            initCharts();
+        };
+    </script>
+</body>
+</html>

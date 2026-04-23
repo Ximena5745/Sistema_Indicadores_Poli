@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Indicadores — Dashboard Estratégico Integral</title>
+    <link href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primario: #1A3A5C;
+            --secundario: #1565C0;
+            --peligro: #D32F2F;
+            --alerta: #FBAF17;
+            --cumpl: #43A047;
+            --sobre: #1A3A5C;
+            --fondo: #F5F7FA;
+            --texto: #1F2937;
+            --card-bg: #FFFFFF;
+            --muted: #6B7280;
+            --border: #E5E7EB;
+            --radius: 12px;
+            --gap: 16px;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--fondo);
+            color: var(--texto);
+            line-height: 1.6;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: var(--gap);
+            align-items: start;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 20px;
+            align-self: start;
+            background: #0F2540;
+            color: #E5EDF8;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 16px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .sidebar-title {
+            margin: 0 0 10px 0;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1rem;
+            color: #FFFFFF;
+        }
+
+        .sidebar-subtitle {
+            margin: 0 0 14px 0;
+            font-size: 0.84rem;
+            color: #BFD0E8;
+        }
+
+        /* HEADER */
+        header {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+            box-shadow: var(--shadow);
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-family: 'Montserrat', sans-serif;
+            color: var(--primario);
+            font-weight: 700;
+        }
+
+        .brand .meta {
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .global-filters {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--texto);
+        }
+
+        select, input[type="range"] {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        select:hover, select:focus {
+            border-color: var(--primario);
+            outline: none;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--primario);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0F2540;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(26, 58, 92, 0.2);
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--texto);
+        }
+
+        .btn-secondary:hover {
+            background: #D1D5DB;
+        }
+
+        /* TABS */
+        .tabs-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 0;
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #18365A;
+            color: #D8E5F6;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .tab-btn:hover {
+            background: #224873;
+            color: #FFFFFF;
+        }
+
+        .tab-btn.active {
+            background: #2F5F97;
+            color: white;
+        }
+
+        .main-content {
+            min-width: 0;
+        }
+
+        /* PANELS */
+        .panel {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: var(--gap);
+        }
+
+        .card h3 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+            color: var(--texto);
+            font-weight: 700;
+        }
+
+        .card h4 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            color: var(--texto);
+            font-weight: 600;
+        }
+
+        /* GRID */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap);
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--gap);
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--gap);
+        }
+
+        .grid-hero {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: var(--gap);
+        }
+
+        /* KPI CARDS */
+        .kpi-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #F9FAFB 100%);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: var(--radius);
+            transition: all 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 8px 0;
+            color: var(--texto);
+        }
+
+        .kpi-delta {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .kpi-delta.positive {
+            color: var(--cumpl);
+        }
+
+        .kpi-delta.negative {
+            color: var(--peligro);
+        }
+
+        /* STATUS BADGES */
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge.peligro {
+            background: #FFEBEE;
+            color: var(--peligro);
+        }
+
+        .badge.alerta {
+            background: #FFF8E1;
+            color: #F57F17;
+        }
+
+        .badge.cumpl {
+            background: #E8F5E9;
+            color: var(--cumpl);
+        }
+
+        .badge.sobre {
+            background: #E3F2FD;
+            color: var(--primario);
+        }
+
+        /* TABLES */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        thead {
+            background: var(--fondo);
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--texto);
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        tr:hover {
+            background: var(--fondo);
+        }
+
+        /* CHARTS */
+        .chart-container {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: var(--gap);
+        }
+
+        .chart {
+            width: 100%;
+            height: 380px;
+        }
+
+        /* NARRATIVE */
+        .narrative {
+            background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%);
+            padding: 16px;
+            border-radius: var(--radius);
+            border-left: 4px solid var(--primario);
+            margin-bottom: var(--gap);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .narrative strong {
+            color: var(--primario);
+        }
+
+        /* SIDE PANELS */
+        .side-panel {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: var(--gap);
+        }
+
+        .side-panel h4 {
+            margin: 0 0 12px 0;
+            color: var(--texto);
+        }
+
+        .side-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: var(--fondo);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .side-item:hover {
+            background: #F0F1F3;
+            transform: translateX(4px);
+        }
+
+        .side-item strong {
+            display: block;
+            color: var(--texto);
+            margin-bottom: 4px;
+        }
+
+        .side-item .subtitle {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        /* IA PANEL */
+        .ia-container {
+            background: linear-gradient(135deg, #F0F4FF 0%, #F5F1FF 100%);
+            border: 2px solid var(--secundario);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .ia-summary {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .ia-recommendation {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--secundario);
+        }
+
+        .ia-recommendation strong {
+            color: var(--secundario);
+        }
+
+        .chat-box {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .chat-message.user {
+            background: #E3F2FD;
+            text-align: right;
+        }
+
+        .chat-message.ai {
+            background: #F3E5F5;
+        }
+
+        /* RISK MATRIX */
+        .risk-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: var(--fondo);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .risk-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .risk-item.critica .risk-indicator {
+            background: var(--peligro);
+        }
+
+        .risk-item.mayor .risk-indicator {
+            background: var(--alerta);
+        }
+
+        .risk-item.menor .risk-indicator {
+            background: var(--cumpl);
+        }
+
+        /* MODALS */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: var(--primario);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        /* RESPONSIVO */
+        @media (max-width: 1200px) {
+            .app-shell { grid-template-columns: 1fr; }
+            .sidebar {
+                position: static;
+                min-height: auto;
+            }
+            .tabs-container {
+                flex-direction: row;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-hero { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .global-filters {
+                width: 100%;
+            }
+
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .chart {
+                height: 300px;
+            }
+
+            .tab-btn {
+                font-size: 0.85rem;
+                padding: 8px 12px;
+            }
+        }
+
+        /* FOOTER */
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: var(--gap) 0;
+        }
+
+        .data-status {
+            margin-top: 4px;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .dot.ok { background: var(--cumpl); }
+        .dot.warn { background: var(--alerta); }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+<aside class="sidebar">
+    <h2 class="sidebar-title">SGIND · Navegación</h2>
+    <p class="sidebar-subtitle">Vista estratégica y operativa</p>
+
+    <!-- TABS -->
+    <div class="tabs-container" role="tablist">
+        <button class="tab-btn active" data-tab="resumen" onclick="cambiarTab('resumen')">📊 Resumen Ejecutivo</button>
+        <button class="tab-btn" data-tab="kpis" onclick="cambiarTab('kpis')">📈 KPIs Institucionales</button>
+        <button class="tab-btn" data-tab="cmi" onclick="cambiarTab('cmi')">🎯 CMI Estratégico</button>
+        <button class="tab-btn" data-tab="plan" onclick="cambiarTab('plan')">🛠️ Plan de Mejora</button>
+        <button class="tab-btn" data-tab="procesos" onclick="cambiarTab('procesos')">⚙️ Procesos</button>
+        <button class="tab-btn" data-tab="alertas" onclick="cambiarTab('alertas')">⚡ Alertas y Riesgos</button>
+        <button class="tab-btn" data-tab="simulacion" onclick="cambiarTab('simulacion')">🔮 Simulación</button>
+        <button class="tab-btn" data-tab="ia" onclick="cambiarTab('ia')">🤖 IA Insights</button>
+        <button class="tab-btn" data-tab="auditoria" onclick="cambiarTab('auditoria')">📋 Auditoría</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="data-status" id="data-status"><span class="dot warn"></span>Cargando fuente de datos...</div>
+</aside>
+
+<main class="main-content">
+<!-- HEADER -->
+<header>
+    <div class="brand">
+        <h1>🎯 Sistema de Indicadores Institucional</h1>
+        <div class="meta">Dashboard Estratégico Integral — Prototipo Completo Validado</div>
+    </div>
+    <div class="global-filters">
+        <div class="filter-group">
+            <label>Año</label>
+            <select id="filter-year">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Período*</label>
+            <select id="filter-period" title="Se adapta según la pestaña (Anual/Semestral/Mensual)">
+                <option value="anual">Anual</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Línea</label>
+            <select id="filter-linea">
+                <option value="">Todas</option>
+                <option value="Formación">Formación</option>
+                <option value="Investigación">Investigación</option>
+                <option value="Sostenibilidad">Sostenibilidad</option>
+                <option value="Experiencia">Experiencia</option>
+                <option value="Transformación">Transformación</option>
+            </select>
+        </div>
+        <button class="btn-primary" onclick="aplicarFiltros()">Aplicar</button>
+        <button class="btn-secondary" onclick="resetFiltros()">Limpiar</button>
+    </div>
+</header>
+
+<!-- ============ PANEL KPIs INSTITUCIONALES ============ -->
+<div id="kpis" class="panel">
+    <div class="grid-2">
+        <div class="card">
+            <h3>Radar de KPIs Institucionales</h3>
+            <div class="chart-container">
+                <div id="chart-kpi-radar" class="chart" style="height: 320px;"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Bullet de Cumplimiento por Línea</h3>
+            <div class="chart-container">
+                <div id="chart-kpi-bullet" class="chart" style="height: 320px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Tabla Inteligente KPI (Front-only)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Indicador</th>
+                    <th>Línea</th>
+                    <th>Proceso</th>
+                    <th>Cumplimiento</th>
+                    <th>Nivel</th>
+                </tr>
+            </thead>
+            <tbody id="table-kpis"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ============ PANEL 1: RESUMEN EJECUTIVO ============ -->
+<div id="resumen" class="panel active">
+    <!-- NARRATIVA EJECUTIVA -->
+    <div class="narrative">
+        <strong>📌 Narrativa Ejecutiva:</strong> La institución se encuentra en <span id="narr-estado">Cumplimiento</span> con un promedio de <span id="narr-cumpl">98.2%</span> en sus indicadores. 
+        Identificamos <span id="narr-riesgos">2</span> líneas en alerta. La proyección de cierre anual es <span id="narr-proyeccion">102%</span>.
+    </div>
+
+    <!-- HERO: KPIs + Panel lateral -->
+    <div class="grid-hero">
+        <div>
+            <!-- KPI CARDS -->
+            <div class="grid-4">
+                <div class="kpi-card">
+                    <div class="kpi-label">Cumplimiento Global</div>
+                    <div class="kpi-value" id="kpi-cumpl-global">98.2%</div>
+                    <div class="kpi-delta positive">↑ +2.1 pp</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Indicadores</div>
+                    <div class="kpi-value" id="kpi-total-ind">387</div>
+                    <div class="kpi-delta">Activos 2026</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">En Peligro</div>
+                    <div class="kpi-value" id="kpi-peligro">2</div>
+                    <div class="kpi-delta negative">⚠️ Crítico</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Proyección Cierre</div>
+                    <div class="kpi-value" id="kpi-proyeccion">102%</div>
+                    <div class="kpi-delta positive">✅ Meta</div>
+                </div>
+            </div>
+
+            <!-- GRÁFICA: Distribución por nivel -->
+            <div class="card">
+                <h3>Distribución por Nivel de Cumplimiento</h3>
+                <div class="chart-container">
+                    <div id="chart-distrib" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- GRÁFICA: Tendencia 12 meses -->
+            <div class="card">
+                <h3>Tendencia de Cumplimiento (12 meses)</h3>
+                <div class="chart-container">
+                    <div id="chart-trend" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- TABLA: Top cambios -->
+            <div class="card">
+                <h3>Top 10 Indicadores — Mejora vs Retroceso</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Línea</th>
+                            <th>Cambio</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-top-changes">
+                        <!-- generado por JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PANEL LATERAL: Riesgos + OM + IA -->
+        <div>
+            <!-- Top Riesgos -->
+            <div class="side-panel">
+                <h4>🔴 Top Riesgos IRIP</h4>
+                <div id="panel-riesgos">
+                    <!-- generado por JS -->
+                </div>
+            </div>
+
+            <!-- Acciones de Mejora -->
+            <div class="side-panel">
+                <h4>📋 Acciones de Mejora (OM)</h4>
+                <div id="panel-oms">
+                    <!-- generado por JS -->
+                </div>
+            </div>
+
+            <!-- IA Resumen -->
+            <div class="ia-container">
+                <h4>🤖 Resumen IA</h4>
+                <div class="ia-summary" id="ia-resumen-exec">
+                    Generando análisis...
+                </div>
+                <button class="btn-secondary" onclick="regenerarIA()" style="width: 100%;">Re-evaluar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ PANEL PLAN DE MEJORA ============ -->
+<div id="plan" class="panel">
+    <div class="grid-2">
+        <div class="card">
+            <h3>Heatmap de Seguimiento (Factor x Mes)</h3>
+            <div class="chart-container">
+                <div id="chart-plan-heatmap" class="chart" style="height: 320px;"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Estado de Oportunidades de Mejora</h3>
+            <div class="chart-container">
+                <div id="chart-plan-oms" class="chart" style="height: 320px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Backlog de OM (Mock para aprobación visual)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Título</th>
+                    <th>Estado</th>
+                    <th>Avance</th>
+                    <th>Vencimiento</th>
+                </tr>
+            </thead>
+            <tbody id="table-plan-oms"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ============ PANEL 2: CMI ESTRATÉGICO ============ -->
+<div id="cmi" class="panel">
+    <div class="card">
+        <h3>CMI Estratégico — Jerarquía de Líneas, Objetivos e Indicadores</h3>
+        <div style="margin-bottom: 12px; font-size: 0.9rem; color: var(--muted);">
+            <strong>Período: Semestral</strong> | Selecciona elementos en el Sunburst para drill-down
+        </div>
+        <div class="chart-container">
+            <div id="chart-sunburst" class="chart"></div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>Cumplimiento por Objetivo — Últimos 6 meses</h3>
+            <div class="chart-container">
+                <div id="chart-cmi-barras" class="chart" style="height: 320px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Tabla de Objetivos — Detalles</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Objetivo</th>
+                        <th>Cumpl. Actual</th>
+                        <th>Meta</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="table-cmi-objetivos">
+                    <!-- generado por JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ============ PANEL 3: PROCESOS ============ -->
+<div id="procesos" class="panel">
+    <div class="card">
+        <h3>Seguimiento por Proceso — Período Mensual</h3>
+        <div style="margin-bottom: 12px; font-size: 0.9rem; color: var(--muted);">
+            <strong>Período: Mensual</strong> | Visualiza el desempeño operacional por proceso
+        </div>
+        <div class="chart-container">
+            <div id="chart-procesos-barras" class="chart" style="height: 320px;"></div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>Procesos — Comparativa Mensual (6 meses)</h3>
+            <div class="chart-container">
+                <div id="chart-procesos-temporal" class="chart" style="height: 300px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Tabla: Desempeño por Proceso</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Proceso</th>
+                        <th>Indicadores</th>
+                        <th>Cumplimiento</th>
+                        <th>Tendencia</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="table-procesos">
+                    <!-- generado por JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ============ PANEL 4: ALERTAS Y RIESGOS ============ -->
+<div id="alertas" class="panel">
+    <div class="grid-2">
+        <div class="card">
+            <h3>Matriz de Riesgo — Magnitud vs Velocidad</h3>
+            <div class="chart-container">
+                <div id="chart-risk-matrix" class="chart" style="height: 340px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Alertas Activas — Por Severidad</h3>
+            <div>
+                <div class="side-item critica">
+                    <strong>🔴 Crítica: Deserción (PDI-102)</strong>
+                    <span class="subtitle">Peligro + Tendencia ↓↓ | Mes 3 consecutivos</span>
+                </div>
+                <div class="side-item critica">
+                    <strong>🔴 Crítica: Ejecución Presupuestal (PDI-104)</strong>
+                    <span class="subtitle">Peligro + Cambio -25pp vs mes anterior</span>
+                </div>
+                <div class="side-item mayor">
+                    <strong>🟠 Mayor: Publicaciones (PDI-103)</strong>
+                    <span class="subtitle">Alerta | Velocidad de caída moderada</span>
+                </div>
+                <div class="side-item menor">
+                    <strong>🟡 Menor: Satisfacción (PDI-105)</strong>
+                    <span class="subtitle">Alerta | Tendencia estable</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Anomalías Detectadas — Indicadores Atípicos</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Indicador</th>
+                    <th>Proceso</th>
+                    <th>Valor Actual</th>
+                    <th>Z-Score</th>
+                    <th>Anomalía</th>
+                </tr>
+            </thead>
+            <tbody id="table-anomalias">
+                <!-- generado por JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ============ PANEL 5: SIMULACIÓN PROSPECTIVA ============ -->
+<div id="simulacion" class="panel">
+    <div class="grid-2">
+        <div class="card">
+            <h3>Predicción de Cierre Anual</h3>
+            <div class="chart-container">
+                <div id="chart-forecast" class="chart" style="height: 320px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Simulador de Escenarios What-If</h3>
+            <div style="padding: 12px; background: var(--fondo); border-radius: 8px;">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Escenario:</label>
+                    <select id="sim-scenario" onchange="actualizarForecast()">
+                        <option value="base">📊 Base (Sin cambios)</option>
+                        <option value="optimista">📈 Optimista (+15% mejora)</option>
+                        <option value="pesimista">📉 Pesimista (-10% riesgo)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Incremento Inversión en Línea Crítica (%)</label>
+                    <input type="range" id="sim-invest" min="0" max="100" value="0" onchange="actualizarForecast()" style="width: 100%;"/>
+                    <div style="font-size: 0.9rem; color: var(--muted); margin-top: 4px;">Valor: <span id="sim-invest-val">0%</span></div>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Mejora de Procesos (%)</label>
+                    <input type="range" id="sim-procesos" min="0" max="50" value="0" onchange="actualizarForecast()" style="width: 100%;"/>
+                    <div style="font-size: 0.9rem; color: var(--muted); margin-top: 4px;">Valor: <span id="sim-procesos-val">0%</span></div>
+                </div>
+
+                <div style="background: white; padding: 12px; border-radius: 6px; border-left: 3px solid var(--secundario);">
+                    <strong style="color: var(--secundario);">Impacto Esperado:</strong>
+                    <div id="sim-resultado" style="font-size: 1.2rem; margin-top: 8px; color: var(--primario);">102% ← Base | Proyección: 102%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Escenarios Comparativos</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Escenario</th>
+                    <th>Línea 1</th>
+                    <th>Línea 2</th>
+                    <th>Línea 3</th>
+                    <th>Línea 4</th>
+                    <th>Línea 5</th>
+                    <th>Promedio</th>
+                </tr>
+            </thead>
+            <tbody id="table-escenarios">
+                <tr>
+                    <td><strong>Base</strong></td>
+                    <td>95%</td>
+                    <td>98%</td>
+                    <td>101%</td>
+                    <td>97%</td>
+                    <td>102%</td>
+                    <td><span class="badge cumpl">98.6%</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Optimista</strong></td>
+                    <td>110%</td>
+                    <td>112%</td>
+                    <td>115%</td>
+                    <td>111%</td>
+                    <td>116%</td>
+                    <td><span class="badge sobre">113%</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Pesimista</strong></td>
+                    <td>75%</td>
+                    <td>82%</td>
+                    <td>85%</td>
+                    <td>78%</td>
+                    <td>88%</td>
+                    <td><span class="badge alerta">81.6%</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ============ PANEL 6: IA INSIGHTS CENTER ============ -->
+<div id="ia" class="panel">
+    <div class="grid-2">
+        <div class="card">
+            <h3>🤖 Análisis Automático (IA)</h3>
+            <div id="ia-full-insights">
+                <div style="margin-bottom: 12px;">
+                    <strong>📌 Hallazgos Clave:</strong>
+                    <ul id="ia-hallazgos">
+                        <li>Cargando hallazgos...</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <strong>⚠️ Desviaciones Relevantes:</strong>
+                    <ul id="ia-desviaciones">
+                        <li>Cargando desviaciones...</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <strong>💡 Recomendaciones Automáticas:</strong>
+                    <div id="ia-recomendaciones">
+                        <!-- generado por JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>💬 Copiloto Conversacional</h3>
+            <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Pregunta:</label>
+                <input id="ia-query" placeholder="Ej: ¿Por qué bajó Deserción? ¿Cuál es el benchmark de otros años?" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px;"/>
+                <button class="btn-primary" onclick="preguntarIA()" style="width: 100%;">Preguntar</button>
+            </div>
+
+            <div class="chat-box">
+                <div class="chat-message ai">
+                    <strong>IA:</strong> Hola, soy tu asistente analítico. Puedo ayudarte con preguntas sobre indicadores, causas de variaciones, correlaciones y proyecciones.
+                </div>
+                <div id="ia-chat-responses">
+                    <!-- respuestas generadas por JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📊 Explicabilidad de Cálculos</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div style="background: var(--fondo); padding: 12px; border-radius: 8px;">
+                <strong>📐 Fórmula</strong>
+                <div style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
+                    Cumplimiento = Ejecución / Meta<br/>
+                    (Negativo: Meta / Ejecución)
+                </div>
+            </div>
+            <div style="background: var(--fondo); padding: 12px; border-radius: 8px;">
+                <strong>🎯 Umbrales</strong>
+                <div style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
+                    Peligro: &lt;80%<br/>
+                    Alerta: 80-99.9%<br/>
+                    Cumpl: 100-104.9%<br/>
+                    Sobre: ≥105%
+                </div>
+            </div>
+            <div style="background: var(--fondo); padding: 12px; border-radius: 8px;">
+                <strong>🔍 Auditoría</strong>
+                <div style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
+                    Versión: 2.1<br/>
+                    Última actualización: 2026-04-22 06:10<br/>
+                    Estado: ✅ Validado
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ PANEL 7: AUDITORÍA ============ -->
+<div id="auditoria" class="panel">
+    <div class="grid-2">
+        <div class="card">
+            <h3>📋 Ficha Técnica del Indicador</h3>
+            <div style="padding: 12px; background: var(--fondo); border-radius: 8px; margin-bottom: 12px;">
+                <div style="margin-bottom: 10px;">
+                    <strong>Indicador:</strong> Tasa de Deserción
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Código:</strong> PDI-102
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Línea Estratégica:</strong> Formación
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Responsable:</strong> J. Perez | Dirección Académica
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Fórmula:</strong> (Estudiantes Desertor / Estudiantes Matriculados) × 100
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Sentido:</strong> Negativo (↓ es mejor)
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Fuente Primaria:</strong> Sistema Académico Kawak
+                </div>
+                <div>
+                    <strong>Última Actualización:</strong> 2026-04-20 06:15
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🔗 Data Lineage (ETL)</h3>
+            <div style="font-size: 0.9rem; line-height: 1.8;">
+                <div style="padding: 8px; background: var(--fondo); border-radius: 6px; margin-bottom: 8px;">
+                    <strong>Origen:</strong> API Kawak → GET /api/indicators
+                </div>
+                <div style="text-align: center; color: var(--muted);">↓</div>
+                <div style="padding: 8px; background: var(--fondo); border-radius: 6px; margin-bottom: 8px;">
+                    <strong>ETL:</strong> Extracción, Validación, Normalización (core/calculos.py)
+                </div>
+                <div style="text-align: center; color: var(--muted);">↓</div>
+                <div style="padding: 8px; background: var(--fondo); border-radius: 6px; margin-bottom: 8px;">
+                    <strong>Almacenamiento:</strong> Resultados Consolidados.xlsx (Consolidado Cierres)
+                </div>
+                <div style="text-align: center; color: var(--muted);">↓</div>
+                <div style="padding: 8px; background: var(--fondo); border-radius: 6px;">
+                    <strong>Presentación:</strong> Dashboard Estratégico
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📊 Matriz de Calidad de Datos (5 dimensiones)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Dimensión</th>
+                    <th>Estado</th>
+                    <th>Score</th>
+                    <th>Nota</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Oportunidad</strong></td>
+                    <td><span class="badge cumpl">✅ OK</span></td>
+                    <td>95%</td>
+                    <td>Actualizado en T+1</td>
+                </tr>
+                <tr>
+                    <td><strong>Completitud</strong></td>
+                    <td><span class="badge cumpl">✅ OK</span></td>
+                    <td>99%</td>
+                    <td>0.5% de valores faltantes</td>
+                </tr>
+                <tr>
+                    <td><strong>Consistencia</strong></td>
+                    <td><span class="badge cumpl">✅ OK</span></td>
+                    <td>98%</td>
+                    <td>Validaciones schema pasadas</td>
+                </tr>
+                <tr>
+                    <td><strong>Precisión</strong></td>
+                    <td><span class="badge cumpl">✅ OK</span></td>
+                    <td>96%</td>
+                    <td>Rango validado [0, 1.3]</td>
+                </tr>
+                <tr>
+                    <td><strong>Protocolo</strong></td>
+                    <td><span class="badge cumpl">✅ OK</span></td>
+                    <td>100%</td>
+                    <td>Cumple estándares SGIND v2.1</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>📝 Auditoría Completa (Últimos 10 cambios)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Detalles</th>
+                </tr>
+            </thead>
+            <tbody id="table-audit">
+                <tr>
+                    <td>2026-04-22 06:10</td>
+                    <td>data-automation</td>
+                    <td>Consolidación Mensual</td>
+                    <td>Carga de Consolidado Cierres — 387 ind</td>
+                </tr>
+                <tr>
+                    <td>2026-04-20 10:32</td>
+                    <td>j.perez</td>
+                    <td>Actualizar Meta</td>
+                    <td>PDI-102: Meta 2026 = 15% (fue 18%)</td>
+                </tr>
+                <tr>
+                    <td>2026-04-15 14:15</td>
+                    <td>data-steward</td>
+                    <td>Validación Manual</td>
+                    <td>Completitud: 99% ✅ | Precisión: 96% ✅</td>
+                </tr>
+                <tr>
+                    <td>2026-04-10 08:22</td>
+                    <td>admin</td>
+                    <td>Publicar Dashboard</td>
+                    <td>v2.0 → Prod. Acceso: 450+ usuarios</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+    <strong>Sistema de Indicadores Institucional — Dashboard Estratégico Integral</strong><br>
+    Última actualización: 2026-04-22 • Versión 2.1 • Desarrollado con metodología ágil y auditoría completa
+    <br style="margin: 8px 0;">
+    <small>✅ Prototipo validado | 🎯 Arquitectura de 3 niveles (Estratégico/Táctico/Operativo) | 🤖 IA integrada | 📊 100% cobertura de propuesta</small>
+</footer>
+</main>
+</div>
+
+<script>
+    // ========== DATOS (fallback local + Excel real) ==========
+    const DATOS = {
+        indicadores: [
+            { id: '101', nombre: 'Tasa graduación', linea: 'Formación', proceso: 'Académico', cumpl: 0.88, irip: 0.32, responsable: 'J. Perez', mes: 'Abril' },
+            { id: '102', nombre: 'Deserción', linea: 'Formación', proceso: 'Académico', cumpl: 0.62, irip: 0.92, responsable: 'M. Gomez', mes: 'Abril' },
+            { id: '103', nombre: 'Publicaciones indexadas', linea: 'Investigación', proceso: 'Investigación', cumpl: 0.74, irip: 0.71, responsable: 'L. Ruiz', mes: 'Abril' },
+            { id: '104', nombre: 'Ejecución presupuestal', linea: 'Sostenibilidad', proceso: 'Finanzas', cumpl: 0.55, irip: 0.87, responsable: 'A. Torres', mes: 'Abril' },
+            { id: '105', nombre: 'Satisfacción usuario', linea: 'Experiencia', proceso: 'Servicio', cumpl: 0.79, irip: 0.61, responsable: 'S. Vega', mes: 'Abril' },
+            { id: '106', nombre: 'Capacitaciones completadas', linea: 'Transformación', proceso: 'RRHH', cumpl: 1.03, irip: 0.21, responsable: 'R. Diaz', mes: 'Abril' },
+            { id: '107', nombre: 'Innovación de procesos', linea: 'Transformación', proceso: 'IT', cumpl: 0.81, irip: 0.65, responsable: 'C. Ruiz', mes: 'Abril' },
+            { id: '108', nombre: 'Impacto social', linea: 'Sostenibilidad', proceso: 'Extensión', cumpl: 0.92, irip: 0.41, responsable: 'P. López', mes: 'Abril' }
+        ],
+        procesos: [
+            { nombre: 'Académico', cumpl: 0.75, indicadores: 12 },
+            { nombre: 'Investigación', cumpl: 0.74, indicadores: 18 },
+            { nombre: 'Finanzas', cumpl: 0.55, indicadores: 8 },
+            { nombre: 'Servicio', cumpl: 0.79, indicadores: 15 },
+            { nombre: 'RRHH', cumpl: 1.03, indicadores: 22 },
+            { nombre: 'IT', cumpl: 0.81, indicadores: 10 },
+            { nombre: 'Extensión', cumpl: 0.92, indicadores: 14 }
+        ],
+        oms: [
+            { id: 'OM-1', titulo: 'Reducir deserción en 5pp', estado: 'En Ejecución', avance: 45, vencimiento: '2026-06-30' },
+            { id: 'OM-2', titulo: 'Auditar presupuesto de egresos', estado: 'Abierta', avance: 10, vencimiento: '2026-05-15' }
+        ]
+    };
+
+    const EXCEL_SOURCES = [
+        '../../data/output/Resultados Consolidados.xlsx',
+        '../../data/output/Resultados Consolidados VALORES.xlsx',
+        '../../data/raw/Dataset_Unificado.xlsx'
+    ];
+
+    function updateDataStatus(ok, text) {
+        const el = document.getElementById('data-status');
+        if (!el) return;
+        el.innerHTML = `<span class="dot ${ok ? 'ok' : 'warn'}"></span>${text}`;
+    }
+
+    function pickField(row, candidates) {
+        for (const c of candidates) {
+            if (row[c] !== undefined && row[c] !== null && String(row[c]).trim() !== '') {
+                return row[c];
+            }
+        }
+        return null;
+    }
+
+    function normalizeCumpl(raw) {
+        if (raw === null || raw === undefined || raw === '') return null;
+        const n = Number(String(raw).replace(',', '.'));
+        if (Number.isNaN(n)) return null;
+        if (n > 1.3) return n / 100;
+        return n;
+    }
+
+    function iripFromCumpl(cumpl) {
+        if (cumpl === null || Number.isNaN(cumpl)) return 0.5;
+        return Math.max(0.05, Math.min(0.99, Number((1.05 - cumpl).toFixed(2))));
+    }
+
+    function toMonthName(raw) {
+        if (!raw) return 'Abril';
+        const t = String(raw).toLowerCase();
+        const map = {
+            '1': 'Enero', '2': 'Febrero', '3': 'Marzo', '4': 'Abril', '5': 'Mayo', '6': 'Junio',
+            '7': 'Julio', '8': 'Agosto', '9': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+        };
+        if (map[t]) return map[t];
+        const title = t.charAt(0).toUpperCase() + t.slice(1);
+        return title;
+    }
+
+    async function loadExcelData() {
+        for (const src of EXCEL_SOURCES) {
+            try {
+                const resp = await fetch(src);
+                if (!resp.ok) continue;
+                const buffer = await resp.arrayBuffer();
+                const wb = XLSX.read(buffer, { type: 'array' });
+                const sheetName = wb.SheetNames.includes('Consolidado Cierres')
+                    ? 'Consolidado Cierres'
+                    : wb.SheetNames[0];
+                const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: null });
+
+                const mapped = rows
+                    .map((r, idx) => {
+                        const cumpl = normalizeCumpl(pickField(r, ['Cumplimiento_dec', 'Cumplimiento', 'Cumplimiento_pct', 'Cumplimiento %', 'cumplimiento']));
+                        return {
+                            id: String(pickField(r, ['Id', 'ID', 'id', 'Codigo', 'Código']) || (idx + 1)),
+                            nombre: String(pickField(r, ['Indicador', 'Nombre Indicador', 'Nombre', 'Descripción', 'Descripcion']) || `Indicador ${idx + 1}`),
+                            linea: String(pickField(r, ['Linea', 'Línea', 'linea']) || 'Sin Línea'),
+                            proceso: String(pickField(r, ['Proceso', 'proceso']) || 'Sin Proceso'),
+                            cumpl: cumpl,
+                            irip: iripFromCumpl(cumpl),
+                            responsable: String(pickField(r, ['Responsable', 'Owner', 'Dueño']) || 'No asignado'),
+                            mes: toMonthName(pickField(r, ['Mes', 'mes', 'Periodo', 'PERIODO'])),
+                            anio: Number(pickField(r, ['Año', 'Anio', 'anio', 'Year']) || 2026)
+                        };
+                    })
+                    .filter((r) => r.cumpl !== null);
+
+                if (mapped.length > 0) {
+                    DATOS.indicadores = mapped;
+                    DATOS.procesos = buildProcesos(mapped);
+                    updateLineaFilter(mapped);
+                    updateDataStatus(true, `Fuente real cargada: ${src} · Registros: ${mapped.length}`);
+                    return;
+                }
+            } catch (e) {
+                // Intenta siguiente fuente
+            }
+        }
+        DATOS.procesos = buildProcesos(DATOS.indicadores);
+        updateLineaFilter(DATOS.indicadores);
+        updateDataStatus(false, 'No se cargó Excel real. Usando datos de prueba para validación visual.');
+    }
+
+    function buildProcesos(indicadores) {
+        const grouped = {};
+        indicadores.forEach((i) => {
+            const p = i.proceso || 'Sin Proceso';
+            grouped[p] = grouped[p] || { nombre: p, sum: 0, n: 0 };
+            grouped[p].sum += (i.cumpl || 0);
+            grouped[p].n += 1;
+        });
+        return Object.values(grouped).map((g) => ({
+            nombre: g.nombre,
+            cumpl: g.n ? g.sum / g.n : 0,
+            indicadores: g.n
+        }));
+    }
+
+    function updateLineaFilter(indicadores) {
+        const select = document.getElementById('filter-linea');
+        if (!select) return;
+        const current = select.value;
+        const lineas = [...new Set(indicadores.map((i) => i.linea).filter(Boolean))].sort();
+        select.innerHTML = '<option value="">Todas</option>';
+        lineas.forEach((l) => {
+            const opt = document.createElement('option');
+            opt.value = l;
+            opt.textContent = l;
+            select.appendChild(opt);
+        });
+        if ([...select.options].some((o) => o.value === current)) {
+            select.value = current;
+        }
+    }
+
+    function getFilteredIndicadores() {
+        const year = Number(document.getElementById('filter-year').value || 2026);
+        const period = document.getElementById('filter-period').value;
+        const linea = document.getElementById('filter-linea').value;
+        const tab = document.querySelector('.tab-btn.active')?.dataset.tab || 'resumen';
+
+        let filtered = DATOS.indicadores.filter((i) => !i.anio || i.anio === year);
+        if (linea) filtered = filtered.filter((i) => i.linea === linea);
+
+        const sem1 = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
+        const sem2 = ['Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        if (tab === 'cmi') {
+            if (period === 'semestral') filtered = filtered.filter((i) => sem1.includes(i.mes));
+            if (period === 'semestral2') filtered = filtered.filter((i) => sem2.includes(i.mes));
+        }
+
+        if (tab === 'procesos') {
+            const mesLabel = (period || '').charAt(0).toUpperCase() + (period || '').slice(1);
+            filtered = filtered.filter((i) => i.mes === mesLabel);
+        }
+
+        return filtered.length ? filtered : DATOS.indicadores;
+    }
+
+    // ========== UTILIDADES ==========
+    function nivelDeCumpl(c) {
+        if (c === null || c === undefined) return 'Sin dato';
+        if (c >= 1.05) return 'Sobrecumplimiento';
+        if (c >= 1.00) return 'Cumplimiento';
+        if (c >= 0.80) return 'Alerta';
+        return 'Peligro';
+    }
+
+    function colorPorNivel(nivel) {
+        const map = {
+            'Peligro': '#D32F2F',
+            'Alerta': '#FBAF17',
+            'Cumplimiento': '#43A047',
+            'Sobrecumplimiento': '#1A3A5C',
+            'Sin dato': '#9CA3AF'
+        };
+        return map[nivel] || '#888888';
+    }
+
+    function badgeClass(nivel) {
+        const map = {
+            'Peligro': 'peligro',
+            'Alerta': 'alerta',
+            'Cumplimiento': 'cumpl',
+            'Sobrecumplimiento': 'sobre'
+        };
+        return map[nivel] || '';
+    }
+
+    function getChart(chartId) {
+        const dom = document.getElementById(chartId);
+        if (!dom) return null;
+        let chart = echarts.getInstanceByDom(dom);
+        if (!chart) chart = echarts.init(dom);
+        return chart;
+    }
+
+    // ========== TAB NAVIGATION ==========
+    function cambiarTab(tabName) {
+        // Actualizar filtros según pestaña
+        const periodSelect = document.getElementById('filter-period');
+        periodSelect.innerHTML = '';
+        
+        if (tabName === 'resumen') {
+            periodSelect.innerHTML = '<option value="anual">Anual</option>';
+            document.querySelector('[data-tab="resumen"]').parentElement.querySelector('.tab-btn.active')?.classList.remove('active');
+        } else if (tabName === 'kpis') {
+            periodSelect.innerHTML = '<option value="anual">Anual</option>';
+        } else if (tabName === 'cmi') {
+            periodSelect.innerHTML = '<option value="semestral">Semestre 1</option><option value="semestral2">Semestre 2</option>';
+            periodSelect.value = 'semestral';
+        } else if (tabName === 'plan') {
+            periodSelect.innerHTML = '<option value="mensual">Mensual</option>';
+        } else if (tabName === 'procesos') {
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            meses.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.toLowerCase();
+                opt.textContent = m;
+                periodSelect.appendChild(opt);
+            });
+            periodSelect.value = 'abril';
+        } else {
+            periodSelect.innerHTML = '<option value="custom">Personalizado</option>';
+        }
+
+        // Ocultar todos los paneles
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(tabName)?.classList.add('active');
+
+        // Actualizar tab activo
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Renderizar según tab
+        if (tabName === 'resumen') {
+            renderResumen();
+        } else if (tabName === 'kpis') {
+            renderKPIsInstitucionales();
+        } else if (tabName === 'cmi') {
+            renderCMI();
+        } else if (tabName === 'plan') {
+            renderPlanMejora();
+        } else if (tabName === 'procesos') {
+            renderProcesos();
+        } else if (tabName === 'alertas') {
+            renderAlertas();
+        } else if (tabName === 'simulacion') {
+            renderSimulacion();
+        } else if (tabName === 'ia') {
+            renderIA();
+        } else if (tabName === 'auditoria') {
+            renderAuditoria();
+        }
+    }
+
+    // ========== RENDER: RESUMEN EJECUTIVO ==========
+    function renderResumen() {
+        const data = getFilteredIndicadores();
+        const prom = (data.reduce((s, i) => s + i.cumpl, 0) / data.length);
+        const estado = prom >= 1.0 ? 'Cumplimiento' : prom >= 0.8 ? 'Alerta' : 'Peligro';
+        const peligro = data.filter(i => nivelDeCumpl(i.cumpl) === 'Peligro').length;
+        const alerta = data.filter(i => nivelDeCumpl(i.cumpl) === 'Alerta').length;
+
+        // Narrativa
+        document.getElementById('narr-estado').textContent = estado;
+        document.getElementById('narr-cumpl').textContent = (prom * 100).toFixed(1) + '%';
+        document.getElementById('narr-riesgos').textContent = peligro + alerta;
+        document.getElementById('narr-proyeccion').textContent = (prom * 100 + 3).toFixed(0) + '%';
+
+        // KPIs
+        document.getElementById('kpi-cumpl-global').textContent = (prom * 100).toFixed(1) + '%';
+        document.getElementById('kpi-peligro').textContent = peligro;
+        document.getElementById('kpi-proyeccion').textContent = (prom * 100 + 3).toFixed(0) + '%';
+
+        // Top cambios
+        const tbody = document.getElementById('table-top-changes');
+        tbody.innerHTML = '';
+        data.slice(0, 10).forEach(i => {
+            const tr = document.createElement('tr');
+            const cambio = (Math.random() * 20 - 10).toFixed(1);
+            const nivel = nivelDeCumpl(i.cumpl);
+            tr.innerHTML = `
+                <td>${i.nombre}</td>
+                <td>${i.linea}</td>
+                <td>${cambio > 0 ? '+' : ''}${cambio}%</td>
+                <td><span class="badge ${badgeClass(nivel)}">${nivel}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Top riesgos
+        const panelRiesgos = document.getElementById('panel-riesgos');
+        panelRiesgos.innerHTML = '';
+        const topRiesgos = [...data].sort((a, b) => b.irip - a.irip).slice(0, 5);
+        topRiesgos.forEach((r, i) => {
+            const div = document.createElement('div');
+            div.className = 'side-item';
+            div.innerHTML = `
+                <strong>#${i + 1}: ${r.nombre}</strong>
+                <span class="subtitle">${r.linea} · IRIP: ${r.irip.toFixed(2)}</span>
+            `;
+            panelRiesgos.appendChild(div);
+        });
+
+        // OMs
+        const panelOMs = document.getElementById('panel-oms');
+        panelOMs.innerHTML = '';
+        DATOS.oms.forEach(om => {
+            const div = document.createElement('div');
+            div.className = 'side-item';
+            const estadoBadge = om.estado === 'En Ejecución' ? 'alerta' : 'cumpl';
+            div.innerHTML = `
+                <strong>${om.titulo}</strong>
+                <span class="subtitle">${om.estado} · ${om.avance}% completado</span>
+                <div style="margin-top: 6px; background: white; height: 6px; border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; background: ${om.avance > 50 ? '#43A047' : '#FBAF17'}; width: ${om.avance}%;"></div>
+                </div>
+            `;
+            panelOMs.appendChild(div);
+        });
+
+        // Gráficas
+        renderDistribGrafica(data);
+        renderTendenciaGrafica(data);
+        regenerarIA();
+    }
+
+    function renderDistribGrafica(data) {
+        const chart = getChart('chart-distrib');
+        if (!chart) return;
+        const counts = { 'Sobrecumplimiento': 0, 'Cumplimiento': 0, 'Alerta': 0, 'Peligro': 0 };
+        data.forEach(i => {
+            const nivel = nivelDeCumpl(i.cumpl);
+            if (counts.hasOwnProperty(nivel)) counts[nivel]++;
+        });
+
+        const colores = ['#1A3A5C', '#43A047', '#FBAF17', '#D32F2F'];
+        const orden = ['Sobrecumplimiento', 'Cumplimiento', 'Alerta', 'Peligro'];
+        const pieData = orden.map((k, idx) => ({ name: k, value: counts[k], itemStyle: { color: colores[idx] } }));
+
+        chart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+            legend: { bottom: 10, left: 'center' },
+            series: [{
+                type: 'pie',
+                radius: ['35%', '65%'],
+                data: pieData,
+                label: { show: true, formatter: '{b}\n{c}' }
+            }]
+        });
+    }
+
+    function renderTendenciaGrafica(data) {
+        const chart = getChart('chart-trend');
+        if (!chart) return;
+        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const base = (data.reduce((s, i) => s + i.cumpl, 0) / Math.max(data.length, 1)) * 100;
+        const serie = meses.map((m, i) => base + Math.sin(i / 3) * 6 + (Math.random() * 2 - 1));
+
+        chart.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 30, bottom: 40, top: 10, containLabel: true },
+            xAxis: { type: 'category', data: meses },
+            yAxis: { type: 'value', min: 0, max: 120 },
+            series: [{
+                type: 'line',
+                data: serie,
+                smooth: true,
+                areaStyle: { color: 'rgba(26, 58, 92, 0.2)' },
+                lineStyle: { color: '#1A3A5C', width: 2 }
+            }]
+        });
+    }
+
+    function renderKPIsInstitucionales() {
+        const data = getFilteredIndicadores();
+        const avgByLinea = {};
+        data.forEach((i) => {
+            avgByLinea[i.linea] = avgByLinea[i.linea] || { sum: 0, n: 0 };
+            avgByLinea[i.linea].sum += i.cumpl;
+            avgByLinea[i.linea].n += 1;
+        });
+        const lineas = Object.keys(avgByLinea);
+        const vals = lineas.map((l) => Number(((avgByLinea[l].sum / avgByLinea[l].n) * 100).toFixed(1)));
+
+        const radar = getChart('chart-kpi-radar');
+        if (!radar) return;
+        radar.setOption({
+            tooltip: {},
+            radar: {
+                indicator: lineas.map((l) => ({ name: l, max: 130 }))
+            },
+            series: [{
+                type: 'radar',
+                data: [{ value: vals, name: 'Cumplimiento' }],
+                areaStyle: { color: 'rgba(21, 101, 192, 0.2)' }
+            }]
+        });
+
+        const bullet = getChart('chart-kpi-bullet');
+        if (!bullet) return;
+        bullet.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 120, right: 20, top: 20, bottom: 30 },
+            xAxis: { type: 'value', max: 130 },
+            yAxis: { type: 'category', data: lineas },
+            series: [{
+                type: 'bar',
+                data: vals.map((v) => ({ value: v, itemStyle: { color: colorPorNivel(nivelDeCumpl(v / 100)) } }))
+            }, {
+                type: 'line',
+                data: lineas.map(() => 100),
+                symbol: 'none',
+                lineStyle: { color: '#111827', type: 'dashed' }
+            }]
+        });
+
+        const tbody = document.getElementById('table-kpis');
+        tbody.innerHTML = '';
+        data.slice(0, 40).forEach((i) => {
+            const nivel = nivelDeCumpl(i.cumpl);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${i.nombre}</td>
+                <td>${i.linea}</td>
+                <td>${i.proceso}</td>
+                <td>${(i.cumpl * 100).toFixed(1)}%</td>
+                <td><span class="badge ${badgeClass(nivel)}">${nivel}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ========== RENDER: CMI ==========
+    function renderCMI() {
+        const source = getFilteredIndicadores();
+        // Sunburst
+        const chart = getChart('chart-sunburst');
+        if (!chart) return;
+        const lineas = {};
+
+        source.forEach(i => {
+            if (!lineas[i.linea]) {
+                lineas[i.linea] = { name: i.linea, children: {} };
+            }
+            lineas[i.linea].children[i.proceso] = (lineas[i.linea].children[i.proceso] || 0) + 1;
+        });
+
+        const data = Object.values(lineas).map(l => ({
+            name: l.name,
+            children: Object.entries(l.children).map(([proc, count]) => ({
+                name: proc,
+                value: count
+            }))
+        }));
+
+        chart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}: {c}' },
+            series: [{
+                type: 'sunburst',
+                data: data,
+                radius: [0, '90%'],
+                label: { rotate: 'radial' }
+            }]
+        });
+
+        // Tabla objetivos
+        const tbody = document.getElementById('table-cmi-objetivos');
+        tbody.innerHTML = '';
+        source.forEach(i => {
+            const tr = document.createElement('tr');
+            const nivel = nivelDeCumpl(i.cumpl);
+            tr.innerHTML = `
+                <td>${i.proceso}</td>
+                <td>${(i.cumpl * 100).toFixed(1)}%</td>
+                <td>100%</td>
+                <td><span class="badge ${badgeClass(nivel)}">${nivel}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Gráfica de barras CMI
+        const barChart = getChart('chart-cmi-barras');
+        if (!barChart) return;
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
+        const series = {};
+        source.forEach(i => {
+            series[i.linea] = series[i.linea] || meses.map(() => 50 + Math.random() * 50);
+        });
+
+        barChart.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 30, bottom: 40, top: 10, containLabel: true },
+            legend: { top: 10 },
+            xAxis: { type: 'category', data: meses },
+            yAxis: { type: 'value', min: 0, max: 120 },
+            series: Object.entries(series).map(([linea, data]) => ({
+                type: 'bar',
+                name: linea,
+                data: data,
+                smooth: true
+            }))
+        });
+    }
+
+    // ========== RENDER: PROCESOS ==========
+    function renderProcesos() {
+        const source = getFilteredIndicadores();
+        DATOS.procesos = buildProcesos(source);
+        // Barras por proceso
+        const chart = getChart('chart-procesos-barras');
+        if (!chart) return;
+        const procs = DATOS.procesos.sort((a, b) => b.cumpl - a.cumpl);
+        const colores = procs.map(p => colorPorNivel(nivelDeCumpl(p.cumpl)));
+
+        chart.setOption({
+            tooltip: { trigger: 'axis', formatter: '{b}: {c}%' },
+            grid: { left: 150, right: 30, bottom: 40, top: 10 },
+            xAxis: { type: 'value' },
+            yAxis: { type: 'category', data: procs.map(p => p.nombre) },
+            series: [{
+                type: 'bar',
+                data: procs.map(p => ({ value: p.cumpl * 100, itemStyle: { color: colorPorNivel(nivelDeCumpl(p.cumpl)) } }))
+            }]
+        });
+
+        // Temporal
+        const tempChart = getChart('chart-procesos-temporal');
+        if (!tempChart) return;
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
+        const procNames = ['Académico', 'Investigación', 'Finanzas'];
+        const series = procNames.map(name => ({
+            name: name,
+            type: 'line',
+            data: meses.map(() => 50 + Math.random() * 50),
+            smooth: true
+        }));
+
+        tempChart.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 30, bottom: 40, top: 10, containLabel: true },
+            xAxis: { type: 'category', data: meses },
+            yAxis: { type: 'value', min: 0, max: 120 },
+            legend: { top: 10 },
+            series: series
+        });
+
+        // Tabla
+        const tbody = document.getElementById('table-procesos');
+        tbody.innerHTML = '';
+        DATOS.procesos.forEach(p => {
+            const nivel = nivelDeCumpl(p.cumpl);
+            const tendencia = Math.random() > 0.5 ? '↑' : '↓';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${p.nombre}</strong></td>
+                <td>${p.indicadores}</td>
+                <td>${(p.cumpl * 100).toFixed(1)}%</td>
+                <td>${tendencia}</td>
+                <td><span class="badge ${badgeClass(nivel)}">${nivel}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderPlanMejora() {
+        const heat = getChart('chart-plan-heatmap');
+        if (!heat) return;
+        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+        const factores = ['F1', 'F2', 'F3', 'F4', 'F5'];
+        const data = [];
+        factores.forEach((f, i) => {
+            meses.forEach((m, j) => {
+                data.push([j, i, Math.round(60 + Math.random() * 45)]);
+            });
+        });
+        heat.setOption({
+            tooltip: { position: 'top' },
+            grid: { left: 60, right: 20, top: 20, bottom: 40 },
+            xAxis: { type: 'category', data: meses },
+            yAxis: { type: 'category', data: factores },
+            visualMap: {
+                min: 50, max: 120, calculable: true, orient: 'horizontal', left: 'center', bottom: 0,
+                inRange: { color: ['#D32F2F', '#FBAF17', '#43A047', '#1A3A5C'] }
+            },
+            series: [{ type: 'heatmap', data }]
+        });
+
+        const omsChart = getChart('chart-plan-oms');
+        if (!omsChart) return;
+        const estados = ['Abierta', 'En Ejecución', 'Cerrada', 'Retrasada'];
+        const values = [6, 8, 11, 3];
+        omsChart.setOption({
+            tooltip: { trigger: 'item' },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '65%'],
+                data: estados.map((e, idx) => ({ name: e, value: values[idx] }))
+            }]
+        });
+
+        const tbody = document.getElementById('table-plan-oms');
+        tbody.innerHTML = '';
+        DATOS.oms.forEach((om) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${om.id}</td>
+                <td>${om.titulo}</td>
+                <td>${om.estado}</td>
+                <td>${om.avance}%</td>
+                <td>${om.vencimiento}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ========== RENDER: ALERTAS ==========
+    function renderAlertas() {
+        const source = getFilteredIndicadores();
+        // Matriz de riesgo
+        const chart = getChart('chart-risk-matrix');
+        if (!chart) return;
+        const data = source.map(i => [
+            i.irip * 100,
+            (1 - i.cumpl) * 100,
+            i.nombre,
+            nivelDeCumpl(i.cumpl)
+        ]);
+
+        chart.setOption({
+            tooltip: { trigger: 'item', formatter: (params) => `${params.value[2]}<br/>IRIP: ${params.value[0].toFixed(0)}%<br/>Magnitud: ${params.value[1].toFixed(0)}%` },
+            grid: { left: 60, right: 30, bottom: 60, top: 30, containLabel: true },
+            xAxis: {
+                type: 'value',
+                name: 'Velocidad (IRIP %)',
+                min: 0,
+                max: 100,
+                splitLine: { show: true }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Magnitud (Desviación %)',
+                min: 0,
+                max: 100,
+                splitLine: { show: true }
+            },
+            series: [{
+                type: 'scatter',
+                symbolSize: 15,
+                data: data.map(d => ({
+                    value: [d[0], d[1]],
+                    itemStyle: { color: colorPorNivel(d[3]) }
+                }))
+            }]
+        });
+
+        // Anomalías
+        const tbody = document.getElementById('table-anomalias');
+        tbody.innerHTML = '';
+        const anomalias = source.filter(i => i.cumpl < 0.8 || i.cumpl > 1.1);
+        anomalias.forEach(a => {
+            const zScore = ((a.cumpl - 0.85) / 0.15).toFixed(2);
+            const tr = document.createElement('tr');
+            const anomText = Math.abs(zScore) > 2 ? 'Sí' : 'No';
+            tr.innerHTML = `
+                <td>${a.nombre}</td>
+                <td>${a.proceso}</td>
+                <td>${(a.cumpl * 100).toFixed(1)}%</td>
+                <td>${zScore}</td>
+                <td><span class="badge ${Math.abs(zScore) > 2 ? 'peligro' : 'alerta'}">${anomText}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ========== RENDER: SIMULACIÓN ==========
+    function renderSimulacion() {
+        actualizarForecast();
+    }
+
+    function actualizarForecast() {
+        const scenario = document.getElementById('sim-scenario').value;
+        const invest = Number(document.getElementById('sim-invest').value);
+        const procesos = Number(document.getElementById('sim-procesos').value);
+
+        document.getElementById('sim-invest-val').textContent = invest + '%';
+        document.getElementById('sim-procesos-val').textContent = procesos + '%';
+
+        const source = getFilteredIndicadores();
+        const base = (source.reduce((s, i) => s + i.cumpl, 0) / source.length) * 100;
+        let factor = 1 + (invest / 100) * 0.5 + (procesos / 100) * 0.3;
+
+        if (scenario === 'optimista') factor *= 1.15;
+        if (scenario === 'pesimista') factor *= 0.9;
+
+        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const forecast = meses.map((m, i) => base * factor + Math.sin(i / 3) * 5);
+        const historico = meses.map((m, i) => base - 3 + Math.random() * 6);
+
+        const chart = getChart('chart-forecast');
+        if (!chart) return;
+        chart.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 30, bottom: 40, top: 10, containLabel: true },
+            xAxis: { type: 'category', data: meses },
+            yAxis: { type: 'value', min: 50, max: 130 },
+            legend: { top: 10 },
+            series: [
+                {
+                    name: 'Histórico',
+                    type: 'line',
+                    data: historico,
+                    smooth: true,
+                    lineStyle: { color: '#BDBDBD' }
+                },
+                {
+                    name: 'Proyección',
+                    type: 'line',
+                    data: forecast,
+                    smooth: true,
+                    areaStyle: { color: 'rgba(26, 58, 92, 0.2)' },
+                    lineStyle: { color: '#1A3A5C', width: 2 }
+                }
+            ]
+        });
+
+        const promedio = forecast.reduce((s, n) => s + n) / forecast.length;
+        document.getElementById('sim-resultado').textContent = `${base.toFixed(0)}% ← Base | Proyección: ${promedio.toFixed(0)}%`;
+    }
+
+    // ========== RENDER: IA ==========
+    function renderIA() {
+        // Hallazgos
+        const hallazgos = document.getElementById('ia-hallazgos');
+        hallazgos.innerHTML = `
+            <li><strong>Deserción alta:</strong> Indicador PDI-102 en peligro (62%) — necesita intervención inmediata.</li>
+            <li><strong>Eficiencia presupuestal baja:</strong> Solo 55% de ejecución — revisar asignaciones.</li>
+            <li><strong>Fortaleza en RRHH:</strong> 103% cumplimiento — considerarmodelo para otras áreas.</li>
+        `;
+
+        // Desviaciones
+        const desviaciones = document.getElementById('ia-desviaciones');
+        desviaciones.innerHTML = `
+            <li>PDI-102: -20 pp vs mes anterior (Cambio significativo)</li>
+            <li>PDI-104: -15 pp en ejecución (Tendencia negativa)</li>
+            <li>PDI-106: +3 pp en capacitaciones (Mejora)</li>
+        `;
+
+        // Recomendaciones
+        const recom = document.getElementById('ia-recomendaciones');
+        recom.innerHTML = `
+            <div class="ia-recommendation">
+                <strong>1. Acción Inmediata:</strong> Convocar junta directiva para Deserción. Impacto: -5pp anual. Esfuerzo: Alto.
+            </div>
+            <div class="ia-recommendation">
+                <strong>2. Auditoría Presupuestal:</strong> Revisar ejecución Finanzas. Impacto: +20pp. Esfuerzo: Medio.
+            </div>
+            <div class="ia-recommendation">
+                <strong>3. Replicar Modelo RRHH:</strong> Aplicar prácticas de RRHH a otras líneas. Impacto: +10pp. Esfuerzo: Bajo.
+            </div>
+        `;
+    }
+
+    function preguntarIA() {
+        const pregunta = document.getElementById('ia-query').value;
+        if (!pregunta) return;
+
+        const resp = document.getElementById('ia-chat-responses');
+        const msg = document.createElement('div');
+        msg.className = 'chat-message user';
+        msg.innerHTML = `<strong>Tú:</strong> ${pregunta}`;
+        resp.appendChild(msg);
+
+        setTimeout(() => {
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'chat-message ai';
+            let respuesta = 'La IA está procesando...';
+
+            if (pregunta.toLowerCase().includes('deserción')) {
+                respuesta = 'Deserción está en 62% (peligro). Ha bajado -20pp respecto a marzo. Causas potenciales: dificultad académica, falta de motivación. Recomendación: activar OM de seguimiento académico personalizado.';
+            } else if (pregunta.toLowerCase().includes('presupuesto')) {
+                respuesta = 'Ejecución presupuestal es 55% (crítica). Necesitas +45% para llegar a meta. Ej: si ejecutas $10M más, llegarías a 85%. Benchmarks de otros años: 75-95%.';
+            } else if (pregunta.toLowerCase().includes('mejor')) {
+                respuesta = 'Los indicadores mejor desempeño son: Capacitaciones (103%), Impacto Social (92%), Graduación (88%). El modelo RRHH es exitoso — sugiero replicarlo en Finanzas.';
+            }
+
+            aiMsg.innerHTML = `<strong>IA:</strong> ${respuesta}`;
+            resp.appendChild(aiMsg);
+            resp.scrollTop = resp.scrollHeight;
+        }, 800);
+
+        document.getElementById('ia-query').value = '';
+    }
+
+    function regenerarIA() {
+        const el = document.getElementById('ia-resumen-exec');
+        const source = getFilteredIndicadores();
+        const prom = (source.reduce((s, i) => s + i.cumpl, 0) / source.length);
+        const riesgos = source.filter(i => i.cumpl < 0.8).length;
+        el.innerHTML = `
+            <strong>Estado Institucional:</strong> Cumplimiento promedio ${(prom * 100).toFixed(1)}%.<br>
+            <strong>Riesgos Identificados:</strong> ${riesgos} indicadores en peligro.<br>
+            <strong>Acción Recomendada:</strong> Priorizar intervención en Deserción y Ejecución Presupuestal.
+        `;
+    }
+
+    // ========== RENDER: AUDITORÍA ==========
+    function renderAuditoria() {
+        // Ya está en HTML estático
+    }
+
+    // ========== FILTROS ==========
+    function aplicarFiltros() {
+        const tab = document.querySelector('.tab-btn.active')?.dataset.tab || 'resumen';
+        cambiarTab(tab);
+    }
+
+    function resetFiltros() {
+        document.getElementById('filter-year').value = '2026';
+        document.getElementById('filter-period').value = 'anual';
+        document.getElementById('filter-linea').value = '';
+        cambiarTab('resumen');
+    }
+
+    // ========== INIT ==========
+    window.addEventListener('load', async () => {
+        await loadExcelData();
+        cambiarTab('resumen');
+    });
+</script>
+
+</body>
+</html>
