@@ -78,61 +78,42 @@ def main():
                 unsafe_allow_html=True,
             )
 
-            st.markdown("<div class='sidebar-v2-section'>ESTRATÉGICO</div>", unsafe_allow_html=True)
-
             menu_labels = [
                 "◫  Resumen General",
                 "⌂  CMI Estratégico",
                 "◷  CMI por Procesos",
                 "◐  Plan de Mejoramiento",
+                "─────────────────────",
+                "◧  Seguimiento Operativo",
+                "△  Indicadores en Riesgo",
             ]
             menu_map = {
                 "◫  Resumen General": "Resumen General",
                 "⌂  CMI Estratégico": "CMI Estratégico",
                 "◷  CMI por Procesos": "CMI por Procesos",
                 "◐  Plan de Mejoramiento": "Plan de Mejoramiento",
-            }
-
-            current_index = menu_labels.index("◫  Resumen General")
-            if menu in menu_map.values():
-                current_index = list(menu_map.values()).index(menu)
-
-            selected_menu = st.radio(
-                "navegación principal",
-                options=menu_labels,
-                index=current_index,
-                key="sidebar_main_nav",
-                label_visibility="collapsed",
-            )
-            menu = menu_map[selected_menu]
-
-            st.markdown("<div class='sidebar-v2-divider'></div>", unsafe_allow_html=True)
-
-            st.markdown("<div class='sidebar-v2-section'>OPERATIVO</div>", unsafe_allow_html=True)
-
-            menu_labels_op = [
-                "◧  Seguimiento Operativo",
-                "△  Indicadores en Riesgo",
-            ]
-            menu_map_op = {
+                "─────────────────────": "divider",
                 "◧  Seguimiento Operativo": "Seguimiento Operativo",
                 "△  Indicadores en Riesgo": "Indicadores en Riesgo",
             }
 
-            current_index_op = 0
-            if menu == "Seguimiento Operativo":
-                current_index_op = 0
-            elif menu == "Indicadores en Riesgo":
-                current_index_op = 1
+            # Filtrar opciones válidas separador visual
+            display_options = [opt for opt in menu_labels if not opt.startswith("─")]
+            current_index = 0
+            if menu in menu_map.values():
+                for i, opt in enumerate(display_options):
+                    if menu_map.get(opt) == menu:
+                        current_index = i
+                        break
 
-            selected_menu_op = st.radio(
-                "navegación operativa",
-                options=menu_labels_op,
-                index=current_index_op,
-                key="sidebar_op_nav",
+            selected_menu = st.radio(
+                "navegación",
+                options=display_options,
+                index=current_index,
+                key="sidebar_nav",
                 label_visibility="collapsed",
             )
-            menu = menu_map_op[selected_menu_op]
+            menu = menu_map[selected_menu]
 
             updated_at = datetime.now().strftime("%d/%m/%Y %H:%M")
 
