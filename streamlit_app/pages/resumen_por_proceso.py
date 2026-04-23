@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+from services.cmi_filters import filter_df_for_cmi_procesos
 
 MESES_OPCIONES = [
     "Enero",
@@ -1667,6 +1668,8 @@ def render() -> None:
     default_month_num = _default_month_num(tracking_df)
     default_month = MESES_OPCIONES[default_month_num - 1]
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
+    # Aplicar filtro global CMI por Procesos: solo indicadores con 'Subprocesos' == 1
+    full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=default_month_num)
     procesos_all = sorted(full_work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
 
@@ -1687,6 +1690,8 @@ def render() -> None:
     )
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=selected_month_num)
     base_filtered = snapshot_df.copy()
+    # Asegurar que el corte también respete el filtro CMI por Procesos
+    base_filtered = filter_df_for_cmi_procesos(base_filtered, id_column="Id")
 
     if anio is not None and "Anio" in base_filtered.columns:
         base_filtered = base_filtered[

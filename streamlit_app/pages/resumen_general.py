@@ -1083,8 +1083,11 @@ def _render_strategy_card(
     sparkline = ""
     if historico is not None and not historico.empty and len(historico) >= 1:
         try:
-            # Ordenar por año
-            df_sorted = historico.sort_values("Año")
+            # Filtrar solo años hasta 2025
+            df_sorted = historico[historico["Año"] <= 2025].sort_values("Año")
+            if df_sorted.empty:
+                df_sorted = historico.sort_values("Año")
+            
             anos = [int(a) for a in df_sorted["Año"].values]
             valores = [float(v) for v in df_sorted["Cumplimiento"].values]
             
@@ -1409,6 +1412,10 @@ def render():
 
                 n_ind = int(row["N_Indicadores"]) if row is not None else 0
                 cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
+                
+                # Debug: show values for Educación
+                if "educacion" in card_def["key"].lower():
+                    st.caption(f"DEBUG: row={row is not None}, n_ind={n_ind}, cumpl={cumpl}")
                 
                 # Generar histórico desde datos completos
                 historico = None
