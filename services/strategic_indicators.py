@@ -152,11 +152,13 @@ def load_worksheet_flags() -> pd.DataFrame:
 
     # Cargar sin dependencia en st.cache_data
     if not RAW_XLSX.exists():
+        print("Error: El archivo 'RAW_XLSX' no existe en la ruta esperada.")
         return pd.DataFrame()
 
     try:
         df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
-    except Exception:
+    except Exception as e:
+        print(f"Error al cargar la hoja 'Worksheet': {e}")
         return pd.DataFrame()
 
     df.columns = [str(c).strip() for c in df.columns]
@@ -180,6 +182,7 @@ def load_worksheet_flags() -> pd.DataFrame:
         optional_cols.append(c_subproceso)
 
     if not needed:
+        print("Error: No se encontraron las columnas necesarias en la hoja 'Worksheet'.")
         return pd.DataFrame()
 
     out = df[needed + optional_cols].copy()
@@ -198,33 +201,9 @@ def load_worksheet_flags() -> pd.DataFrame:
     if c_subproceso:
         rename_map[c_subproceso] = "Subproceso"
 
-    out = out.rename(columns={k: v for k, v in rename_map.items() if k is not None})
-
-    if "Id" not in out.columns:
-        return pd.DataFrame()
-
-    out["Id"] = out["Id"].apply(_id_limpio)
-    for c in ["Indicador", "Linea", "Objetivo", "Factor", "Caracteristica", "Subproceso"]:
-        if c in out.columns:
-            out[c] = out[c].astype(str).str.strip()
-            out.loc[out[c].isin(["", "nan", "None"]), c] = None
-
-    for flag in ["FlagPlanEstrategico", "FlagCNA"]:
-        if flag in out.columns:
-            out[flag] = pd.to_numeric(out[flag], errors="coerce").fillna(0).astype(int)
-        else:
-            out[flag] = 0
-
-    if "Proyecto" in out.columns:
-        out["Proyecto"] = pd.to_numeric(out["Proyecto"], errors="coerce").fillna(0).astype(int)
-
-    out = out[out["Id"] != ""].copy()
-    result = out.drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
-
-    # Guardar en caché manual
-    _set_cached("worksheet_flags", result)
-
-    return result
+    out = out.rename(columns=rename_map)
+    _set_cached("worksheet_flags", out)
+    return out
 
 
 def load_cierres() -> pd.DataFrame:
