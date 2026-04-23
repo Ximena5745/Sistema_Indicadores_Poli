@@ -1023,11 +1023,12 @@ def _inject_dashboard_styles():
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: #7EAADC;
+            color: #C8DCF4 !important;
         }
         .rg-header-title {
             margin: 0;
-            color: #FFFFFF;
+            color: #FFFFFF !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
             font-size: 1.9rem;
             font-weight: 800;
             line-height: 1.15;
@@ -1398,7 +1399,7 @@ def render():
     st.markdown(
         """
         <div class='rg-header'>
-            <p class='rg-header-eyebrow'>Politécnica Grancolombiana &nbsp;·&nbsp; Sistema de Indicadores</p>
+            <p class='rg-header-eyebrow'>Sistema de Indicadores</p>
             <h1 class='rg-header-title'>Plan de Desarrollo Institucional 2022–2026</h1>
             <p class='rg-header-subtitle'>Seguimiento estratégico de indicadores PDI &nbsp;·&nbsp; Cuadro de Mando Integral</p>
         </div>

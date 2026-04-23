@@ -71,7 +71,7 @@ def main():
                   </div>
                   <div class='sidebar-v2-brand'>
                     <div class='sidebar-v2-title'>Sistema de Indicadores</div>
-                    <div class='sidebar-v2-subtitle'>POLITÉCNICA GRANCOLOMBIANA</div>
+                                        <div class='sidebar-v2-subtitle'>POLITÉCNICO GRANCOLOMBIANO</div>
                   </div>
                 </div>
                 """,
