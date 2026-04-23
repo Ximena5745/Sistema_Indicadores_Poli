@@ -57,6 +57,45 @@ ROOT = Path(__file__).resolve().parents[1]
 CMI_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
 
 
+def _normalize_flag_series(series: pd.Series) -> pd.Series:
+    numeric = pd.to_numeric(series, errors="coerce")
+    if numeric.isna().any():
+        raw = series.astype(str).str.strip().str.lower()
+        mapped = raw.map(
+            {
+                "1": 1,
+                "1.0": 1,
+                "si": 1,
+                "true": 1,
+                "x": 1,
+                "0": 0,
+                "0.0": 0,
+                "no": 0,
+                "false": 0,
+                "": 0,
+            }
+        )
+        numeric = numeric.fillna(mapped)
+    return numeric
+
+
+def _normalize_id_value(val) -> str:
+    if pd.isna(val):
+        return ""
+    if isinstance(val, int):
+        return str(val)
+    if isinstance(val, float):
+        return str(int(val)) if val.is_integer() else str(val).strip()
+    text = str(val).strip()
+    try:
+        num = float(text)
+        if num.is_integer():
+            return str(int(num))
+    except Exception:
+        return text
+    return text
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_cmi_worksheet() -> pd.DataFrame:
     """
@@ -97,8 +136,10 @@ def get_cmi_estrategico_ids() -> set[str]:
         print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Indicadores por CMI.xlsx'.")
         return set()
 
-    # Aplicar filtros
-    mask = (df["Indicadores Plan estrategico"] == 1) & (df["Proyecto"] != 1)
+    # Aplicar filtros con normalizacion de banderas
+    flag_estrategico = _normalize_flag_series(df["Indicadores Plan estrategico"])
+    flag_proyecto = _normalize_flag_series(df["Proyecto"])
+    mask = (flag_estrategico == 1) & (flag_proyecto != 1)
 
     filtered = df[mask]
 
@@ -106,14 +147,7 @@ def get_cmi_estrategico_ids() -> set[str]:
     ids = set()
     if "Id" in filtered.columns:
         for val in filtered["Id"].dropna():
-            try:
-                # Convertir a entero si es posible
-                if isinstance(val, float):
-                    ids.add(str(int(val)))
-                else:
-                    ids.add(str(val).strip())
-            except:
-                ids.add(str(val).strip())
+            ids.add(_normalize_id_value(val))
 
     if not ids:
         print("Advertencia: No se encontraron IDs válidos para CMI Estratégico.")
@@ -131,21 +165,16 @@ def get_cmi_procesos_ids() -> set[str]:
     if df.empty:
         return set()
 
-    # Aplicar filtro
-    mask = df["Subprocesos"] == 1
+    # Aplicar filtro con normalizacion de banderas
+    flag_subprocesos = _normalize_flag_series(df["Subprocesos"])
+    mask = flag_subprocesos == 1
     filtered = df[mask]
 
     # Limpiar IDs
     ids = set()
     if "Id" in filtered.columns:
         for val in filtered["Id"].dropna():
-            try:
-                if isinstance(val, float):
-                    ids.add(str(int(val)))
-                else:
-                    ids.add(str(val).strip())
-            except:
-                ids.add(str(val).strip())
+            ids.add(_normalize_id_value(val))
 
     return ids
 
@@ -171,19 +200,8 @@ def filter_df_for_cmi_estrategico(df: pd.DataFrame, id_column: str = "Id") -> pd
     # Validación adicional para inspeccionar los IDs obtenidos
     print("IDs válidos obtenidos para CMI Estratégico:", valid_ids)
 
-    # Normalizar IDs en el DataFrame
-    def normalize_id(val):
-        if pd.isna(val):
-            return ""
-        try:
-            if isinstance(val, float):
-                return str(int(val))
-            return str(val).strip()
-        except:
-            return str(val).strip()
-
     df_copy = df.copy()
-    df_copy[f"{id_column}_norm"] = df_copy[id_column].apply(normalize_id)
+    df_copy[f"{id_column}_norm"] = df_copy[id_column].apply(_normalize_id_value)
 
     filtered = df_copy[df_copy[f"{id_column}_norm"].isin(valid_ids)]
     return filtered.drop(columns=[f"{id_column}_norm"])
@@ -207,19 +225,8 @@ def filter_df_for_cmi_procesos(df: pd.DataFrame, id_column: str = "Id") -> pd.Da
     if not valid_ids:
         return df
 
-    # Normalizar IDs
-    def normalize_id(val):
-        if pd.isna(val):
-            return ""
-        try:
-            if isinstance(val, float):
-                return str(int(val))
-            return str(val).strip()
-        except:
-            return str(val).strip()
-
     df_copy = df.copy()
-    df_copy[f"{id_column}_norm"] = df_copy[id_column].apply(normalize_id)
+    df_copy[f"{id_column}_norm"] = df_copy[id_column].apply(_normalize_id_value)
 
     filtered = df_copy[df_copy[f"{id_column}_norm"].isin(valid_ids)]
     return filtered.drop(columns=[f"{id_column}_norm"])
