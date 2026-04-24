@@ -1232,7 +1232,7 @@ def _build_gantt_for_proyectos(pdi_estrategico, linea_summary):
     if pdi_estrategico.empty or "cumplimiento_pct" not in pdi_estrategico.columns:
         return None
     
-    from services.strategic_indicators import load_cierres
+    from services.strategic_indicators import load_cierres, load_worksheet_flags
     cierres = load_cierres()
     if cierres.empty:
         return None
