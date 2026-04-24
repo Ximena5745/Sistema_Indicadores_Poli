@@ -2033,8 +2033,14 @@ def render():
             matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
             row = norm_to_row.get(matched[0]) if matched else None
         if row is not None:
-            n_ind = int(pd.to_numeric(row.get("N_Indicadores"), errors="coerce") or 0)
-            cumpl = float(pd.to_numeric(row.get("Cumpl_Promedio"), errors="coerce") or 0.0)
+            n_ind_val = row.get("N_Indicadores")
+            cumpl_val = row.get("Cumpl_Promedio")
+            n_ind = int(pd.to_numeric(n_ind_val, errors="coerce")) if n_ind_val is not None else 0
+            cumpl = float(pd.to_numeric(cumpl_val, errors="coerce")) if cumpl_val is not None else 0.0
+            if pd.isna(n_ind):
+                n_ind = 0
+            if pd.isna(cumpl):
+                cumpl = 0.0
         else:
             n_ind = 0
             cumpl = 0.0
