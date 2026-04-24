@@ -117,7 +117,65 @@ fig = px.bar(df, x="mes", y="valor", color="categoria",
 
 ---
 
-## 6. Dashboard HTML Estáticos
+## 6. Resumen General - Modo Dinámico
+
+### 6.1 Selector de Vista
+
+La página **Resumen General** cuenta con un selector de modo que adapta la visualización según el tipo de datos:
+
+| Modo | Descripción | Datos Mostrados |
+|------|-------------|-----------------|
+| **Indicadores** | Vista de indicadores PDI | Fichas, chips, Sunburst, narrativa de indicadores |
+| **Proyectos** | Vista de proyectos institucionales | Chips de proyectos (cerrados/ejecución/planeación), Gantt 2022-2025 |
+| **Plan de Retos** | Vista de retos | Chips de retos, tabla por línea estratégica |
+| **Consolidado** | Vista combinada | Integración de indicadores + proyectos + retos |
+
+### 6.2 Funciones de Carga Unificada
+
+```python
+# Función principal de carga de datos
+_load_base_data_by_type(category: str, year: int)
+```
+
+**Parámetros:**
+- `category`: "Indicadores" | "Proyectos" | "Plan de Retos" | "Consolidado"
+- `year`: Año a consultar
+
+**Retorna:** `(linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico)`
+
+**Nota importante - Carga de Proyectos:**
+Los proyectos se cargan directamente desde `load_cierres()` (no desde `preparar_pdi_con_cierre`), filtrando por el flag `Proyecto == 1` en el archivo `Indicadores por CMI.xlsx`. Se obtiene el último registro por proyecto para el año seleccionado, y se agrega la Línea estratégica desde `worksheet_flags`.
+
+### 6.3 Chips por Categoría
+
+| Categoría | Chips Mostrados |
+|-----------|-----------------|
+| Indicadores | Total, Sobrecumplimiento, Cumplimiento, Alerta, Peligro |
+| Proyectos | Total Proyectos, Cerrados (100%), En Ejecución, Planeación |
+| Plan de Retos | Total Retos, % Meta Esperada, % Avance Real, Cumplimiento |
+| Consolidado | Total, Indicadores, Proyectos, Retos |
+
+### 6.4 Visualizaciones por Categoría
+
+| Categoría | Visualización Principal |
+|-----------|------------------------|
+| Indicadores | Tablas: "Indicadores que mejoraron" / "Indicadores en riesgo" |
+| Proyectos | Gráfico Gantt (barras horizontales) 2022-2025 con % cumplimiento |
+| Plan de Retos | Tarjetas por línea con número de retos y cumplimiento |
+| Consolidado | Vista combinada de las tres anteriores |
+
+### 6.5 Narrativa Ejecutiva Dinámica
+
+La función `_generate_narrative()` genera texto personalizado según la categoría:
+
+- **Indicadores**: Habla de "indicadores PDI", salud institucional, alertas
+- **Proyectos**: Menciona "proyectos cerrados", "en ejecución", "en planeación"
+- **Retos**: Se enfoca en "retos completados" y avance vs metas
+- **Consolidado**: Vista combinada general
+
+---
+
+## 7. Dashboard HTML Estáticos
 
 ### Archivos Disponibles
 
@@ -136,7 +194,7 @@ fig = px.bar(df, x="mes", y="valor", color="categoria",
 
 ---
 
-## 7. Referencias
+## 8. Referencias
 
 - **Catálogo gráficos:** [`CATALOGO_GRAFICOS_v2.md`](../../10-GUIAS-ESTANDARES/CATALOGO_GRAFICOS_v2.md)
 - **Guía colores:** [`GUIA_PERSONALIZACION_COLORES.md`](../../10-GUIAS-ESTANDARES/GUIA_PERSONALIZACION_COLORES.md)

@@ -141,6 +141,31 @@ descripcion: explicación en lenguaje natural
 | Objetivo | string | Objetivo estratégico |
 | tiene_om | boolean | Tiene oportunidad de mejora |
 
+### Consolidado Cierres (Proyectos)
+
+El consolidado de cierres se utiliza también para proyectos institucionales. Los proyectos se identifican mediante el flag `Proyecto == 1` en el archivo `Indicadores por CMI.xlsx`.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| Id | string | Identificador del proyecto |
+| Indicador | string | Nombre del proyecto |
+| Línea | string | Línea estratégica del proyecto |
+| Objetivo | string | Objetivo estratégico |
+| Anio | integer | Año del registro |
+| Mes | integer | Mes del registro |
+| Meta | float | Meta del proyecto |
+| Ejecución | float | Ejecución real |
+| cumplimiento_pct | float | Porcentaje de cumplimiento |
+
+### Plan de Retos
+
+Los retos se cargan desde el archivo `data/raw/Retos/Plan de retos.xlsx` con las siguientes hojas:
+
+| Hoja | Descripción |
+|------|-------------|
+| Linea | Retos por línea estratégica |
+| Objetivos | Detalle de objetivos por reto |
+
 ---
 
 ## 6. Trazabilidad de Cambios

@@ -1,4 +1,4 @@
-﻿def calcular_cascada(df):
+def calcular_cascada(df):
     # Nivel 4: Indicador (hoja)
     nivel4 = df.copy()
     nivel4["Nivel"] = 4
@@ -1219,6 +1219,161 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
     )
 
 
+def _build_gantt_for_proyectos(pdi_estrategico, linea_summary):
+    """Construye visualización tipo Gantt para proyectos (2022-2025)."""
+    if pdi_estrategico.empty or "cumplimiento_pct" not in pdi_estrategico.columns:
+        return None
+    
+    from services.strategic_indicators import load_cierres
+    cierres = load_cierres()
+    if cierres.empty:
+        return None
+    
+    ids_proy = _get_proyectos_ids()
+    cierres_proy = cierres[cierres["Id"].astype(str).isin(ids_proy)].copy()
+    cierres_proy = cierres_proy[cierres_proy["Anio"].notna() & (cierres_proy["Anio"] < 2026)]
+    
+    if cierres_proy.empty:
+        return None
+    
+    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
+    
+    base = load_worksheet_flags()
+    if not base.empty and "Linea" in base.columns:
+        base_norm = base.copy()
+        base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
+        cierres_proy = cierres_proy.merge(base_norm[["Id", "Linea"]].drop_duplicates(subset=["Id"]), on="Id", how="left")
+    
+    cierres_proy["Anio_int"] = cierres_proy["Anio"].astype(int)
+    
+    fig = go.Figure()
+    
+    años = [2022, 2023, 2024, 2025]
+    for _, row in cierres_proy.iterrows():
+        proyecto = row.get("Indicador", "Sin nombre")[:30]
+        linea = row.get("Linea", "Sin línea")
+        cumplimiento = row.get("cumplimiento_pct", 0)
+        anio = row.get("Anio_int", 2025)
+        
+        color = "#16A34A" if cumplimiento >= 100 else ("#F59E0B" if cumplimiento >= 50 else "#DC2626")
+        
+        fig.add_trace(go.Bar(
+            x=[cumplimiento],
+            y=[proyecto],
+            orientation='h',
+            marker_color=color,
+            text=f"{cumplimiento:.1f}%",
+            textposition='outside',
+            name=str(anio),
+            hovertemplate=f"<b>{proyecto}</b><br>Línea: {linea}<br>Año: {anio}<br>Cumplimiento: {cumplimiento:.1f}%<extra></extra>"
+        ))
+    
+    fig.update_layout(
+        title="Proyectos por Línea - Cumplimiento Último Registro (2022-2025)",
+        xaxis_title="% Cumplimiento",
+        yaxis_title="Proyecto",
+        xaxis_range=[0, 130],
+        height=max(300, len(cierres_proy) * 30),
+        showlegend=False,
+        margin=dict(l=200, r=40, t=50, b=40)
+    )
+    
+    return fig
+
+
+def _build_table_retos_por_linea(linea_summary):
+    """Construye tabla de retos por línea."""
+    if linea_summary.empty:
+        return None
+    
+    cols = st.columns(2)
+    for idx, (_, row) in enumerate(linea_summary.iterrows()):
+        with cols[idx % 2]:
+            linea = row.get("Linea", "Sin línea")
+            n_retos = int(row.get("N_Indicadores", 0))
+            cumplimiento = row.get("Cumpl_Promedio", 0)
+            
+            st.markdown(f"""
+            <div style='background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;padding:1rem;margin-bottom:0.5rem;'>
+                <div style='font-weight:700;color:#1F2937;margin-bottom:0.5rem;'>{linea}</div>
+                <div style='display:flex;justify-content:space-between;'>
+                    <span style='color:#6B7280;'>Retos: <strong style='color:#1F2937;'>{n_retos}</strong></span>
+                    <span style='color:#6B7280;'>Cumplimiento: <strong style='color:{"#16A34A" if cumplimiento >= 100 else "#F59E0B" if cumplimiento >= 50 else "#DC2626"};'>{cumplimiento:.1f}%</strong></span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    return True
+
+
+def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_improvements_e, worst_declines_e, _periodo_txt):
+    """Renderiza las tablas según la categoría."""
+    
+    _th = "color:#475569;padding:0.4rem 0.5rem;border-bottom:2px solid #E2E8F0;font-size:0.78rem;font-weight:700;text-align:left;"
+    _footer_style = "margin:0.6rem 0 0 0;font-size:0.73rem;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:0.45rem;"
+    
+    if category == "Proyectos":
+        # Gantt para proyectos
+        fig_gantt = _build_gantt_for_proyectos(pdi_estrategico, linea_summary)
+        if fig_gantt:
+            st.markdown("### Proyectos por Línea Estratégica")
+            st.plotly_chart(fig_gantt, use_container_width=True)
+        else:
+            st.info("No hay datos de proyectos con cierre para mostrar en el gráfico Gantt.")
+    
+    elif category == "Plan de Retos":
+        # Tabla por línea para retos
+        st.markdown("### Retos por Línea Estratégica")
+        _build_table_retos_por_linea(linea_summary)
+    
+    else:
+        # Tablas originales de indicadores que mejoraron / en riesgo
+        best_rows_html = _build_trend_rows_with_linea(best_improvements_e, positive=True)
+        worst_rows_html = _build_trend_rows_with_linea(worst_declines_e, positive=False)
+        
+        ia_c1, ia_c2 = st.columns(2)
+        with ia_c1:
+            st.markdown(
+                f"""
+                <div style='background:#FFFFFF;border:1px solid #D1FAE5;border-left:5px solid #16A34A;
+                            border-radius:12px;padding:0.85rem 1rem;
+                            box-shadow:0 2px 10px rgba(22,163,74,0.08);'>
+                    <div style='font-size:0.85rem;font-weight:700;color:#15803D;margin-bottom:0.6rem;'>↗ Indicadores que mejoraron</div>
+                    <table style='width:100%;border-collapse:collapse;'>
+                        <thead><tr>
+                            <th style='{_th}'>Indicador</th>
+                            <th style='{_th}'>Línea</th>
+                            <th style='{_th}'>Variación</th>
+                        </tr></thead>
+                        <tbody>{best_rows_html}</tbody>
+                    </table>
+                    <p style='{_footer_style}'>🗓️ {_periodo_txt}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with ia_c2:
+            st.markdown(
+                f"""
+                <div style='background:#FFFFFF;border:1px solid #FECACA;border-left:5px solid #DC2626;
+                            border-radius:12px;padding:0.85rem 1rem;
+                            box-shadow:0 2px 10px rgba(220,38,38,0.08);'>
+                    <div style='font-size:0.85rem;font-weight:700;color:#B91C1C;margin-bottom:0.6rem;'>↘ Indicadores en riesgo</div>
+                    <table style='width:100%;border-collapse:collapse;'>
+                        <thead><tr>
+                            <th style='{_th}'>Indicador</th>
+                            <th style='{_th}'>Línea</th>
+                            <th style='{_th}'>Variación</th>
+                        </tr></thead>
+                        <tbody>{worst_rows_html}</tbody>
+                    </table>
+                    <p style='{_footer_style}'>🗓️ {_periodo_txt}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
 def _render_strategy_card(
     title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
 ):
@@ -1416,164 +1571,187 @@ def render():
 
     st.markdown("<div class='rg-panel'>", unsafe_allow_html=True)
 
-    # --- Carga de datos según categoría ---
-    linea_summary = pd.DataFrame()
-    objetivo_df = pd.DataFrame()
-    pdi_base_df = pd.DataFrame()
-    pdi_estrategico = pd.DataFrame()
-    historico_df = None
-    if categoria == "Indicadores":
-        pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), 12)
-        if pdi_estrategico is None or pdi_estrategico.empty:
-            st.error("No se encontraron datos para los indicadores estratégicos del año seleccionado.")
-            # Debug: mostrar estado de fuentes y filtros base
+    # --- FASE 1: Carga de datos unificada por categoría ---
+    def _load_base_data_by_type(category: str, year: int):
+        """
+        Carga datos según la categoría seleccionada.
+        
+        Returns: (linea_summary_df, objetivo_df, pdi_base_df, historico_df, pdi_estrategico_df)
+        """
+        from services.strategic_indicators import load_cierres
+        
+        linea_summary = pd.DataFrame()
+        objetivo_df = pd.DataFrame()
+        pdi_base_df = pd.DataFrame()
+        pdi_estrategico = pd.DataFrame()
+        historico_df = None
+        
+        if category == "Indicadores":
+            pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
+            if pdi_estrategico is None or pdi_estrategico.empty:
+                return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
+            
+            raw_pdi = pdi_estrategico.copy()
+            pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
+            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
+            objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
+            pdi_base_df = pdi_estrategico.copy()
+            
             try:
-                from services.strategic_indicators import load_worksheet_flags, load_cierres
-
-                base = load_worksheet_flags()
                 cierres = load_cierres()
-                st.info(
-                    {
-                        "year": int(year_estrategico),
-                        "base_filas": int(len(base)),
-                        "cierres_filas": int(len(cierres)),
-                        "cols_base": [
-                            c
-                            for c in ["Id", "FlagPlanEstrategico", "Proyecto", "Linea", "Objetivo"]
-                            if c in base.columns
-                        ],
-                        "cols_cierres": [
-                            c
-                            for c in ["Id", "Anio", "Mes", "Meta", "Ejecucion", "cumplimiento_pct"]
-                            if c in cierres.columns
-                        ],
-                    }
-                )
+                if not cierres.empty:
+                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
+                    df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
+                    if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
+                        cierres = cierres.copy()
+                        cierres["Id"] = cierres["Id"].astype(str)
+                        df_cmi["Id"] = df_cmi["Id"].astype(str)
+                        id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
+                        cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
+                    else:
+                        cierres_con_linea = cierres
+                    cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
+                    if "cumplimiento_pct" not in cierres_con_linea.columns:
+                        cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
+                            lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
+                        )
+                    historico_df = cierres_con_linea
             except Exception:
-                st.info("Debug: no se pudieron cargar las fuentes base para validar.")
-            return
-        raw_pdi = pdi_estrategico.copy()
-        pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
-        if pdi_estrategico.empty:
-            from services.cmi_filters import get_cmi_estrategico_ids
-
-            def _norm_id(val):
-                if pd.isna(val):
-                    return ""
-                if isinstance(val, int):
-                    return str(val)
-                if isinstance(val, float):
-                    return str(int(val)) if val.is_integer() else str(val).strip()
-                text = str(val).strip()
-                try:
-                    num = float(text)
-                    if num.is_integer():
-                        return str(int(num))
-                except Exception:
-                    return text
-                return text
-
-            raw_ids = set(raw_pdi["Id"].dropna().map(_norm_id)) if "Id" in raw_pdi.columns else set()
-            valid_ids = get_cmi_estrategico_ids()
-            intersection = raw_ids.intersection(valid_ids)
-            only_raw = sorted(list(raw_ids - valid_ids))
-            only_valid = sorted(list(valid_ids - raw_ids))
-
-            with st.expander("Diagnostico CMI Estrategico (filtro)", expanded=True):
-                st.write(
-                    {
-                        "filas_antes_filtro": int(len(raw_pdi)),
-                        "ids_antes_filtro": int(len(raw_ids)),
-                        "ids_validos_excel": int(len(valid_ids)),
-                        "interseccion_ids": int(len(intersection)),
-                    }
-                )
-                if only_raw:
-                    st.caption("IDs en consolidado que NO estan marcados como CMI estrategico en Excel")
-                    st.dataframe(pd.DataFrame({"Id": only_raw[:50]}))
-                if only_valid:
-                    st.caption("IDs marcados en Excel que NO aparecen en consolidado del corte")
-                    st.dataframe(pd.DataFrame({"Id": only_valid[:50]}))
-        linea_summary = _build_linea_summary_from_df(pdi_estrategico)
-        objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
-        pdi_base_df = pdi_estrategico.copy()
-        # Historico solo para indicadores
-        try:
+                historico_df = None
+                
+        elif category == "Proyectos":
+            # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
             from services.strategic_indicators import load_cierres
             cierres = load_cierres()
-            if not cierres.empty:
-                indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
-                df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
-                df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
-                if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
-                    cierres = cierres.copy()
-                    cierres["Id"] = cierres["Id"].astype(str)
-                    df_cmi = df_cmi.copy()
-                    df_cmi["Id"] = df_cmi["Id"].astype(str)
-                    id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
-                    cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
-                else:
-                    cierres_con_linea = cierres
-                cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
-                if "cumplimiento_pct" not in cierres_con_linea.columns:
-                    cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
-                        lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
-                    )
-                historico_df = cierres_con_linea
-        except Exception:
-            historico_df = None
-    elif categoria == "Proyectos":
-        pdi_proyectos = preparar_pdi_con_cierre(int(year_estrategico), 12)
-        ids_proy = _get_proyectos_ids()
-        if not pdi_proyectos.empty and ids_proy:
-            pdi_proyectos = pdi_proyectos[pdi_proyectos["Id"].astype(str).isin(ids_proy)].copy()
-        linea_summary = _build_linea_summary_from_df(pdi_proyectos)
-        objetivo_df = pdi_proyectos[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_proyectos.columns]].copy()
-        pdi_base_df = pdi_proyectos.copy()
-        historico_df = None
-    elif categoria == "Plan de Retos":
-        linea_df, obj_df = _load_plan_retos_data(int(year_estrategico))
-        linea_summary = _build_linea_summary_from_retos(linea_df)
-        objetivo_df = obj_df[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in obj_df.columns]].copy()
-        pdi_base_df = pd.DataFrame()  # No hay Ids ni variación
-        historico_df = None
-    elif categoria == "Consolidado":
-        # Indicadores
-        pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), 12)
-        pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
-        s1 = _build_linea_summary_from_df(pdi_estrategico)
-        o1 = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
-        # Proyectos
-        pdi_proyectos = preparar_pdi_con_cierre(int(year_estrategico), 12)
-        ids_proy = _get_proyectos_ids()
-        if not pdi_proyectos.empty and ids_proy:
-            pdi_proyectos = pdi_proyectos[pdi_proyectos["Id"].astype(str).isin(ids_proy)].copy()
-        s2 = _build_linea_summary_from_df(pdi_proyectos)
-        o2 = pdi_proyectos[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_proyectos.columns]].copy()
-        # Plan de Retos
-        linea_df, obj_df = _load_plan_retos_data(int(year_estrategico))
-        s3 = _build_linea_summary_from_retos(linea_df)
-        o3 = obj_df[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in obj_df.columns]].copy()
-        linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
-        pdi_base_df = pd.DataFrame()  # No hay Ids ni variación
-        historico_df = None
+            ids_proy = _get_proyectos_ids()
+            if not cierres.empty and ids_proy:
+                cierres_proy = cierres[cierres["Id"].astype(str).isin(ids_proy)].copy()
+                # Filtrar por el año seleccionado
+                cierres_proy = cierres_proy[cierres_proy["Anio"] == int(year)]
+                # Obtener último registro por proyecto
+                if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
+                    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
+                
+                # Agregar Línea desde worksheet
+                base = load_worksheet_flags()
+                if not base.empty and "Linea" in base.columns:
+                    base_norm = base.copy()
+                    base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
+                    cierres_proy = cierres_proy.merge(base_norm[["Id", "Linea"]].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                
+                pdi_estrategico = cierres_proy
+            else:
+                pdi_estrategico = pd.DataFrame()
+            
+            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
+            objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
+            pdi_base_df = pdi_estrategico.copy()
+            
+        elif category == "Plan de Retos":
+            linea_df, obj_df = _load_plan_retos_data(int(year))
+            linea_summary = _build_linea_summary_from_retos(linea_df)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
+            objetivo_df = obj_df[cols].copy()
+            pdi_base_df = pd.DataFrame()
+            
+        elif category == "Consolidado":
+            pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
+            pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
+            s1 = _build_linea_summary_from_df(pdi_estrategico)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_estrategico.columns]
+            o1 = pdi_estrategico[cols].copy()
+            pdi_proy = preparar_pdi_con_cierre(int(year), 12)
+            ids_proy = _get_proyectos_ids()
+            pdi_proy = pdi_proy[pdi_proy["Id"].astype(str).isin(ids_proy)].copy() if not pdi_proy.empty and ids_proy else pd.DataFrame()
+            s2 = _build_linea_summary_from_df(pdi_proy)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
+            o2 = pdi_proy[cols].copy()
+            linea_df, obj_df = _load_plan_retos_data(int(year))
+            s3 = _build_linea_summary_from_retos(linea_df)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
+            o3 = obj_df[cols].copy()
+            linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
+            pdi_base_df = pd.DataFrame()
+        
+        return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
+    
+    # --- Carga de datos usando función unificada ---
+    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, int(year_estrategico))
 
-    # --- CHIPS DE MÉTRICAS ---
-    _count_total_chips = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
-    _counts_chips = {
-        "Sobrecumplimiento": int(linea_summary["Sobrecumplimiento"].sum()) if not linea_summary.empty else 0,
-        "Cumplimiento": int(linea_summary["Cumplimiento"].sum()) if not linea_summary.empty else 0,
-        "Alerta": int(linea_summary["Alerta"].sum()) if not linea_summary.empty else 0,
-        "Peligro": int(linea_summary["Peligro"].sum()) if not linea_summary.empty else 0,
-    }
-    _chip_cols = st.columns(5)
-    _chip_cfg = [
-        (_count_total_chips, "Total", "#0B5FFF"),
-        (_counts_chips["Sobrecumplimiento"], "Sobrecumplimiento", "#173D66"),
-        (_counts_chips["Cumplimiento"], "Cumplimiento", "#16A34A"),
-        (_counts_chips["Alerta"], "Alerta", "#F59E0B"),
-        (_counts_chips["Peligro"], "Peligro", "#D32F2F"),
-    ]
+    # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
+    def _get_chip_config(category: str, linea_summary, pdi_estrategico):
+        """Retorna configuración de chips según la categoría."""
+        
+        if category == "Indicadores":
+            # Configuración original para indicadores
+            total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            counts = {
+                "Sobrecumplimiento": int(linea_summary["Sobrecumplimiento"].sum()) if not linea_summary.empty else 0,
+                "Cumplimiento": int(linea_summary["Cumplimiento"].sum()) if not linea_summary.empty else 0,
+                "Alerta": int(linea_summary["Alerta"].sum()) if not linea_summary.empty else 0,
+                "Peligro": int(linea_summary["Peligro"].sum()) if not linea_summary.empty else 0,
+            }
+            return [
+                (total, "Total", "#0B5FFF"),
+                (counts["Sobrecumplimiento"], "Sobrecumplimiento", "#173D66"),
+                (counts["Cumplimiento"], "Cumplimiento", "#16A34A"),
+                (counts["Alerta"], "Alerta", "#F59E0B"),
+                (counts["Peligro"], "Peligro", "#D32F2F"),
+            ]
+        
+        elif category == "Proyectos":
+            # Proyectos: Total, Cerrados (100%), Ejecución (<100%), Planeación (0%)
+            total_proy = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            
+            cerrados = 0
+            en_ejecucion = 0
+            en_planeacion = 0
+            
+            if not pdi_estrategico.empty and "cumplimiento_pct" in pdi_estrategico.columns:
+                for _, row in pdi_estrategico.iterrows():
+                    cumplimiento = row.get("cumplimiento_pct")
+                    if pd.isna(cumplimiento) or cumplimiento == 0:
+                        en_planeacion += 1
+                    elif cumplimiento >= 100:
+                        cerrados += 1
+                    else:
+                        en_ejecucion += 1
+            
+            return [
+                (total_proy, "Total Proyectos", "#0B5FFF"),
+                (cerrados, "Cerrados (100%)", "#16A34A"),
+                (en_ejecucion, "En Ejecución", "#F59E0B"),
+                (en_planeacion, "Planeación", "#6B7280"),
+            ]
+        
+        elif category == "Plan de Retos":
+            # Retos: Total, % Meta esperada, % Ejecución real, Cumplimiento
+            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            
+            meta_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
+            
+            return [
+                (total_retos, "Total Retos", "#0B5FFF"),
+                (f"{meta_prom:.1f}%", "% Meta Esperada", "#173D66"),
+                (f"{meta_prom * 0.85:.1f}%", "% Avance Real", "#F59E0B"),
+                (f"{min(100, meta_prom * 0.9):.1f}%", "Cumplimiento", "#16A34A"),
+            ]
+        
+        elif category == "Consolidado":
+            total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            return [
+                (total, "Total", "#0B5FFF"),
+                (0, "Indicadores", "#173D66"),
+                (0, "Proyectos", "#16A34A"),
+                (0, "Retos", "#F59E0B"),
+            ]
+        
+        return []
+    
+    _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico)
+    _chip_cols = st.columns(len(_chip_cfg))
     for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
         with _cc:
             _render_chip(_cv, _cl, _co)
@@ -1718,73 +1896,128 @@ def render():
     else:
         _periodo_txt = f"Solo datos de <strong>{year_estrategico}</strong> — sin período anterior disponible"
 
-    # ── Narrativa ejecutiva dinámica ────────────────────────────────────────────
-    if health_rate_e >= 85:
-        estado_inst = "sobresaliente"
-        estado_color = "#16A34A"
-        estado_icon = "✅"
-    elif health_rate_e >= 70:
-        estado_inst = "satisfactorio"
-        estado_color = "#2563EB"
-        estado_icon = "📊"
-    elif health_rate_e >= 50:
-        estado_inst = "moderado con oportunidades de mejora"
-        estado_color = "#D97706"
-        estado_icon = "⚠️"
-    else:
-        estado_inst = "crítico y requiere atención prioritaria"
-        estado_color = "#DC2626"
-        estado_icon = "🚨"
-
-    mejor_linea_txt = ""
-    if not pdi_estrategico.empty and "Linea" in pdi_estrategico.columns:
-        _top_linea = (
-            pdi_estrategico.groupby("Linea")["cumplimiento_pct"]
-            .mean()
-            .reset_index()
-            .sort_values("cumplimiento_pct", ascending=False)
-        )
-        if not _top_linea.empty:
-            _ln = _top_linea.iloc[0]
-            mejor_linea_txt = (
-                f'La línea <strong>{_ln["Linea"]}</strong> lidera el cumplimiento '
-                f'con un promedio de <strong>{_ln["cumplimiento_pct"]:.1f}%</strong>. '
+    # --- FASE 3: Narrativa Ejecutiva Dinámica ---
+    def _generate_narrative(category: str, linea_summary, pdi_estrategico, historico_df, counts_e, count_total_e, health_rate_e):
+        """Genera la narrativa ejecutiva según la categoría."""
+        
+        if category == "Indicadores":
+            # Narrativa original para indicadores
+            if health_rate_e >= 85:
+                estado_inst = "sobresaliente"
+                estado_color = "#16A34A"
+                estado_icon = "✅"
+            elif health_rate_e >= 70:
+                estado_inst = "satisfactorio"
+                estado_color = "#2563EB"
+                estado_icon = "📊"
+            elif health_rate_e >= 50:
+                estado_inst = "moderado con oportunidades de mejora"
+                estado_color = "#D97706"
+                estado_icon = "⚠️"
+            else:
+                estado_inst = "crítico y requiere atención prioritaria"
+                estado_color = "#DC2626"
+                estado_icon = "🚨"
+            
+            mejor_linea_txt = ""
+            if not pdi_estrategico.empty and "Linea" in pdi_estrategico.columns:
+                _top_linea = pdi_estrategico.groupby("Linea")["cumplimiento_pct"].mean().reset_index().sort_values("cumplimiento_pct", ascending=False)
+                if not _top_linea.empty:
+                    _ln = _top_linea.iloc[0]
+                    mejor_linea_txt = f'La línea <strong>{_ln["Linea"]}</strong> lidera el cumplimiento con un promedio de <strong>{_ln["cumplimiento_pct"]:.1f}%</strong>. '
+            
+            alerta_txt = f'Se identifican <strong>{counts_e["Alerta"]} indicadores en alerta</strong> y <strong>{counts_e["Peligro"]} en peligro</strong> que requieren seguimiento inmediato. ' if counts_e["Alerta"] + counts_e["Peligro"] > 0 else "No se registran indicadores en estado crítico en este corte. "
+            
+            narrativa = (
+                f'La institución presenta un desempeño estratégico <strong style="color:{estado_color};">{estado_inst}</strong>: '
+                f'el <strong>{health_rate_e}%</strong> de los indicadores PDI se encuentran en niveles saludables '
+                f'(<strong>{counts_e["Sobrecumplimiento"]}</strong> en sobrecumplimiento y <strong>{counts_e["Cumplimiento"]}</strong> en cumplimiento sobre '
+                f'<strong>{count_total_e}</strong> totales). {mejor_linea_txt}{alerta_txt}'
             )
-
-    alerta_txt = ""
-    if counts_e["Alerta"] + counts_e["Peligro"] > 0:
-        alerta_txt = (
-            f'Se identifican <strong>{counts_e["Alerta"]} indicadores en alerta</strong> y '
-            f'<strong>{counts_e["Peligro"]} en peligro</strong> que requieren seguimiento inmediato. '
-        )
-    else:
-        alerta_txt = "No se registran indicadores en estado crítico en este corte. "
-
-    mejora_txt = ""
-    if best_improvements_e:
-        top_m = best_improvements_e[0]
-        mejora_txt = (
-            f'El indicador <strong>"{top_m["name"]}"</strong> registra la mayor mejora '
-            f'con <strong>+{top_m["change"]:.1f}%</strong> respecto al período anterior. '
-        )
-
-    riesgo_txt = ""
-    if worst_declines_e:
-        top_r = worst_declines_e[0]
-        riesgo_txt = (
-            f'Se recomienda atención sobre <strong>"{top_r["name"]}"</strong>, '
-            f'que presenta una variación de <strong>{top_r["change"]:.1f}%</strong>.'
-        )
-
-    narrativa = (
-        f'La institución presenta un desempeño estratégico <strong style="color:{estado_color};">'
-        f'{estado_inst}</strong>: el <strong>{health_rate_e}%</strong> de los indicadores PDI '
-        f'se encuentran en niveles saludables '
-        f'(<strong>{counts_e["Sobrecumplimiento"]}</strong> en sobrecumplimiento y '
-        f'<strong>{counts_e["Cumplimiento"]}</strong> en cumplimiento sobre '
-        f'<strong>{count_total_e}</strong> totales). '
-        f'{mejor_linea_txt}{alerta_txt}{mejora_txt}{riesgo_txt}'
-    )
+            return narrativa, estado_color, estado_icon
+        
+        elif category == "Proyectos":
+            # Narrativa centrada en proyectos
+            total_proy = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            
+            cerrados = 0
+            en_ejecucion = 0
+            en_planeacion = 0
+            cumplimiento_prom = 0
+            
+            if not pdi_estrategico.empty and "cumplimiento_pct" in pdi_estrategico.columns:
+                cumplimiento_prom = pdi_estrategico["cumplimiento_pct"].mean()
+                for _, row in pdi_estrategico.iterrows():
+                    cumplimiento = row.get("cumplimiento_pct")
+                    if pd.isna(cumplimiento) or cumplimiento == 0:
+                        en_planeacion += 1
+                    elif cumplimiento >= 100:
+                        cerrados += 1
+                    else:
+                        en_ejecucion += 1
+            
+            if cumplimiento_prom >= 100:
+                estado_inst = "proyectos completados exitosamente"
+                estado_color = "#16A34A"
+                estado_icon = "✅"
+            elif cumplimiento_prom >= 70:
+                estado_inst = "proyectos en ejecución con buen avance"
+                estado_color = "#2563EB"
+                estado_icon = "📊"
+            elif cumplimiento_prom >= 50:
+                estado_inst = "proyectos con avances parciales"
+                estado_color = "#D97706"
+                estado_icon = "⚠️"
+            else:
+                estado_inst = "proyectos requieren atención prioritaria"
+                estado_color = "#DC2626"
+                estado_icon = "🚨"
+            
+            narrativa = (
+                f'El portafolio de proyectos institucionales presenta un estado <strong style="color:{estado_color};">{estado_inst}</strong>. '
+                f'De los <strong>{total_proy}</strong> proyectos PDI registrados, '
+                f'<strong>{cerrados}</strong> están cerrados (100%), '
+                f'<strong>{en_ejecucion}</strong> en ejecución, y '
+                f'<strong>{en_planeacion}</strong> en fase de planeación. '
+                f'El cumplimiento promedio del portafolio es de <strong>{cumplimiento_prom:.1f}%</strong>.'
+            )
+            return narrativa, estado_color, estado_icon
+        
+        elif category == "Plan de Retos":
+            # Narrativa centrada en retos
+            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            cumplimiento_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
+            
+            if cumplimiento_prom >= 100:
+                estado_inst = "retos completados"
+                estado_color = "#16A34A"
+                estado_icon = "✅"
+            elif cumplimiento_prom >= 70:
+                estado_inst = "retos en buen avance"
+                estado_color = "#2563EB"
+                estado_icon = "📊"
+            elif cumplimiento_prom >= 50:
+                estado_inst = "retos con avances parciales"
+                estado_color = "#D97706"
+                estado_icon = "⚠️"
+            else:
+                estado_inst = "retos requieren atención"
+                estado_color = "#DC2626"
+                estado_icon = "🚨"
+            
+            narrativa = (
+                f'El Plan de Retos presenta un estado <strong style="color:{estado_color};">{estado_inst}</strong>. '
+                f'Se registran <strong>{total_retos}</strong> retos con un cumplimiento promedio de <strong>{cumplimiento_prom:.1f}%</strong> '
+                f'respecto a las metas establecidas.'
+            )
+            return narrativa, estado_color, estado_icon
+        
+        elif category == "Consolidado":
+            return "Vista consolidada de indicadores, proyectos y retos institucionales.", "#0B5FFF", "📋"
+        
+        return "", "#6B7280", "📊"
+    
+    narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_estrategico, historico_df, _counts_chips, _count_total_chips, _health_rate_e)
 
     # ── Narrativa ejecutiva (antes de gráficas y fichas) ───────────────────────
     st.markdown(
@@ -1808,50 +2041,8 @@ def render():
         unsafe_allow_html=True,
     )
 
-    # ── Tablas de mejoras/riesgos (antes de gráficas) ───────────────────────
-    ia_c1, ia_c2 = st.columns(2)
-    _th = "color:#475569;padding:0.4rem 0.5rem;border-bottom:2px solid #E2E8F0;font-size:0.78rem;font-weight:700;text-align:left;"
-    _footer_style = "margin:0.6rem 0 0 0;font-size:0.73rem;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:0.45rem;"
-    with ia_c1:
-        st.markdown(
-            f"""
-            <div style='background:#FFFFFF;border:1px solid #D1FAE5;border-left:5px solid #16A34A;
-                        border-radius:12px;padding:0.85rem 1rem;
-                        box-shadow:0 2px 10px rgba(22,163,74,0.08);'>
-                <div style='font-size:0.85rem;font-weight:700;color:#15803D;margin-bottom:0.6rem;'>↗ Indicadores que mejoraron</div>
-                <table style='width:100%;border-collapse:collapse;'>
-                    <thead><tr>
-                        <th style='{_th}'>Indicador</th>
-                        <th style='{_th}'>Línea</th>
-                        <th style='{_th}'>Variación</th>
-                    </tr></thead>
-                    <tbody>{best_rows_html}</tbody>
-                </table>
-                <p style='{_footer_style}'>🗓️ {_periodo_txt}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with ia_c2:
-        st.markdown(
-            f"""
-            <div style='background:#FFFFFF;border:1px solid #FECACA;border-left:5px solid #DC2626;
-                        border-radius:12px;padding:0.85rem 1rem;
-                        box-shadow:0 2px 10px rgba(220,38,38,0.08);'>
-                <div style='font-size:0.85rem;font-weight:700;color:#B91C1C;margin-bottom:0.6rem;'>↘ Indicadores en riesgo</div>
-                <table style='width:100%;border-collapse:collapse;'>
-                    <thead><tr>
-                        <th style='{_th}'>Indicador</th>
-                        <th style='{_th}'>Línea</th>
-                        <th style='{_th}'>Variación</th>
-                    </tr></thead>
-                    <tbody>{worst_rows_html}</tbody>
-                </table>
-                <p style='{_footer_style}'>🗓️ {_periodo_txt}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # --- FASE 4: Tablas según categoría ---
+    _render_tables_by_category(categoria, pdi_estrategico, linea_summary, best_improvements_e, worst_declines_e, _periodo_txt)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
