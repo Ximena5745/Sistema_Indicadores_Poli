@@ -598,6 +598,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             )
 
             labels = []
+            ids = []
             parents = []
             values = []
             customdata = []
@@ -624,13 +625,19 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             # Centro: líneas estratégicas
             for _, line in lines.iterrows():
                 linea_name = str(line["Linea"]).strip()
+                line_id = f"line::{_norm_key(linea_name)}"
                 labels.append(linea_name)
+                ids.append(line_id)
                 parents.append("")
                 values.append(0)
                 customdata.append([
                     line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0
                 ])
                 colors.append(normalized_color_map.get(_norm_key(linea_name), "#6B728E"))
+
+            # Ancho mínimo por línea para evitar sectores demasiado angostos
+            objetivos_por_linea = grouped.groupby("Linea", dropna=False).size().to_dict()
+            line_min_weight = 2.0
 
             # Anillo externo: objetivos
             for _, row in grouped.iterrows():
@@ -641,9 +648,16 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 count = obj_counts.get((row["Linea"], row["Objetivo"]), 0)
                 if not count or int(count) <= 0:
                     continue
+                parent_norm = _norm_key(parent_name)
+                parent_id = f"line::{parent_norm}"
+                obj_norm = _norm_key(obj_name)
+                obj_id = f"obj::{parent_norm}::{obj_norm}"
+                n_obj_linea = int(objetivos_por_linea.get(row["Linea"], 1) or 1)
+                obj_weight = max(1.0, line_min_weight / max(1, n_obj_linea))
                 labels.append(obj_name)
-                parents.append(parent_name)
-                values.append(1)
+                ids.append(obj_id)
+                parents.append(parent_id)
+                values.append(obj_weight)
                 customdata.append([
                     float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0
                 ])
@@ -750,6 +764,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     # Build a single Sunburst trace (more robust across runtimes)
     fig = go.Figure()
     all_labels = labels
+    all_ids = ids
     all_parents = parents
     all_values = values
     all_colors = colors
@@ -761,6 +776,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
     fig.add_trace(
         go.Sunburst(
+            ids=all_ids,
             labels=all_labels,
             parents=all_parents,
             values=all_values,
@@ -2016,8 +2032,12 @@ def render():
             alt_keys = [card_def["key"]] + card_def.get("alt", [])
             matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
             row = norm_to_row.get(matched[0]) if matched else None
-        n_ind = int(row["N_Indicadores"]) if row is not None else 0
-        cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
+        if row is not None:
+            n_ind = int(pd.to_numeric(row.get("N_Indicadores"), errors="coerce") or 0)
+            cumpl = float(pd.to_numeric(row.get("Cumpl_Promedio"), errors="coerce") or 0.0)
+        else:
+            n_ind = 0
+            cumpl = 0.0
         historico = None
         if row is not None and historico_df is not None and not historico_df.empty:
             try:
