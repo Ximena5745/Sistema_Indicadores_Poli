@@ -2057,7 +2057,7 @@ def render() -> None:
                     delta = float(row.get("change", 0.0) or 0.0)
                     tipo_color = get_tipo_color(tipo, light=False)
                     with tipo_cols[idx]:
-                        _render_process_card_rg(
+                        _render_process_card(
                             name=tipo,
                             indicadores=int(row.get("indicadores", 0)),
                             variation=delta,

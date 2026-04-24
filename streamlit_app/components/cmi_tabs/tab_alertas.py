@@ -65,10 +65,8 @@ def render_tab_alertas(df):
     # Navegación a la ficha desde alertas
     sel_alerta = st.selectbox("Seleccionar Indicador para ir a Ficha:", [""] + df_vista["Indicador"].tolist(), key="tab_alerta_ficha_sel")
     if sel_alerta:
-        if st.button(f"Ir a Ficha: {sel_alerta}", type="primary"):
-            st.session_state["cmi_tab_selected"] = "Ficha de Indicador"
-            st.session_state["cmi_ficha_indicador_sel"] = sel_alerta
-            st.rerun()
+        st.session_state["cmi_ficha_indicador_sel"] = sel_alerta
+        st.success(f"✅ Alerta seleccionada. Haga clic en la pestaña superior **'Ficha de Indicador'** para ver el detalle de **{sel_alerta}**.")
             
     # Mostrar dataframe
     st.dataframe(

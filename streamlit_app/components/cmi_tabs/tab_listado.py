@@ -43,15 +43,13 @@ def render_tab_listado(df):
     # Paginate manually or let dataframe handle it
     # We will let st.dataframe handle scroll and column config
     
-    st.markdown("Seleccione un indicador en la lista desplegable abajo para ver su ficha de detalle, o vaya directamente a la pestaña 'Ficha de Indicador'.")
+    st.markdown("Seleccione un indicador en la lista desplegable abajo para ver su ficha de detalle, y luego haga clic en la pestaña **'Ficha de Indicador'** arriba.")
     
-    # In order to simulate "Click fila -> abre Ficha", we can provide a selectbox to pick the indicator to see in Ficha.
+    # Selector for Ficha
     sel_ind = st.selectbox("Seleccionar Indicador para Ver Ficha", [""] + df_vista["Indicador"].tolist(), key="tab_list_ficha_sel")
     if sel_ind:
-        if st.button(f"Ir a Ficha: {sel_ind}", type="primary"):
-            st.session_state["cmi_tab_selected"] = "Ficha de Indicador"
-            st.session_state["cmi_ficha_indicador_sel"] = sel_ind
-            st.rerun()
+        st.session_state["cmi_ficha_indicador_sel"] = sel_ind
+        st.success(f"✅ Indicador **{sel_ind}** seleccionado. Por favor, haga clic en la pestaña superior **'Ficha de Indicador'** para ver los detalles.")
             
     st.dataframe(
         df_vista,

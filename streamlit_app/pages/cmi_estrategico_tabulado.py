@@ -116,29 +116,17 @@ def render():
         "Alertas"
     ]
     
-    # Manejar estado de la pestaña
-    if "cmi_tab_selected" not in st.session_state:
-        st.session_state["cmi_tab_selected"] = tab_names[0]
-        
-    tab_sel = st.radio(
-        "Navegación", 
-        tab_names, 
-        horizontal=True, 
-        label_visibility="collapsed", 
-        key="cmi_tab_selected"
-    )
+    tabs = st.tabs(tab_names)
     
-    st.markdown("---")
-    
-    if tab_sel == "Resumen Desglosado":
+    with tabs[0]:
         render_tab_resumen(df_filtrado)
-    elif tab_sel == "Objetivos e Indicadores":
+    with tabs[1]:
         render_tab_objetivos(df_filtrado)
-    elif tab_sel == "Análisis":
+    with tabs[2]:
         render_tab_analisis(df_filtrado)
-    elif tab_sel == "Listado de Indicadores":
+    with tabs[3]:
         render_tab_listado(df_filtrado)
-    elif tab_sel == "Ficha de Indicador":
+    with tabs[4]:
         render_tab_ficha(df_filtrado)
-    elif tab_sel == "Alertas":
+    with tabs[5]:
         render_tab_alertas(df_filtrado)
