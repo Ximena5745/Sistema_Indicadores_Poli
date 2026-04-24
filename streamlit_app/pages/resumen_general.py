@@ -762,8 +762,8 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 separation=0,
                 texttemplate="%{text}",
                 hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.1f}%<extra></extra>",
-                insidetextorientation="horizontal",
-                constraintext="none",
+                insidetextorientation="auto",
+                textposition="auto",
             )
     except Exception:
         pass
@@ -1453,10 +1453,13 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
 
 
 def _render_strategy_card(
-    title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None
+    title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None, unit_label: str = "indicadores"
 ):
     """Renderiza una tarjeta de estrategia con mini gráfico de línea."""
     import streamlit as st
+    
+    # Usar el unit_label recibido o "indicadores" por defecto
+    unit = unit_label if unit_label else "indicadores"
 
     # Generar mini gráfico de línea SVG si hay datos históricos
     sparkline = ""
@@ -1516,7 +1519,7 @@ def _render_strategy_card(
     card_html += "<div style='font-size:28px;margin-right:10px;'>" + icon + "</div>"
     card_html += "<div style='text-align:right;flex:1;'>"
     card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
-    card_html += "<div style='font-size:11px;color:#666;'>" + str(indicators) + " indicadores</div>"
+    card_html += "<div style='font-size:11px;color:#666;'>" + str(indicators) + " " + unit + "</div>"
     card_html += "</div></div>"
     card_html += "<div style='font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;'>" + title + "</div>"
     card_html += sparkline
@@ -1901,6 +1904,10 @@ def render():
     if not linea_summary.empty and "Linea" in linea_summary.columns:
         for _, row in linea_summary.iterrows():
             norm_to_row[_norm_key(str(row["Linea"]))] = row
+    
+    # Ajustar etiqueta según categoría
+    unit_label = "proyectos" if categoria == "Proyectos" else "indicadores"
+    
     ficha_cols = st.columns(6)
     for idx, card_def in enumerate(strategic_defs):
         row = norm_to_row.get(card_def["key"])
@@ -1911,7 +1918,7 @@ def render():
         n_ind = int(row["N_Indicadores"]) if row is not None else 0
         cumpl = float(row["Cumpl_Promedio"]) if row is not None else 0.0
         historico = None
-        if categoria == "Indicadores" and row is not None and historico_df is not None and not historico_df.empty:
+        if row is not None and historico_df is not None and not historico_df.empty:
             try:
                 linea_nombre = row["Linea"]
                 df_hist = historico_df[historico_df["Linea"] == linea_nombre].copy()
@@ -1932,6 +1939,7 @@ def render():
                 color=card_def["color"],
                 icon=card_def["icon"],
                 historico=historico,
+                unit_label=unit_label,
             )
 
     # --- Sunburst ---
