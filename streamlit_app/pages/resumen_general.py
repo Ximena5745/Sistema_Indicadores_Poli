@@ -191,7 +191,6 @@ def _build_linea_summary_from_retos(linea_df):
 
 def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
     """Promedia Cumpl_Promedio y suma N_Indicadores por línea; concatena objetivos."""
-    # s1,s2,s3: linea_summary de cada fuente; o1,o2,o3: objetivo_df de cada fuente
     all_lineas = pd.concat([s1[["Linea"]], s2[["Linea"]], s3[["Linea"]]]).drop_duplicates()
     out = all_lineas.copy()
     for col in ["N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"]:
@@ -202,13 +201,12 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
         if vals:
             dfc = pd.concat(vals, axis=1).fillna(0)
             if col=="Cumpl_Promedio":
-                out[col] = dfc.mean(axis=1)
+                out[col] = pd.to_numeric(dfc.mean(axis=1), errors="coerce").fillna(0)
             else:
-                out[col] = dfc.sum(axis=1)
+                out[col] = pd.to_numeric(dfc.sum(axis=1), errors="coerce").fillna(0)
         else:
             out[col] = 0
     out = out.reset_index(drop=True)
-    # Objetivos: concatenar y promediar cumplimiento
     objetivo_df = pd.concat([o1,o2,o3], ignore_index=True)
     if "cumplimiento_pct" in objetivo_df.columns:
         objetivo_df["cumplimiento_pct"] = pd.to_numeric(objetivo_df["cumplimiento_pct"], errors="coerce")
@@ -1341,8 +1339,14 @@ def _build_table_retos_por_linea(linea_summary):
     for idx, (_, row) in enumerate(linea_summary.iterrows()):
         with cols[idx % 2]:
             linea = row.get("Linea", "Sin línea")
-            n_retos = int(row.get("N_Indicadores", 0))
-            cumplimiento = row.get("Cumpl_Promedio", 0)
+            try:
+                n_retos = int(float(row.get("N_Indicadores", 0)))
+            except (ValueError, TypeError):
+                n_retos = 0
+            try:
+                cumplimiento = float(row.get("Cumpl_Promedio", 0))
+            except (ValueError, TypeError):
+                cumplimiento = 0.0
             
             st.markdown(f"""
             <div style='background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;padding:1rem;margin-bottom:0.5rem;'>
@@ -2020,7 +2024,19 @@ def render():
     norm_to_row = {}
     if not linea_summary_all.empty and "Linea" in linea_summary_all.columns:
         for _, row in linea_summary_all.iterrows():
-            norm_to_row[_norm_key(str(row["Linea"]))] = row.to_dict()
+            row_dict = {}
+            for k, v in row.to_dict().items():
+                try:
+                    if pd.api.types.is_numeric_dtype(row.get(k)):
+                        if "Promedio" in k or "Cumpl" in k:
+                            row_dict[k] = 0.0 if pd.isna(v) else float(v)
+                        else:
+                            row_dict[k] = 0 if pd.isna(v) else int(float(v))
+                    else:
+                        row_dict[k] = v
+                except (ValueError, TypeError):
+                    row_dict[k] = v
+            norm_to_row[_norm_key(str(row["Linea"]))] = row_dict
     
     # Ajustar etiqueta según categoría
     unit_label = "proyectos" if categoria == "Proyectos" else "indicadores"
@@ -2033,13 +2049,13 @@ def render():
             matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
             row = norm_to_row.get(matched[0]) if matched else None
         if row is not None:
-            n_ind_val = row.get("N_Indicadores")
-            cumpl_val = row.get("Cumpl_Promedio")
-            n_ind = int(pd.to_numeric(n_ind_val, errors="coerce")) if n_ind_val is not None else 0
-            cumpl = float(pd.to_numeric(cumpl_val, errors="coerce")) if cumpl_val is not None else 0.0
-            if pd.isna(n_ind):
+            try:
+                n_ind = int(float(row.get("N_Indicadores", 0)))
+            except (ValueError, TypeError):
                 n_ind = 0
-            if pd.isna(cumpl):
+            try:
+                cumpl = float(row.get("Cumpl_Promedio", 0))
+            except (ValueError, TypeError):
                 cumpl = 0.0
         else:
             n_ind = 0
