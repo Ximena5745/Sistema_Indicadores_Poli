@@ -2017,7 +2017,7 @@ def render():
         
         return "", "#6B7280", "📊"
     
-    narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_estrategico, historico_df, _counts_chips, _count_total_chips, _health_rate_e)
+    narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_estrategico, historico_df, counts_e, count_total_e, health_rate_e)
 
     # ── Narrativa ejecutiva (antes de gráficas y fichas) ───────────────────────
     st.markdown(
