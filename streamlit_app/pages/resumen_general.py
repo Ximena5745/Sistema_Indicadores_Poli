@@ -774,7 +774,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             if getattr(trace, "type", None) == "sunburst" and not getattr(
                 trace, "uniformtext", None
             ):
-                trace.update(uniformtext=dict(minsize=9, mode="hide"))
+                trace.update(uniformtext=dict(minsize=9, mode="show"))
         except Exception:
             pass
     # Ensure Sunburst is present: if not, try to create via plotly.express.sunburst
@@ -1362,43 +1362,40 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
             
             st.markdown(f"**{def_linea['label']}** ({len(proyectos_linea)} proyectos)")
             
-            for _, row in proyectos_linea.iterrows():
+            cols = st.columns(3)
+            for idx, (_, row) in enumerate(proyectos_linea.iterrows()):
                 proyecto = row.get("Indicador", "Sin nombre")[:40]
                 anio = int(row.get("Anio_int", 0)) if pd.notna(row.get("Anio")) else "-"
                 cumplimiento = row.get("cumplimiento_pct", 0)
                 
-                if cumplimiento >= 100:
-                    color_bar = "#16A34A"
-                    estado = "Cerrado"
-                elif cumplimiento >= 50:
+                if pd.isna(cumplimiento) or cumplimiento == 0:
                     color_bar = "#F59E0B"
-                    estado = "En Ejecución"
+                    estado = "Planeación"
+                elif cumplimiento >= 100:
+                    color_bar = "#16A34A"
+                    estado = "Finalizado"
                 else:
-                    color_bar = "#DC2626"
-                    estado = "En Riesgo"
+                    color_bar = "#3B82F6"
+                    estado = "En Proceso"
                 
-                pct_display = min(cumplimiento, 100)
+                pct_display = min(cumplimiento if cumplimiento else 0, 100)
                 
-                st.markdown(
-                    f"""
-                    <div style='background:#FAFAFA;border-radius:8px;padding:12px;margin-bottom:8px;border-left:4px solid {color_bar};'>
-                        <div style='display:flex;justify-content:space-between;align-items:center;'>
-                            <span style='font-weight:600;color:#1F2937;font-size:0.9rem;'>{proyecto}</span>
-                            <span style='font-size:0.75rem;color:#6B7280;'>Año: {anio}</span>
-                        </div>
-                        <div style='margin-top:6px;'>
-                            <div style='background:#E5E7EB;border-radius:4px;height:8px;width:100%;'>
-                                <div style='background:{color_bar};border-radius:4px;height:8px;width:{pct_display}%;'></div>
-                            </div>
-                            <div style='display:flex;justify-content:space-between;margin-top:2px;font-size:0.75rem;'>
-                                <span style='color:{color_bar};font-weight:600;'>{estado}</span>
-                                <span style='color:#6B7280;'>{cumplimiento:.1f}%</span>
+                with cols[idx % 3]:
+                    st.markdown(
+                        f"""
+                        <div style='background:#FAFAFA;border-radius:8px;padding:10px;margin-bottom:8px;border-left:4px solid {color_bar};'>
+                            <div style='font-weight:600;color:#1F2937;font-size:0.85rem;line-height:1.2;'>{proyecto}</div>
+                            <div style='font-size:0.7rem;color:#6B7280;margin-top:2px;'>Año: {anio}</div>
+                            <div style='margin-top:6px;'>
+                                <div style='background:#E5E7EB;border-radius:4px;height:6px;width:100%;'>
+                                    <div style='background:{color_bar};border-radius:4px;height:6px;width:{pct_display}%;'></div>
+                                </div>
+                                <div style='text-align:right;font-size:0.7rem;margin-top:2px;color:#6B7280;'>{cumplimiento:.1f}% - {estado}</div>
                             </div>
                         </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                        """,
+                        unsafe_allow_html=True,
+                    )
             
             st.markdown("")
     

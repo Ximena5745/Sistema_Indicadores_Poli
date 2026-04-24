@@ -1,22 +1,3 @@
-Id
-Indicador
-Fecha
-Anio
-Mes
-Periodo
-Meta
-Ejecucion
-Sentido
-Tipo_Registro
-Meta_Signo
-Ejecucion_Signo
-Decimales_Meta
-Decimales_Ejecucion
-Decimales
-DecimalesEje
-cumplimiento_dec
-cumplimiento_real
-cumplimiento_pct
-Nivel de cumplimiento
 Linea
 Objetivo
+cumplimiento_pct
