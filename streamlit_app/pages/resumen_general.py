@@ -523,10 +523,18 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         df["cumplimiento_pct"] = df["cumplimiento_pct"].replace([np.inf, -np.inf], pd.NA)
     except Exception:
         pass
-    # Eliminar nodos vacíos o en blanco en la jerarquía
+    
+    # Eliminar nodos vacíos o en blanco en la jerarquía (solo si las columnas existen)
     for col in ["Linea", "Objetivo"]:
-        df = df[df[col].notnull() & (df[col].astype(str).str.strip() != "")]
-    df = df[df["cumplimiento_pct"].notna()]
+        if col in df.columns:
+            df = df[df[col].notnull() & (df[col].astype(str).str.strip() != "")]
+    
+    if "cumplimiento_pct" in df.columns:
+        df = df[df["cumplimiento_pct"].notna()]
+    
+    # Si no hay datos después del filtro, usar los datos originales
+    if df.empty and not pdi_df.empty:
+        df = pdi_df.copy()
 
     # Exportar a Excel la información filtrada para el gráfico (solo Linea y Objetivo)
     try:
@@ -1685,12 +1693,14 @@ def render():
                 if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
                     cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
                 
-                # Agregar Línea desde worksheet
+                # Agregar Línea y Objetivo desde worksheet
                 base = load_worksheet_flags()
-                if not base.empty and "Linea" in base.columns:
+                if not base.empty:
                     base_norm = base.copy()
                     base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
-                    cierres_proy = cierres_proy.merge(base_norm[["Id", "Linea"]].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                    cols_to_merge = ["Id", "Linea", "Objetivo"]
+                    base_cols = [c for c in cols_to_merge if c in base_norm.columns]
+                    cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
                 
                 pdi_estrategico = cierres_proy
             else:
