@@ -1321,13 +1321,86 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
     _footer_style = "margin:0.6rem 0 0 0;font-size:0.73rem;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:0.45rem;"
     
     if category == "Proyectos":
-        # Gantt para proyectos
-        fig_gantt = _build_gantt_for_proyectos(pdi_estrategico, linea_summary)
-        if fig_gantt:
-            st.markdown("### Proyectos por Línea Estratégica")
-            st.plotly_chart(fig_gantt, use_container_width=True)
-        else:
-            st.info("No hay datos de proyectos con cierre para mostrar en el gráfico Gantt.")
+        # Fichas por Línea con proyectos
+        if pdi_estrategico.empty or "cumplimiento_pct" not in pdi_estrategico.columns:
+            st.info("No hay datos de proyectos con cierre para mostrar.")
+            return
+        
+        if "Linea" not in pdi_estrategico.columns:
+            st.info("Los proyectos no tienen información de Línea.")
+            return
+        
+        pdi_estrategico["Anio_int"] = pdi_estrategico["Anio"].astype(int)
+        
+        st.markdown("### Proyectos por Línea Estratégica")
+        
+        strategic_defs = [
+            {"key": "expansion", "label": "Expansion"},
+            {"key": "transformacion_organizacional", "label": "Transformacion organizacional"},
+            {"key": "calidad", "label": "Calidad"},
+            {"key": "experiencia", "label": "Experiencia"},
+            {"key": "sostenibilidad", "label": "Sostenibilidad"},
+            {"key": "educacion_para_toda_la_vida", "label": "Educacion para toda la vida"},
+        ]
+        
+        def _norm_key(s):
+            if s is None:
+                return ""
+            return str(s).lower().strip().replace(" ", "_").replace("ñ", "n")
+        
+        pdi_estrategico["Linea_norm"] = pdi_estrategico["Linea"].apply(_norm_key)
+        
+        for def_linea in strategic_defs:
+            proyectos_linea = pdi_estrategico[
+                pdi_estrategico["Linea_norm"].str.contains(def_linea["key"], na=False)
+            ].copy()
+            
+            if proyectos_linea.empty:
+                continue
+            
+            proyectos_linea = proyectos_linea.sort_values(["Anio_int", "Indicador"])
+            
+            st.markdown(f"**{def_linea['label']}** ({len(proyectos_linea)} proyectos)")
+            
+            for _, row in proyectos_linea.iterrows():
+                proyecto = row.get("Indicador", "Sin nombre")[:40]
+                anio = int(row.get("Anio_int", 0)) if pd.notna(row.get("Anio")) else "-"
+                cumplimiento = row.get("cumplimiento_pct", 0)
+                
+                if cumplimiento >= 100:
+                    color_bar = "#16A34A"
+                    estado = "Cerrado"
+                elif cumplimiento >= 50:
+                    color_bar = "#F59E0B"
+                    estado = "En Ejecución"
+                else:
+                    color_bar = "#DC2626"
+                    estado = "En Riesgo"
+                
+                pct_display = min(cumplimiento, 100)
+                
+                st.markdown(
+                    f"""
+                    <div style='background:#FAFAFA;border-radius:8px;padding:12px;margin-bottom:8px;border-left:4px solid {color_bar};'>
+                        <div style='display:flex;justify-content:space-between;align-items:center;'>
+                            <span style='font-weight:600;color:#1F2937;font-size:0.9rem;'>{proyecto}</span>
+                            <span style='font-size:0.75rem;color:#6B7280;'>Año: {anio}</span>
+                        </div>
+                        <div style='margin-top:6px;'>
+                            <div style='background:#E5E7EB;border-radius:4px;height:8px;width:100%;'>
+                                <div style='background:{color_bar};border-radius:4px;height:8px;width:{pct_display}%;'></div>
+                            </div>
+                            <div style='display:flex;justify-content:space-between;margin-top:2px;font-size:0.75rem;'>
+                                <span style='color:{color_bar};font-weight:600;'>{estado}</span>
+                                <span style='color:#6B7280;'>{cumplimiento:.1f}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            
+            st.markdown("")
     
     elif category == "Plan de Retos":
         # Tabla por línea para retos
