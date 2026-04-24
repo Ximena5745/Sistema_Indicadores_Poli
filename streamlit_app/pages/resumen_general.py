@@ -696,14 +696,6 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             ):
                 return "Inclusión, proyección social y medio ambiente"
 
-            # Regla general para mejorar legibilidad en sectores pequeños.
-            if len(full) > 58:
-                parts = [p.strip() for p in full.split(",") if p.strip()]
-                if len(parts) >= 2:
-                    candidate = ", ".join(parts[:2])
-                    return candidate if len(candidate) <= 58 else f"{candidate[:55].rstrip()}..."
-                return f"{full[:55].rstrip()}..."
-
             return full
 
         text = []
@@ -715,7 +707,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             elif parent == "":
                 wrapped = wrap_label(lab, width=12)
             else:
-                wrapped = wrap_label(_objective_display_label(lab, parent), width=22)
+                wrapped = wrap_label(_objective_display_label(lab, parent), width=26)
             html_label = str(wrapped).replace("\n", "<br>")
             html_label = f"<b>{html_label}</b>"
             # porcentaje en línea nueva — sin <span> (Plotly SVG solo soporta <b>, <i>, <br>)
@@ -805,7 +797,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             if getattr(trace, "type", None) == "sunburst" and not getattr(
                 trace, "uniformtext", None
             ):
-                trace.update(uniformtext=dict(minsize=8, mode="show"))
+                trace.update(uniformtext=dict(minsize=5, mode="show"))
         except Exception:
             pass
     # Ensure Sunburst is present: if not, try to create via plotly.express.sunburst
