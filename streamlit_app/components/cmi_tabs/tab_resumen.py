@@ -46,11 +46,11 @@ def render_tab_resumen(df):
             
     with col2:
         # Panel IA
-        st.markdown("""
+        html_insights = """
         <div style="background-color: #F5F7FA; padding: 20px; border-radius: 10px; border-left: 5px solid #1f4e79; height: 100%;">
             <h4 style="color: #1f4e79; margin-top: 0;">💡 Insights Automáticos</h4>
             <ul style="color: #333; font-size: 1.05rem; line-height: 1.6;">
-        """, unsafe_allow_html=True)
+        """
         
         peligro = kpis["conteo_estados"].get("Peligro", 0)
         alerta = kpis["conteo_estados"].get("Alerta", 0)
@@ -58,19 +58,20 @@ def render_tab_resumen(df):
         sobre = kpis["conteo_estados"].get("Sobrecumplimiento", 0)
         
         if peligro > 0:
-            st.markdown(f"<li>🚨 <b>Atención requerida:</b> Hay <b>{peligro}</b> indicadores en Peligro que requieren revisión inmediata de sus planes de acción.</li>", unsafe_allow_html=True)
+            html_insights += f"<li>🚨 <b>Atención requerida:</b> Hay <b>{peligro}</b> indicadores en Peligro que requieren revisión inmediata de sus planes de acción.</li>"
         if alerta > 0:
-            st.markdown(f"<li>⚠️ <b>Monitoreo:</b> <b>{alerta}</b> indicadores se encuentran en Alerta. Se sugiere hacer seguimiento cercano.</li>", unsafe_allow_html=True)
+            html_insights += f"<li>⚠️ <b>Monitoreo:</b> <b>{alerta}</b> indicadores se encuentran en Alerta. Se sugiere hacer seguimiento cercano.</li>"
         if cump > 0 or sobre > 0:
-            st.markdown(f"<li>✅ <b>Buen desempeño:</b> <b>{cump + sobre}</b> indicadores han alcanzado o superado la meta establecida.</li>", unsafe_allow_html=True)
+            html_insights += f"<li>✅ <b>Buen desempeño:</b> <b>{cump + sobre}</b> indicadores han alcanzado o superado la meta establecida.</li>"
             
         promedio = kpis["promedio"]
         if promedio >= 85:
-            st.markdown(f"<li>📈 <b>Tendencia General:</b> El cumplimiento promedio de {promedio:.1f}% indica una ejecución sólida de la estrategia.</li>", unsafe_allow_html=True)
+            html_insights += f"<li>📈 <b>Tendencia General:</b> El cumplimiento promedio de {promedio:.1f}% indica una ejecución sólida de la estrategia.</li>"
         else:
-            st.markdown(f"<li>📉 <b>Oportunidad de Mejora:</b> El cumplimiento promedio de {promedio:.1f}% señala áreas de oportunidad en la ejecución de la estrategia.</li>", unsafe_allow_html=True)
+            html_insights += f"<li>📉 <b>Oportunidad de Mejora:</b> El cumplimiento promedio de {promedio:.1f}% señala áreas de oportunidad en la ejecución de la estrategia.</li>"
             
-        st.markdown("""
+        html_insights += """
             </ul>
         </div>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(html_insights, unsafe_allow_html=True)

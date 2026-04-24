@@ -181,6 +181,8 @@ def render_metric_card(
     </div>
     """
 
+    # Limpiar líneas en blanco para evitar que Markdown rompa el HTML
+    card_html = "\n".join([line for line in card_html.split("\n") if line.strip()])
     st.markdown(card_html, unsafe_allow_html=True)
 
     # Manejar click con session_state
@@ -236,8 +238,7 @@ def render_indicator_status_card(indicator_data, show_sparkline=True):
     brecha = ejecucion - meta
     brecha_pct = (brecha / meta * 100) if meta > 0 else 0
 
-    st.markdown(
-        f"""
+    html_content = f"""
     <div style="
         background: white;
         border-radius: 16px;
@@ -316,11 +317,10 @@ def render_indicator_status_card(indicator_data, show_sparkline=True):
                 "></div>
             </div>
         </div>
-        
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """
+    html_clean = "\n".join([line for line in html_content.split("\n") if line.strip()])
+    st.markdown(html_clean, unsafe_allow_html=True)
 
 
 def render_action_card(action_data):
@@ -347,8 +347,7 @@ def render_action_card(action_data):
     }
     color = estado_colors.get(estado, COLORS["warning"])
 
-    st.markdown(
-        f"""
+    html_content = f"""
     <div style="
         background: white;
         border-radius: 12px;
@@ -404,11 +403,10 @@ def render_action_card(action_data):
                 "></div>
             </div>
         </div>
-        
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """
+    html_clean = "\n".join([line for line in html_content.split("\n") if line.strip()])
+    st.markdown(html_clean, unsafe_allow_html=True)
 
 
 def render_kpi_row(metrics, columns=4):
@@ -452,8 +450,7 @@ def render_expandable_card(title, content_html, icon="📋", default_expanded=Fa
     expanded_class = "expanded" if default_expanded else ""
     display_style = "block" if default_expanded else "none"
 
-    st.markdown(
-        f"""
+    html_content = f"""
     <div style="
         background: white;
         border-radius: 12px;
@@ -482,9 +479,7 @@ def render_expandable_card(title, content_html, icon="📋", default_expanded=Fa
         <div style="padding: 1.25rem; display: {display_style};">
             {content_html}
         </div>
-        
     </div>
-    
     <script>
     function toggleExpand(header) {{
         const content = header.nextElementSibling;
@@ -499,9 +494,9 @@ def render_expandable_card(title, content_html, icon="📋", default_expanded=Fa
         }}
     }}
     </script>
-    """,
-        unsafe_allow_html=True,
-    )
+    """
+    html_clean = "\n".join([line for line in html_content.split("\n") if line.strip()])
+    st.markdown(html_clean, unsafe_allow_html=True)
 
 
 # Exportar funciones
