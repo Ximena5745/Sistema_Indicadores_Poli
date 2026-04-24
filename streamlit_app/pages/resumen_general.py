@@ -2020,7 +2020,7 @@ def render():
     norm_to_row = {}
     if not linea_summary_all.empty and "Linea" in linea_summary_all.columns:
         for _, row in linea_summary_all.iterrows():
-            norm_to_row[_norm_key(str(row["Linea"]))] = row
+            norm_to_row[_norm_key(str(row["Linea"]))] = row.to_dict()
     
     # Ajustar etiqueta según categoría
     unit_label = "proyectos" if categoria == "Proyectos" else "indicadores"

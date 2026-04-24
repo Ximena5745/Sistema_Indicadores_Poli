@@ -7,7 +7,12 @@ import streamlit as st
 
 try:
     from services.cmi_filters import filter_df_for_cmi_estrategico
-    from services.strategic_indicators import load_cierres
+    from services.strategic_indicators import (
+        NIVEL_COLOR_EXT,
+        load_pdi_catalog,
+        preparar_pdi_con_cierre,
+        load_cierres,
+    )
 except (ImportError, ModuleNotFoundError):
     import sys
 
