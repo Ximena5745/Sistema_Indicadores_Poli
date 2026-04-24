@@ -493,19 +493,19 @@ def _preparar_indicadores_con_cierre(
         merged = merged.merge(catalog, on=catalog_merge_cols, how="left")
 
     # Normalizar cumplimiento_pct
-    merged["cumplimiento_pct"] = pd.to_numeric(merged.get("cumplimiento_pct"), errors="coerce")
-    merged["Nivel de cumplimiento"] = merged["Nivel de cumplimiento"].fillna(PENDIENTE)
-
-    # Filtrar filas sin datos de origen
-    def _has_source(row):
-        for c in ["Meta", "Ejecucion", "Cumplimiento"]:
-            if c in merged.columns:
-                v = row.get(c)
-                if pd.notna(v) and str(v).strip() != "":
-                    return True
-        return False
-
     if not merged.empty:
+        merged["cumplimiento_pct"] = pd.to_numeric(merged.get("cumplimiento_pct"), errors="coerce")
+        merged["Nivel de cumplimiento"] = merged["Nivel de cumplimiento"].fillna(PENDIENTE)
+
+        # Filtrar filas sin datos de origen
+        def _has_source(row):
+            for c in ["Meta", "Ejecucion", "Cumplimiento"]:
+                if c in merged.columns:
+                    v = row.get(c)
+                    if pd.notna(v) and str(v).strip() != "":
+                        return True
+            return False
+
         merged = merged[merged.apply(_has_source, axis=1)].reset_index(drop=True)
 
     return merged

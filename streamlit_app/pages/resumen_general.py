@@ -72,7 +72,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 try:
-    from services.strategic_indicators import preparar_pdi_con_cierre, load_pdi_catalog
+    from services.strategic_indicators import preparar_pdi_con_cierre, load_pdi_catalog, load_cierres, load_worksheet_flags
     import services.strategic_indicators as si
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
@@ -84,7 +84,7 @@ except (ImportError, ModuleNotFoundError):
     import sys
 
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from services.strategic_indicators import preparar_pdi_con_cierre, load_pdi_catalog
+    from services.strategic_indicators import preparar_pdi_con_cierre, load_pdi_catalog, load_cierres, load_worksheet_flags
     import services.strategic_indicators as si
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
@@ -1721,8 +1721,6 @@ def render():
         
         Returns: (linea_summary_df, objetivo_df, pdi_base_df, historico_df, pdi_estrategico_df)
         """
-        from services.strategic_indicators import load_cierres
-        
         linea_summary = pd.DataFrame()
         objetivo_df = pd.DataFrame()
         pdi_base_df = pd.DataFrame()
@@ -1736,7 +1734,6 @@ def render():
             if use_all_years:
                 # Cargar datos de todos los años
                 pdi_estrategico = pd.DataFrame()
-                from services.strategic_indicators import preparar_pdi_con_cierre
                 for y in years_to_load:
                     df_y = preparar_pdi_con_cierre(y, 12)
                     if df_y is not None and not df_y.empty:
@@ -1781,7 +1778,6 @@ def render():
                 
         elif category == "Proyectos":
             # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
-            from services.strategic_indicators import load_cierres, load_worksheet_flags
             cierres = load_cierres()
             ids_proy = _get_proyectos_ids()
             if not cierres.empty and ids_proy:
