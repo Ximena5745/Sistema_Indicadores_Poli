@@ -1735,8 +1735,9 @@ def render():
         {"key": "educacion para toda la vida", "alt": ["educacion para toda la vida"], "label": "Educacion para toda la vida", "icon": "🎓", "color": "#0F385A"},
     ]
     norm_to_row = {}
-    for _, row in linea_summary.iterrows():
-        norm_to_row[_norm_key(str(row["Linea"]))] = row
+    if not linea_summary.empty and "Linea" in linea_summary.columns:
+        for _, row in linea_summary.iterrows():
+            norm_to_row[_norm_key(str(row["Linea"]))] = row
     ficha_cols = st.columns(6)
     for idx, card_def in enumerate(strategic_defs):
         row = norm_to_row.get(card_def["key"])
