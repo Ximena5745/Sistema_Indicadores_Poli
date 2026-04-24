@@ -17,7 +17,7 @@ def render_tab_listado(df):
     with col3:
         # Export to excel
         buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='Indicadores', index=False)
         
         st.download_button(
