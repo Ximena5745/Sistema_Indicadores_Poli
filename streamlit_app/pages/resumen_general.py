@@ -149,6 +149,11 @@ def _load_plan_retos_data(year):
             linea_df = linea_df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
         if "Cumplimiento" in obj_df.columns:
             obj_df = obj_df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
+        # Convertir cumplimiento de decimal (0-1) a porcentaje (0-100)
+        if "cumplimiento_pct" in linea_df.columns:
+            linea_df["cumplimiento_pct"] = linea_df["cumplimiento_pct"] * 100
+        if "cumplimiento_pct" in obj_df.columns:
+            obj_df["cumplimiento_pct"] = obj_df["cumplimiento_pct"] * 100
         # Objetivo para sunburst
         if "Objetivo" not in obj_df.columns:
             obj_df["Objetivo"] = None
@@ -774,7 +779,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             if getattr(trace, "type", None) == "sunburst" and not getattr(
                 trace, "uniformtext", None
             ):
-                trace.update(uniformtext=dict(minsize=9, mode="show"))
+                trace.update(uniformtext=dict(minsize=8, mode="show"))
         except Exception:
             pass
     # Ensure Sunburst is present: if not, try to create via plotly.express.sunburst
@@ -1704,10 +1709,15 @@ def render():
 
     st.markdown("<div class='rg-panel'>", unsafe_allow_html=True)
 
-    # --- FASE 1: Carga de datos unificada por categoría ---
-    def _load_base_data_by_type(category: str, year: int):
+# --- FASE 1: Carga de datos unificada por categoría ---
+    def _load_base_data_by_type(category: str, year: int, use_all_years: bool = False):
         """
         Carga datos según la categoría seleccionada.
+        
+        Args:
+            category: "Indicadores", "Proyectos", "Plan de Retos" o "Consolidado"
+            year: año para filtrar datos específicos
+            use_all_years: si True, carga datos de todos los años (2022-2025) para fichas/chips
         
         Returns: (linea_summary_df, objetivo_df, pdi_base_df, historico_df, pdi_estrategico_df)
         """
@@ -1719,8 +1729,23 @@ def render():
         pdi_estrategico = pd.DataFrame()
         historico_df = None
         
+        # Años a cargar si use_all_years es True
+        years_to_load = [2022, 2023, 2024, 2025] if use_all_years else [year]
+        
         if category == "Indicadores":
-            pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
+            if use_all_years:
+                # Cargar datos de todos los años
+                pdi_estrategico = pd.DataFrame()
+                from services.strategic_indicators import preparar_pdi_con_cierre
+                for y in years_to_load:
+                    df_y = preparar_pdi_con_cierre(y, 12)
+                    if df_y is not None and not df_y.empty:
+                        df_y = filter_df_for_cmi_estrategico(df_y, id_column="Id")
+                        if not df_y.empty:
+                            pdi_estrategico = pd.concat([pdi_estrategico, df_y], ignore_index=True) if not pdi_estrategico.empty else df_y
+            else:
+                pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
+            
             if pdi_estrategico is None or pdi_estrategico.empty:
                 return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
             
@@ -1728,6 +1753,66 @@ def render():
             pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
             linea_summary = _build_linea_summary_from_df(pdi_estrategico)
             objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
+            pdi_base_df = pdi_estrategico.copy()
+            
+            try:
+                cierres = load_cierres()
+                if not cierres.empty:
+                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
+                    df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
+                    if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
+                        cierres = cierres.copy()
+                        cierres["Id"] = cierres["Id"].astype(str)
+                        df_cmi = df_cmi.copy()
+                        df_cmi["Id"] = df_cmi["Id"].astype(str)
+                        id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
+                        cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
+                    else:
+                        cierres_con_linea = cierres
+                    cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
+                    if "cumplimiento_pct" not in cierres_con_linea.columns:
+                        cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
+                            lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
+                        )
+                    historico_df = cierres_con_linea
+            except Exception:
+                historico_df = None
+                
+        elif category == "Proyectos":
+            # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
+            from services.strategic_indicators import load_cierres, load_worksheet_flags
+            cierres = load_cierres()
+            ids_proy = _get_proyectos_ids()
+            if not cierres.empty and ids_proy:
+                cierres_proy = cierres[cierres["Id"].astype(str).isin(ids_proy)].copy()
+                
+                # Filtrar por años
+                if use_all_years:
+                    cierres_proy = cierres_proy[cierres_proy["Anio"].isin(years_to_load)]
+                else:
+                    cierres_proy = cierres_proy[cierres_proy["Anio"] == int(year)]
+                
+                # Obtener último registro por proyecto (de todos los años si use_all_years)
+                if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
+                    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
+                
+                # Agregar Línea y Objetivo desde worksheet
+                base = load_worksheet_flags()
+                if not base.empty:
+                    base_norm = base.copy()
+                    base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
+                    cols_to_merge = ["Id", "Linea", "Objetivo"]
+                    base_cols = [c for c in cols_to_merge if c in base_norm.columns]
+                    cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                
+                pdi_estrategico = cierres_proy
+            else:
+                pdi_estrategico = pd.DataFrame()
+            
+            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
+            objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
             pdi_base_df = pdi_estrategico.copy()
             
             try:
@@ -1753,37 +1838,6 @@ def render():
             except Exception:
                 historico_df = None
                 
-        elif category == "Proyectos":
-            # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
-            from services.strategic_indicators import load_cierres, load_worksheet_flags
-            cierres = load_cierres()
-            ids_proy = _get_proyectos_ids()
-            if not cierres.empty and ids_proy:
-                cierres_proy = cierres[cierres["Id"].astype(str).isin(ids_proy)].copy()
-                # Filtrar por el año seleccionado
-                cierres_proy = cierres_proy[cierres_proy["Anio"] == int(year)]
-                # Obtener último registro por proyecto
-                if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
-                    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
-                
-                # Agregar Línea y Objetivo desde worksheet
-                base = load_worksheet_flags()
-                if not base.empty:
-                    base_norm = base.copy()
-                    base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
-                    cols_to_merge = ["Id", "Linea", "Objetivo"]
-                    base_cols = [c for c in cols_to_merge if c in base_norm.columns]
-                    cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
-                
-                pdi_estrategico = cierres_proy
-            else:
-                pdi_estrategico = pd.DataFrame()
-            
-            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
-            cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
-            objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
-            pdi_base_df = pdi_estrategico.copy()
-            
         elif category == "Plan de Retos":
             linea_df, obj_df = _load_plan_retos_data(int(year))
             linea_summary = _build_linea_summary_from_retos(linea_df)
@@ -1814,6 +1868,8 @@ def render():
     
     # --- Carga de datos usando función unificada ---
     linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, int(year_estrategico))
+    
+    linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, int(year_estrategico), use_all_years=True)
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
     def _get_chip_config(category: str, linea_summary, pdi_estrategico):
@@ -1886,10 +1942,11 @@ def render():
         return []
     
     _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico)
-    _chip_cols = st.columns(len(_chip_cfg))
-    for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
-        with _cc:
-            _render_chip(_cv, _cl, _co)
+    if _chip_cfg:  # Only render if we have chip configuration
+        _chip_cols = st.columns(len(_chip_cfg))
+        for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
+            with _cc:
+                _render_chip(_cv, _cl, _co)
 
     # --- Fichas por línea estratégica ---
     strategic_defs = [
@@ -1901,8 +1958,8 @@ def render():
         {"key": "educacion para toda la vida", "alt": ["educacion para toda la vida"], "label": "Educacion para toda la vida", "icon": "🎓", "color": "#0F385A"},
     ]
     norm_to_row = {}
-    if not linea_summary.empty and "Linea" in linea_summary.columns:
-        for _, row in linea_summary.iterrows():
+    if not linea_summary_all.empty and "Linea" in linea_summary_all.columns:
+        for _, row in linea_summary_all.iterrows():
             norm_to_row[_norm_key(str(row["Linea"]))] = row
     
     # Ajustar etiqueta según categoría
