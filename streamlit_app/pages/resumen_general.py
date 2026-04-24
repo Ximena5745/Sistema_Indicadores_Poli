@@ -1622,7 +1622,7 @@ def render():
                 
         elif category == "Proyectos":
             # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
-            from services.strategic_indicators import load_cierres
+            from services.strategic_indicators import load_cierres, load_worksheet_flags
             cierres = load_cierres()
             ids_proy = _get_proyectos_ids()
             if not cierres.empty and ids_proy:
