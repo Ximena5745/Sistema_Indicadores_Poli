@@ -680,6 +680,32 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         }
 
         # Build wrapped text lines; include percentage
+        def _objective_display_label(label: str, parent: str) -> str:
+            full = str(label or "").strip()
+            if not full:
+                return ""
+
+            parent_key = _norm_key(parent)
+            label_key = _norm_key(full)
+
+            # Caso crítico: objetivo largo de Sostenibilidad en Proyectos.
+            if (
+                parent_key == "sostenibilidad"
+                and "inclusion" in label_key
+                and "medio ambiente" in label_key
+            ):
+                return "Inclusión, proyección social y medio ambiente"
+
+            # Regla general para mejorar legibilidad en sectores pequeños.
+            if len(full) > 58:
+                parts = [p.strip() for p in full.split(",") if p.strip()]
+                if len(parts) >= 2:
+                    candidate = ", ".join(parts[:2])
+                    return candidate if len(candidate) <= 58 else f"{candidate[:55].rstrip()}..."
+                return f"{full[:55].rstrip()}..."
+
+            return full
+
         text = []
         for lab, cd, parent in zip(labels, customdata, parents):
             pct = cd[0] if cd and cd[0] is not None else 0
@@ -689,7 +715,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             elif parent == "":
                 wrapped = wrap_label(lab, width=12)
             else:
-                wrapped = wrap_label(lab, width=26)
+                wrapped = wrap_label(_objective_display_label(lab, parent), width=22)
             html_label = str(wrapped).replace("\n", "<br>")
             html_label = f"<b>{html_label}</b>"
             # porcentaje en línea nueva — sin <span> (Plotly SVG solo soporta <b>, <i>, <br>)
