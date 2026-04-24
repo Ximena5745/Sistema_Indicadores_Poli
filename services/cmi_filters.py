@@ -159,15 +159,23 @@ def get_cmi_procesos_ids() -> set[str]:
     """
     Retorna el conjunto de IDs de indicadores para CMI por Procesos.
 
-    Criterio: Subprocesos == 1
+    Criterio: Subprocesos == 1 Y 'Ind act' == 1
     """
     df = load_cmi_worksheet()
     if df.empty:
         return set()
 
-    # Aplicar filtro con normalizacion de banderas
+    # Verificar columnas necesarias
+    required_columns = ["Subprocesos", "Ind act", "Id"]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Indicadores por CMI.xlsx'.")
+        return set()
+
+    # Aplicar filtro con normalización de banderas
     flag_subprocesos = _normalize_flag_series(df["Subprocesos"])
-    mask = flag_subprocesos == 1
+    flag_ind_act = _normalize_flag_series(df["Ind act"])
+    mask = (flag_subprocesos == 1) & (flag_ind_act == 1)
     filtered = df[mask]
 
     # Limpiar IDs
