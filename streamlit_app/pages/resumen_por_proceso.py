@@ -142,6 +142,7 @@ def _latest_month_for_cierres(df: pd.DataFrame, year: int) -> int | None:
     return int(months.max()) if not months.empty else None
 
 
+def _render_process_card(name: str, indicadores: int, variation: float, color: str):
     """Renderiza tarjeta de proceso con variación (copiado de resumen_general.py)"""
     up = variation >= 0
     variation_color = "#16A34A" if variation >= 0 else "#D32F2F"
