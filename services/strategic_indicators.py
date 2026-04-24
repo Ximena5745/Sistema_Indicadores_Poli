@@ -148,7 +148,13 @@ def load_worksheet_flags() -> pd.DataFrame:
     # Intentar caché manual primero
     cached = _get_cached("worksheet_flags")
     if cached is not None and not cached.empty:
-        return cached
+        # Evitar reutilizar caché incompleto que rompe mapeo de proyectos por Línea/Objetivo.
+        required_min = {"Id", "Indicador"}
+        if required_min.issubset(set(cached.columns)) and (
+            {"Linea", "Objetivo"}.issubset(set(cached.columns))
+            or {"Factor", "Caracteristica"}.issubset(set(cached.columns))
+        ):
+            return cached
 
     # Cargar sin dependencia en st.cache_data
     if not RAW_XLSX.exists():
@@ -165,8 +171,30 @@ def load_worksheet_flags() -> pd.DataFrame:
 
     c_id = _find_col(df, ["Id", "ID"])
     c_ind = _find_col(df, ["Indicador"])
-    c_linea = _find_col(df, ["Linea"])
-    c_obj = _find_col(df, ["Objetivo"])
+    c_linea = _find_col(
+        df,
+        [
+            "Linea",
+            "Línea",
+            "LINEA",
+            "LÍNEA",
+            "Linea estrategica",
+            "Línea estratégica",
+            "LINEA ESTRATEGICA",
+            "LÍNEA ESTRATÉGICA",
+        ],
+    )
+    c_obj = _find_col(
+        df,
+        [
+            "Objetivo",
+            "OBJETIVO",
+            "Objetivo estrategico",
+            "Objetivo estratégico",
+            "OBJETIVO ESTRATEGICO",
+            "OBJETIVO ESTRATÉGICO",
+        ],
+    )
     c_factor = _find_col(df, ["FACTOR", "Factor"])
     c_car = _find_col(df, ["CARACTERISTICA", "Caracteristica", "CARACTERÍSTICA"])
     c_plan = _find_col(df, ["Indicadores Plan estrategico"])

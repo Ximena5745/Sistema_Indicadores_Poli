@@ -563,155 +563,159 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 df = df[~df["tipo"].astype(str).str.lower().str.contains("metr", na=False)]
             except Exception:
                 pass
-        # Asegurar no tener objetivos vacíos o sólo espacios (defensa adicional)
-        df = df[df["Objetivo"].notnull() & (df["Objetivo"].astype(str).str.strip() != "")]
+        # Asegurar columnas mínimas para jerarquía; si faltan, se mostrará nodo "Sin datos".
+        if "Linea" not in df.columns or "Objetivo" not in df.columns:
+            df = pd.DataFrame()
+        else:
+            # Asegurar no tener objetivos vacíos o sólo espacios (defensa adicional)
+            df = df[df["Objetivo"].notnull() & (df["Objetivo"].astype(str).str.strip() != "")]
 
-        # Nivel 1: Linea (promedio)
-        lines = (
-            df.groupby("Linea", dropna=False)
-            .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
-            .reset_index()
-        )
-        # Nivel 2: Objetivo (promedio)
-        grouped = (
-            df.groupby(["Linea", "Objetivo"], dropna=False)
-            .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
-            .reset_index()
-        )
+            # Normalizar claves de jerarquía para evitar nodos huérfanos por espacios invisibles.
+            # Esto impacta especialmente Proyectos, donde pueden venir valores con trailing spaces.
+            df = df.copy()
+            df["Linea"] = df["Linea"].astype(str).str.strip()
+            df["Objetivo"] = df["Objetivo"].astype(str).str.strip()
 
-        labels = []
-        parents = []
-        values = []
-        customdata = []
-        colors = []
-
-        # Use counts for sizing but show cumplimiento_pct as text inside sectors
-        line_counts = df.groupby("Linea").size().to_dict()
-        obj_counts = df.groupby(["Linea", "Objetivo"]).size().to_dict()
-
-        # helper to match color keys ignoring accents/case
-        def _norm_key(s: str) -> str:
-            import unicodedata, re
-
-            if s is None:
-                return ""
-            t = str(s).strip().lower()
-            t = unicodedata.normalize("NFD", t)
-            t = "".join(ch for ch in t if unicodedata.category(ch) != "Mn")
-            # replace any non-alphanumeric with a single space and collapse spaces
-            t = re.sub(r"[^0-9a-z]+", " ", t)
-            t = re.sub(r"\s+", " ", t).strip()
-            return t
-
-        normalized_color_map = {_norm_key(k): v for k, v in LINEA_COLORS.items()}
-
-        # --- AJUSTE: El centro serán las líneas estratégicas ---
-        for _, line in lines.iterrows():
-            linea_name = str(line["Linea"])
-            labels.append(linea_name)
-            parents.append("")
-            values.append(0)  # branchvalues='remainder': parent=0 → tamaño definido por hijos
-            customdata.append(
-                [line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0]
+        if df.empty:
+            labels = ["Sin datos"]
+            parents = [""]
+            values = [1]
+            customdata = [[0]]
+            colors = ["#6B728E"]
+            text = ["Sin datos\n0.0%"]
+        else:
+            # Nivel 1: Linea (promedio)
+            lines = (
+                df.groupby("Linea", dropna=False)
+                .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
+                .reset_index()
             )
-            colors.append(normalized_color_map.get(_norm_key(linea_name), "#6B728E"))
-
-        for _, row in grouped.iterrows():
-            obj_name = row["Objetivo"]
-            parent_name = row["Linea"]
-            # Omitir objetivos vacíos o nulos (defensa adicional)
-            if pd.isna(obj_name) or str(obj_name).strip() == "":
-                continue
-            if pd.isna(parent_name) or str(parent_name).strip() == "":
-                continue
-            # Omitir objetivos sin indicadores válidos
-            count = obj_counts.get((parent_name, obj_name), 0)
-            if not count or int(count) <= 0:
-                continue
-            labels.append(str(obj_name).strip())
-            parents.append(str(parent_name).strip())
-            values.append(1)  # valor uniforme → distribución igualitaria sin gaps
-            customdata.append(
-                [float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0]
+            # Nivel 2: Objetivo (promedio)
+            grouped = (
+                df.groupby(["Linea", "Objetivo"], dropna=False)
+                .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
+                .reset_index()
             )
-            colors.append(normalized_color_map.get(_norm_key(parent_name), "#6B728E"))
 
-        # Wrap long labels to multiple lines so they fit inside sectors
-        def wrap_label(s: str, width: int = 18) -> str:
-            import re
+            labels = []
+            parents = []
+            values = []
+            customdata = []
+            colors = []
 
-            text = str(s or "").strip()
-            if not text:
-                return ""
-            # First try logical separators to produce natural splits
-            separators = [",", " / ", " - ", " y ", ";"]
-            segments = [text]
-            for sep in separators:
-                if any(sep in seg for seg in segments):
-                    new_segs = []
-                    for seg in segments:
-                        if sep in seg:
-                            parts = [p.strip() for p in seg.split(sep) if p.strip()]
-                            new_segs.extend(parts)
+            # Use counts for sizing but show cumplimiento_pct as text inside sectors
+            obj_counts = df.groupby(["Linea", "Objetivo"]).size().to_dict()
+
+            # helper to match color keys ignoring accents/case
+            def _norm_key(s: str) -> str:
+                import unicodedata, re
+
+                if s is None:
+                    return ""
+                t = str(s).strip().lower()
+                t = unicodedata.normalize("NFD", t)
+                t = "".join(ch for ch in t if unicodedata.category(ch) != "Mn")
+                t = re.sub(r"[^0-9a-z]+", " ", t)
+                t = re.sub(r"\s+", " ", t).strip()
+                return t
+
+            normalized_color_map = {_norm_key(k): v for k, v in LINEA_COLORS.items()}
+
+            # Centro: líneas estratégicas
+            for _, line in lines.iterrows():
+                linea_name = str(line["Linea"]).strip()
+                labels.append(linea_name)
+                parents.append("")
+                values.append(0)
+                customdata.append([
+                    line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0
+                ])
+                colors.append(normalized_color_map.get(_norm_key(linea_name), "#6B728E"))
+
+            # Anillo externo: objetivos
+            for _, row in grouped.iterrows():
+                obj_name = str(row["Objetivo"]).strip()
+                parent_name = str(row["Linea"]).strip()
+                if not obj_name or not parent_name:
+                    continue
+                count = obj_counts.get((row["Linea"], row["Objetivo"]), 0)
+                if not count or int(count) <= 0:
+                    continue
+                labels.append(obj_name)
+                parents.append(parent_name)
+                values.append(1)
+                customdata.append([
+                    float(row["cumplimiento_pct"]) if pd.notna(row["cumplimiento_pct"]) else 0.0
+                ])
+                colors.append(normalized_color_map.get(_norm_key(parent_name), "#6B728E"))
+
+            # Wrap long labels to multiple lines so they fit inside sectors
+            def wrap_label(s: str, width: int = 18) -> str:
+                import re
+
+                raw = str(s or "").strip()
+                if not raw:
+                    return ""
+                separators = [",", " / ", " - ", " y ", ";"]
+                segments = [raw]
+                for sep in separators:
+                    if any(sep in seg for seg in segments):
+                        new_segs = []
+                        for seg in segments:
+                            if sep in seg:
+                                parts = [p.strip() for p in seg.split(sep) if p.strip()]
+                                new_segs.extend(parts)
+                            else:
+                                new_segs.append(seg)
+                        segments = new_segs
+
+                wrapped_lines = []
+                for seg in segments:
+                    words = seg.split()
+                    cur = []
+                    for w in words:
+                        if sum(len(x) for x in cur) + len(cur) + len(w) <= width:
+                            cur.append(w)
                         else:
-                            new_segs.append(seg)
-                    segments = new_segs
-            # Now for each segment, apply word-wrap to the given width
-            wrapped_lines = []
-            for seg in segments:
-                words = seg.split()
-                cur = []
-                for w in words:
-                    if sum(len(x) for x in cur) + len(cur) + len(w) <= width:
-                        cur.append(w)
-                    else:
-                        if cur:
-                            wrapped_lines.append(" ".join(cur))
-                        cur = [w]
-                if cur:
-                    wrapped_lines.append(" ".join(cur))
-            # clean and return joined lines
-            cleaned = [re.sub(r"\s+", " ", ln).strip() for ln in wrapped_lines]
-            return "\n".join(cleaned)
+                            if cur:
+                                wrapped_lines.append(" ".join(cur))
+                            cur = [w]
+                    if cur:
+                        wrapped_lines.append(" ".join(cur))
+                cleaned = [re.sub(r"\s+", " ", ln).strip() for ln in wrapped_lines]
+                return "\n".join(cleaned)
 
-        # Overrides de salto de línea para labels específicos (ajuste visual manual)
-        LABEL_WRAP_OVERRIDES = {
-            _norm_key("Educación para toda la vida"): "Educación para\ntoda la vida",
-        }
+            LABEL_WRAP_OVERRIDES = {
+                _norm_key("Educación para toda la vida"): "Educación para\ntoda la vida",
+            }
 
-        # Build wrapped text lines; include percentage
-        def _objective_display_label(label: str, parent: str) -> str:
-            full = str(label or "").strip()
-            if not full:
-                return ""
+            def _objective_display_label(label: str, parent: str) -> str:
+                full = str(label or "").strip()
+                if not full:
+                    return ""
+                parent_key = _norm_key(parent)
+                label_key = _norm_key(full)
+                if (
+                    parent_key == "sostenibilidad"
+                    and "inclusion" in label_key
+                    and "medio ambiente" in label_key
+                ):
+                    return "Inclusión, proyección social y medio ambiente"
+                return full
 
-            parent_key = _norm_key(parent)
-            label_key = _norm_key(full)
-
-            # Caso crítico: objetivo largo de Sostenibilidad en Proyectos.
-            if (
-                parent_key == "sostenibilidad"
-                and "inclusion" in label_key
-                and "medio ambiente" in label_key
-            ):
-                return "Inclusión, proyección social y medio ambiente"
-
-            return full
-
-        text = []
-        for lab, cd, parent in zip(labels, customdata, parents):
-            pct = cd[0] if cd and cd[0] is not None else 0
-            lab_key = _norm_key(lab)
-            if lab_key in LABEL_WRAP_OVERRIDES:
-                wrapped = LABEL_WRAP_OVERRIDES[lab_key]
-            elif parent == "":
-                wrapped = wrap_label(lab, width=12)
-            else:
-                wrapped = wrap_label(_objective_display_label(lab, parent), width=26)
-            html_label = str(wrapped).replace("\n", "<br>")
-            html_label = f"<b>{html_label}</b>"
-            # porcentaje en línea nueva — sin <span> (Plotly SVG solo soporta <b>, <i>, <br>)
-            text.append(f"{html_label}<br>{pct:.0f}%")
+            text = []
+            for lab, cd, parent in zip(labels, customdata, parents):
+                pct = cd[0] if cd and cd[0] is not None else 0
+                lab_key = _norm_key(lab)
+                if lab_key in LABEL_WRAP_OVERRIDES:
+                    wrapped = LABEL_WRAP_OVERRIDES[lab_key]
+                elif parent == "":
+                    wrapped = wrap_label(lab, width=12)
+                else:
+                    wrapped = wrap_label(_objective_display_label(lab, parent), width=26)
+                html_label = str(wrapped).replace("\n", "<br>")
+                html_label = f"<b>{html_label}</b>"
+                text.append(f"{html_label}<br>{pct:.0f}%")
 
     # Split inner (Linea) and outer (Objetivo) for independent styling
     inner_idxs = [i for i, p in enumerate(parents) if p == ""]
@@ -1725,6 +1729,14 @@ def render():
             key="cmi_categoria",
         )
 
+    # Defensa ante estado transitorio del widget (puede devolver None en algunos reruns)
+    if year_estrategico is None:
+        year_estrategico = years[-1]
+    if categoria is None:
+        categoria = "Indicadores"
+
+    safe_year_estrategico = int(year_estrategico)
+
     st.markdown("<div class='rg-panel'>", unsafe_allow_html=True)
 
 # --- FASE 1: Carga de datos unificada por categoría ---
@@ -1796,10 +1808,24 @@ def render():
                 
         elif category == "Proyectos":
             # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
+            def _norm_id(v) -> str:
+                if pd.isna(v):
+                    return ""
+                text = str(v).strip()
+                try:
+                    num = float(text)
+                    if num.is_integer():
+                        return str(int(num))
+                except Exception:
+                    pass
+                return text
+
             cierres = load_cierres()
-            ids_proy = _get_proyectos_ids()
+            ids_proy = {_norm_id(x) for x in _get_proyectos_ids()}
             if not cierres.empty and ids_proy:
-                cierres_proy = cierres[cierres["Id"].astype(str).isin(ids_proy)].copy()
+                cierres = cierres.copy()
+                cierres["Id"] = cierres["Id"].apply(_norm_id)
+                cierres_proy = cierres[cierres["Id"].isin(ids_proy)].copy()
                 
                 # Filtrar por años
                 if use_all_years:
@@ -1810,12 +1836,16 @@ def render():
                 # Obtener último registro por proyecto (de todos los años si use_all_years)
                 if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
                     cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
+
+                # Normalizar Id para merge robusto con base (evita pérdida de Línea/Objetivo por tipos mixtos)
+                if "Id" in cierres_proy.columns:
+                    cierres_proy["Id"] = cierres_proy["Id"].apply(_norm_id)
                 
                 # Agregar Línea y Objetivo desde worksheet
                 base = load_worksheet_flags()
                 if not base.empty:
                     base_norm = base.copy()
-                    base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
+                    base_norm["Id"] = base_norm["Id"].apply(_norm_id)
                     cols_to_merge = ["Id", "Linea", "Objetivo"]
                     base_cols = [c for c in cols_to_merge if c in base_norm.columns]
                     cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
@@ -1881,9 +1911,9 @@ def render():
         return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
     
     # --- Carga de datos usando función unificada ---
-    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, int(year_estrategico))
+    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico)
     
-    linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, int(year_estrategico), use_all_years=True)
+    linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
     def _get_chip_config(category: str, linea_summary, pdi_estrategico):
@@ -2025,11 +2055,16 @@ def render():
     prev_month_e = _latest_month_for_year(consolidado, prev_year_e)
     if categoria in ["Indicadores", "Proyectos"] and not pdi_base_df.empty and prev_month_e:
         prev_df = preparar_pdi_con_cierre(prev_year_e, prev_month_e)
-        if categoria == "Indicadores":
+        if prev_df is None or prev_df.empty:
+            prev_df = pd.DataFrame()
+        elif categoria == "Indicadores":
             prev_df = filter_df_for_cmi_estrategico(prev_df, id_column="Id")
         elif categoria == "Proyectos":
             ids_proy = _get_proyectos_ids()
-            prev_df = prev_df[prev_df["Id"].astype(str).isin(ids_proy)].copy()
+            if "Id" in prev_df.columns:
+                prev_df = prev_df[prev_df["Id"].astype(str).isin(ids_proy)].copy()
+            else:
+                prev_df = pd.DataFrame()
         best_improvements_e, worst_declines_e = _compute_trends(pdi_base_df, prev_df)
     # Para Plan de Retos y Consolidado, no hay variación por Id
 
