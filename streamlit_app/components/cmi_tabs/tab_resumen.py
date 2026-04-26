@@ -39,9 +39,13 @@ LINEA_COLORES = {
 
 def _get_linea_color(linea):
     """Retorna el color oficial para una línea."""
+    import unicodedata
     txt = str(linea or "").strip().lower().replace("_", " ")
+    # Normalizar: quitar acentos
+    txt = unicodedata.normalize("NFD", txt)
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
     
-    # Ordenar claves por longitud (mas largo primero) para coincidencia mas especifica
+    # Ordenar claves por longitud (mas largo primero)
     sorted_keys = sorted(LINEA_COLORES.keys(), key=len, reverse=True)
     
     for key in sorted_keys:
