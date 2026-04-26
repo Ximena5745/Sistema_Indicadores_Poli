@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from plotly import graph_objects as go
 from streamlit_app.components.interactive_cards import render_metric_card
-from streamlit_app.utils.cmi_helpers import calcular_kpis, linea_color
+from streamlit_app.utils.cmi_helpers import calcular_kpis
 from services.strategic_indicators import NIVEL_COLOR_EXT
 try:
     from core.config import COLORES, COLOR_CATEGORIA
@@ -25,6 +25,28 @@ except ImportError:
         "Cumplimiento": "#43A047", 
         "Sobrecumplimiento": "#1A3A5C"
     }
+
+# Colores por línea estratégica (del docs/core/04_Dashboard.md)
+LINEA_COLORES = {
+    "Expansión": "#FBAF17",
+    "Transformación organizacional": "#42F2F2",
+    "Transformacion": "#42F2F2",
+    "Calidad": "#EC0677",
+    "Experiencia": "#1FB2DE",
+    "Sostenibilidad": "#A6CE38",
+    "Sustentabilidad": "#A6CE38",
+    "Educación para toda la vida": "#0F385A",
+    "Educacion": "#0F385A"
+}
+
+def _get_linea_color(linea):
+    """Retorna el color oficial para una línea."""
+    txt = str(linea or "").strip()
+    for key, color in LINEA_COLORES.items():
+        if key.lower() in txt.lower():
+            return color
+    return "#1A3A5C"  # Default
+
 
 def render_tab_resumen(df):
     st.markdown("### Resumen Desglosado")
@@ -309,7 +331,7 @@ def render_tab_resumen(df):
         n_obj = df_l["Objetivo"].nunique()
         
         # Color de línea desde fuente central
-        color = linea_color(linea)
+        color = _get_linea_color(linea)
         
         # Nombre limpio para mostrar (con espacios)
         linea_display = str(linea).strip()
