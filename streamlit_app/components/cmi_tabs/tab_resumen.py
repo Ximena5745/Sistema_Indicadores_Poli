@@ -168,7 +168,7 @@ def render_tab_resumen(df):
             
     st.markdown("<br>", unsafe_allow_html=True)
             
-    # 3. Fichas: Vista rápida por línea - diseño profesional
+    # 3. Fichas: Vista rápida por línea - diseño profesional mejorado
     st.markdown("#### Vista rápida por línea")
     lineas = [l for l in df["Linea"].dropna().unique() if str(l).strip()]
     lineas = sorted(lineas, key=lambda x: df[df["Linea"] == x]["cumplimiento_pct"].mean(), reverse=True)
@@ -182,47 +182,59 @@ def render_tab_resumen(df):
         n_obj = df_l["Objetivo"].nunique()
         color = linea_color(linea)
         
-        # Color del texto según contraste
-        text_color = "white" if color not in ["#FBAF17", "#42F2F2", "#FEF3D0", "#A6CE38", "#FFD56B"] else "#1A1A1A"
+        # Color de estado según cumplimiento
+        if cump >= 100:
+            estado_color = "#43A047"  # Cumplimiento
+            estado_icon = "✅"
+            estado_label = "Meta alcanzada"
+        elif cump >= 80:
+            estado_color = "#FBAF17"  # Alerta
+            estado_icon = "⚠️"
+            estado_label = "En proceso"
+        else:
+            estado_color = "#D32F2F"  # Peligro
+            estado_icon = "🔴"
+            estado_label = "Requiere atención"
         
-        # Color de la barra según cumplimiento
-        bar_color = "#43A047" if cump >= 100 else "#FBAF17" if cump >= 80 else "#D32F2F"
-        
-        # Tarjeta profesional con borde izquierdo de color
+        # Diseño profesional con fondo claro y borde de color
         card_html = f"""
-        <div style="background: linear-gradient(135deg, {color} 0%, {color}EE 100%); color: {text_color}; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); margin-bottom: 16px; border-left: 5px solid {bar_color};">
+        <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-top: 4px solid {color}; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="font-weight: 600; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">{linea}</span>
-                <span style="font-size: 1.1rem; opacity: 0.9;">→</span>
+                <span style="font-weight: 600; font-size: 0.9rem; color: #1A3A5C;">{linea}</span>
+                <span style="font-size: 0.8rem; color: #6B7280; background: #F3F4F6; padding: 2px 8px; border-radius: 12px;">{estado_icon} {estado_label}</span>
             </div>
-            <div style="text-align: center; margin-bottom: 12px;">
-                <span style="font-size: 2rem; font-weight: 700; line-height: 1;">{cump:.1f}%</span>
-                <div style="font-size: 0.7rem; opacity: 0.85; text-transform: uppercase; margin-top: 2px;">Cumplimiento</div>
+            <div style="text-align: center; margin-bottom: 16px; padding: 12px 0; background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); border-radius: 6px;">
+                <span style="font-size: 2.2rem; font-weight: 700; color: {estado_color};">{cump:.1f}%</span>
+                <div style="font-size: 0.7rem; color: #6B7280; text-transform: uppercase; margin-top: 4px;">Cumplimiento</div>
             </div>
-            <div style="display: flex; justify-content: space-around; margin-bottom: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.2); border-bottom: 1px solid rgba(255,255,255,0.2);">
-                <div style="text-align: center;">
-                    <div style="font-size: 1.3rem; font-weight: 600;">{n_ind}</div>
-                    <div style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Indicadores</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 10px; background: #F9FAFB; border-radius: 6px;">
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 1.4rem; font-weight: 600; color: #1A3A5C;">{n_ind}</div>
+                    <div style="font-size: 0.65rem; color: #6B7280; text-transform: uppercase;">📊 Indicadores</div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 1.3rem; font-weight: 600;">{n_obj}</div>
-                    <div style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Objetivos</div>
+                <div style="width: 1px; background: #E5E7EB;"></div>
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 1.4rem; font-weight: 600; color: #1A3A5C;">{n_obj}</div>
+                    <div style="font-size: 0.65rem; color: #6B7280; text-transform: uppercase;">🎯 Objetivos</div>
                 </div>
             </div>
-            <div style="margin-top: 8px;">
-                <div style="width: 100%; background-color: rgba(255,255,255,0.25); height: 8px; border-radius: 4px; overflow: hidden;">
-                    <div style="width: {min(100, cump)}%; background-color: {bar_color}; height: 100%; border-radius: 4px;"></div>
+            <div style="margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #6B7280; margin-bottom: 4px;">
+                    <span>Progreso</span>
+                    <span>Meta: 100%</span>
                 </div>
-                <div style="text-align: center; font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">Meta 100%</div>
+                <div style="width: 100%; background: #E5E7EB; height: 6px; border-radius: 3px; overflow: hidden;">
+                    <div style="width: {min(100, cump)}%; background: linear-gradient(90deg, {estado_color} 0%, {estado_color}CC 100%); height: 100%; border-radius: 3px;"></div>
+                </div>
             </div>
         </div>
         """
         html_clean = "\n".join([line for line in card_html.split("\n") if line.strip()])
         with cols_fichas[idx % 3]:
             st.markdown(html_clean, unsafe_allow_html=True)
-            if st.button(f"🔍 Ver Detalles", key=f"btn_nav_{linea.replace(' ', '_')}_{idx}", use_container_width=True):
+            if st.button(f"Ver Detalles →", key=f"btn_nav_{linea.replace(' ', '_')}_{idx}", use_container_width=True):
                 st.session_state["cmi_tab_linea_expand"] = linea
-                st.success("✅ Seleccionada. Haz clic en la pestaña superior 'Líneas Estratégicas' para ver el detalle.")
+                st.toast(f"✅ {linea} seleccionada")
             
     st.markdown("<br>", unsafe_allow_html=True)
             
