@@ -286,58 +286,48 @@ def render_tab_resumen(df):
         font-weight: 600;
     }
     .linea-card-body {
-        padding: 14px;
+        padding: 12px;
         background: #FCFDFF;
     }
-    .cumpl-box {
+    .summary-row {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .summary-box {
         text-align: center;
-        padding: 12px 10px 10px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        border: 1px solid #E3EBE3;
-    }
-    .cumpl-value {
-        font-size: 34px;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-    .cumpl-label {
-        font-size: 9px;
-        text-transform: uppercase;
-        letter-spacing: 0.7px;
-        margin-top: 2px;
-    }
-    .metrics-row {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 10px;
-    }
-    .metric-box {
-        flex: 1;
-        text-align: center;
-        padding: 7px 4px;
+        padding: 8px 5px;
         background: #F2F6FC;
         border-radius: 8px;
         border: 1px solid #E4EBF5;
     }
-    .metric-value {
-        font-size: 23px;
+    .summary-value {
+        font-size: 32px;
         font-weight: 700;
-        line-height: 1.1;
+        line-height: 1;
+        color: #2E8B57;
     }
-    .metric-label {
+    .summary-value.small {
+        font-size: 31px;
+        color: #1F3552;
+    }
+    .summary-label {
         font-size: 9px;
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.6px;
+        color: #6B7280;
+        margin-top: 2px;
     }
     .progress-row {
-        margin-top: 6px;
+        margin-top: 4px;
     }
     .progress-header {
         display: flex;
         justify-content: space-between;
-        font-size: 9px;
+        font-size: 10px;
         margin-bottom: 3px;
+        color: #5C6573;
     }
     .progress-bar {
         width: 100%;
@@ -362,13 +352,13 @@ def render_tab_resumen(df):
         opacity: 0.85;
     }
     .status-note {
-        margin-top: 6px;
+        margin-top: 5px;
         font-size: 10px;
         text-align: right;
         font-weight: 600;
     }
     .linea-cta {
-        margin-top: 8px;
+        margin-top: 6px;
         padding-top: 6px;
         border-top: 1px dashed #D9E2EF;
         font-size: 11px;
@@ -433,24 +423,24 @@ def render_tab_resumen(df):
                 <span>→</span>
             </div>
             <div class="linea-card-body">
-                <div class="cumpl-box" style="background: {estado_bg};">
-                    <div class="cumpl-value" style="color: {estado_color};">{cump:.1f}%</div>
-                    <div class="cumpl-label" style="color: #6B7280;">Cumplimiento</div>
-                </div>
-                <div class="metrics-row">
-                    <div class="metric-box">
-                        <div class="metric-value" style="color: #1A3A5C;">{n_ind}</div>
-                        <div class="metric-label" style="color: #6B7280;">Indicadores</div>
+                <div class="summary-row">
+                    <div class="summary-box" style="background: {estado_bg}; border-color: #DFE8DF;">
+                        <div class="summary-value" style="color: {estado_color};">{cump:.1f}%</div>
+                        <div class="summary-label">Cumplimiento</div>
                     </div>
-                    <div class="metric-box">
-                        <div class="metric-value" style="color: #1A3A5C;">{n_obj}</div>
-                        <div class="metric-label" style="color: #6B7280;">Objetivos</div>
+                    <div class="summary-box">
+                        <div class="summary-value small">{n_ind}</div>
+                        <div class="summary-label">Indicadores</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="summary-value small">{n_obj}</div>
+                        <div class="summary-label">Objetivos</div>
                     </div>
                 </div>
                 <div class="progress-row">
                     <div class="progress-header">
-                        <span style="color: #6B7280;">Progreso</span>
-                        <span style="font-weight: 600; color: #6B7280;">{progress_meta_label}</span>
+                        <span>Progreso</span>
+                        <span style="font-weight: 600;">{progress_meta_label}</span>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: {progress_width:.1f}%; background: {estado_color};"></div>
