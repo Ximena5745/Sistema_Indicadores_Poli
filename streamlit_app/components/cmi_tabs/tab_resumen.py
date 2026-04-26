@@ -30,21 +30,24 @@ except ImportError:
 LINEA_COLORES = {
     "expansion": "#FBAF17",
     "transformacion organizacional": "#42F2F2",
-    "transformacion": "#42F2F2",
     "calidad": "#EC0677",
     "experiencia": "#1FB2DE",
     "sostenibilidad": "#A6CE38",
     "sustentabilidad": "#A6CE38",
-    "educacion para toda la vida": "#0F385A",
-    "educacion": "#0F385A"
+    "educacion para toda la vida": "#0F385A"
 }
 
 def _get_linea_color(linea):
     """Retorna el color oficial para una línea."""
     txt = str(linea or "").strip().lower().replace("_", " ")
-    for key, color in LINEA_COLORES.items():
-        if key in txt or txt in key:
-            return color
+    
+    # Ordenar claves por longitud (mas largo primero) para coincidencia mas especifica
+    sorted_keys = sorted(LINEA_COLORES.keys(), key=len, reverse=True)
+    
+    for key in sorted_keys:
+        if key in txt:
+            return LINEA_COLORES[key]
+    
     return "#1A3A5C"  # Default
 
 
