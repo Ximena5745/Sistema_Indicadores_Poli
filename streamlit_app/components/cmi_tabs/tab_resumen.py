@@ -245,7 +245,7 @@ def render_tab_resumen(df):
     .linea-cards-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+        gap: 14px;
         margin-bottom: 24px;
     }
     @media (max-width: 1024px) {
@@ -255,15 +255,17 @@ def render_tab_resumen(df):
         .linea-cards-grid { grid-template-columns: 1fr; gap: 12px; }
     }
     .linea-card {
-        background: #FFFFFF;
-        border-radius: 12px;
+        background: #F8FAFF;
+        border-radius: 14px;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #E6ECF5;
+        box-shadow: 0 2px 8px rgba(26,58,92,0.08);
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     }
     .linea-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(-1px);
+        border-color: #D0DDF0;
+        box-shadow: 0 6px 16px rgba(26,58,92,0.14);
     }
     .linea-card-header {
         padding: 10px 14px;
@@ -275,67 +277,72 @@ def render_tab_resumen(df):
         align-items: center;
     }
     .linea-card-header span:first-child {
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.2px;
+        font-weight: 700;
     }
     .linea-card-header span:last-child {
-        font-size: 11px;
+        font-size: 14px;
         opacity: 0.9;
-        font-weight: 500;
+        font-weight: 600;
     }
     .linea-card-body {
         padding: 14px;
+        background: #FCFDFF;
     }
     .cumpl-box {
         text-align: center;
-        padding: 14px 10px;
-        border-radius: 8px;
-        margin-bottom: 12px;
+        padding: 12px 10px 10px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #E3EBE3;
     }
     .cumpl-value {
-        font-size: 28px;
+        font-size: 34px;
         font-weight: 700;
         line-height: 1.2;
     }
     .cumpl-label {
-        font-size: 10px;
+        font-size: 9px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.7px;
         margin-top: 2px;
     }
     .metrics-row {
         display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 6px;
+        margin-bottom: 10px;
     }
     .metric-box {
         flex: 1;
         text-align: center;
-        padding: 8px 4px;
-        background: #F8FAFC;
-        border-radius: 6px;
+        padding: 7px 4px;
+        background: #F2F6FC;
+        border-radius: 8px;
+        border: 1px solid #E4EBF5;
     }
     .metric-value {
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 23px;
+        font-weight: 700;
+        line-height: 1.1;
     }
     .metric-label {
-        font-size: 10px;
+        font-size: 9px;
         text-transform: uppercase;
+        letter-spacing: 0.4px;
     }
     .progress-row {
-        margin-top: 8px;
+        margin-top: 6px;
     }
     .progress-header {
         display: flex;
         justify-content: space-between;
-        font-size: 10px;
-        margin-bottom: 4px;
+        font-size: 9px;
+        margin-bottom: 3px;
     }
     .progress-bar {
         width: 100%;
-        height: 6px;
-        background: #E5E7EB;
+        height: 4px;
+        background: #E1E7F0;
         border-radius: 3px;
         overflow: hidden;
     }
@@ -343,21 +350,30 @@ def render_tab_resumen(df):
         height: 100%;
         border-radius: 3px;
     }
-    .linea-card-footer {
-        padding: 10px 14px;
-        background: #F9FAFB;
-        border-top: 1px solid #E5E7EB;
+    .progress-accent {
+        display: grid;
+        grid-template-columns: 1fr 0.42fr 0.30fr;
+        gap: 4px;
+        margin-top: 4px;
+        height: 3px;
+    }
+    .progress-accent > div {
+        border-radius: 2px;
+        opacity: 0.85;
+    }
+    .status-note {
+        margin-top: 6px;
+        font-size: 10px;
         text-align: right;
-    }
-    .linea-card-footer a {
-        font-size: 12px;
         font-weight: 600;
-        color: #1A3A5C;
-        text-decoration: none;
-        cursor: pointer;
     }
-    .linea-card-footer a:hover {
-        text-decoration: underline;
+    .linea-cta {
+        margin-top: 8px;
+        padding-top: 6px;
+        border-top: 1px dashed #D9E2EF;
+        font-size: 11px;
+        font-weight: 600;
+        color: #3D4E66;
     }
     </style>
     """).strip()
@@ -414,7 +430,7 @@ def render_tab_resumen(df):
         <div class="linea-card">
             <div class="linea-card-header" style="background: {color};">
                 <span>{linea_display}</span>
-                <span>Línea</span>
+                <span>→</span>
             </div>
             <div class="linea-card-body">
                 <div class="cumpl-box" style="background: {estado_bg};">
@@ -439,8 +455,14 @@ def render_tab_resumen(df):
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: {progress_width:.1f}%; background: {estado_color};"></div>
                     </div>
+                    <div class="progress-accent">
+                        <div style="background: {color};"></div>
+                        <div style="background: #5E93FF;"></div>
+                        <div style="background: #FBAF17;"></div>
+                    </div>
                 </div>
-                <div style="margin-top: 6px; font-size: 10px; color: {estado_text}; text-align: right;">{estado_label}</div>
+                <div class="status-note" style="color: {estado_text};">{estado_label}</div>
+                <div class="linea-cta">Ver análisis detallado →</div>
             </div>
         </div>
         """).strip()
