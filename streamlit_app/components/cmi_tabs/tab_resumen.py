@@ -73,24 +73,28 @@ def render_tab_resumen(df):
             text="Cumpl_%",
         )
         
-        # Barras redondeadas con efecto 3D sutil
+        # Etiquetas fuera de las barras
         fig_linea.update_traces(
-            marker_line_width=0,
-            marker_pattern_shape="conic",
             textposition="outside",
-            textfont={"size": 12, "family": "Inter, sans-serif"},
+            marker_line_color="rgba(0,0,0,0)",
+            textfont={"size": 11},
         )
         
-        # Línea de meta 100%
+        # Línea de meta 100% con annotation
         fig_linea.add_vline(
             x=100, 
             line_dash="dash", 
             line_color="#6B7280",
             line_width=2,
-            annotation_text="Meta 100%",
-            annotation_position="top",
-            annotation_font_size=11,
-            annotation_font_color="#6B7280"
+        )
+        fig_linea.add_annotation(
+            x=100,
+            y=1.05,
+            text="Meta 100%",
+            showarrow=False,
+            font=dict(size=10, color="#6B7280"),
+            xref="x",
+            yref="paper",
         )
         
         # Estilos de layout profesional
@@ -102,13 +106,7 @@ def render_tab_resumen(df):
             xaxis=dict(
                 gridcolor="#E5E7EB",
                 range=[0, max(120, by_linea["cumplimiento_pct"].max() * 1.1)],
-                title_font={"size": 12},
             ),
-            yaxis=dict(
-                title_font={"size": 12},
-                tickfont={"size": 11},
-            ),
-            font=dict(family="Inter, sans-serif"),
         )
         st.plotly_chart(fig_linea, use_container_width=True)
             
@@ -139,7 +137,7 @@ def render_tab_resumen(df):
                     hole=0.5,
                     textinfo="label+percent",
                     textposition="inside",
-                    textfont={"size": 11, "family": "Inter, sans-serif"},
+                    textfont={"size": 11},
                     hovertemplate="<b>%{label}</b><br>Cantidad: %{value}<br>Porcentaje: %{percent}<extra></extra>",
                 )
             ])
@@ -151,7 +149,7 @@ def render_tab_resumen(df):
                     f"<span style='font-size:12px;'>indicadores</span>"
                 ),
                 showarrow=False,
-                font=dict(size=24, family="Inter, sans-serif", color=COLORES["primary"]),
+                font=dict(size=24, color=COLORES["primary"]),
                 align="center",
             )
             
@@ -168,7 +166,6 @@ def render_tab_resumen(df):
                 ),
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="Inter, sans-serif"),
             )
             st.plotly_chart(fig_niv, use_container_width=True)
             
