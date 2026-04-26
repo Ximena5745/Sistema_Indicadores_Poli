@@ -82,7 +82,7 @@ def render_tab_resumen(df):
         by_linea = by_linea.sort_values("cumplimiento_pct", ascending=True)
         by_linea["Linea"] = by_linea["Linea"].astype(str)
         by_linea["Cumpl_%"] = by_linea["cumplimiento_pct"].apply(lambda x: f"{x:.1f}%")
-        _linea_map = {lin: linea_color(lin) for lin in by_linea["Linea"].tolist()}
+        _linea_map = {lin: _get_linea_color(lin) for lin in by_linea["Linea"].tolist()}
         
         fig_linea = px.bar(
             by_linea,
