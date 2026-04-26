@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import unicodedata
 from plotly import graph_objects as go
 from streamlit_app.components.interactive_cards import render_metric_card
 from streamlit_app.utils.cmi_helpers import calcular_kpis
@@ -35,6 +36,14 @@ LINEA_COLORES = {
     "sostenibilidad": "#A6CE38",
     "educacion para toda la vida": "#0F385A"
 }
+LINEA_DISPLAY_MAP = {
+    "expansion": "Expansión",
+    "transformacion organizacional": "Transformación Organizacional",
+    "calidad": "Calidad",
+    "experiencia": "Experiencia",
+    "sostenibilidad": "Sostenibilidad",
+    "educacion para toda la vida": "Educación para toda la vida",
+}
 
 def _get_linea_color(linea):
     """Retorna el color oficial para una línea."""
@@ -62,6 +71,13 @@ def _get_linea_color(linea):
             return color
             
     return "#1A3A5C"
+
+
+def _normalize_linea_key(linea):
+    """Normaliza el nombre de línea para comparaciones robustas."""
+    txt = str(linea or "").strip().lower().replace("_", " ")
+    txt = unicodedata.normalize("NFD", txt)
+    return "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
 
 
 def render_tab_resumen(df):
@@ -209,8 +225,19 @@ def render_tab_resumen(df):
     # 3. Fichas: Vista rápida por línea - diseño profesional compacta (ejemplo参考)
     # Fuente central de colores: docs/core/04_Dashboard.md
     st.markdown("#### Vista rápida por línea")
-    lineas = [l for l in df["Linea"].dropna().unique() if str(l).strip()]
-    lineas = sorted(lineas, key=lambda x: df[df["Linea"] == x]["cumplimiento_pct"].mean(), reverse=True)
+    lineas_visibles = [l for l in df["Linea"].dropna().unique() if str(l).strip()]
+    lineas_visibles = sorted(
+        lineas_visibles,
+        key=lambda x: df[df["Linea"] == x]["cumplimiento_pct"].mean(),
+        reverse=True
+    )
+    # Mostrar siempre el catálogo oficial, priorizando líneas presentes en el filtro actual.
+    lineas_catalogo = list(LINEA_COLORES.keys())
+    catalogo_por_clave = {_normalize_linea_key(l): l for l in lineas_catalogo}
+    presentes_por_clave = {_normalize_linea_key(l): l for l in lineas_visibles}
+    lineas = [presentes_por_clave[k] for k in presentes_por_clave] + [
+        catalogo_por_clave[k] for k in catalogo_por_clave if k not in presentes_por_clave
+    ]
     
     # CSS profesional para grid de tarjetas
     card_css = """
@@ -339,10 +366,17 @@ def render_tab_resumen(df):
     # Generar tarjetas
     cards_html = '<div class="linea-cards-grid">'
     
+    progress_cap = 120.0
     for idx, linea in enumerate(lineas):
-        df_l = df[df["Linea"] == linea]
+        linea_norm = _normalize_linea_key(linea)
+        mask_linea = df["Linea"].apply(_normalize_linea_key) == linea_norm
+        df_l = df[mask_linea]
         cump = df_l["cumplimiento_pct"].mean()
-        if pd.isna(cump): cump = 0
+        if pd.isna(cump):
+            cump = 0.0
+        cump = float(cump)
+        cump_safe = max(0.0, cump)
+        progress_width = max(0.0, min(100.0, (cump_safe / progress_cap) * 100.0))
         n_ind = len(df_l)
         n_obj = df_l["Objetivo"].nunique()
         
@@ -350,10 +384,15 @@ def render_tab_resumen(df):
         color = _get_linea_color(linea)
         
         # Nombre limpio para mostrar (reemplazar guiones bajos por espacios)
-        linea_display = str(linea).strip().replace("_", " ")
+        linea_display = LINEA_DISPLAY_MAP.get(linea_norm, str(linea).strip().replace("_", " "))
         
         # Determinar estado
-        if cump >= 100:
+        if n_ind == 0:
+            estado_color = "#6B7280"
+            estado_label = "Sin datos"
+            estado_bg = "#F3F4F6"
+            estado_text = "#4B5563"
+        elif cump >= 100:
             estado_color = "#43A047"
             estado_label = "Meta alcanzada"
             estado_bg = "#E8F5E9"
@@ -394,12 +433,13 @@ def render_tab_resumen(df):
                 <div class="progress-row">
                     <div class="progress-header">
                         <span style="color: #6B7280;">Progreso</span>
-                        <span style="font-weight: 600; color: #6B7280;">Meta 100%</span>
+                        <span style="font-weight: 600; color: #6B7280;">Meta 100% | Escala 120%</span>
                     </div>
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: {min(100, cump)}%; background: {estado_color};"></div>
+                        <div class="progress-fill" style="width: {progress_width:.1f}%; background: {estado_color};"></div>
                     </div>
                 </div>
+                <div style="margin-top: 6px; font-size: 10px; color: {estado_text}; text-align: right;">{estado_label}</div>
             </div>
         </div>
         """
