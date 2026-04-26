@@ -365,7 +365,6 @@ def render_tab_resumen(df):
     # Generar tarjetas
     cards_html = '<div class="linea-cards-grid">'
     
-    progress_cap = 120.0
     for idx, linea in enumerate(lineas):
         linea_norm = _normalize_linea_key(linea)
         mask_linea = df["Linea"].apply(_normalize_linea_key) == linea_norm
@@ -375,7 +374,10 @@ def render_tab_resumen(df):
             cump = 0.0
         cump = float(cump)
         cump_safe = max(0.0, cump)
-        progress_width = max(0.0, min(100.0, (cump_safe / progress_cap) * 100.0))
+        progress_width = max(0.0, min(100.0, cump_safe))
+        progress_meta_label = "Meta 100%"
+        if cump_safe > 100:
+            progress_meta_label = f"Meta 100% | +{(cump_safe - 100):.1f}%"
         n_ind = len(df_l)
         n_obj = df_l["Objetivo"].nunique()
         
@@ -431,7 +433,7 @@ def render_tab_resumen(df):
                 <div class="progress-row">
                     <div class="progress-header">
                         <span style="color: #6B7280;">Progreso</span>
-                        <span style="font-weight: 600; color: #6B7280;">Meta 100% | Escala 120%</span>
+                        <span style="font-weight: 600; color: #6B7280;">{progress_meta_label}</span>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: {progress_width:.1f}%; background: {estado_color};"></div>
@@ -467,58 +469,58 @@ def render_tab_resumen(df):
     insights_html = '<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">'
     
     if peligro > 0:
-        insights_html += f"""
-        <div style="background: linear-gradient(135deg, #FFCDD2 0%, #FFECB3 100%); padding: 16px; border-radius: 10px; border-left: 5px solid #D32F2F; box-shadow: 0 2px 6px rgba(211,47,47,0.15);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 1.5rem;">🚨</span>
-                <div>
-                    <div style="font-weight: 700; color: #B71C1C; font-size: 0.95rem;">Atención requerida</div>
-                    <div style="color: #424242; font-size: 0.9rem;">Hay <b style="color: #D32F2F;">{peligro}</b> indicadores en Peligro que requieren revisión inmediata.</div>
-                </div>
-            </div>
-        </div>
-        """
+        insights_html += (
+            f'<div style="background: linear-gradient(135deg, #FFCDD2 0%, #FFECB3 100%); padding: 16px; border-radius: 10px; border-left: 5px solid #D32F2F; box-shadow: 0 2px 6px rgba(211,47,47,0.15);">'
+            '<div style="display: flex; align-items: center; gap: 10px;">'
+            '<span style="font-size: 1.5rem;">🚨</span>'
+            '<div>'
+            '<div style="font-weight: 700; color: #B71C1C; font-size: 0.95rem;">Atención requerida</div>'
+            f'<div style="color: #424242; font-size: 0.9rem;">Hay <b style="color: #D32F2F;">{peligro}</b> indicadores en Peligro que requieren revisión inmediata.</div>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )
     
     if alerta > 0:
-        insights_html += f"""
-        <div style="background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 100%); padding: 16px; border-radius: 10px; border-left: 5px solid #FBAF17; box-shadow: 0 2px 6px rgba(251,175,23,0.15);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 1.5rem;">⚠️</span>
-                <div>
-                    <div style="font-weight: 700; color: #F57F17; font-size: 0.95rem;">Monitoreo</div>
-                    <div style="color: #424242; font-size: 0.9rem;"><b style="color: #F57F17;">{alerta}</b> indicadores se encuentran en Alerta. Se sugiere seguimiento cercano.</div>
-                </div>
-            </div>
-        </div>
-        """
+        insights_html += (
+            f'<div style="background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 100%); padding: 16px; border-radius: 10px; border-left: 5px solid #FBAF17; box-shadow: 0 2px 6px rgba(251,175,23,0.15);">'
+            '<div style="display: flex; align-items: center; gap: 10px;">'
+            '<span style="font-size: 1.5rem;">⚠️</span>'
+            '<div>'
+            '<div style="font-weight: 700; color: #F57F17; font-size: 0.95rem;">Monitoreo</div>'
+            f'<div style="color: #424242; font-size: 0.9rem;"><b style="color: #F57F17;">{alerta}</b> indicadores se encuentran en Alerta. Se sugiere seguimiento cercano.</div>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )
     
     if cump > 0 or sobre > 0:
         buen_color = COLOR_CATEGORIA["Cumplimiento"]
         buen_bg = "#E8F5E9"
-        insights_html += f"""
-        <div style="background: linear-gradient(135deg, {buen_bg} 0%, #E3F2FD 100%); padding: 16px; border-radius: 10px; border-left: 5px solid {buen_color}; box-shadow: 0 2px 6px rgba(67,160,71,0.15);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 1.5rem;">✅</span>
-                <div>
-                    <div style="font-weight: 700; color: #2E7D32; font-size: 0.95rem;">Buen desempeño</div>
-                    <div style="color: #424242; font-size: 0.9rem;"><b style="color: #2E7D32;">{cump + sobre}</b> indicadores han alcanzado o superado la meta institucional.</div>
-                </div>
-            </div>
-        </div>
-        """
+        insights_html += (
+            f'<div style="background: linear-gradient(135deg, {buen_bg} 0%, #E3F2FD 100%); padding: 16px; border-radius: 10px; border-left: 5px solid {buen_color}; box-shadow: 0 2px 6px rgba(67,160,71,0.15);">'
+            '<div style="display: flex; align-items: center; gap: 10px;">'
+            '<span style="font-size: 1.5rem;">✅</span>'
+            '<div>'
+            '<div style="font-weight: 700; color: #2E7D32; font-size: 0.95rem;">Buen desempeño</div>'
+            f'<div style="color: #424242; font-size: 0.9rem;"><b style="color: #2E7D32;">{cump + sobre}</b> indicadores han alcanzado o superado la meta institucional.</div>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )
     
     if peligro == 0 and alerta == 0:
-        insights_html += f"""
-        <div style="background: linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 100%); padding: 16px; border-radius: 10px; border-left: 5px solid {COLOR_CATEGORIA['Cumplimiento']}; box-shadow: 0 2px 6px rgba(67,160,71,0.15);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 1.5rem;">🎉</span>
-                <div>
-                    <div style="font-weight: 700; color: #2E7D32; font-size: 0.95rem;">Excelente</div>
-                    <div style="color: #424242; font-size: 0.9rem;">Todos los indicadores están en estado favorable.</div>
-                </div>
-            </div>
-        </div>
-        """
+        insights_html += (
+            f'<div style="background: linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 100%); padding: 16px; border-radius: 10px; border-left: 5px solid {COLOR_CATEGORIA["Cumplimiento"]}; box-shadow: 0 2px 6px rgba(67,160,71,0.15);">'
+            '<div style="display: flex; align-items: center; gap: 10px;">'
+            '<span style="font-size: 1.5rem;">🎉</span>'
+            '<div>'
+            '<div style="font-weight: 700; color: #2E7D32; font-size: 0.95rem;">Excelente</div>'
+            '<div style="color: #424242; font-size: 0.9rem;">Todos los indicadores están en estado favorable.</div>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )
     
     insights_html += "</div>"
     
