@@ -143,7 +143,7 @@ def render_tab_resumen(df):
             ])
             
             # Centro con estadísticas
-            fig_niv.update_annotation(
+            fig_niv.add_annotation(
                 text=(
                     f"<b>{total_ind}</b><br>"
                     f"<span style='font-size:12px;'>indicadores</span>"
@@ -162,10 +162,7 @@ def render_tab_resumen(df):
                     y=-0.1,
                     xanchor="center",
                     x=0.5,
-                    font=dict(size=10)
                 ),
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
             )
             st.plotly_chart(fig_niv, use_container_width=True)
             
