@@ -311,6 +311,9 @@ def render_tab_resumen(df):
         # Color de línea desde fuente central
         color = linea_color(linea)
         
+        # Nombre limpio para mostrar (con espacios)
+        linea_display = str(linea).strip()
+        
         # Determinar estado
         if cump >= 100:
             estado_color = "#43A047"
@@ -332,7 +335,7 @@ def render_tab_resumen(df):
         card = f"""
         <div class="linea-card">
             <div class="linea-card-header" style="background: {color};">
-                <span>{linea}</span>
+                <span>{linea_display}</span>
                 <span>Línea</span>
             </div>
             <div class="linea-card-body">
@@ -360,9 +363,6 @@ def render_tab_resumen(df):
                     </div>
                 </div>
             </div>
-            <div class="linea-card-footer">
-                <a href="#" onclick="document.getElementById('btn_{linea.replace(' ', '_')}_{idx}').click()">Ver Detalles →</a>
-            </div>
         </div>
         """
         cards_html += card
@@ -370,11 +370,14 @@ def render_tab_resumen(df):
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
     
-    # Botones de acción
+    # Botones de acción (debajo de las tarjetas)
+    st.markdown('<div style="margin-top: 8px;">', unsafe_allow_html=True)
     for idx, linea in enumerate(lineas):
-        if st.button(f"Ver Detalles →", key=f"btn_{linea.replace(' ', '_')}_{idx}"):
+        btn_key = f"btn_linea_{idx}"
+        if st.button(f"Ver Detalles: {linea}", key=btn_key):
             st.session_state["cmi_tab_linea_expand"] = linea
             st.toast(f"✅ {linea} seleccionado")
+    st.markdown('</div>', unsafe_allow_html=True)
             
     st.markdown("<br>", unsafe_allow_html=True)
             

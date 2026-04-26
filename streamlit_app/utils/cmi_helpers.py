@@ -58,21 +58,38 @@ def linea_color(linea: str) -> str:
     Utiliza la fuente central de colores del sistema de diseño:
     - docs/core/04_Dashboard.md
     - streamlit_app/styles/design_system.py
+    
+    Mapeo de líneas estratégicas:
+    - Expansión -> #FBAF17
+    - Transformación organizacional -> #42F2F2
+    - Calidad -> #EC0677
+    - Experiencia -> #1FB2DE
+    - Sostenibilidad -> #A6CE38
+    - Educación para toda la vida -> #0F385A
     """
     try:
         from streamlit_app.styles.design_system import LINE_COLOR
-        txt = str(linea or "").strip().lower()
-        # Normalizar texto (quitar acentos para comparación)
-        import unicodedata
-        txt = unicodedata.normalize("NFD", txt)
-        txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+        txt = str(linea or "").strip()
         
-        # Buscar coincidencia exacta o parcial en LINE_COLOR
+        # Normalizar: quitar acentos y convertir a minúsculas
+        import unicodedata
+        txt_normalized = txt.lower()
+        txt_normalized = unicodedata.normalize("NFD", txt_normalized)
+        txt_normalized = "".join(ch for ch in txt_normalized if unicodedata.category(ch) != "Mn")
+        
+        # Busqueda exacta primero
         for key, color in LINE_COLOR.items():
-            key_normalized = key.lower().replace("í", "i").replace("á", "a").replace("é", "e").replace("ó", "o").replace("ú", "u")
-            txt_normalized = txt.replace("í", "i").replace("á", "a").replace("é", "e").replace("ó", "o").replace("ú", "u")
-            if key_normalized in txt_normalized:
+            key_clean = key.upper()
+            txt_clean = txt_normalized.replace(" ", "_")
+            if key_clean == txt_clean.upper():
                 return color
+        
+        # Busqueda parcial después
+        for key, color in LINE_COLOR.items():
+            key_clean = key.lower().replace("í", "i").replace("á", "a").replace("é", "e").replace("ó", "o").replace("ú", "u")
+            if key_clean in txt_normalized.replace(" ", "_"):
+                return color
+        
         return "#1A3A5C"  # Default: azul institucional
     except ImportError:
         # Fallback: colores hardcoded del proyecto
@@ -80,6 +97,8 @@ def linea_color(linea: str) -> str:
         import unicodedata
         txt = unicodedata.normalize("NFD", txt)
         txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+        
+        # Busqueda por palabras clave
         if "expansi" in txt:
             return "#FBAF17"
         if "transform" in txt:
