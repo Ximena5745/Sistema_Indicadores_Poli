@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import date as _date
-import time
-from pathlib import Path
 
 from services.cmi_filters import filter_df_for_cmi_estrategico
 from services.strategic_indicators import (
@@ -42,14 +40,6 @@ def _default_corte(anio: int | None) -> str:
     return "Diciembre"
 
 def render():
-    # region agent log
-    try:
-        hb_path = Path(r"c:\Users\ximen\OneDrive\Proyectos_DS\Sistema_Indicadores_Poli\debug-8544d5.log")
-        with open(hb_path, "a", encoding="utf-8") as f:
-            f.write(f'{{"sessionId":"8544d5","runId":"pre-fix","hypothesisId":"H6","location":"cmi_estrategico_tabulado.py:render:start","message":"page_render_start","data":{{}},"timestamp":{int(time.time() * 1000)}}}\n')
-    except Exception:
-        pass
-    # endregion
     from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
     inject_cmi_premium_css()
     
@@ -128,14 +118,6 @@ def render():
     tabs = st.tabs(tab_names)
     
     with tabs[0]:
-        # region agent log
-        try:
-            hb_path = Path(r"c:\Users\ximen\OneDrive\Proyectos_DS\Sistema_Indicadores_Poli\debug-8544d5.log")
-            with open(hb_path, "a", encoding="utf-8") as f:
-                f.write(f'{{"sessionId":"8544d5","runId":"pre-fix","hypothesisId":"H6","location":"cmi_estrategico_tabulado.py:before_render_tab_resumen","message":"about_to_call_render_tab_resumen","data":{{"rows":{int(len(df_filtrado))}}},"timestamp":{int(time.time() * 1000)}}}\n')
-        except Exception:
-            pass
-        # endregion
         render_tab_resumen(df_filtrado)
     with tabs[1]:
         render_tab_lineas(df_filtrado)
