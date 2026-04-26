@@ -43,15 +43,11 @@ CORTE_SEMESTRAL = {
     "Diciembre": 12,
 }
 
-# Usar colores del sistema de diseño
+# Usar colores del sistema de diseño (fuente central: docs/core/04_Dashboard.md)
 try:
-    from streamlit_app.styles.design_system import LINE_COLOR as LINEA_COLORS, get_line_color as _linea_color_func
-    def _linea_color(linea: str) -> str:
-        try:
-            return _linea_color_func(linea)
-        except:
-            return "#1A3A5C"
+    from streamlit_app.utils.cmi_helpers import linea_color as _linea_color
 except ImportError:
+    # Fallback si no se puede importar
     LINEA_COLORS = {
         "Expansión": "#FBAF17",
         "Transformación organizacional": "#42F2F2",
@@ -60,7 +56,9 @@ except ImportError:
         "Sostenibilidad": "#A6CE38",
         "Educación para toda la vida": "#0F385A",
     }
+    
     def _linea_color(linea: str) -> str:
+        import unicodedata
         txt = str(linea or "").strip().lower()
         txt = unicodedata.normalize("NFD", txt)
         txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")

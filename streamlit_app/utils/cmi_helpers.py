@@ -53,18 +53,31 @@ def calcular_kpis(df):
 
 
 def linea_color(linea: str) -> str:
-    # Importar colores oficiales desde el sistema de diseño
+    """Retorna el color oficial para una línea estratégica.
+    
+    Utiliza la fuente central de colores del sistema de diseño:
+    - docs/core/04_Dashboard.md
+    - streamlit_app/styles/design_system.py
+    """
     try:
-        from streamlit_app.styles.design_system import LINE_COLOR, get_line_color as _get_line_color
-        txt = str(linea or "").strip()
-        # Buscar coincidencia exacta o parcial
-        for key, color in LINE_COLOR.items():
-            if key.replace(" ", "").replace("Í", "I").replace("Ó", "O").lower() in txt.replace(" ", "").lower():
-                return color
-        return _get_line_color(txt) if txt else "#1A3A5C"
-    except ImportError:
-        # Fallback si no se puede importar
+        from streamlit_app.styles.design_system import LINE_COLOR
         txt = str(linea or "").strip().lower()
+        # Normalizar texto (quitar acentos para comparación)
+        import unicodedata
+        txt = unicodedata.normalize("NFD", txt)
+        txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+        
+        # Buscar coincidencia exacta o parcial en LINE_COLOR
+        for key, color in LINE_COLOR.items():
+            key_normalized = key.lower().replace("í", "i").replace("á", "a").replace("é", "e").replace("ó", "o").replace("ú", "u")
+            txt_normalized = txt.replace("í", "i").replace("á", "a").replace("é", "e").replace("ó", "o").replace("ú", "u")
+            if key_normalized in txt_normalized:
+                return color
+        return "#1A3A5C"  # Default: azul institucional
+    except ImportError:
+        # Fallback: colores hardcoded del proyecto
+        txt = str(linea or "").strip().lower()
+        import unicodedata
         txt = unicodedata.normalize("NFD", txt)
         txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
         if "expansi" in txt:

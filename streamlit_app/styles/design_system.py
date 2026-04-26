@@ -64,8 +64,9 @@ COLORS = {
 # =============================================================================
 # PALETAS POR LÍNEA Y PALETA ALTERNATIVA VIVA
 # =============================================================================
+# Colores oficiales por línea estratégica (del sistema de diseño del proyecto)
+# Documentación: docs/core/04_Dashboard.md
 LINE_COLOR = {
-    # Colores oficiales por línea estratégica (del sistema de diseño)
     "EXPANSIÓN": "#FBAF17",
     "TRANSFORMACIÓN ORGANIZACIONAL": "#42F2F2",
     "TRANSFORMACION ORGANIZACIONAL": "#42F2F2",

@@ -168,72 +168,75 @@ def render_tab_resumen(df):
             
     st.markdown("<br>", unsafe_allow_html=True)
             
-    # 3. Fichas: Vista rápida por línea - diseño profesional unificado
+    # 3. Fichas: Vista rápida por línea - diseño profesional compacta (ejemplo参考)
+    # Fuente central de colores: docs/core/04_Dashboard.md
     st.markdown("#### Vista rápida por línea")
     lineas = [l for l in df["Linea"].dropna().unique() if str(l).strip()]
     lineas = sorted(lineas, key=lambda x: df[df["Linea"] == x]["cumplimiento_pct"].mean(), reverse=True)
     
-    # Contenedor unificado con CSS Grid
-    container_style = """
+    # CSS profesional para grid de tarjetas
+    card_css = """
     <style>
-    .linea-cards-container {
+    .linea-cards-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 16px;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
     @media (max-width: 1024px) {
-        .linea-cards-container { grid-template-columns: repeat(2, 1fr); }
+        .linea-cards-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     }
     @media (max-width: 640px) {
-        .linea-cards-container { grid-template-columns: 1fr; }
+        .linea-cards-grid { grid-template-columns: 1fr; gap: 12px; }
     }
     .linea-card {
         background: #FFFFFF;
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
     }
     .linea-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     .linea-card-header {
-        padding: 12px 16px;
+        padding: 10px 14px;
+        color: #FFFFFF;
+        font-weight: 700;
+        font-size: 13px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
-    .linea-card-header span {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #FFFFFF;
+    .linea-card-header span:first-child {
         text-transform: uppercase;
         letter-spacing: 0.3px;
     }
-    .linea-card-header label {
-        font-size: 0.7rem;
-        color: rgba(255,255,255,0.85);
+    .linea-card-header span:last-child {
+        font-size: 11px;
+        opacity: 0.9;
+        font-weight: 500;
     }
     .linea-card-body {
-        padding: 16px;
+        padding: 14px;
     }
-    .cumplimiento-box {
+    .cumpl-box {
         text-align: center;
-        padding: 16px;
+        padding: 14px 10px;
         border-radius: 8px;
         margin-bottom: 12px;
     }
-    .cumplimiento-value {
-        font-size: 2rem;
+    .cumpl-value {
+        font-size: 28px;
         font-weight: 700;
         line-height: 1.2;
     }
-    .cumplimiento-label {
-        font-size: 0.7rem;
+    .cumpl-label {
+        font-size: 10px;
         text-transform: uppercase;
-        margin-top: 4px;
+        letter-spacing: 0.5px;
+        margin-top: 2px;
     }
     .metrics-row {
         display: flex;
@@ -243,30 +246,25 @@ def render_tab_resumen(df):
     .metric-box {
         flex: 1;
         text-align: center;
-        padding: 10px 8px;
+        padding: 8px 4px;
         background: #F8FAFC;
         border-radius: 6px;
-        border: 1px solid #E5E7EB;
     }
     .metric-value {
-        font-size: 1.3rem;
+        font-size: 16px;
         font-weight: 600;
-        color: #1A3A5C;
     }
     .metric-label {
-        font-size: 0.6rem;
-        color: #6B7280;
+        font-size: 10px;
         text-transform: uppercase;
-        margin-top: 2px;
     }
-    .progress-section {
-        margin-bottom: 8px;
+    .progress-row {
+        margin-top: 8px;
     }
     .progress-header {
         display: flex;
         justify-content: space-between;
-        font-size: 0.7rem;
-        color: #6B7280;
+        font-size: 10px;
         margin-bottom: 4px;
     }
     .progress-bar {
@@ -279,33 +277,29 @@ def render_tab_resumen(df):
     .progress-fill {
         height: 100%;
         border-radius: 3px;
-        transition: width 0.3s;
     }
     .linea-card-footer {
-        padding: 10px 16px;
+        padding: 10px 14px;
         background: #F9FAFB;
         border-top: 1px solid #E5E7EB;
-        text-align: center;
+        text-align: right;
+    }
+    .linea-card-footer a {
+        font-size: 12px;
+        font-weight: 600;
+        color: #1A3A5C;
+        text-decoration: none;
         cursor: pointer;
     }
-    .linea-card-footer span {
-        font-size: 0.8rem;
-        color: #1A3A5C;
-        font-weight: 500;
-    }
-    .estado-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.7rem;
-        font-weight: 500;
+    .linea-card-footer a:hover {
+        text-decoration: underline;
     }
     </style>
     """
-    st.markdown(container_style, unsafe_allow_html=True)
+    st.markdown(card_css, unsafe_allow_html=True)
     
-    # Generar HTML de todas las tarjetas
-    cards_html = '<div class="linea-cards-container">'
+    # Generar tarjetas
+    cards_html = '<div class="linea-cards-grid">'
     
     for idx, linea in enumerate(lineas):
         df_l = df[df["Linea"] == linea]
@@ -313,6 +307,8 @@ def render_tab_resumen(df):
         if pd.isna(cump): cump = 0
         n_ind = len(df_l)
         n_obj = df_l["Objetivo"].nunique()
+        
+        # Color de línea desde fuente central
         color = linea_color(linea)
         
         # Determinar estado
@@ -332,54 +328,53 @@ def render_tab_resumen(df):
             estado_bg = "#FFEBEE"
             estado_text = "#B71C1C"
         
-        card_html += f"""
+        # Construir tarjeta HTML
+        card = f"""
         <div class="linea-card">
             <div class="linea-card-header" style="background: {color};">
                 <span>{linea}</span>
-                <label>Línea</label>
+                <span>Línea</span>
             </div>
             <div class="linea-card-body">
-                <div class="cumplimiento-box" style="background: {estado_bg};">
-                    <div class="cumplimiento-value" style="color: {estado_color};">{cump:.1f}%</div>
-                    <div class="cumplimiento-label" style="color: #6B7280;">Cumplimiento</div>
+                <div class="cumpl-box" style="background: {estado_bg};">
+                    <div class="cumpl-value" style="color: {estado_color};">{cump:.1f}%</div>
+                    <div class="cumpl-label" style="color: #6B7280;">Cumplimiento</div>
                 </div>
                 <div class="metrics-row">
                     <div class="metric-box">
-                        <div class="metric-value">{n_ind}</div>
-                        <div class="metric-label">Indicadores</div>
+                        <div class="metric-value" style="color: #1A3A5C;">{n_ind}</div>
+                        <div class="metric-label" style="color: #6B7280;">Indicadores</div>
                     </div>
                     <div class="metric-box">
-                        <div class="metric-value">{n_obj}</div>
-                        <div class="metric-label">Objetivos</div>
+                        <div class="metric-value" style="color: #1A3A5C;">{n_obj}</div>
+                        <div class="metric-label" style="color: #6B7280;">Objetivos</div>
                     </div>
                 </div>
-                <div class="progress-section">
+                <div class="progress-row">
                     <div class="progress-header">
-                        <span>Progreso</span>
-                        <span style="font-weight: 600;">Meta 100%</span>
+                        <span style="color: #6B7280;">Progreso</span>
+                        <span style="font-weight: 600; color: #6B7280;">Meta 100%</span>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: {min(100, cump)}%; background: {estado_color};"></div>
                     </div>
                 </div>
-                <div style="text-align: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #E5E7EB;">
-                    <span class="estado-badge" style="background: {estado_bg}; color: {estado_text};">{estado_label}</span>
-                </div>
             </div>
-            <div class="linea-card-footer" onclick="document.getElementById('btn_{linea.replace(' ', '_')}_{idx}').click()">
-                <span>Ver análisis detallado →</span>
+            <div class="linea-card-footer">
+                <a href="#" onclick="document.getElementById('btn_{linea.replace(' ', '_')}_{idx}').click()">Ver Detalles →</a>
             </div>
         </div>
         """
+        cards_html += card
     
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
     
-    # Botones ocultos para la acción
+    # Botones de acción
     for idx, linea in enumerate(lineas):
-        if st.button(f"Ver análisis detallado →", key=f"btn_nav_{linea.replace(' ', '_')}_{idx}"):
+        if st.button(f"Ver Detalles →", key=f"btn_{linea.replace(' ', '_')}_{idx}"):
             st.session_state["cmi_tab_linea_expand"] = linea
-            st.toast(f"✅ {linea} seleccionada")
+            st.toast(f"✅ {linea} seleccionado")
             
     st.markdown("<br>", unsafe_allow_html=True)
             
