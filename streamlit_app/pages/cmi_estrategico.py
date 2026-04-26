@@ -1,5 +1,7 @@
 from datetime import date as _date
 import unicodedata
+import time
+from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -102,6 +104,14 @@ def _default_corte(anio: int | None) -> str:
 
 
 def render():
+    # region agent log
+    try:
+        hb_path = Path(r"c:\Users\ximen\OneDrive\Proyectos_DS\Sistema_Indicadores_Poli\debug-8544d5.log")
+        with open(hb_path, "a", encoding="utf-8") as f:
+            f.write(f'{{"sessionId":"8544d5","runId":"pre-fix","hypothesisId":"H7","location":"cmi_estrategico.py:render:start","message":"legacy_page_render_start","data":{{}},"timestamp":{int(time.time() * 1000)}}}\n')
+    except Exception:
+        pass
+    # endregion
     st.title("CMI Estratégico")
     st.caption(
         "Indicadores del Plan Estratégico (PDI) con cumplimiento de cierre y niveles institucionales."

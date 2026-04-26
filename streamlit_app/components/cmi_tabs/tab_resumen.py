@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import unicodedata
+import json
+import time
+from pathlib import Path
 from plotly import graph_objects as go
 from streamlit_app.components.interactive_cards import render_metric_card
 from streamlit_app.utils.cmi_helpers import calcular_kpis
@@ -80,7 +83,57 @@ def _normalize_linea_key(linea):
     return "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
 
 
+def _debug_log(run_id, hypothesis_id, location, message, data):
+    try:
+        payload = {
+            "sessionId": "8544d5",
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        log_line = json.dumps(payload, ensure_ascii=False) + "\n"
+        candidate_paths = [
+            Path(r"c:\Users\ximen\OneDrive\Proyectos_DS\Sistema_Indicadores_Poli\debug-8544d5.log"),
+            Path(__file__).resolve().parents[3] / "debug-8544d5.log",
+            Path.cwd() / "debug-8544d5.log",
+        ]
+        for log_path in candidate_paths:
+            try:
+                with open(log_path, "a", encoding="utf-8") as f:
+                    f.write(log_line)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+
 def render_tab_resumen(df):
+    # region agent log
+    try:
+        hb_path = Path(r"c:\Users\ximen\OneDrive\Proyectos_DS\Sistema_Indicadores_Poli\debug-8544d5.log")
+        with open(hb_path, "a", encoding="utf-8") as f:
+            f.write(f'{{"sessionId":"8544d5","runId":"pre-fix","hypothesisId":"H5","location":"tab_resumen.py:render_tab_resumen:heartbeat","message":"heartbeat","data":{{"rows":{int(len(df))}}},"timestamp":{int(time.time() * 1000)}}}\n')
+    except Exception:
+        pass
+    # endregion
+    # region agent log
+    _debug_log(
+        "pre-fix",
+        "H1",
+        "tab_resumen.py:render_tab_resumen:start",
+        "Entrada a render_tab_resumen",
+        {
+            "rows": int(len(df)),
+            "columns": list(df.columns),
+            "has_linea": "Linea" in df.columns,
+            "has_objetivo": "Objetivo" in df.columns,
+            "has_cumplimiento_pct": "cumplimiento_pct" in df.columns,
+        },
+    )
+    # endregion
     st.markdown("### Resumen Desglosado")
     if df.empty:
         st.info("No hay datos para mostrar.")
@@ -238,6 +291,19 @@ def render_tab_resumen(df):
     lineas = [presentes_por_clave[k] for k in presentes_por_clave] + [
         catalogo_por_clave[k] for k in catalogo_por_clave if k not in presentes_por_clave
     ]
+    # region agent log
+    _debug_log(
+        "pre-fix",
+        "H2",
+        "tab_resumen.py:lineas_build",
+        "Construccion de lineas para tarjetas",
+        {
+            "lineas_visibles": [str(x) for x in lineas_visibles],
+            "lineas_catalogo": lineas_catalogo,
+            "lineas_finales": [str(x) for x in lineas],
+        },
+    )
+    # endregion
     
     # CSS profesional para grid de tarjetas
     card_css = """
@@ -367,6 +433,7 @@ def render_tab_resumen(df):
     cards_html = '<div class="linea-cards-grid">'
     
     progress_cap = 120.0
+    debug_rows = []
     for idx, linea in enumerate(lineas):
         linea_norm = _normalize_linea_key(linea)
         mask_linea = df["Linea"].apply(_normalize_linea_key) == linea_norm
@@ -407,6 +474,19 @@ def render_tab_resumen(df):
             estado_label = "Requiere atención"
             estado_bg = "#FFEBEE"
             estado_text = "#B71C1C"
+        debug_rows.append(
+            {
+                "idx": idx,
+                "linea_raw": str(linea),
+                "linea_norm": linea_norm,
+                "n_ind": int(n_ind),
+                "n_obj": int(n_obj),
+                "cump": round(cump, 3),
+                "progress_cap": progress_cap,
+                "progress_width": round(progress_width, 3),
+                "estado_label": estado_label,
+            }
+        )
         
         # Construir tarjeta HTML
         card = f"""
@@ -444,6 +524,15 @@ def render_tab_resumen(df):
         </div>
         """
         cards_html += card
+    # region agent log
+    _debug_log(
+        "pre-fix",
+        "H3",
+        "tab_resumen.py:cards_metrics",
+        "Metricas calculadas para tarjetas",
+        {"rows": debug_rows},
+    )
+    # endregion
     
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
