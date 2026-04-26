@@ -12,12 +12,10 @@ from streamlit_app.utils.cmi_helpers import aplicar_filtros_globales
 
 from streamlit_app.components.cmi_tabs import (
     render_tab_resumen,
-    render_tab_objetivos,
-    render_tab_analisis,
     render_tab_listado,
-    render_tab_ficha,
     render_tab_alertas
 )
+from streamlit_app.components.cmi_tabs.tab_lineas import render_tab_lineas
 
 CORTE_SEMESTRAL = {
     "Junio": 6,
@@ -42,6 +40,9 @@ def _default_corte(anio: int | None) -> str:
     return "Diciembre"
 
 def render():
+    from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
+    inject_cmi_premium_css()
+    
     st.title("CMI Estratégico")
     st.caption("Indicadores del Plan Estratégico (PDI) interactivo y detallado.")
 
@@ -109,10 +110,8 @@ def render():
     # Navegación y Pestañas
     tab_names = [
         "Resumen Desglosado", 
-        "Objetivos e Indicadores", 
-        "Análisis", 
+        "Líneas Estratégicas", 
         "Listado de Indicadores", 
-        "Ficha de Indicador", 
         "Alertas"
     ]
     
@@ -121,12 +120,8 @@ def render():
     with tabs[0]:
         render_tab_resumen(df_filtrado)
     with tabs[1]:
-        render_tab_objetivos(df_filtrado)
+        render_tab_lineas(df_filtrado)
     with tabs[2]:
-        render_tab_analisis(df_filtrado)
-    with tabs[3]:
         render_tab_listado(df_filtrado)
-    with tabs[4]:
-        render_tab_ficha(df_filtrado)
-    with tabs[5]:
+    with tabs[3]:
         render_tab_alertas(df_filtrado)

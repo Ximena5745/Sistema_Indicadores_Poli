@@ -43,13 +43,16 @@ def render_tab_listado(df):
     # Paginate manually or let dataframe handle it
     # We will let st.dataframe handle scroll and column config
     
-    st.markdown("Seleccione un indicador en la lista desplegable abajo para ver su ficha de detalle, y luego haga clic en la pestaña **'Ficha de Indicador'** arriba.")
+    st.markdown("Seleccione un indicador en la lista desplegable abajo y haga clic en el botón para ver su ficha de detalle.")
     
     # Selector for Ficha
     sel_ind = st.selectbox("Seleccionar Indicador para Ver Ficha", [""] + df_vista["Indicador"].tolist(), key="tab_list_ficha_sel")
+    
     if sel_ind:
-        st.session_state["cmi_ficha_indicador_sel"] = sel_ind
-        st.success(f"✅ Indicador **{sel_ind}** seleccionado. Por favor, haga clic en la pestaña superior **'Ficha de Indicador'** para ver los detalles.")
+        ind_data = df_filtrado[df_filtrado["Indicador"] == sel_ind].iloc[0]
+        from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
+        if st.button(f"Abrir Ficha Técnica: {sel_ind}", type="primary"):
+            render_modal_ficha(ind_data)
             
     st.dataframe(
         df_vista,

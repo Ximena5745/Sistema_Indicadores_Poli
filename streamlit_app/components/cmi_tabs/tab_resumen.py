@@ -113,6 +113,9 @@ def render_tab_resumen(df):
         html_clean = "\n".join([line for line in card_html.split("\n") if line.strip()])
         with cols_fichas[idx % 3]:
             st.markdown(html_clean, unsafe_allow_html=True)
+            if st.button(f"🔍 Ver Detalles", key=f"btn_nav_{linea}", use_container_width=True):
+                st.session_state["cmi_tab_linea_expand"] = linea
+                st.success("✅ Seleccionada. Haz clic en la pestaña superior 'Líneas Estratégicas' para ver el acordeón abierto.")
             
     st.markdown("<br>", unsafe_allow_html=True)
             

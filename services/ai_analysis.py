@@ -95,3 +95,71 @@ def analizar_texto_indicador(
         return message.content[0].text.strip()
     except Exception:
         return None
+
+# --- CMI STRATEGIC PROMPTS ---
+
+_PROMPT_CMI_FICHA = """Actúa como analista estratégico experto en el Cuadro de Mando Integral (CMI) de la Politécnica Grancolombiana.
+
+Evalúa el siguiente indicador estratégico:
+- Indicador: {nombre}
+- Línea Estratégica: {linea}
+- Objetivo Estratégico: {objetivo}
+- Meta Anual: {meta}
+- Ejecución Actual: {ejecucion}
+- Nivel de Cumplimiento: {nivel} ({cumplimiento}%)
+
+Con base en estos datos, genera:
+1. Un diagnóstico muy breve y directo sobre el estado actual frente a la meta.
+2. Un factor de riesgo principal si no se alcanza la meta.
+3. Una recomendación táctica inmediata para el responsable.
+
+Responde en formato Markdown, sin rodeos, estructurado en 3 viñetas claras."""
+
+_PROMPT_CMI_LINEA = """Actúa como director de estrategia experto en el Cuadro de Mando Integral (CMI).
+
+Analiza el desempeño de esta línea estratégica:
+- Línea: {linea}
+- Promedio de Cumplimiento: {cumplimiento_promedio}%
+- Total Indicadores: {total_ind}
+- Indicadores en Peligro/Alerta: {total_riesgo}
+
+Datos de la tabla de indicadores:
+{tabla_json}
+
+Genera:
+1. Un análisis sintético del desempeño de la línea (1 párrafo).
+2. Cuál es el objetivo/indicador que requiere mayor atención urgente.
+3. Dos directrices estratégicas clave para revertir desviaciones o potenciar aciertos.
+
+Responde en formato Markdown, con un tono ejecutivo y propositivo."""
+
+def analizar_ficha_cmi(nombre: str, linea: str, objetivo: str, meta: str, ejecucion: str, nivel: str, cumplimiento: str) -> str | None:
+    """Ejecuta el PT-02 para la Ficha de Indicador del CMI."""
+    client = _get_client()
+    if client is None: return None
+    
+    prompt = _PROMPT_CMI_FICHA.format(
+        nombre=nombre, linea=linea, objetivo=objetivo, meta=meta, ejecucion=ejecucion, nivel=nivel, cumplimiento=cumplimiento
+    )
+    
+    try:
+        msg = client.messages.create(model=_MODEL, max_tokens=400, messages=[{"role": "user", "content": prompt}])
+        return msg.content[0].text.strip()
+    except Exception:
+        return None
+
+def analizar_linea_cmi(linea: str, cumplimiento_promedio: str, total_ind: int, total_riesgo: int, tabla_json: str) -> str | None:
+    """Ejecuta el PT-03 para el Análisis por Línea Estratégica del CMI."""
+    client = _get_client()
+    if client is None: return None
+    
+    prompt = _PROMPT_CMI_LINEA.format(
+        linea=linea, cumplimiento_promedio=cumplimiento_promedio, total_ind=total_ind, total_riesgo=total_riesgo, tabla_json=tabla_json
+    )
+    
+    try:
+        msg = client.messages.create(model=_MODEL, max_tokens=600, messages=[{"role": "user", "content": prompt}])
+        return msg.content[0].text.strip()
+    except Exception:
+        return None
+
