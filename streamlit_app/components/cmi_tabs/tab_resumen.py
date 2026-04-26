@@ -28,22 +28,22 @@ except ImportError:
 
 # Colores por línea estratégica (del docs/core/04_Dashboard.md)
 LINEA_COLORES = {
-    "Expansión": "#FBAF17",
-    "Transformación organizacional": "#42F2F2",
-    "Transformacion": "#42F2F2",
-    "Calidad": "#EC0677",
-    "Experiencia": "#1FB2DE",
-    "Sostenibilidad": "#A6CE38",
-    "Sustentabilidad": "#A6CE38",
-    "Educación para toda la vida": "#0F385A",
-    "Educacion": "#0F385A"
+    "expansion": "#FBAF17",
+    "transformacion organizacional": "#42F2F2",
+    "transformacion": "#42F2F2",
+    "calidad": "#EC0677",
+    "experiencia": "#1FB2DE",
+    "sostenibilidad": "#A6CE38",
+    "sustentabilidad": "#A6CE38",
+    "educacion para toda la vida": "#0F385A",
+    "educacion": "#0F385A"
 }
 
 def _get_linea_color(linea):
     """Retorna el color oficial para una línea."""
-    txt = str(linea or "").strip()
+    txt = str(linea or "").strip().lower().replace("_", " ")
     for key, color in LINEA_COLORES.items():
-        if key.lower() in txt.lower():
+        if key in txt or txt in key:
             return color
     return "#1A3A5C"  # Default
 
@@ -333,8 +333,8 @@ def render_tab_resumen(df):
         # Color de línea desde fuente central
         color = _get_linea_color(linea)
         
-        # Nombre limpio para mostrar (con espacios)
-        linea_display = str(linea).strip()
+        # Nombre limpio para mostrar (reemplazar guiones bajos por espacios)
+        linea_display = str(linea).strip().replace("_", " ")
         
         # Determinar estado
         if cump >= 100:
