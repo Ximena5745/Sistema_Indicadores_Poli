@@ -168,7 +168,7 @@ def render_tab_resumen(df):
             
     st.markdown("<br>", unsafe_allow_html=True)
             
-    # 3. Fichas: Vista rápida por línea - diseño profesional mejorado
+    # 3. Fichas: Vista rápida por línea - diseño ejecutivo profesional
     st.markdown("#### Vista rápida por línea")
     lineas = [l for l in df["Linea"].dropna().unique() if str(l).strip()]
     lineas = sorted(lineas, key=lambda x: df[df["Linea"] == x]["cumplimiento_pct"].mean(), reverse=True)
@@ -184,48 +184,69 @@ def render_tab_resumen(df):
         
         # Color de estado según cumplimiento
         if cump >= 100:
-            estado_color = "#43A047"  # Cumplimiento
-            estado_icon = "✅"
+            estado_color = "#43A047"  # Verde - cumplimiento
             estado_label = "Meta alcanzada"
+            estado_bg = "#E8F5E9"
         elif cump >= 80:
-            estado_color = "#FBAF17"  # Alerta
-            estado_icon = "⚠️"
+            estado_color = "#FBAF17"  # Amarillo - alerta
             estado_label = "En proceso"
+            estado_bg = "#FFF8E1"
         else:
-            estado_color = "#D32F2F"  # Peligro
-            estado_icon = "🔴"
+            estado_color = "#D32F2F"  # Rojo - peligro
             estado_label = "Requiere atención"
+            estado_bg = "#FFEBEE"
         
-        # Diseño profesional con fondo claro y borde de color
+        # Diseño profesional ejecutivo (modo claro)
         card_html = f"""
-        <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-top: 4px solid {color}; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="font-weight: 600; font-size: 0.9rem; color: #1A3A5C;">{linea}</span>
-                <span style="font-size: 0.8rem; color: #6B7280; background: #F3F4F6; padding: 2px 8px; border-radius: 12px;">{estado_icon} {estado_label}</span>
+        <div style="background: #FFFFFF; border-radius: 12px; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden;">
+            <!-- Header con color de línea -->
+            <div style="background: {color}; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #FFFFFF;">{linea}</span>
+                <span style="font-size: 0.75rem; color: rgba(255,255,255,0.9);">Línea estratégica</span>
             </div>
-            <div style="text-align: center; margin-bottom: 16px; padding: 12px 0; background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); border-radius: 6px;">
-                <span style="font-size: 2.2rem; font-weight: 700; color: {estado_color};">{cump:.1f}%</span>
-                <div style="font-size: 0.7rem; color: #6B7280; text-transform: uppercase; margin-top: 4px;">Cumplimiento</div>
+            
+            <!-- Cuerpo de la tarjeta -->
+            <div style="padding: 20px;">
+                <!-- Cumplimiento principal -->
+                <div style="text-align: center; margin-bottom: 20px; padding: 16px; background: {estado_bg}; border-radius: 8px;">
+                    <div style="font-size: 2.5rem; font-weight: 700; color: {estado_color}; line-height: 1;">{cump:.1f}%</div>
+                    <div style="font-size: 0.7rem; color: #6B7280; text-transform: uppercase; margin-top: 4px; letter-spacing: 0.5px;">Cumplimiento</div>
+                </div>
+                
+                <!-- Mini métricas (Indicadores y Objetivos) -->
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <div style="flex: 1; text-align: center; padding: 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E5E7EB;">
+                        <div style="font-size: 1.5rem; font-weight: 600; color: #1A3A5C;">{n_ind}</div>
+                        <div style="font-size: 0.65rem; color: #6B7280; text-transform: uppercase;">Indicadores</div>
+                    </div>
+                    <div style="flex: 1; text-align: center; padding: 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E5E7EB;">
+                        <div style="font-size: 1.5rem; font-weight: 600; color: #1A3A5C;">{n_obj}</div>
+                        <div style="font-size: 0.65rem; color: #6B7280; text-transform: uppercase;">Objetivos</div>
+                    </div>
+                </div>
+                
+                <!-- Barra de progreso -->
+                <div style="margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #6B7280; margin-bottom: 6px;">
+                        <span>Progreso hacia meta</span>
+                        <span style="font-weight: 600;">Meta 100%</span>
+                    </div>
+                    <div style="width: 100%; background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {min(100, cump)}%; background: linear-gradient(90deg, {estado_color} 0%, {estado_color}EE 100%); height: 100%; border-radius: 4px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Badge de estado -->
+                <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #E5E7EB;">
+                    <span style="font-size: 0.75rem; color: #6B7280; background: {estado_bg}; padding: 4px 12px; border-radius: 12px; font-weight: 500;">
+                        {estado_label}
+                    </span>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding: 10px; background: #F9FAFB; border-radius: 6px;">
-                <div style="text-align: center; flex: 1;">
-                    <div style="font-size: 1.4rem; font-weight: 600; color: #1A3A5C;">{n_ind}</div>
-                    <div style="font-size: 0.65rem; color: #6B7280; text-transform: uppercase;">📊 Indicadores</div>
-                </div>
-                <div style="width: 1px; background: #E5E7EB;"></div>
-                <div style="text-align: center; flex: 1;">
-                    <div style="font-size: 1.4rem; font-weight: 600; color: #1A3A5C;">{n_obj}</div>
-                    <div style="font-size: 0.65rem; color: #6B7280; text-transform: uppercase;">🎯 Objetivos</div>
-                </div>
-            </div>
-            <div style="margin-top: 10px;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #6B7280; margin-bottom: 4px;">
-                    <span>Progreso</span>
-                    <span>Meta: 100%</span>
-                </div>
-                <div style="width: 100%; background: #E5E7EB; height: 6px; border-radius: 3px; overflow: hidden;">
-                    <div style="width: {min(100, cump)}%; background: linear-gradient(90deg, {estado_color} 0%, {estado_color}CC 100%); height: 100%; border-radius: 3px;"></div>
-                </div>
+            
+            <!-- Footer con acción -->
+            <div style="padding: 12px 20px; background: #F9FAFB; border-top: 1px solid #E5E7EB; text-align: center;">
+                <span style="font-size: 0.8rem; color: #1A3A5C; font-weight: 500; cursor: pointer;">Ver análisis detallado →</span>
             </div>
         </div>
         """
