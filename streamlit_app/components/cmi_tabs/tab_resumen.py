@@ -33,26 +33,35 @@ LINEA_COLORES = {
     "calidad": "#EC0677",
     "experiencia": "#1FB2DE",
     "sostenibilidad": "#A6CE38",
-    "sustentabilidad": "#A6CE38",
     "educacion para toda la vida": "#0F385A"
 }
 
 def _get_linea_color(linea):
     """Retorna el color oficial para una línea."""
     import unicodedata
-    txt = str(linea or "").strip().lower().replace("_", " ")
-    # Normalizar: quitar acentos
+    txt = str(linea or "").strip().lower()
+    # Reemplazar guiones bajos por espacios
+    txt = txt.replace("_", " ")
+    # Normalizar acentos
     txt = unicodedata.normalize("NFD", txt)
     txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
     
-    # Ordenar claves por longitud (mas largo primero)
-    sorted_keys = sorted(LINEA_COLORES.keys(), key=len, reverse=True)
+    # Verificar cada clave
+    for key, color in LINEA_COLORES.items():
+        if txt == key:
+            return color
     
-    for key in sorted_keys:
+    # Verificar si la clave está en el texto (para coincidencias parciales)
+    for key, color in LINEA_COLORES.items():
         if key in txt:
-            return LINEA_COLORES[key]
+            return color
     
-    return "#1A3A5C"  # Default
+    # Por si acaso verificar al revés
+    for key, color in LINEA_COLORES.items():
+        if txt in key:
+            return color
+            
+    return "#1A3A5C"
 
 
 def render_tab_resumen(df):
