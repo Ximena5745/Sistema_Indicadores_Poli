@@ -7,12 +7,23 @@ from streamlit_app.utils.cmi_helpers import calcular_kpis, linea_color
 from services.strategic_indicators import NIVEL_COLOR_EXT
 try:
     from core.config import COLORES, COLOR_CATEGORIA
+    # Asegurar que existe la clave primary
+    if "primary" not in COLORES:
+        COLORES["primary"] = COLORES.get("primario", "#1A3A5C")
 except ImportError:
     COLORES = {
-        "primary": "#1A3A5C", "success": "#43A047", "warning": "#FBAF17", "danger": "#D32F2F"
+        "primary": "#1A3A5C", 
+        "primario": "#1A3A5C",
+        "success": "#43A047", 
+        "warning": "#FBAF17", 
+        "danger": "#D32F2F",
+        "primary_light": "#2E5C8A",
     }
     COLOR_CATEGORIA = {
-        "Peligro": "#D32F2F", "Alerta": "#FBAF17", "Cumplimiento": "#43A047", "Sobrecumplimiento": "#1A3A5C"
+        "Peligro": "#D32F2F", 
+        "Alerta": "#FBAF17", 
+        "Cumplimiento": "#43A047", 
+        "Sobrecumplimiento": "#1A3A5C"
     }
 
 def render_tab_resumen(df):
