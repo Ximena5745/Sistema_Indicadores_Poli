@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import unicodedata
+import textwrap
 from plotly import graph_objects as go
 from streamlit_app.components.interactive_cards import render_metric_card
 from streamlit_app.utils.cmi_helpers import calcular_kpis
@@ -239,7 +240,7 @@ def render_tab_resumen(df):
         catalogo_por_clave[k] for k in catalogo_por_clave if k not in presentes_por_clave
     ]
     # CSS profesional para grid de tarjetas
-    card_css = """
+    card_css = textwrap.dedent("""
     <style>
     .linea-cards-grid {
         display: grid;
@@ -359,7 +360,7 @@ def render_tab_resumen(df):
         text-decoration: underline;
     }
     </style>
-    """
+    """).strip()
     st.markdown(card_css, unsafe_allow_html=True)
     
     # Generar tarjetas
@@ -409,7 +410,7 @@ def render_tab_resumen(df):
             estado_bg = "#FFEBEE"
             estado_text = "#B71C1C"
         # Construir tarjeta HTML
-        card = f"""
+        card = textwrap.dedent(f"""
         <div class="linea-card">
             <div class="linea-card-header" style="background: {color};">
                 <span>{linea_display}</span>
@@ -442,7 +443,7 @@ def render_tab_resumen(df):
                 <div style="margin-top: 6px; font-size: 10px; color: {estado_text}; text-align: right;">{estado_label}</div>
             </div>
         </div>
-        """
+        """).strip()
         cards_html += card
     
     cards_html += '</div>'
