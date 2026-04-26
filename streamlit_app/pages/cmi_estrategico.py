@@ -43,33 +43,40 @@ CORTE_SEMESTRAL = {
     "Diciembre": 12,
 }
 
-LINEA_COLORS = {
-    "Expansión": "#FBAF17",
-    "Transformación organizacional": "#42F2F2",
-    "Calidad": "#EC0677",
-    "Experiencia": "#1FB2DE",
-    "Sostenibilidad": "#A6CE38",
-    "Educación para toda la vida": "#0F385A",
-}
-
-
-def _linea_color(linea: str) -> str:
-    txt = str(linea or "").strip().lower()
-    txt = unicodedata.normalize("NFD", txt)
-    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
-    if "expansi" in txt:
-        return "#FBAF17"
-    if "transform" in txt:
-        return "#42F2F2"
-    if "calidad" in txt:
-        return "#EC0677"
-    if "experien" in txt:
-        return "#1FB2DE"
-    if "sostenib" in txt:
-        return "#A6CE38"
-    if "educaci" in txt or "toda la vida" in txt:
-        return "#0F385A"
-    return "#1f4e79"
+# Usar colores del sistema de diseño
+try:
+    from streamlit_app.styles.design_system import LINE_COLOR as LINEA_COLORS, get_line_color as _linea_color_func
+    def _linea_color(linea: str) -> str:
+        try:
+            return _linea_color_func(linea)
+        except:
+            return "#1A3A5C"
+except ImportError:
+    LINEA_COLORS = {
+        "Expansión": "#FBAF17",
+        "Transformación organizacional": "#42F2F2",
+        "Calidad": "#EC0677",
+        "Experiencia": "#1FB2DE",
+        "Sostenibilidad": "#A6CE38",
+        "Educación para toda la vida": "#0F385A",
+    }
+    def _linea_color(linea: str) -> str:
+        txt = str(linea or "").strip().lower()
+        txt = unicodedata.normalize("NFD", txt)
+        txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+        if "expansi" in txt:
+            return "#FBAF17"
+        if "transform" in txt:
+            return "#42F2F2"
+        if "calidad" in txt:
+            return "#EC0677"
+        if "experien" in txt:
+            return "#1FB2DE"
+        if "sostenib" in txt or "sustentab" in txt:
+            return "#A6CE38"
+        if "educaci" in txt or "toda la vida" in txt:
+            return "#0F385A"
+        return "#1A3A5C"
 
 
 def _default_anio(anios: list[int]) -> int:

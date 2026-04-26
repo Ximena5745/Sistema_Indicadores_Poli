@@ -65,10 +65,16 @@ COLORS = {
 # PALETAS POR LÍNEA Y PALETA ALTERNATIVA VIVA
 # =============================================================================
 LINE_COLOR = {
-    # Ejemplos / placeholders — reemplazar por los hex reales del usuario
-    "PDI": "#E03A3A",
-    "CMI": "#1F6FEB",
-    "GESTION": "#8BC34A",
+    # Colores oficiales por línea estratégica (del sistema de diseño)
+    "EXPANSIÓN": "#FBAF17",
+    "TRANSFORMACIÓN ORGANIZACIONAL": "#42F2F2",
+    "TRANSFORMACION ORGANIZACIONAL": "#42F2F2",
+    "CALIDAD": "#EC0677",
+    "EXPERIENCIA": "#1FB2DE",
+    "SOSTENIBILIDAD": "#A6CE38",
+    "SUSTENTABILIDAD": "#A6CE38",
+    "EDUCACIÓN PARA TODA LA VIDA": "#0F385A",
+    "EDUCACION PARA TODA LA VIDA": "#0F385A",
 }
 
 # Paleta alternativa vívida para gráficos de no‑cumplimiento y visuales de alta

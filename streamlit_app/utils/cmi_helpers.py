@@ -53,19 +53,30 @@ def calcular_kpis(df):
 
 
 def linea_color(linea: str) -> str:
-    txt = str(linea or "").strip().lower()
-    txt = unicodedata.normalize("NFD", txt)
-    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
-    if "expansi" in txt:
-        return "#FBAF17"
-    if "transform" in txt:
-        return "#42F2F2"
-    if "calidad" in txt:
-        return "#EC0677"
-    if "experien" in txt:
-        return "#1FB2DE"
-    if "sostenib" in txt:
-        return "#A6CE38"
-    if "educaci" in txt or "toda la vida" in txt:
-        return "#0F385A"
-    return "#1f4e79"
+    # Importar colores oficiales desde el sistema de diseño
+    try:
+        from streamlit_app.styles.design_system import LINE_COLOR, get_line_color as _get_line_color
+        txt = str(linea or "").strip()
+        # Buscar coincidencia exacta o parcial
+        for key, color in LINE_COLOR.items():
+            if key.replace(" ", "").replace("Í", "I").replace("Ó", "O").lower() in txt.replace(" ", "").lower():
+                return color
+        return _get_line_color(txt) if txt else "#1A3A5C"
+    except ImportError:
+        # Fallback si no se puede importar
+        txt = str(linea or "").strip().lower()
+        txt = unicodedata.normalize("NFD", txt)
+        txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+        if "expansi" in txt:
+            return "#FBAF17"
+        if "transform" in txt:
+            return "#42F2F2"
+        if "calidad" in txt:
+            return "#EC0677"
+        if "experien" in txt:
+            return "#1FB2DE"
+        if "sostenib" in txt or "sustentab" in txt:
+            return "#A6CE38"
+        if "educaci" in txt or "toda la vida" in txt:
+            return "#0F385A"
+        return "#1A3A5C"
