@@ -107,21 +107,36 @@ def render():
         st.warning("No hay indicadores para los filtros seleccionados.")
         return
 
-    # Navegación y Pestañas
+    # Navegación principal controlable por estado
     tab_names = [
         "Resumen Desglosado", 
         "Líneas Estratégicas", 
         "Listado de Indicadores", 
         "Alertas"
     ]
-    
-    tabs = st.tabs(tab_names)
-    
-    with tabs[0]:
+
+    # Navegación desde CTA "Ver análisis detallado" de Vista rápida
+    linea_target = st.query_params.get("cmi_linea")
+    if linea_target:
+        st.session_state["cmi_tab_linea_expand"] = str(linea_target)
+        st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
+        st.query_params.pop("cmi_linea", None)
+
+    if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in tab_names:
+        st.session_state["cmi_tab_panel"] = "Resumen Desglosado"
+
+    selected_panel = st.segmented_control(
+        "Sección",
+        options=tab_names,
+        key="cmi_tab_panel",
+        label_visibility="collapsed",
+    )
+
+    if selected_panel == "Resumen Desglosado":
         render_tab_resumen(df_filtrado)
-    with tabs[1]:
+    elif selected_panel == "Líneas Estratégicas":
         render_tab_lineas(df_filtrado)
-    with tabs[2]:
+    elif selected_panel == "Listado de Indicadores":
         render_tab_listado(df_filtrado)
-    with tabs[3]:
+    elif selected_panel == "Alertas":
         render_tab_alertas(df_filtrado)

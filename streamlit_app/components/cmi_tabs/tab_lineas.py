@@ -1,9 +1,29 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import unicodedata
 from streamlit_app.utils.cmi_helpers import linea_color
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
 from services.strategic_indicators import load_cierres
+
+
+def _normalize_linea_key(linea):
+    txt = str(linea or "").strip().lower().replace("_", " ")
+    txt = unicodedata.normalize("NFD", txt)
+    return "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+
+
+def _hex_to_rgba(hex_color, alpha=0.12):
+    txt = str(hex_color or "").strip().lstrip("#")
+    if len(txt) != 6:
+        return f"rgba(26,58,92,{alpha})"
+    try:
+        r = int(txt[0:2], 16)
+        g = int(txt[2:4], 16)
+        b = int(txt[4:6], 16)
+        return f"rgba({r},{g},{b},{alpha})"
+    except Exception:
+        return f"rgba(26,58,92,{alpha})"
 
 def _render_subtab_resumen(df_linea, linea, color):
     col1, col2, col3 = st.columns(3)
@@ -141,37 +161,122 @@ def render_tab_lineas(df):
     if df.empty:
         st.info("No hay datos para mostrar.")
         return
-        
+    
+    st.markdown("""
+    <style>
+    .linea-accordion-row {
+        border-radius: 14px;
+        border: 1px solid #D7E3F4;
+        padding: 9px 12px;
+        margin-bottom: 12px;
+        min-height: 62px;
+        display: flex;
+        align-items: center;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .linea-accordion-row:hover {
+        box-shadow: 0 4px 14px rgba(26,58,92,0.12);
+        transform: translateY(-1px);
+    }
+    .linea-accordion-left {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+    .linea-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+        display: inline-block;
+    }
+    .linea-title {
+        font-weight: 700;
+        color: #1A3A5C;
+        font-size: 19px;
+        line-height: 1.1;
+        letter-spacing: 0.1px;
+    }
+    .linea-meta {
+        color: #6B7280;
+        font-size: 12px;
+        margin-left: 8px;
+    }
+    .linea-pill {
+        display: inline-block;
+        min-width: 94px;
+        text-align: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 16px;
+        border: 1px solid #D7E7D9;
+        background: #ECF8EE;
+        color: #2E7D32;
+    }
+    .linea-panel {
+        border: 1px solid #DEE8F4;
+        border-top: 0;
+        background: #FFFFFF;
+        border-radius: 0 0 14px 14px;
+        padding: 12px 14px 10px;
+        margin-top: -10px;
+        margin-bottom: 14px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     lineas = sorted([l for l in df["Linea"].dropna().unique() if str(l).strip()])
-    
-    # Check si venimos del dashboard (Resumen)
-    linea_abierta = st.session_state.get("cmi_tab_linea_expand", None)
-    
+
+    linea_target = st.session_state.get("cmi_tab_linea_expand", None)
+    linea_open = st.session_state.get("cmi_linea_open", None)
+    if linea_target and not linea_open:
+        linea_open = linea_target
+        st.session_state["cmi_linea_open"] = linea_open
+
     for linea in lineas:
         df_linea = df[df["Linea"] == linea].copy()
         cump_mean = df_linea["cumplimiento_pct"].mean()
-        cump_val = cump_mean if pd.notna(cump_mean) else 0
+        cump_val = float(cump_mean) if pd.notna(cump_mean) else 0.0
         color = linea_color(linea)
-        
-        is_expanded = (linea == linea_abierta)
-        
-        # Símbolo visual de estado para el título del acordeón
-        estado_emoji = "🟢" if cump_val >= 100 else ("🟡" if cump_val >= 80 else "🔴")
-        
-        header_text = f"{estado_emoji} Línea: {linea} | Cumplimiento: {cump_val:.1f}% | {len(df_linea)} Indicadores"
-        
-        with st.expander(header_text, expanded=is_expanded):
-            subtabs = st.tabs(["📊 Resumen de Línea", "🎯 Objetivos e Indicadores", "📈 Análisis y Tendencia"])
-            
+        n_ind = len(df_linea)
+        n_obj = int(df_linea["Objetivo"].nunique()) if "Objetivo" in df_linea.columns else 0
+
+        is_expanded = _normalize_linea_key(linea) == _normalize_linea_key(linea_open)
+        arrow_symbol = "▼" if is_expanded else "▶"
+        row_bg = _hex_to_rgba(color, 0.14 if is_expanded else 0.11)
+
+        st.markdown(f'<div class="linea-accordion-row" style="background:{row_bg};">', unsafe_allow_html=True)
+        c_left, c_mid, c_btn = st.columns([8.2, 1.6, 0.8])
+        with c_left:
+            st.markdown(
+                f"""
+                <div class="linea-accordion-left">
+                    <span class="linea-dot" style="background:{color};"></span>
+                    <span class="linea-title">{linea}</span>
+                    <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with c_mid:
+            st.markdown(f'<span class="linea-pill">{cump_val:.1f}%</span>', unsafe_allow_html=True)
+        with c_btn:
+            if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}", use_container_width=True):
+                if is_expanded:
+                    st.session_state["cmi_linea_open"] = ""
+                else:
+                    st.session_state["cmi_linea_open"] = str(linea)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if is_expanded:
+            st.markdown('<div class="linea-panel">', unsafe_allow_html=True)
+            subtabs = st.tabs(["Resumen", "Objetivos e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
-                
             with subtabs[1]:
                 _render_subtab_objetivos(df_linea, linea)
-                
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
+            st.markdown("</div>", unsafe_allow_html=True)
                 
-    # Limpiar estado de expansión para que no quede trabado
-    if "cmi_tab_linea_expand" in st.session_state:
-        del st.session_state["cmi_tab_linea_expand"]

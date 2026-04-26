@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import unicodedata
 import textwrap
+from urllib.parse import quote
 from plotly import graph_objects as go
 from streamlit_app.components.interactive_cards import render_metric_card
 from streamlit_app.utils.cmi_helpers import calcular_kpis
@@ -452,7 +453,7 @@ def render_tab_resumen(df):
                     </div>
                 </div>
                 <div class="status-note" style="color: {estado_text};">{estado_label}</div>
-                <div class="linea-cta">Ver análisis detallado →</div>
+                <div class="linea-cta"><a href="?cmi_linea={quote(str(linea))}" target="_self" style="color: inherit; text-decoration: none;">Ver análisis detallado →</a></div>
             </div>
         </div>
         """).strip()
@@ -460,15 +461,6 @@ def render_tab_resumen(df):
     
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
-    
-    # Botones de acción (debajo de las tarjetas)
-    st.markdown('<div style="margin-top: 8px;">', unsafe_allow_html=True)
-    for idx, linea in enumerate(lineas):
-        btn_key = f"btn_linea_{idx}"
-        if st.button(f"Ver Detalles: {linea}", key=btn_key):
-            st.session_state["cmi_tab_linea_expand"] = linea
-            st.toast(f"✅ {linea} seleccionado")
-    st.markdown('</div>', unsafe_allow_html=True)
             
     st.markdown("<br>", unsafe_allow_html=True)
             
