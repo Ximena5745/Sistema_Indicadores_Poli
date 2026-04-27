@@ -413,7 +413,8 @@ def render_tab_lineas(df, pdi_catalog=None):
         min_h = 72
 
 
-        # FICHA UNIFICADA Y COMPACTA (sin columnas, solo un bloque HTML)
+
+        # FICHA UNIFICADA Y COMPACTA (solo visual, botón Streamlit)
         ficha_html = f'''
         <div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px; display:flex;align-items:center;gap:18px;box-sizing:border-box;">
             <div style="display:flex;align-items:center;gap:12px;flex:1;">
@@ -424,22 +425,19 @@ def render_tab_lineas(df, pdi_catalog=None):
             <div style="flex-shrink:0;">
                 <span class="linea-pill" style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
             </div>
-            <form method="post" style="margin:0;display:inline;">
-                <button type="submit" name="toggle_linea" value="{_normalize_linea_key(linea)}" style="background:#fff;border:1.5px solid #e0e6ef;border-radius:12px;padding:8px 18px;font-size:1.2rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.04);cursor:pointer;transition:background 0.15s;">{arrow_symbol}</button>
-            </form>
         </div>
         '''
         st.markdown(ficha_html, unsafe_allow_html=True)
 
-        # Manejo del botón acordeón (usando session_state para mantener compatibilidad con Streamlit)
-        import streamlit as _st
-        if _st.session_state.get('toggle_linea') == _normalize_linea_key(linea):
-            if is_expanded:
-                st.session_state["cmi_linea_open"] = ""
-            else:
-                st.session_state["cmi_linea_open"] = str(linea)
-            st.session_state['toggle_linea'] = None
-            st.rerun()
+        # Botón de despliegue alineado a la derecha
+        btn_col = st.columns([0.85, 0.15])[1]
+        with btn_col:
+            if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}"):
+                if is_expanded:
+                    st.session_state["cmi_linea_open"] = ""
+                else:
+                    st.session_state["cmi_linea_open"] = str(linea)
+                st.rerun()
 
         if is_expanded:
             st.markdown(f'<div class="linea-panel" style="border-top:3px solid {color};">', unsafe_allow_html=True)
