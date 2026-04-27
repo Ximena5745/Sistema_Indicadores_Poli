@@ -115,12 +115,15 @@ def render():
         "Alertas"
     ]
 
-    # Navegación desde CTA "Ver análisis detallado" de Vista rápida
+    # Navegación desde CTA "Ver análisis detallado" de Vista rápida.
+    # Evita rerun por mutar query_params; se procesa una vez por valor.
     linea_target = st.query_params.get("cmi_linea")
     if linea_target:
-        st.session_state["cmi_tab_linea_expand"] = str(linea_target)
-        st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
-        st.query_params.pop("cmi_linea", None)
+        linea_target = str(linea_target)
+        if st.session_state.get("_cmi_linea_processed") != linea_target:
+            st.session_state["cmi_tab_linea_expand"] = linea_target
+            st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
+            st.session_state["_cmi_linea_processed"] = linea_target
 
     if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in tab_names:
         st.session_state["cmi_tab_panel"] = "Resumen Desglosado"
