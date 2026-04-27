@@ -247,7 +247,6 @@ def render_tab_lineas(df, pdi_catalog=None):
         with cols[1]:
             if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}"):
                 st.session_state["cmi_linea_open"] = "" if is_expanded else str(linea)
-                st.experimental_rerun()
 
         if is_expanded:
             st.markdown(f'<div style="border:1px solid #D9E5F2; border-radius:14px; padding:18px; margin-bottom:18px; background:#FFFFFF;">', unsafe_allow_html=True)
