@@ -70,7 +70,7 @@ def _render_subtab_resumen(df_linea, linea, color):
         with cols[idx % 3]:
             st.markdown(
                 f"""
-                <div style='background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 8px 20px rgba(15,23,42,0.06); margin-bottom:12px;'>
+                <div style='padding:18px; border-radius:16px; border:1px solid #E5E7EB; background:#FFFFFF; box-shadow:0 8px 20px rgba(15,23,42,0.06); margin-bottom:12px;'>
                     <div style='font-size:0.9rem; color:#475569; margin-bottom:10px;'>{title}</div>
                     <div style='font-size:2rem; font-weight:800; color:#111827; margin-bottom:0;'>{value}</div>
                     <div style='height:4px; width:40px; background:{border_color}; border-radius:999px; margin-top:14px;'></div>
@@ -85,36 +85,12 @@ def _render_subtab_resumen(df_linea, linea, color):
             df_ind["cumplimiento_pct"] = pd.to_numeric(df_ind["cumplimiento_pct"], errors="coerce")
             df_ind = df_ind.sort_values("cumplimiento_pct", ascending=False).head(6)
 
-            rows_html = []
             for _, row in df_ind.iterrows():
                 pct = 0.0 if pd.isna(row["cumplimiento_pct"]) else float(row["cumplimiento_pct"])
-                bar_pct = min(max(pct, 0.0), 100.0)
-                bar_color = color if pct >= 100 else "#3B82F6"
-                label = html.escape(str(row["Indicador"]))
-                rows_html.append(
-                    f"""
-                    <div style='margin-bottom:16px;'>
-                        <div style='display:flex; justify-content:space-between; gap:12px; align-items:center;'>
-                            <div style='min-width:0;'>
-                                <div style='font-weight:700; color:#1F2937; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px;'>{label}</div>
-                                <div style='font-size:0.82rem; color:#6B7280; margin-top:4px;'>{pct:.1f}% de cumplimiento</div>
-                            </div>
-                            <div style='font-size:0.95rem; font-weight:700; color:#111827;'>{pct:.1f}%</div>
-                        </div>
-                        <div style='height:10px; width:100%; background:#E5E7EB; border-radius:999px; overflow:hidden; margin-top:10px;'>
-                            <div style='width:{bar_pct:.1f}%; background:{bar_color}; height:100%;'></div>
-                        </div>
-                    </div>
-                    """
-                )
-
-            html_indicadores = """
-            <div style='background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,0.04);'>
-                <div style='font-weight:800; color:#1F2937; font-size:1rem; margin-bottom:16px;'>Indicadores destacados</div>
-            """
-            html_indicadores += "".join(rows_html)
-            html_indicadores += "</div>"
-            st.markdown(html_indicadores, unsafe_allow_html=True)
+                progress_value = min(max(pct / 100.0, 0.0), 1.0)
+                label = str(row["Indicador"])
+                st.markdown(f"**{label}**  \n{pct:.1f}% de cumplimiento")
+                st.progress(progress_value)
 
 def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
 
