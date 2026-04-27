@@ -160,11 +160,12 @@ def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
     extras = [c for c in df_tabla.columns if c not in cols_presentes]
     df_tabla = df_tabla[cols_presentes + extras]
     
-    # Usar to_html para permitir el renderizado CSS custom
-    st.markdown(
-        df_tabla.to_html(escape=False, index=False, classes='table table-hover', border=0).replace('<th>', '<th style="text-align: left; background-color: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6;">').replace('<td>', '<td style="padding: 10px; border-bottom: 1px solid #e9ecef; vertical-align: middle;">'),
-        unsafe_allow_html=True
-    )
+    # Usar to_html para permitir el renderizado CSS custom y destacar Meta Estratégica
+    html = df_tabla.to_html(escape=False, index=False, classes='table table-hover', border=0)
+    html = html.replace('<th>', '<th style="text-align: left; background-color: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6;">')
+    html = html.replace('<td>', '<td style="padding: 10px; border-bottom: 1px solid #e9ecef; vertical-align: middle;">')
+    html = html.replace('<th>Meta Estratégica</th>', '<th class="meta-header">Meta Estratégica</th>')
+    st.markdown(html, unsafe_allow_html=True)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _get_ai_linea(linea, cump, n_ind, n_riesgo, df_json):
@@ -315,27 +316,39 @@ def render_tab_lineas(df, pdi_catalog=None):
         text-overflow: ellipsis;
         vertical-align: middle;
     }
+    .meta-header {
+        background: #F1F8FF;
+        color: #1A3A5C;
+        padding: 10px;
+        border-bottom: 2px solid #C9E0FB;
+        font-weight: 800;
+    }
+    .table td .meta-estrategica-chip { display: inline-block; }
+    /* Subtabs integradas: fondo sutil que conecta con header, tab activo con borde superior visible */
     .linea-panel .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
-        background: #F3F6FB;
-        border: 1px solid #D6E2F0;
+        background: rgba(240,246,255,0.35);
+        border: none;
         border-radius: 12px;
-        padding: 6px;
+        padding: 8px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
     }
     .linea-panel .stTabs [data-baseweb="tab"] {
-        height: 38px;
+        height: 40px;
         padding: 0 14px;
         border-radius: 9px;
         color: #475569;
         font-weight: 700;
-        background: #ECF1F8;
-        border: 1px solid #D4E0EE;
+        background: transparent;
+        border: none;
+        transition: all 0.18s ease;
     }
     .linea-panel .stTabs [aria-selected="true"] {
         color: #1A3A5C !important;
         background: #FFFFFF !important;
-        border: 2px solid #8FAFD1 !important;
-        box-shadow: 0 2px 6px rgba(26,58,92,0.12);
+        border-top: 3px solid #8FAFD1 !important;
+        box-shadow: 0 2px 6px rgba(26,58,92,0.08);
+        transform: translateY(-2px);
     }
     @media (max-width: 1200px) {
         .linea-title {
@@ -424,7 +437,14 @@ def render_tab_lineas(df, pdi_catalog=None):
         target_class = " target-focus" if is_target else ""
         expanded_class = " expanded" if is_expanded else ""
 
-        st.markdown(f'<div class="linea-accordion-row{expanded_class}{target_class}" style="background:{row_bg};">', unsafe_allow_html=True)
+        # gradiente suave usando color de la línea para mayor presencia
+        gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.06)}, {_hex_to_rgba(color, 0.02)})"
+        min_h = 72
+
+        st.markdown(
+            f'<div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px;">',
+            unsafe_allow_html=True,
+        )
         c_left, c_mid, c_btn = st.columns([8.2, 1.6, 0.8])
         with c_left:
             st.markdown(
@@ -438,7 +458,9 @@ def render_tab_lineas(df, pdi_catalog=None):
                 unsafe_allow_html=True,
             )
         with c_mid:
-            st.markdown(f'<span class="linea-pill">{cump_val:.1f}%</span>', unsafe_allow_html=True)
+            pill_bg = color
+            pill_style = f'background:{pill_bg}; color: #ffffff; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.08); padding:6px 12px; border-radius:999px; font-weight:700;'
+            st.markdown(f'<span class="linea-pill" style="{pill_style}">{cump_val:.1f}%</span>', unsafe_allow_html=True)
         with c_btn:
             if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}", use_container_width=True):
                 if is_expanded:
@@ -449,7 +471,7 @@ def render_tab_lineas(df, pdi_catalog=None):
         st.markdown("</div>", unsafe_allow_html=True)
 
         if is_expanded:
-            st.markdown('<div class="linea-panel">', unsafe_allow_html=True)
+            st.markdown(f'<div class="linea-panel" style="border-top:3px solid {color};">', unsafe_allow_html=True)
             subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
