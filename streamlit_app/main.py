@@ -58,6 +58,12 @@ def main():
     # Valor seguro por defecto
     menu = "Resumen General"
 
+    # Deep-link desde CTA de CMI: abrir directamente el módulo CMI Estratégico
+    # cuando llega el query param cmi_linea.
+    if hasattr(st, "query_params") and st.query_params.get("cmi_linea"):
+        menu = "CMI Estratégico"
+        st.session_state["sidebar_nav"] = "⌂  CMI Estratégico"
+
     # Configuración del sidebar
     try:
         with st.sidebar:
