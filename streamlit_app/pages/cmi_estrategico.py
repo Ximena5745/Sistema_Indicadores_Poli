@@ -467,44 +467,128 @@ def render():
     ]
     from html import escape as _escape
 
+    # Nuevo render compacto y contextualizado de líneas estratégicas
+    st.markdown("""
+    <style>
+    .cmi-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 18px;
+        padding: 0;
+        display: flex;
+        align-items: stretch;
+        transition: box-shadow 0.2s;
+    }
+    .cmi-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    }
+    .cmi-card-color {
+        width: 12px;
+        border-radius: 12px 0 0 12px;
+        margin-right: 0;
+    }
+    .cmi-card-content {
+        flex: 1;
+        padding: 18px 24px 18px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .cmi-card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: #222;
+    }
+    .cmi-card-desc {
+        font-size: 1rem;
+        color: #555;
+        margin-bottom: 10px;
+    }
+    .cmi-card-stats {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 0;
+    }
+    .cmi-card-stat {
+        font-size: 1.05rem;
+        color: #333;
+        background: #f7fafc;
+        border-radius: 6px;
+        padding: 4px 12px;
+        margin-right: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .cmi-card-value {
+        font-weight: 700;
+        color: #1976d2;
+        margin-left: 4px;
+    }
+    .cmi-card-cumplimiento {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(90deg, #1976d2 60%, #43a047 100%);
+        border-radius: 8px;
+        padding: 6px 18px;
+        margin-left: auto;
+        align-self: flex-end;
+        box-shadow: 0 1px 4px rgba(25,118,210,0.08);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     for linea in ordered_lineas:
         color = LINEA_COLORS.get(linea, _linea_color(linea))
-        st.markdown(
-            f"<div style='background:{color};padding:14px;border-radius:6px;margin-top:12px;margin-bottom:8px'><h3 style='color:#ffffff;margin:0;padding:0'>{_escape(linea)}</h3></div>",
-            unsafe_allow_html=True,
-        )
         df_line = tabla[tabla["Linea"] == linea].copy()
         if df_line.empty:
-            st.info(f"No hay indicadores PDI para la línea {linea} en el corte seleccionado.")
             continue
-        # Agrupar por Objetivo y renderizar tarjetas en dos columnas
-        objetivos = df_line["Objetivo"].fillna("Sin objetivo").unique().tolist()
-        cols_iter = iter(objetivos)
-        while True:
-            try:
-                o1 = next(cols_iter)
-            except StopIteration:
-                break
-            o2 = None
-            try:
-                o2 = next(cols_iter)
-            except StopIteration:
-                o2 = None
-            c1, c2 = st.columns([1, 1])
-            with c1:
-                df_o1 = df_line[df_line["Objetivo"] == o1]
-                st.markdown(
-                    f"<div style='background:#f2fbfb;border-radius:6px;padding:8px'><strong>{_escape(str(o1))}</strong></div>",
-                    unsafe_allow_html=True,
-                )
-                st.markdown(_render_indicator_table(df_o1), unsafe_allow_html=True)
-            with c2:
-                if o2:
-                    df_o2 = df_line[df_line["Objetivo"] == o2]
-                    st.markdown(
-                        f"<div style='background:#f2fbfb;border-radius:6px;padding:8px'><strong>{_escape(str(o2))}</strong></div>",
-                        unsafe_allow_html=True,
+        n_indicadores = len(df_line)
+        n_objetivos = df_line["Objetivo"].nunique()
+        n_metas = df_line["Meta"].nunique() if "Meta" in df_line.columns else "-"
+        cumplimiento = df_line["Cumplimiento (%)"].mean()
+        cumplimiento_str = f"{cumplimiento:.1f}%" if not pd.isna(cumplimiento) else "-"
+        desc = f"{n_indicadores} indicadores · {n_objetivos} objetivos · {n_metas} metas"
+        st.markdown(f"""
+        <div class='cmi-card'>
+            <div class='cmi-card-color' style='background:{color};'></div>
+            <div class='cmi-card-content'>
+                <div class='cmi-card-title'>{_escape(linea)}</div>
+                <div class='cmi-card-desc'>{desc}</div>
+                <div class='cmi-card-stats'>
+                    <div class='cmi-card-stat'>Indicadores <span class='cmi-card-value'>{n_indicadores}</span></div>
+                    <div class='cmi-card-stat'>Objetivos <span class='cmi-card-value'>{n_objetivos}</span></div>
+                    <div class='cmi-card-stat'>Metas <span class='cmi-card-value'>{n_metas}</span></div>
+                </div>
+                <div class='cmi-card-cumplimiento'>Cumplimiento: {cumplimiento_str}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Render jerárquico: Objetivos -> Metas/Indicadores
+        objetivos = df_line["Objetivo"].dropna().unique().tolist()
+        for objetivo in objetivos:
+            with st.expander(f"🎯 {objetivo}"):
+                df_obj = df_line[df_line["Objetivo"] == objetivo].copy()
+                # Agrupar por Meta si existe columna Meta
+                if "Meta" in df_obj.columns:
+                    metas = df_obj["Meta"].dropna().unique().tolist()
+                    for meta in metas:
+                        st.markdown(f"<div style='font-weight:600;margin-bottom:4px;color:#1976d2'>Meta: {_escape(str(meta))}</div>", unsafe_allow_html=True)
+                        df_meta = df_obj[df_obj["Meta"] == meta].copy()
+                        # Mostrar tabla de indicadores para la meta
+                        st.dataframe(
+                            df_meta[[c for c in ["Indicador", "Ejecución", "Cumplimiento (%)", "Nivel"] if c in df_meta.columns]],
+                            hide_index=True,
+                            use_container_width=True,
+                        )
+                else:
+                    # Si no hay columna Meta, mostrar todos los indicadores del objetivo
+                    st.dataframe(
+                        df_obj[[c for c in ["Indicador", "Ejecución", "Cumplimiento (%)", "Nivel"] if c in df_obj.columns]],
+                        hide_index=True,
+                        use_container_width=True,
                     )
-                    st.markdown(_render_indicator_table(df_o2), unsafe_allow_html=True)
-        # separación entre líneas
-        st.markdown("<br>", unsafe_allow_html=True)
