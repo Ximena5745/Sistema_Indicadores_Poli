@@ -292,19 +292,19 @@ def render_tab_resumen(df):
     }
     .summary-row {
         display: grid;
-        grid-template-columns: 1.3fr 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 8px;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
     }
     .summary-box {
         text-align: center;
-        padding: 8px 5px;
+        padding: 12px 8px;
         background: #F2F6FC;
         border-radius: 8px;
         border: 1px solid #E4EBF5;
     }
     .summary-value {
-        font-size: 40px;
+        font-size: 32px;
         font-weight: 800;
         line-height: 1;
         color: #2E8B57;
@@ -314,12 +314,31 @@ def render_tab_resumen(df):
         color: #1F3552;
     }
     .summary-label {
-        font-size: 9px;
+        font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: #6B7280;
-        margin-top: 2px;
+        letter-spacing: 0.7px;
+        color: #7a80a0;
+        margin-top: 4px;
     }
+        .progress-legend {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 9px;
+            color: #3D4E66;
+        }
+        .progress-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .progress-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
     .progress-row {
         margin-top: 4px;
     }
@@ -444,6 +463,12 @@ def render_tab_resumen(df):
             estado_icon = '→'
         else:
             estado_icon = '⚠'
+        # Calcular distribución de niveles para leyenda
+        df_l_levels = df_l["Nivel de cumplimiento"].value_counts()
+        n_sob = df_l_levels.get("Sobrecumplimiento", 0)
+        n_cum = df_l_levels.get("Cumplimiento", 0)
+        n_ale = df_l_levels.get("Alerta", 0)
+        n_rie = df_l_levels.get("Peligro", 0)
         # Construir tarjeta HTML
         card = textwrap.dedent(f"""
         <div class="linea-card">
@@ -475,13 +500,20 @@ def render_tab_resumen(df):
                         <div class="progress-fill" style="width: {progress_width:.1f}%; background: {estado_color};"></div>
                     </div>
                     <div class="progress-accent">
-                        <div style="background: {color};"></div>
-                        <div style="background: #5E93FF;"></div>
-                        <div style="background: #FBAF17;"></div>
+                        <div style="background: #5bc97a;"></div>
+                        <div style="background: #4f8ef7;"></div>
+                        <div style="background: #f5a623;"></div>
+                        <div style="background: #e63d6f;"></div>
+                    </div>
+                    <div class="progress-legend">
+                        <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#5bc97a;"></span> {n_sob} Sobrecump.</div>
+                        <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#4f8ef7;"></span> {n_cum} Cumpl.</div>
+                        <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#f5a623;"></span> {n_ale} Alerta</div>
+                        <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#e63d6f;"></span> {n_rie} Riesgo</div>
                     </div>
                 </div>
                 <div class="status-note" style="color: {estado_text};">{estado_label}</div>
-                <div class="linea-cta"><a href="?cmi_linea={quote(str(linea))}" target="_self" style="color: inherit; text-decoration: none;">Ver análisis detallado →</a></div>
+                <div class="linea-cta"><a href="?linea={quote(str(linea_norm))}" target="_self" style="color: inherit; text-decoration: none;">Ver análisis detallado →</a></div>
             </div>
         </div>
         """).strip()

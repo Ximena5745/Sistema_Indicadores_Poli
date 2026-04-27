@@ -105,6 +105,11 @@ def render():
     st.caption(
         "Indicadores del Plan Estratégico (PDI) con cumplimiento de cierre y niveles institucionales."
     )
+    # Fase 3: Leer query param 'linea' y filtrar automáticamente
+    if hasattr(st, 'query_params') and "linea" in st.query_params:
+        linea_from_query = st.query_params["linea"]
+        st.session_state["cmi_pdi_linea"] = linea_from_query
+        st.experimental_rerun()
 
     cierres = load_cierres()
     if cierres.empty:
