@@ -513,8 +513,7 @@ def render_tab_resumen(df):
                         <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#e63d6f;"></span> {n_rie} Riesgo</div>
                     </div>
                 </div>
-                <!-- Eliminado status-note duplicado de meta alcanzada -->
-                <div class="linea-cta"><button onclick="window.parent.postMessage({tab:'lineas', linea:'{linea_norm}'}, '*')" style="background:none;border:none;color:inherit;font:inherit;cursor:pointer;padding:0;margin:0;text-decoration:underline;">Ver análisis detallado →</button></div>
+                <div class="linea-cta"><a href="?cmi_linea={quote(str(linea_norm))}" target="_self" style="color: inherit; text-decoration: underline;">Ver análisis detallado →</a></div>
             </div>
         </div>
         """).strip()
