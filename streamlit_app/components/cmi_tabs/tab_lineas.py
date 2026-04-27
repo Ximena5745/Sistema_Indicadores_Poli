@@ -412,34 +412,34 @@ def render_tab_lineas(df, pdi_catalog=None):
         gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.06)}, {_hex_to_rgba(color, 0.02)})"
         min_h = 72
 
-        st.markdown(
-            f'<div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px;">',
-            unsafe_allow_html=True,
-        )
-        c_left, c_mid, c_btn = st.columns([8.2, 1.6, 0.8])
-        with c_left:
-            st.markdown(
-                f"""
-                <div class="linea-accordion-left">
-                    <span class="linea-dot" style="background:{color};"></span>
-                    <span class="linea-title">{linea}</span>
-                    <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with c_mid:
-            pill_bg = color
-            pill_style = f'background:{pill_bg}; color: #ffffff; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.08); padding:6px 12px; border-radius:999px; font-weight:700;'
-            st.markdown(f'<span class="linea-pill" style="{pill_style}">{cump_val:.1f}%</span>', unsafe_allow_html=True)
-        with c_btn:
-            if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}", use_container_width=True):
-                if is_expanded:
-                    st.session_state["cmi_linea_open"] = ""
-                else:
-                    st.session_state["cmi_linea_open"] = str(linea)
-                st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+
+        # FICHA UNIFICADA Y COMPACTA (sin columnas, solo un bloque HTML)
+        ficha_html = f'''
+        <div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px; display:flex;align-items:center;gap:18px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;">
+                <span class="linea-dot" style="background:{color};"></span>
+                <span class="linea-title">{linea}</span>
+                <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
+            </div>
+            <div style="flex-shrink:0;">
+                <span class="linea-pill" style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
+            </div>
+            <form method="post" style="margin:0;display:inline;">
+                <button type="submit" name="toggle_linea" value="{_normalize_linea_key(linea)}" style="background:#fff;border:1.5px solid #e0e6ef;border-radius:12px;padding:8px 18px;font-size:1.2rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.04);cursor:pointer;transition:background 0.15s;">{arrow_symbol}</button>
+            </form>
+        </div>
+        '''
+        st.markdown(ficha_html, unsafe_allow_html=True)
+
+        # Manejo del botón acordeón (usando session_state para mantener compatibilidad con Streamlit)
+        import streamlit as _st
+        if _st.session_state.get('toggle_linea') == _normalize_linea_key(linea):
+            if is_expanded:
+                st.session_state["cmi_linea_open"] = ""
+            else:
+                st.session_state["cmi_linea_open"] = str(linea)
+            st.session_state['toggle_linea'] = None
+            st.rerun()
 
         if is_expanded:
             st.markdown(f'<div class="linea-panel" style="border-top:3px solid {color};">', unsafe_allow_html=True)
