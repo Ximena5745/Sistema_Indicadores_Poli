@@ -191,34 +191,36 @@ def _render_subtab_analisis(df_linea, linea, color):
 
 def render_tab_lineas(df, pdi_catalog=None):
     st.markdown("### Líneas Estratégicas y Objetivos")
-    if df.empty:
-        st.info("No hay datos para mostrar.")
-        return
-    
-    st.markdown("""
-    <style>
-    .linea-accordion-row {
-        border-radius: 14px;
-        border: 1px solid #BCD0E6;
-        padding: 10px 14px;
-        margin-bottom: 12px;
-        min-height: 66px;
-        display: flex;
-        align-items: center;
-        transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
-    }
-    .linea-accordion-row:hover {
-        box-shadow: 0 4px 14px rgba(26,58,92,0.12);
-        transform: translateY(-1px);
-        border-color: #96B7D8;
-    }
-    .linea-accordion-row.expanded {
-        border: 2px solid #8FAFD1;
-    }
-    .linea-accordion-row.target-focus {
-        border: 2px solid #4F8EF7;
-        box-shadow: 0 0 0 3px rgba(79,142,247,0.16), 0 7px 16px rgba(26,58,92,0.14);
-        animation: lineaFocusPulse 1.2s ease-out 1;
+
+        # FICHA UNIFICADA Y COMPACTA
+        ficha_html = f'''
+        <div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px; display:flex;align-items:center;gap:18px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;">
+                <span class="linea-dot" style="background:{color};"></span>
+                <span class="linea-title">{linea}</span>
+                <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
+            </div>
+            <div style="flex-shrink:0;">
+                <span class="linea-pill" style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
+            </div>
+            <form method="post" style="margin:0;display:inline;">
+                <button type="submit" name="toggle_linea" value="{_normalize_linea_key(linea)}" style="background:#fff;border:1.5px solid #e0e6ef;border-radius:12px;padding:8px 18px;font-size:1.2rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.04);cursor:pointer;transition:background 0.15s;">{arrow_symbol}</button>
+            </form>
+        </div>
+        '''
+        st.markdown(ficha_html, unsafe_allow_html=True)
+
+        # Manejo del botón acordeón (usando session_state para mantener compatibilidad con Streamlit)
+        import streamlit as _st
+        if _st.session_state.get('toggle_linea') == _normalize_linea_key(linea):
+            if is_expanded:
+                st.session_state["cmi_linea_open"] = ""
+            else:
+                st.session_state["cmi_linea_open"] = str(linea)
+            st.session_state['toggle_linea'] = None
+            st.rerun()
+
+        # Panel expandido
     }
     @keyframes lineaFocusPulse {
         0% { box-shadow: 0 0 0 0 rgba(79,142,247,0.35), 0 7px 16px rgba(26,58,92,0.14); }
