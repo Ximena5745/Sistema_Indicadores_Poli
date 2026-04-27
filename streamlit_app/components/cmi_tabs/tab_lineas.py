@@ -1,3 +1,4 @@
+import html
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -89,7 +90,7 @@ def _render_subtab_resumen(df_linea, linea, color):
                 pct = 0.0 if pd.isna(row["cumplimiento_pct"]) else float(row["cumplimiento_pct"])
                 bar_pct = min(max(pct, 0.0), 100.0)
                 bar_color = color if pct >= 100 else "#3B82F6"
-                label = str(row["Indicador"])
+                label = html.escape(str(row["Indicador"]))
                 rows_html.append(
                     f"""
                     <div style='margin-bottom:16px;'>
@@ -107,15 +108,13 @@ def _render_subtab_resumen(df_linea, linea, color):
                     """
                 )
 
-            st.markdown(
-                f"""
-                <div style='background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,0.04);'>
-                    <div style='font-weight:800; color:#1F2937; font-size:1rem; margin-bottom:16px;'>Indicadores destacados</div>
-                    {''.join(rows_html)}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            html_indicadores = """
+            <div style='background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,0.04);'>
+                <div style='font-weight:800; color:#1F2937; font-size:1rem; margin-bottom:16px;'>Indicadores destacados</div>
+            """
+            html_indicadores += "".join(rows_html)
+            html_indicadores += "</div>"
+            st.markdown(html_indicadores, unsafe_allow_html=True)
 
 def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
 
