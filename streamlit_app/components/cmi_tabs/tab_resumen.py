@@ -304,13 +304,13 @@ def render_tab_resumen(df):
         border: 1px solid #E4EBF5;
     }
     .summary-value {
-        font-size: 32px;
-        font-weight: 700;
+        font-size: 40px;
+        font-weight: 800;
         line-height: 1;
         color: #2E8B57;
     }
     .summary-value.small {
-        font-size: 31px;
+        font-size: 18px;
         color: #1F3552;
     }
     .summary-label {
@@ -332,25 +332,34 @@ def render_tab_resumen(df):
     }
     .progress-bar {
         width: 100%;
-        height: 4px;
+        height: 8px;
         background: #E1E7F0;
-        border-radius: 3px;
+        border-radius: 6px;
         overflow: hidden;
     }
     .progress-fill {
         height: 100%;
-        border-radius: 3px;
+        border-radius: 6px;
     }
     .progress-accent {
         display: grid;
         grid-template-columns: 1fr 0.42fr 0.30fr;
-        gap: 4px;
-        margin-top: 4px;
-        height: 3px;
+        gap: 6px;
+        margin-top: 8px;
+        height: 6px;
     }
     .progress-accent > div {
-        border-radius: 2px;
-        opacity: 0.85;
+        border-radius: 4px;
+        opacity: 0.95;
+    }
+    .status-pill {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #0b3a2e;
+        background: rgba(255,255,255,0.85);
+        border: 1px solid rgba(0,0,0,0.06);
     }
     .status-note {
         margin-top: 5px;
@@ -365,6 +374,18 @@ def render_tab_resumen(df):
         font-size: 11px;
         font-weight: 600;
         color: #3D4E66;
+    }
+    @media (max-width: 900px) {
+        .linea-cards-grid { grid-template-columns: repeat(2, 1fr); }
+        .summary-value { font-size: 32px; }
+        .progress-bar { height: 6px; }
+        .progress-accent { height: 5px; }
+    }
+    @media (max-width: 640px) {
+        .linea-cards-grid { grid-template-columns: 1fr; }
+        .summary-row { grid-template-columns: 1fr 0.8fr 0.8fr; }
+        .summary-value { font-size: 28px; }
+        .summary-value.small { font-size: 16px; }
     }
     </style>
     """).strip()
@@ -416,17 +437,24 @@ def render_tab_resumen(df):
             estado_label = "Requiere atención"
             estado_bg = "#FFEBEE"
             estado_text = "#B71C1C"
+        # Icono de estado simple
+        if cump >= 100:
+            estado_icon = '↑'
+        elif cump >= 80:
+            estado_icon = '→'
+        else:
+            estado_icon = '⚠'
         # Construir tarjeta HTML
         card = textwrap.dedent(f"""
         <div class="linea-card">
             <div class="linea-card-header" style="background: {color};">
                 <span>{linea_display}</span>
-                <span>→</span>
+                <span class="status-pill" style="background:{estado_bg}; color:{estado_text}; border:1px solid {estado_color}33">{estado_label}</span>
             </div>
             <div class="linea-card-body">
                 <div class="summary-row">
                     <div class="summary-box" style="background: {estado_bg}; border-color: #DFE8DF;">
-                        <div class="summary-value" style="color: {estado_color};">{cump:.1f}%</div>
+                        <div class="summary-value" style="color: {estado_color};">{estado_icon} {cump:.1f}%</div>
                         <div class="summary-label">Cumplimiento</div>
                     </div>
                     <div class="summary-box">
