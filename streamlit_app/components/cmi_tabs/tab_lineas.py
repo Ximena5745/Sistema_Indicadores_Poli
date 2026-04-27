@@ -55,62 +55,67 @@ def _render_subtab_resumen(df_linea, linea, color):
     n_alerta = int((niveles == "Alerta").sum())
     n_riesgo = int((niveles == "Peligro").sum())
 
-    st.markdown(f"""
-    <div style="display:grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-bottom:20px;">
-        <div style="background:#F8FAFF; border-left:4px solid {color}; padding:18px; border-radius:14px; box-shadow:0 6px 16px rgba(15,23,42,0.08);">
-            <div style="font-size:0.9rem; color:#475569; margin-bottom:8px;">Cumplimiento Promedio</div>
-            <div style="font-size:2rem; font-weight:800; color:{color};">{cump:.1f}%</div>
-        </div>
-        <div style="background:#F8FAFF; border-left:4px solid #0F766E; padding:18px; border-radius:14px; box-shadow:0 6px 16px rgba(15,23,42,0.08);">
-            <div style="font-size:0.9rem; color:#475569; margin-bottom:8px;">En Sobrecumplimiento</div>
-            <div style="font-size:2rem; font-weight:800; color:#0F766E;">{n_sobrecumplimiento}</div>
-        </div>
-        <div style="background:#F8FAFF; border-left:4px solid #15803D; padding:18px; border-radius:14px; box-shadow:0 6px 16px rgba(15,23,42,0.08);">
-            <div style="font-size:0.9rem; color:#475569; margin-bottom:8px;">En Cumplimiento</div>
-            <div style="font-size:2rem; font-weight:800; color:#15803D;">{n_cumplimiento}</div>
-        </div>
-        <div style="background:#F8FAFF; border-left:4px solid #F97316; padding:18px; border-radius:14px; box-shadow:0 6px 16px rgba(15,23,42,0.08);">
-            <div style="font-size:0.9rem; color:#475569; margin-bottom:8px;">En Alerta</div>
-            <div style="font-size:2rem; font-weight:800; color:#F97316;">{n_alerta}</div>
-        </div>
-        <div style="background:#F8FAFF; border-left:4px solid #DC2626; padding:18px; border-radius:14px; box-shadow:0 6px 16px rgba(15,23,42,0.08);">
-            <div style="font-size:0.9rem; color:#475569; margin-bottom:8px;">En Riesgo</div>
-            <div style="font-size:2rem; font-weight:800; color:#DC2626;">{n_riesgo}</div>
-        </div>
-        <div style="background:#F8FAFF; border-left:4px solid #2563EB; padding:18px; border-radius:14px; box-shadow:0 6px 16px rgba(15,23,42,0.08);">
-            <div style="font-size:0.9rem; color:#475569; margin-bottom:8px;">Total indicadores</div>
-            <div style="font-size:2rem; font-weight:800; color:#2563EB;">{n_ind}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    metrics = [
+        ("Cumplimiento Promedio", f"{cump:.1f}%", color),
+        ("En Sobrecumplimiento", str(n_sobrecumplimiento), "#0F766E"),
+        ("En Cumplimiento", str(n_cumplimiento), "#15803D"),
+        ("En Alerta", str(n_alerta), "#F97316"),
+        ("En Riesgo", str(n_riesgo), "#DC2626"),
+        ("Total indicadores", str(n_ind), "#2563EB"),
+    ]
+
+    cols = st.columns(3)
+    for idx, (title, value, border_color) in enumerate(metrics):
+        with cols[idx % 3]:
+            st.markdown(
+                f"""
+                <div style='background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 8px 20px rgba(15,23,42,0.06); margin-bottom:12px;'>
+                    <div style='font-size:0.9rem; color:#475569; margin-bottom:10px;'>{title}</div>
+                    <div style='font-size:2rem; font-weight:800; color:#111827; margin-bottom:0;'>{value}</div>
+                    <div style='height:4px; width:40px; background:{border_color}; border-radius:999px; margin-top:14px;'></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     if "Indicador" in df_linea.columns and "cumplimiento_pct" in df_linea.columns:
         df_ind = df_linea[["Indicador", "cumplimiento_pct"]].dropna(subset=["Indicador"]).copy()
         if not df_ind.empty:
             df_ind["cumplimiento_pct"] = pd.to_numeric(df_ind["cumplimiento_pct"], errors="coerce")
             df_ind = df_ind.sort_values("cumplimiento_pct", ascending=False).head(6)
+
             rows_html = []
             for _, row in df_ind.iterrows():
-                pct = 0 if pd.isna(row["cumplimiento_pct"]) else float(row["cumplimiento_pct"])
+                pct = 0.0 if pd.isna(row["cumplimiento_pct"]) else float(row["cumplimiento_pct"])
+                bar_pct = min(max(pct, 0.0), 100.0)
                 bar_color = color if pct >= 100 else "#3B82F6"
-                rows_html.append(f"""
-                    <div style=\"display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;\">
-                        <div style=\"min-width:0;\">
-                            <div style=\"font-weight:700; color:#1F2937; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px;\">{row['Indicador']}</div>
-                            <div style=\"font-size:0.82rem; color:#6B7280; margin-top:4px;\">{pct:.1f}% de cumplimiento</div>
+                label = str(row["Indicador"])
+                rows_html.append(
+                    f"""
+                    <div style='margin-bottom:16px;'>
+                        <div style='display:flex; justify-content:space-between; gap:12px; align-items:center;'>
+                            <div style='min-width:0;'>
+                                <div style='font-weight:700; color:#1F2937; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px;'>{label}</div>
+                                <div style='font-size:0.82rem; color:#6B7280; margin-top:4px;'>{pct:.1f}% de cumplimiento</div>
+                            </div>
+                            <div style='font-size:0.95rem; font-weight:700; color:#111827;'>{pct:.1f}%</div>
                         </div>
-                        <div style=\"font-size:0.95rem; font-weight:700; color:#111827;\">{pct:.1f}%</div>
+                        <div style='height:10px; width:100%; background:#E5E7EB; border-radius:999px; overflow:hidden; margin-top:10px;'>
+                            <div style='width:{bar_pct:.1f}%; background:{bar_color}; height:100%;'></div>
+                        </div>
                     </div>
-                    <div style=\"height:10px; width:100%; background:#E5E7EB; border-radius:999px; overflow:hidden; margin-bottom:6px;\">
-                        <div style=\"width:{min(max(pct, 0), 100):.1f}%; background:{bar_color}; height:100%;\"></div>
-                    </div>
-                """)
-            st.markdown(f"""
-            <div style=\"background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,0.04);\">
-                <div style=\"font-weight:800; color:#1F2937; font-size:1rem; margin-bottom:16px;\">Indicadores destacados</div>
-                {''.join(rows_html)}
-            </div>
-            """, unsafe_allow_html=True)
+                    """
+                )
+
+            st.markdown(
+                f"""
+                <div style='background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,0.04);'>
+                    <div style='font-weight:800; color:#1F2937; font-size:1rem; margin-bottom:16px;'>Indicadores destacados</div>
+                    {''.join(rows_html)}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
 
