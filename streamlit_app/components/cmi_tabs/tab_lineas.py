@@ -178,6 +178,15 @@ def render_tab_lineas(df):
         box-shadow: 0 4px 14px rgba(26,58,92,0.12);
         transform: translateY(-1px);
     }
+    .linea-accordion-row.target-focus {
+        border: 2px solid #4F8EF7;
+        box-shadow: 0 0 0 3px rgba(79,142,247,0.16), 0 7px 16px rgba(26,58,92,0.14);
+        animation: lineaFocusPulse 1.2s ease-out 1;
+    }
+    @keyframes lineaFocusPulse {
+        0% { box-shadow: 0 0 0 0 rgba(79,142,247,0.35), 0 7px 16px rgba(26,58,92,0.14); }
+        100% { box-shadow: 0 0 0 3px rgba(79,142,247,0.16), 0 7px 16px rgba(26,58,92,0.14); }
+    }
     .linea-accordion-left {
         display: flex;
         align-items: center;
@@ -242,10 +251,12 @@ def render_tab_lineas(df):
         n_obj = int(df_linea["Objetivo"].nunique()) if "Objetivo" in df_linea.columns else 0
 
         is_expanded = _normalize_linea_key(linea) == _normalize_linea_key(linea_open)
+        is_target = bool(linea_target) and (_normalize_linea_key(linea) == _normalize_linea_key(linea_target))
         arrow_symbol = "▼" if is_expanded else "▶"
         row_bg = _hex_to_rgba(color, 0.14 if is_expanded else 0.11)
+        target_class = " target-focus" if is_target else ""
 
-        st.markdown(f'<div class="linea-accordion-row" style="background:{row_bg};">', unsafe_allow_html=True)
+        st.markdown(f'<div class="linea-accordion-row{target_class}" style="background:{row_bg};">', unsafe_allow_html=True)
         c_left, c_mid, c_btn = st.columns([8.2, 1.6, 0.8])
         with c_left:
             st.markdown(

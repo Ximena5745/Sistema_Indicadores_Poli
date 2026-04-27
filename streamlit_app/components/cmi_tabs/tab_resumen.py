@@ -395,6 +395,23 @@ def render_tab_resumen(df):
         font-weight: 600;
         color: #3D4E66;
     }
+    .linea-cta a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: #EEF4FD;
+        border: 1px solid #D5E2F5;
+        color: #1A3A5C;
+        text-decoration: none;
+        transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    }
+    .linea-cta a:hover {
+        background: #E4EEFB;
+        border-color: #BFD4EE;
+        transform: translateY(-1px);
+    }
     @media (max-width: 900px) {
         .linea-cards-grid { grid-template-columns: repeat(2, 1fr); }
         .summary-value { font-size: 32px; }
@@ -513,7 +530,7 @@ def render_tab_resumen(df):
                         <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#e63d6f;"></span> {n_rie} Riesgo</div>
                     </div>
                 </div>
-                <div class="linea-cta"><a href="?cmi_linea={quote(str(linea_norm))}" target="_self" style="color: inherit; text-decoration: underline;">Ver análisis detallado →</a></div>
+                <div class="linea-cta"><a href="?cmi_linea={quote(str(linea_norm))}" target="_self">Ver análisis detallado <span aria-hidden="true">→</span></a></div>
             </div>
         </div>
         """).strip()
