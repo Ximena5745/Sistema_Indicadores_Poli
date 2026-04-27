@@ -138,8 +138,7 @@ def main():
         resumen_general.render()
 
     elif menu == "CMI Estratégico":
-        from streamlit_app.pages import cmi_estrategico_tabulado
-        cmi_estrategico_tabulado.render()
+        cmi_estrategico.render()
 
     elif menu == "CMI por Procesos":
         resumen_por_proceso.render()
