@@ -325,8 +325,9 @@ def render_tab_resumen(df):
             grid-template-columns: repeat(4, 1fr);
             gap: 6px;
             margin-top: 6px;
-            font-size: 9px;
+            font-size: 13px;
             color: #3D4E66;
+            font-weight: 600;
         }
         .progress-legend-item {
             display: flex;
@@ -512,8 +513,8 @@ def render_tab_resumen(df):
                         <div class="progress-legend-item"><span class="progress-legend-dot" style="background:#e63d6f;"></span> {n_rie} Riesgo</div>
                     </div>
                 </div>
-                <div class="status-note" style="color: {estado_text};">{estado_label}</div>
-                <div class="linea-cta"><a href="?linea={quote(str(linea_norm))}" target="_self" style="color: inherit; text-decoration: none;">Ver análisis detallado →</a></div>
+                <!-- Eliminado status-note duplicado de meta alcanzada -->
+                <div class="linea-cta"><button onclick="window.parent.postMessage({tab:'lineas', linea:'{linea_norm}'}, '*')" style="background:none;border:none;color:inherit;font:inherit;cursor:pointer;padding:0;margin:0;text-decoration:underline;">Ver análisis detallado →</button></div>
             </div>
         </div>
         """).strip()

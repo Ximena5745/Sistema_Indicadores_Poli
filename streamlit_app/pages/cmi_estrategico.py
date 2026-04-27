@@ -101,6 +101,40 @@ def _default_corte(anio: int | None) -> str:
 
 
 def render():
+        # Inyectar JS receptor para navegación desde tarjetas resumen
+        st.markdown('''
+        <script>
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.tab === 'lineas' && event.data.linea) {
+                // Cambiar el valor del select de línea estratégica
+                const linea = event.data.linea;
+                // Buscar el selectbox de línea estratégica
+                const labels = Array.from(document.querySelectorAll('label'));
+                const lineaLabel = labels.find(l => l.textContent && l.textContent.includes('Línea estratégica'));
+                if (lineaLabel) {
+                    const select = lineaLabel.parentElement.querySelector('select');
+                    if (select) {
+                        for (let i = 0; i < select.options.length; i++) {
+                            if (select.options[i].value.toLowerCase().replace(/_/g,' ').normalize('NFD').replace(/\p{Diacritic}/gu,'') === linea) {
+                                select.selectedIndex = i;
+                                select.dispatchEvent(new Event('change', {bubbles:true}));
+                                break;
+                            }
+                        }
+                    }
+                }
+                // Scroll a la sección de la línea
+                setTimeout(function() {
+                    const h3s = Array.from(document.querySelectorAll('h3'));
+                    const target = h3s.find(h => h.textContent && h.textContent.toLowerCase().replace(/_/g,' ').normalize('NFD').replace(/\p{Diacritic}/gu,'') === linea);
+                    if (target) {
+                        target.scrollIntoView({behavior:'smooth', block:'start'});
+                    }
+                }, 600);
+            }
+        });
+        </script>
+        ''', unsafe_allow_html=True)
     st.title("CMI Estratégico")
     st.caption(
         "Indicadores del Plan Estratégico (PDI) con cumplimiento de cierre y niveles institucionales."
