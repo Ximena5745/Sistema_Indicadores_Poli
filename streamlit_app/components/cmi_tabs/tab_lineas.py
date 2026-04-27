@@ -83,88 +83,57 @@ def _render_subtab_resumen(df_linea, linea, color):
     st.plotly_chart(fig_sunburst, use_container_width=True, key=f"sunburst_{linea}")
 
 def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
-    st.markdown(f"**Indicadores asociados a {linea}**")
-    
-    # Filtro opcional por objetivo
-    objs_disp = ["Todos"] + sorted(df_linea['Objetivo'].dropna().unique().tolist())
-    sel_obj = st.selectbox("Filtrar por Objetivo:", objs_disp, key=f"obj_sel_{linea}")
-    
-    df_vista = df_linea.copy()
-    if sel_obj != "Todos":
-        df_vista = df_vista[df_vista['Objetivo'] == sel_obj]
-        
-    cols_tabla = ["Id", "Indicador", "Objetivo", "Meta", "Ejecucion", "cumplimiento_pct", "Nivel de cumplimiento"]
-    df_tabla = df_vista[[c for c in cols_tabla if c in df_vista.columns]].copy()
 
-    # Enriquecimiento con Meta Estratégica oficial del catálogo PDI.
+    st.markdown(f"**Estructura jerárquica de Objetivos, Metas e Indicadores para {linea}**")
     meta_cat = _meta_catalog_for_objetivos(pdi_catalog)
-    if not df_tabla.empty and not meta_cat.empty and "Objetivo" in df_tabla.columns:
-        df_tabla["_obj_key"] = df_tabla["Objetivo"].apply(_normalize_linea_key)
-        df_tabla = df_tabla.merge(meta_cat, on="_obj_key", how="left")
-        df_tabla = df_tabla.drop(columns=["_obj_key"])
-    else:
-        df_tabla["Meta_Estrategica"] = ""
+    objetivos = sorted(df_linea['Objetivo'].dropna().unique().tolist())
+    for obj in objetivos:
+        with st.expander(f"🎯 {obj}"):
+            df_obj = df_linea[df_linea['Objetivo'] == obj].copy()
+            metas = []
+            if not meta_cat.empty:
+                obj_key = _normalize_linea_key(obj)
+                metas = meta_cat[meta_cat['_obj_key'] == obj_key]['Meta_Estrategica'].dropna().unique().tolist()
+            if metas:
+                for meta in metas:
+                    with st.expander(f"🏆 Meta Estratégica: {meta}"):
+                        df_meta = df_obj.copy()
+                        # Filtrar por meta estratégica si hay columna en df_obj
+                        if 'Meta_Estrategica' in df_meta.columns:
+                            df_meta = df_meta[df_meta['Meta_Estrategica'] == meta]
+                        # Mostrar tabla de indicadores
+                        _render_tabla_indicadores(df_meta)
+            else:
+                # Si no hay metas estratégicas, mostrar todos los indicadores del objetivo
+                _render_tabla_indicadores(df_obj)
 
-    if "Meta_Estrategica" in df_tabla.columns:
-        df_tabla["Meta Estratégica"] = df_tabla["Meta_Estrategica"].apply(
-            lambda v: f'<span class="meta-estrategica-chip">{v}</span>' if str(v or "").strip() else "—"
-        )
-        df_tabla = df_tabla.drop(columns=["Meta_Estrategica"])
-
-    if "Meta" in df_tabla.columns:
+def _render_tabla_indicadores(df):
+    from streamlit_app.utils.cmi_styles import render_sparkbar, format_nivel_badge, format_meta_pdi
+    if df.empty:
+        st.info("No hay indicadores para mostrar.")
+        return
+    # Enriquecer y formatear columnas
+    if "Meta" in df.columns:
         meta_signo = (
-            df_vista["Meta_Signo"].reindex(df_tabla.index, fill_value="")
-            if "Meta_Signo" in df_vista.columns
-            else pd.Series([""] * len(df_tabla), index=df_tabla.index)
+            df["Meta_Signo"] if "Meta_Signo" in df.columns else pd.Series([""] * len(df), index=df.index)
         )
         decimales = (
-            df_vista["Decimales"].reindex(df_tabla.index, fill_value=1)
-            if "Decimales" in df_vista.columns
-            else pd.Series([1] * len(df_tabla), index=df_tabla.index)
+            df["Decimales"] if "Decimales" in df.columns else pd.Series([1] * len(df), index=df.index)
         )
-        df_tabla["Meta"] = [
-            format_meta_pdi(m, s, d)
-            for m, s, d in zip(df_tabla["Meta"], meta_signo, decimales)
-        ]
-    
-    # Selector y botón Modal
-    col_sel, col_btn = st.columns([3, 1])
-    with col_sel:
-        sel_ind = st.selectbox("Seleccionar Indicador para Ver Ficha:", [""] + df_tabla["Indicador"].tolist(), key=f"ficha_sel_{linea}")
-    with col_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if sel_ind:
-            ind_data = df_vista[df_vista["Indicador"] == sel_ind].iloc[0]
-            if st.button(f"Abrir Ficha Técnica", type="primary", key=f"btn_ficha_{linea}"):
-                render_modal_ficha(ind_data)
-                
-    # Aplicar Inyección Estética HTML
-    from streamlit_app.utils.cmi_styles import render_sparkbar, format_nivel_badge
-    if "cumplimiento_pct" in df_tabla.columns and "Nivel de cumplimiento" in df_tabla.columns:
-        df_tabla["Cumplimiento %"] = df_tabla.apply(lambda row: render_sparkbar(row["cumplimiento_pct"], row["Nivel de cumplimiento"]), axis=1)
-        df_tabla["Estado"] = df_tabla["Nivel de cumplimiento"].apply(format_nivel_badge)
-        df_tabla = df_tabla.drop(columns=["cumplimiento_pct", "Nivel de cumplimiento"])
-
-    # Orden jerárquico: Objetivo -> Meta Estratégica -> Indicador.
+        df["Meta"] = [format_meta_pdi(m, s, d) for m, s, d in zip(df["Meta"], meta_signo, decimales)]
+    if "cumplimiento_pct" in df.columns and "Nivel de cumplimiento" in df.columns:
+        df["Cumplimiento %"] = df.apply(lambda row: render_sparkbar(row["cumplimiento_pct"], row["Nivel de cumplimiento"]), axis=1)
+        df["Estado"] = df["Nivel de cumplimiento"].apply(format_nivel_badge)
+        df = df.drop(columns=["cumplimiento_pct", "Nivel de cumplimiento"])
     ordered_cols = [
-        "Id",
-        "Objetivo",
-        "Meta Estratégica",
-        "Indicador",
-        "Meta",
-        "Ejecucion",
-        "Cumplimiento %",
-        "Estado",
+        "Id", "Indicador", "Meta", "Ejecucion", "Cumplimiento %", "Estado"
     ]
-    cols_presentes = [c for c in ordered_cols if c in df_tabla.columns]
-    extras = [c for c in df_tabla.columns if c not in cols_presentes]
-    df_tabla = df_tabla[cols_presentes + extras]
-    
-    # Usar to_html para permitir el renderizado CSS custom y destacar Meta Estratégica
-    html = df_tabla.to_html(escape=False, index=False, classes='table table-hover', border=0)
+    cols_presentes = [c for c in ordered_cols if c in df.columns]
+    extras = [c for c in df.columns if c not in cols_presentes]
+    df = df[cols_presentes + extras]
+    html = df.to_html(escape=False, index=False, classes='table table-hover', border=0)
     html = html.replace('<th>', '<th style="text-align: left; background-color: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6;">')
     html = html.replace('<td>', '<td style="padding: 10px; border-bottom: 1px solid #e9ecef; vertical-align: middle;">')
-    html = html.replace('>Meta Estratégica</th>', ' class="meta-header">Meta Estratégica</th>')
     st.markdown(html, unsafe_allow_html=True)
 
 @st.cache_data(ttl=3600, show_spinner=False)
