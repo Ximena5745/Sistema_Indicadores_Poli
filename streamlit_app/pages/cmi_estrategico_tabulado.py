@@ -138,7 +138,7 @@ def render():
     if selected_panel == "Resumen Desglosado":
         render_tab_resumen(df_filtrado)
     elif selected_panel == "Líneas Estratégicas":
-        render_tab_lineas(df_filtrado)
+        render_tab_lineas(df_filtrado, pdi_catalog=pdi_catalog)
     elif selected_panel == "Listado de Indicadores":
         render_tab_listado(df_filtrado)
     elif selected_panel == "Alertas":

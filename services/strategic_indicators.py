@@ -100,21 +100,38 @@ def _id_limpio(x) -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 def load_pdi_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
-        return pd.DataFrame(columns=["Linea", "Objetivo"])
+        return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
     try:
         df = pd.read_excel(RAW_XLSX, sheet_name="PDI", engine="openpyxl")
     except Exception:
-        return pd.DataFrame(columns=["Linea", "Objetivo"])
+        return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
 
     df.columns = [str(c).strip() for c in df.columns]
     c_linea = _find_col(df, ["LINEA ESTRATEGICA", "LÍNEA ESTRATÉGICA", "Linea estrategica"])
     c_obj = _find_col(df, ["OBJETIVO ESTRATEGICO", "OBJETIVO ESTRATÉGICO", "Objetivo estrategico"])
+    c_meta_est = _find_col(
+        df,
+        [
+            "META ESTRATEGICA",
+            "META ESTRATÉGICA",
+            "Meta estrategica",
+            "Meta estratégica",
+            "Meta Estratégica",
+        ],
+    )
     if not c_linea or not c_obj:
-        return pd.DataFrame(columns=["Linea", "Objetivo"])
+        return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
 
-    out = df[[c_linea, c_obj]].copy().rename(columns={c_linea: "Linea", c_obj: "Objetivo"})
+    cols = [c_linea, c_obj] + ([c_meta_est] if c_meta_est else [])
+    out = df[cols].copy().rename(columns={c_linea: "Linea", c_obj: "Objetivo"})
+    if c_meta_est:
+        out = out.rename(columns={c_meta_est: "Meta_Estrategica"})
+    else:
+        out["Meta_Estrategica"] = ""
+
     out["Linea"] = out["Linea"].astype(str).str.strip()
     out["Objetivo"] = out["Objetivo"].astype(str).str.strip()
+    out["Meta_Estrategica"] = out["Meta_Estrategica"].astype(str).str.strip()
     out = out[(out["Linea"] != "") & (out["Objetivo"] != "")]
     return out.drop_duplicates().reset_index(drop=True)
 

@@ -5,6 +5,7 @@ import unicodedata
 from streamlit_app.utils.cmi_helpers import linea_color
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
 from services.strategic_indicators import load_cierres
+from streamlit_app.utils.cmi_styles import format_meta_pdi
 
 
 def _normalize_linea_key(linea):
@@ -24,6 +25,22 @@ def _hex_to_rgba(hex_color, alpha=0.12):
         return f"rgba({r},{g},{b},{alpha})"
     except Exception:
         return f"rgba(26,58,92,{alpha})"
+
+
+def _meta_catalog_for_objetivos(pdi_catalog):
+    if pdi_catalog is None or getattr(pdi_catalog, "empty", True):
+        return pd.DataFrame(columns=["_obj_key", "Meta_Estrategica"])
+
+    cols = set(pdi_catalog.columns)
+    if "Objetivo" not in cols or "Meta_Estrategica" not in cols:
+        return pd.DataFrame(columns=["_obj_key", "Meta_Estrategica"])
+
+    cat = pdi_catalog[["Objetivo", "Meta_Estrategica"]].copy()
+    cat["_obj_key"] = cat["Objetivo"].apply(_normalize_linea_key)
+    cat["Meta_Estrategica"] = cat["Meta_Estrategica"].astype(str).str.strip()
+    cat = cat[(cat["_obj_key"] != "") & (cat["Meta_Estrategica"] != "")]
+    cat = cat.drop_duplicates(subset=["_obj_key"], keep="first")
+    return cat[["_obj_key", "Meta_Estrategica"]]
 
 def _render_subtab_resumen(df_linea, linea, color):
     col1, col2, col3 = st.columns(3)
@@ -65,7 +82,7 @@ def _render_subtab_resumen(df_linea, linea, color):
     fig_sunburst.update_layout(margin=dict(t=30, l=10, r=10, b=10), height=300)
     st.plotly_chart(fig_sunburst, use_container_width=True, key=f"sunburst_{linea}")
 
-def _render_subtab_objetivos(df_linea, linea):
+def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
     st.markdown(f"**Indicadores asociados a {linea}**")
     
     # Filtro opcional por objetivo
@@ -78,6 +95,37 @@ def _render_subtab_objetivos(df_linea, linea):
         
     cols_tabla = ["Id", "Indicador", "Objetivo", "Meta", "Ejecucion", "cumplimiento_pct", "Nivel de cumplimiento"]
     df_tabla = df_vista[[c for c in cols_tabla if c in df_vista.columns]].copy()
+
+    # Enriquecimiento con Meta Estratégica oficial del catálogo PDI.
+    meta_cat = _meta_catalog_for_objetivos(pdi_catalog)
+    if not df_tabla.empty and not meta_cat.empty and "Objetivo" in df_tabla.columns:
+        df_tabla["_obj_key"] = df_tabla["Objetivo"].apply(_normalize_linea_key)
+        df_tabla = df_tabla.merge(meta_cat, on="_obj_key", how="left")
+        df_tabla = df_tabla.drop(columns=["_obj_key"])
+    else:
+        df_tabla["Meta_Estrategica"] = ""
+
+    if "Meta_Estrategica" in df_tabla.columns:
+        df_tabla["Meta Estratégica"] = df_tabla["Meta_Estrategica"].apply(
+            lambda v: f'<span class="meta-estrategica-chip">{v}</span>' if str(v or "").strip() else "—"
+        )
+        df_tabla = df_tabla.drop(columns=["Meta_Estrategica"])
+
+    if "Meta" in df_tabla.columns:
+        meta_signo = (
+            df_vista["Meta_Signo"].reindex(df_tabla.index, fill_value="")
+            if "Meta_Signo" in df_vista.columns
+            else pd.Series([""] * len(df_tabla), index=df_tabla.index)
+        )
+        decimales = (
+            df_vista["Decimales"].reindex(df_tabla.index, fill_value=1)
+            if "Decimales" in df_vista.columns
+            else pd.Series([1] * len(df_tabla), index=df_tabla.index)
+        )
+        df_tabla["Meta"] = [
+            format_meta_pdi(m, s, d)
+            for m, s, d in zip(df_tabla["Meta"], meta_signo, decimales)
+        ]
     
     # Selector y botón Modal
     col_sel, col_btn = st.columns([3, 1])
@@ -96,6 +144,21 @@ def _render_subtab_objetivos(df_linea, linea):
         df_tabla["Cumplimiento %"] = df_tabla.apply(lambda row: render_sparkbar(row["cumplimiento_pct"], row["Nivel de cumplimiento"]), axis=1)
         df_tabla["Estado"] = df_tabla["Nivel de cumplimiento"].apply(format_nivel_badge)
         df_tabla = df_tabla.drop(columns=["cumplimiento_pct", "Nivel de cumplimiento"])
+
+    # Orden jerárquico: Objetivo -> Meta Estratégica -> Indicador.
+    ordered_cols = [
+        "Id",
+        "Objetivo",
+        "Meta Estratégica",
+        "Indicador",
+        "Meta",
+        "Ejecucion",
+        "Cumplimiento %",
+        "Estado",
+    ]
+    cols_presentes = [c for c in ordered_cols if c in df_tabla.columns]
+    extras = [c for c in df_tabla.columns if c not in cols_presentes]
+    df_tabla = df_tabla[cols_presentes + extras]
     
     # Usar to_html para permitir el renderizado CSS custom
     st.markdown(
@@ -156,7 +219,7 @@ def _render_subtab_analisis(df_linea, linea, color):
     else:
         st.info("El análisis automatizado con IA no está disponible en este momento (Falta configurar ANTHROPIC_API_KEY).")
 
-def render_tab_lineas(df):
+def render_tab_lineas(df, pdi_catalog=None):
     st.markdown("### Líneas Estratégicas y Objetivos")
     if df.empty:
         st.info("No hay datos para mostrar.")
@@ -166,17 +229,21 @@ def render_tab_lineas(df):
     <style>
     .linea-accordion-row {
         border-radius: 14px;
-        border: 1px solid #D7E3F4;
-        padding: 9px 12px;
+        border: 1px solid #BCD0E6;
+        padding: 10px 14px;
         margin-bottom: 12px;
-        min-height: 62px;
+        min-height: 66px;
         display: flex;
         align-items: center;
-        transition: box-shadow 0.2s, transform 0.2s;
+        transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
     }
     .linea-accordion-row:hover {
         box-shadow: 0 4px 14px rgba(26,58,92,0.12);
         transform: translateY(-1px);
+        border-color: #96B7D8;
+    }
+    .linea-accordion-row.expanded {
+        border: 2px solid #8FAFD1;
     }
     .linea-accordion-row.target-focus {
         border: 2px solid #4F8EF7;
@@ -201,13 +268,14 @@ def render_tab_lineas(df):
     .linea-title {
         font-weight: 700;
         color: #1A3A5C;
-        font-size: 19px;
+        font-size: 20px;
         line-height: 1.1;
         letter-spacing: 0.1px;
     }
     .linea-meta {
-        color: #6B7280;
-        font-size: 12px;
+        color: #4B5563;
+        font-size: 12.5px;
+        font-weight: 600;
         margin-left: 8px;
     }
     .linea-pill {
@@ -227,9 +295,103 @@ def render_tab_lineas(df):
         border-top: 0;
         background: #FFFFFF;
         border-radius: 0 0 14px 14px;
-        padding: 12px 14px 10px;
+        padding: 16px 18px 14px;
         margin-top: -10px;
         margin-bottom: 14px;
+    }
+    .meta-estrategica-chip {
+        display: inline-block;
+        max-width: 380px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid #C8D8EB;
+        background: #EEF4FD;
+        color: #1F3550;
+        font-weight: 700;
+        font-size: 12px;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
+    .linea-panel .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background: #F3F6FB;
+        border: 1px solid #D6E2F0;
+        border-radius: 12px;
+        padding: 6px;
+    }
+    .linea-panel .stTabs [data-baseweb="tab"] {
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 9px;
+        color: #475569;
+        font-weight: 700;
+        background: #ECF1F8;
+        border: 1px solid #D4E0EE;
+    }
+    .linea-panel .stTabs [aria-selected="true"] {
+        color: #1A3A5C !important;
+        background: #FFFFFF !important;
+        border: 2px solid #8FAFD1 !important;
+        box-shadow: 0 2px 6px rgba(26,58,92,0.12);
+    }
+    @media (max-width: 1200px) {
+        .linea-title {
+            font-size: 18px;
+        }
+        .linea-meta {
+            font-size: 12px;
+        }
+        .linea-panel {
+            padding: 14px 14px 12px;
+        }
+        .linea-panel .stTabs [data-baseweb="tab"] {
+            height: 36px;
+            padding: 0 10px;
+            font-size: 13px;
+        }
+        .meta-estrategica-chip {
+            max-width: 260px;
+        }
+    }
+    @media (max-width: 768px) {
+        .linea-accordion-row {
+            min-height: 58px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+        }
+        .linea-title {
+            font-size: 16px;
+        }
+        .linea-meta {
+            display: block;
+            margin-left: 0;
+            margin-top: 4px;
+            font-size: 11.5px;
+        }
+        .linea-pill {
+            min-width: 80px;
+            font-size: 14px;
+            padding: 5px 10px;
+        }
+        .linea-panel {
+            padding: 12px 10px 10px;
+        }
+        .linea-panel .stTabs [data-baseweb="tab-list"] {
+            gap: 6px;
+            padding: 4px;
+        }
+        .linea-panel .stTabs [data-baseweb="tab"] {
+            height: 34px;
+            padding: 0 8px;
+            font-size: 12px;
+        }
+        .meta-estrategica-chip {
+            max-width: 200px;
+            font-size: 11px;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -249,14 +411,20 @@ def render_tab_lineas(df):
         color = linea_color(linea)
         n_ind = len(df_linea)
         n_obj = int(df_linea["Objetivo"].nunique()) if "Objetivo" in df_linea.columns else 0
+        n_meta = 0
+        if pdi_catalog is not None and not getattr(pdi_catalog, "empty", True):
+            if all(c in pdi_catalog.columns for c in ["Linea", "Meta_Estrategica"]):
+                metas_linea = pdi_catalog[pdi_catalog["Linea"].astype(str).str.strip() == str(linea).strip()]["Meta_Estrategica"]
+                n_meta = int(metas_linea.astype(str).str.strip().replace("", pd.NA).dropna().nunique())
 
         is_expanded = _normalize_linea_key(linea) == _normalize_linea_key(linea_open)
         is_target = bool(linea_target) and (_normalize_linea_key(linea) == _normalize_linea_key(linea_target))
         arrow_symbol = "▼" if is_expanded else "▶"
         row_bg = _hex_to_rgba(color, 0.14 if is_expanded else 0.11)
         target_class = " target-focus" if is_target else ""
+        expanded_class = " expanded" if is_expanded else ""
 
-        st.markdown(f'<div class="linea-accordion-row{target_class}" style="background:{row_bg};">', unsafe_allow_html=True)
+        st.markdown(f'<div class="linea-accordion-row{expanded_class}{target_class}" style="background:{row_bg};">', unsafe_allow_html=True)
         c_left, c_mid, c_btn = st.columns([8.2, 1.6, 0.8])
         with c_left:
             st.markdown(
@@ -264,7 +432,7 @@ def render_tab_lineas(df):
                 <div class="linea-accordion-left">
                     <span class="linea-dot" style="background:{color};"></span>
                     <span class="linea-title">{linea}</span>
-                    <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos</span>
+                    <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -282,11 +450,11 @@ def render_tab_lineas(df):
 
         if is_expanded:
             st.markdown('<div class="linea-panel">', unsafe_allow_html=True)
-            subtabs = st.tabs(["Resumen", "Objetivos e Indicadores", "Análisis"])
+            subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
             with subtabs[1]:
-                _render_subtab_objetivos(df_linea, linea)
+                _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
             st.markdown("</div>", unsafe_allow_html=True)

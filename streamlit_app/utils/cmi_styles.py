@@ -1,6 +1,30 @@
 import streamlit as st
 import pandas as pd
 
+
+def format_meta_pdi(meta_value, meta_signo="", decimales=1):
+    """
+    Formatea la meta PDI en texto compacto y tolerante a valores faltantes.
+    """
+    if pd.isna(meta_value):
+        return "—"
+
+    try:
+        d = int(decimales) if decimales is not None and not pd.isna(decimales) else 1
+    except Exception:
+        d = 1
+
+    try:
+        valor = float(meta_value)
+        txt_valor = f"{valor:.{max(0, d)}f}"
+        if txt_valor.endswith(".0"):
+            txt_valor = txt_valor[:-2]
+    except Exception:
+        txt_valor = str(meta_value).strip()
+
+    signo = str(meta_signo or "").strip()
+    return f"{txt_valor} {signo}".strip()
+
 def inject_cmi_premium_css():
     """
     Inyecta estilos CSS globales para mejorar la interfaz por defecto de Streamlit.
