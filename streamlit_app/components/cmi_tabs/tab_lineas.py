@@ -192,235 +192,65 @@ def _render_subtab_analisis(df_linea, linea, color):
 def render_tab_lineas(df, pdi_catalog=None):
     st.markdown("### Líneas Estratégicas y Objetivos")
 
-    # Agrupar por línea estratégica
-    if 'Linea_Estrategica' not in df.columns:
-        st.error("No se encuentra la columna 'Linea_Estrategica' en los datos.")
+    if "Linea_Estrategica" not in df.columns and "Linea" not in df.columns:
+        st.error("No se encuentra la columna 'Linea_Estrategica' ni 'Linea' en los datos.")
         return
 
-    lineas = df['Linea_Estrategica'].dropna().unique().tolist()
-    for linea in lineas:
-        df_linea = df[df['Linea_Estrategica'] == linea].copy()
-        color = linea_color(linea)
-        n_ind = len(df_linea)
-        n_obj = df_linea['Objetivo'].nunique()
-        n_meta = df_linea['Meta_Estrategica'].nunique() if 'Meta_Estrategica' in df_linea.columns else 0
-        cump_val = df_linea['cumplimiento_pct'].mean() if 'cumplimiento_pct' in df_linea.columns else 0
-        if pd.isna(cump_val):
-            cump_val = 0
+    linea_col = "Linea_Estrategica" if "Linea_Estrategica" in df.columns else "Linea"
+    lineas = sorted([str(l).strip() for l in df[linea_col].dropna().unique() if str(l).strip()])
 
-        # Ficha visual unificada
-        ficha_html = f'''
-        <div style="background:linear-gradient(90deg, {color}10 0%, #fff 100%); border-left:6px solid {color}; min-height:60px; display:flex;align-items:center;gap:18px;box-sizing:border-box; margin-bottom:8px; padding:12px 18px; border-radius:10px;">
-            <div style="display:flex;align-items:center;gap:12px;flex:1;">
-                <span style="background:{color}; width:13px; height:13px; border-radius:999px; display:inline-block;"></span>
-                <span style="font-weight:700; color:#1A3A5C; font-size:20px;">{linea}</span>
-                <span style="color:#4B5563; font-size:13px; font-weight:600; margin-left:8px;">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
-            </div>
-            <div style="flex-shrink:0;">
-                <span style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
-            </div>
-        </div>
-        '''
-        st.markdown(ficha_html, unsafe_allow_html=True)
+    if not lineas:
+        st.info("No hay líneas estratégicas para mostrar.")
+        return
 
-        # Expansión de detalles usando expander de Streamlit
-        with st.expander(f"Ver detalle de {linea}"):
-            _render_subtab_resumen(df_linea, linea, color)
-            _render_subtab_objetivos(df_linea, linea, pdi_catalog)
-            _render_subtab_analisis(df_linea, linea, color)
-        margin-left: 8px;
-    }
-    .linea-pill {
-        display: inline-block;
-        min-width: 94px;
-        text-align: center;
-        padding: 6px 12px;
-        border-radius: 999px;
-        font-weight: 700;
-        font-size: 16px;
-        border: 1px solid #D7E7D9;
-        background: #ECF8EE;
-        color: #2E7D32;
-    }
-    .linea-panel {
-        border: 1px solid #DEE8F4;
-        border-top: 0;
-        background: #FFFFFF;
-        border-radius: 0 0 14px 14px;
-        padding: 16px 18px 14px;
-        margin-top: -10px;
-        margin-bottom: 14px;
-    }
-    .meta-estrategica-chip {
-        display: inline-block;
-        max-width: 380px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid #C8D8EB;
-        background: #EEF4FD;
-        color: #1F3550;
-        font-weight: 700;
-        font-size: 12px;
-        line-height: 1.25;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        vertical-align: middle;
-    }
-    .meta-header {
-        background: #F1F8FF;
-        color: #1A3A5C;
-        padding: 10px;
-        border-bottom: 2px solid #C9E0FB;
-        font-weight: 800;
-    }
-    .table td .meta-estrategica-chip { display: inline-block; }
-    /* Subtabs integradas: fondo sutil que conecta con header, tab activo con borde superior visible */
-    .linea-panel .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background: rgba(240,246,255,0.35);
-        border: none;
-        border-radius: 12px;
-        padding: 8px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
-    }
-    .linea-panel .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        padding: 0 14px;
-        border-radius: 9px;
-        color: #475569;
-        font-weight: 700;
-        background: transparent;
-        border: none;
-        transition: all 0.18s ease;
-    }
-    .linea-panel .stTabs [aria-selected="true"] {
-        color: #1A3A5C !important;
-        background: #FFFFFF !important;
-        border-top: 3px solid #8FAFD1 !important;
-        box-shadow: 0 2px 6px rgba(26,58,92,0.08);
-        transform: translateY(-2px);
-    }
-    @media (max-width: 1200px) {
-        .linea-title {
-            font-size: 18px;
-        }
-        .linea-meta {
-            font-size: 12px;
-        }
-        .linea-panel {
-            padding: 14px 14px 12px;
-        }
-        .linea-panel .stTabs [data-baseweb="tab"] {
-            height: 36px;
-            padding: 0 10px;
-            font-size: 13px;
-        }
-        .meta-estrategica-chip {
-            max-width: 260px;
-        }
-    }
-    @media (max-width: 768px) {
-        .linea-accordion-row {
-            min-height: 58px;
-            padding: 8px 10px;
-            margin-bottom: 10px;
-        }
-        .linea-title {
-            font-size: 16px;
-        }
-        .linea-meta {
-            display: block;
-            margin-left: 0;
-            margin-top: 4px;
-            font-size: 11.5px;
-        }
-        .linea-pill {
-            min-width: 80px;
-            font-size: 14px;
-            padding: 5px 10px;
-        }
-        .linea-panel {
-            padding: 12px 10px 10px;
-        }
-        .linea-panel .stTabs [data-baseweb="tab-list"] {
-            gap: 6px;
-            padding: 4px;
-        }
-        .linea-panel .stTabs [data-baseweb="tab"] {
-            height: 34px;
-            padding: 0 8px;
-            font-size: 12px;
-        }
-        .meta-estrategica-chip {
-            max-width: 200px;
-            font-size: 11px;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    lineas = sorted([l for l in df["Linea"].dropna().unique() if str(l).strip()])
-
-    linea_target = st.session_state.get("cmi_tab_linea_expand", None)
-    linea_open = st.session_state.get("cmi_linea_open", None)
-    if linea_target and not linea_open:
-        linea_open = linea_target
-        st.session_state["cmi_linea_open"] = linea_open
+    linea_open = st.session_state.get("cmi_linea_open", "")
 
     for linea in lineas:
-        df_linea = df[df["Linea"] == linea].copy()
-        cump_mean = df_linea["cumplimiento_pct"].mean()
-        cump_val = float(cump_mean) if pd.notna(cump_mean) else 0.0
+        df_linea = df[df[linea_col] == linea].copy()
         color = linea_color(linea)
         n_ind = len(df_linea)
         n_obj = int(df_linea["Objetivo"].nunique()) if "Objetivo" in df_linea.columns else 0
         n_meta = 0
         if pdi_catalog is not None and not getattr(pdi_catalog, "empty", True):
-            if all(c in pdi_catalog.columns for c in ["Linea", "Meta_Estrategica"]):
-                metas_linea = pdi_catalog[pdi_catalog["Linea"].astype(str).str.strip() == str(linea).strip()]["Meta_Estrategica"]
+            if "Meta_Estrategica" in pdi_catalog.columns and linea_col in pdi_catalog.columns:
+                metas_linea = pdi_catalog[pdi_catalog[linea_col].astype(str).str.strip() == str(linea).strip()]["Meta_Estrategica"]
                 n_meta = int(metas_linea.astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+        elif "Meta_Estrategica" in df_linea.columns:
+            n_meta = int(df_linea["Meta_Estrategica"].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+
+        cump_val = float(df_linea["cumplimiento_pct"].mean()) if "cumplimiento_pct" in df_linea.columns else 0.0
+        if pd.isna(cump_val):
+            cump_val = 0.0
 
         is_expanded = _normalize_linea_key(linea) == _normalize_linea_key(linea_open)
-        is_target = bool(linea_target) and (_normalize_linea_key(linea) == _normalize_linea_key(linea_target))
         arrow_symbol = "▼" if is_expanded else "▶"
-        row_bg = _hex_to_rgba(color, 0.14 if is_expanded else 0.11)
-        target_class = " target-focus" if is_target else ""
-        expanded_class = " expanded" if is_expanded else ""
+        gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.16)} 0%, #ffffff 100%)"
 
-        # gradiente suave usando color de la línea para mayor presencia
-        gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.06)}, {_hex_to_rgba(color, 0.02)})"
-        min_h = 72
-
-
-
-        # FICHA UNIFICADA Y COMPACTA (solo visual, botón Streamlit)
         ficha_html = f'''
-        <div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px; display:flex;align-items:center;gap:18px;box-sizing:border-box;">
-            <div style="display:flex;align-items:center;gap:12px;flex:1;">
-                <span class="linea-dot" style="background:{color};"></span>
-                <span class="linea-title">{linea}</span>
-                <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
+        <div style="background:{gradient_bg}; border-left:6px solid {color}; min-height:72px; display:flex;align-items:center;gap:18px;box-sizing:border-box; margin-bottom:10px; padding:14px 18px; border-radius:14px;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1; min-width:0;">
+                <span style="background:{color}; width:14px; height:14px; border-radius:999px; display:inline-block;"></span>
+                <div style="min-width:0;">
+                    <div style="font-weight:700; color:#1A3A5C; font-size:18px; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{linea}</div>
+                    <div style="color:#4B5563; font-size:13px; margin-top:4px;">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</div>
+                </div>
             </div>
-            <div style="flex-shrink:0;">
-                <span class="linea-pill" style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:8px 18px; border-radius:999px; font-weight:700; font-size:1rem;">{cump_val:.1f}%</span>
             </div>
         </div>
         '''
-        st.markdown(ficha_html, unsafe_allow_html=True)
 
-        # Botón de despliegue alineado a la derecha
-        btn_col = st.columns([0.85, 0.15])[1]
-        with btn_col:
+        cols = st.columns([0.88, 0.12])
+        with cols[0]:
+            st.markdown(ficha_html, unsafe_allow_html=True)
+        with cols[1]:
             if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}"):
-                if is_expanded:
-                    st.session_state["cmi_linea_open"] = ""
-                else:
-                    st.session_state["cmi_linea_open"] = str(linea)
-                st.rerun()
+                st.session_state["cmi_linea_open"] = "" if is_expanded else str(linea)
+                st.experimental_rerun()
 
         if is_expanded:
-            st.markdown(f'<div class="linea-panel" style="border-top:3px solid {color};">', unsafe_allow_html=True)
+            st.markdown(f'<div style="border:1px solid #D9E5F2; border-radius:14px; padding:18px; margin-bottom:18px; background:#FFFFFF;">', unsafe_allow_html=True)
             subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
@@ -429,4 +259,4 @@ def render_tab_lineas(df, pdi_catalog=None):
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
             st.markdown("</div>", unsafe_allow_html=True)
-                
+
