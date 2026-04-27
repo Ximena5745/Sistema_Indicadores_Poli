@@ -164,7 +164,7 @@ def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
     html = df_tabla.to_html(escape=False, index=False, classes='table table-hover', border=0)
     html = html.replace('<th>', '<th style="text-align: left; background-color: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6;">')
     html = html.replace('<td>', '<td style="padding: 10px; border-bottom: 1px solid #e9ecef; vertical-align: middle;">')
-    html = html.replace('<th>Meta Estratégica</th>', '<th class="meta-header">Meta Estratégica</th>')
+    html = html.replace('>Meta Estratégica</th>', ' class="meta-header">Meta Estratégica</th>')
     st.markdown(html, unsafe_allow_html=True)
 
 @st.cache_data(ttl=3600, show_spinner=False)

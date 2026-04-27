@@ -102,13 +102,20 @@ def load_pdi_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
         return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
     try:
-        df = pd.read_excel(RAW_XLSX, sheet_name="PDI", engine="openpyxl")
+        # La fuente real de la jerarquía Línea -> Objetivo -> Meta Estratégica está en Worksheet.
+        df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
     except Exception:
         return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
 
     df.columns = [str(c).strip() for c in df.columns]
-    c_linea = _find_col(df, ["LINEA ESTRATEGICA", "LÍNEA ESTRATÉGICA", "Linea estrategica"])
-    c_obj = _find_col(df, ["OBJETIVO ESTRATEGICO", "OBJETIVO ESTRATÉGICO", "Objetivo estrategico"])
+    c_linea = _find_col(
+        df,
+        ["Linea", "Línea", "LINEA", "LÍNEA", "LINEA ESTRATEGICA", "LÍNEA ESTRATÉGICA", "Linea estrategica"],
+    )
+    c_obj = _find_col(
+        df,
+        ["Objetivo", "OBJETIVO", "OBJETIVO ESTRATEGICO", "OBJETIVO ESTRATÉGICO", "Objetivo estrategico"],
+    )
     c_meta_est = _find_col(
         df,
         [
@@ -133,7 +140,15 @@ def load_pdi_catalog() -> pd.DataFrame:
     out["Objetivo"] = out["Objetivo"].astype(str).str.strip()
     out["Meta_Estrategica"] = out["Meta_Estrategica"].astype(str).str.strip()
     out = out[(out["Linea"] != "") & (out["Objetivo"] != "")]
-    return out.drop_duplicates().reset_index(drop=True)
+    # Deduplicar por jerarquía y conservar la primera meta no vacía por objetivo.
+    out["Meta_Estrategica"] = out["Meta_Estrategica"].replace("nan", "")
+    out = (
+        out.sort_values(["Linea", "Objetivo"])
+        .groupby(["Linea", "Objetivo"], as_index=False)
+        .agg({"Meta_Estrategica": "first"})
+        .reset_index(drop=True)
+    )
+    return out
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
