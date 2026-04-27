@@ -127,7 +127,6 @@ La fórmula oficial debe ser única, centralizada y trazable.
 ## 3.2 Validación obligatoria de indicadores
 
 Todo indicador debe validar:
-
 - definición clara
 - objetivo funcional
 - fórmula única
