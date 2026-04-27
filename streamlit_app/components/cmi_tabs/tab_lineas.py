@@ -192,62 +192,42 @@ def _render_subtab_analisis(df_linea, linea, color):
 def render_tab_lineas(df, pdi_catalog=None):
     st.markdown("### Líneas Estratégicas y Objetivos")
 
-        # FICHA UNIFICADA Y COMPACTA
+    # Agrupar por línea estratégica
+    if 'Linea_Estrategica' not in df.columns:
+        st.error("No se encuentra la columna 'Linea_Estrategica' en los datos.")
+        return
+
+    lineas = df['Linea_Estrategica'].dropna().unique().tolist()
+    for linea in lineas:
+        df_linea = df[df['Linea_Estrategica'] == linea].copy()
+        color = linea_color(linea)
+        n_ind = len(df_linea)
+        n_obj = df_linea['Objetivo'].nunique()
+        n_meta = df_linea['Meta_Estrategica'].nunique() if 'Meta_Estrategica' in df_linea.columns else 0
+        cump_val = df_linea['cumplimiento_pct'].mean() if 'cumplimiento_pct' in df_linea.columns else 0
+        if pd.isna(cump_val):
+            cump_val = 0
+
+        # Ficha visual unificada
         ficha_html = f'''
-        <div class="linea-accordion-row{expanded_class}{target_class}" style="background:{gradient_bg}; border-left:6px solid {color}; min-height:{min_h}px; display:flex;align-items:center;gap:18px;box-sizing:border-box;">
+        <div style="background:linear-gradient(90deg, {color}10 0%, #fff 100%); border-left:6px solid {color}; min-height:60px; display:flex;align-items:center;gap:18px;box-sizing:border-box; margin-bottom:8px; padding:12px 18px; border-radius:10px;">
             <div style="display:flex;align-items:center;gap:12px;flex:1;">
-                <span class="linea-dot" style="background:{color};"></span>
-                <span class="linea-title">{linea}</span>
-                <span class="linea-meta">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
+                <span style="background:{color}; width:13px; height:13px; border-radius:999px; display:inline-block;"></span>
+                <span style="font-weight:700; color:#1A3A5C; font-size:20px;">{linea}</span>
+                <span style="color:#4B5563; font-size:13px; font-weight:600; margin-left:8px;">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</span>
             </div>
             <div style="flex-shrink:0;">
-                <span class="linea-pill" style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
+                <span style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:6px 18px; border-radius:999px; font-weight:700; font-size:1.1rem;">{cump_val:.1f}%</span>
             </div>
-            <form method="post" style="margin:0;display:inline;">
-                <button type="submit" name="toggle_linea" value="{_normalize_linea_key(linea)}" style="background:#fff;border:1.5px solid #e0e6ef;border-radius:12px;padding:8px 18px;font-size:1.2rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.04);cursor:pointer;transition:background 0.15s;">{arrow_symbol}</button>
-            </form>
         </div>
         '''
         st.markdown(ficha_html, unsafe_allow_html=True)
 
-        # Manejo del botón acordeón (usando session_state para mantener compatibilidad con Streamlit)
-        import streamlit as _st
-        if _st.session_state.get('toggle_linea') == _normalize_linea_key(linea):
-            if is_expanded:
-                st.session_state["cmi_linea_open"] = ""
-            else:
-                st.session_state["cmi_linea_open"] = str(linea)
-            st.session_state['toggle_linea'] = None
-            st.rerun()
-
-        # Panel expandido
-    }
-    @keyframes lineaFocusPulse {
-        0% { box-shadow: 0 0 0 0 rgba(79,142,247,0.35), 0 7px 16px rgba(26,58,92,0.14); }
-        100% { box-shadow: 0 0 0 3px rgba(79,142,247,0.16), 0 7px 16px rgba(26,58,92,0.14); }
-    }
-    .linea-accordion-left {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-    }
-    .linea-dot {
-        width: 11px;
-        height: 11px;
-        border-radius: 999px;
-        display: inline-block;
-    }
-    .linea-title {
-        font-weight: 700;
-        color: #1A3A5C;
-        font-size: 20px;
-        line-height: 1.1;
-        letter-spacing: 0.1px;
-    }
-    .linea-meta {
-        color: #4B5563;
-        font-size: 12.5px;
-        font-weight: 600;
+        # Expansión de detalles usando expander de Streamlit
+        with st.expander(f"Ver detalle de {linea}"):
+            _render_subtab_resumen(df_linea, linea, color)
+            _render_subtab_objetivos(df_linea, linea, pdi_catalog)
+            _render_subtab_analisis(df_linea, linea, color)
         margin-left: 8px;
     }
     .linea-pill {
