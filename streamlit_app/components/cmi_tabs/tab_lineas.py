@@ -236,12 +236,30 @@ def render_tab_lineas(df, pdi_catalog=None):
             st.session_state[state_key] = True
         is_expanded = st.session_state.get(state_key, False)
 
-        header = (
-            f"🎯 {linea} — {n_ind} indicadores · {n_obj} objetivos · {n_meta} metas "
-            f"· Cumplimiento {cump_val:.1f}%"
-        )
+        gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.78)} 0%, {_hex_to_rgba(color, 0.32)} 45%, rgba(255,255,255,0.08) 100%)"
+        ficha_html = f'''
+        <div style="background:{gradient_bg}; border-radius:20px; padding:18px 22px; margin-bottom:10px; box-shadow:0 18px 38px rgba(0,0,0,0.12);">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:18px; min-width:0;">
+                <div style="min-width:0;">
+                    <div style="font-size:1.2rem; font-weight:800; color:#FFFFFF; margin-bottom:6px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">{linea}</div>
+                    <div style="font-size:0.9rem; color:rgba(255,255,255,0.82);">{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="padding:10px 18px; border-radius:999px; background: rgba(255,255,255,0.14); color:#FFFFFF; font-weight:700; min-width:100px; text-align:center;">{cump_val:.1f}%</div>
+                </div>
+            </div>
+        </div>
+        '''
 
-        with st.expander(header, expanded=is_expanded, key=state_key):
+        cols = st.columns([0.96, 0.04])
+        with cols[0]:
+            st.markdown(ficha_html, unsafe_allow_html=True)
+        with cols[1]:
+            if st.button("▼" if is_expanded else "▶", key=f"toggle_linea_{line_key}"):
+                st.session_state[state_key] = not is_expanded
+
+        if is_expanded:
+            st.markdown(f'<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
             subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
@@ -249,4 +267,5 @@ def render_tab_lineas(df, pdi_catalog=None):
                 _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
+            st.markdown("</div>", unsafe_allow_html=True)
 
