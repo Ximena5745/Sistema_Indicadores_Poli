@@ -213,8 +213,6 @@ def render_tab_lineas(df, pdi_catalog=None):
         st.info("No hay líneas estratégicas para mostrar.")
         return
 
-    linea_open = st.session_state.get("cmi_linea_open", "")
-
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
         color = linea_color(linea)
@@ -232,7 +230,11 @@ def render_tab_lineas(df, pdi_catalog=None):
         if pd.isna(cump_val):
             cump_val = 0.0
 
-        is_expanded = _normalize_linea_key(linea) == _normalize_linea_key(linea_open)
+        line_key = _normalize_linea_key(linea)
+        state_key = f"cmi_linea_open_{line_key}"
+        if st.session_state.get("cmi_tab_linea_expand") and _normalize_linea_key(st.session_state["cmi_tab_linea_expand"]) == line_key:
+            st.session_state[state_key] = True
+        is_expanded = st.session_state.get(state_key, False)
         arrow_symbol = "▼" if is_expanded else "▶"
         gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.16)} 0%, #ffffff 100%)"
 
@@ -255,8 +257,8 @@ def render_tab_lineas(df, pdi_catalog=None):
         with cols[0]:
             st.markdown(ficha_html, unsafe_allow_html=True)
         with cols[1]:
-            if st.button(arrow_symbol, key=f"toggle_linea_{_normalize_linea_key(linea)}"):
-                st.session_state["cmi_linea_open"] = "" if is_expanded else str(linea)
+            if st.button(arrow_symbol, key=f"toggle_linea_{line_key}"):
+                st.session_state[state_key] = not is_expanded
 
         if is_expanded:
             st.markdown(f'<div style="border:1px solid #D9E5F2; border-radius:14px; padding:18px; margin-bottom:18px; background:#FFFFFF;">', unsafe_allow_html=True)
