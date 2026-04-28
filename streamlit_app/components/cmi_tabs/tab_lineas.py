@@ -28,6 +28,20 @@ def _hex_to_rgba(hex_color, alpha=0.12):
         return f"rgba(26,58,92,{alpha})"
 
 
+def _contrast_text_color(hex_color):
+    txt = str(hex_color or "").strip().lstrip("#")
+    if len(txt) != 6:
+        return "#FFFFFF"
+    try:
+        r = int(txt[0:2], 16)
+        g = int(txt[2:4], 16)
+        b = int(txt[4:6], 16)
+        brightness = (r * 299 + g * 587 + b * 114) / 1000
+        return "#111111" if brightness > 150 else "#FFFFFF"
+    except Exception:
+        return "#FFFFFF"
+
+
 def _meta_catalog_for_objetivos(pdi_catalog):
     if pdi_catalog is None or getattr(pdi_catalog, "empty", True):
         return pd.DataFrame(columns=["_obj_key", "Meta_Estrategica"])
@@ -236,30 +250,33 @@ def render_tab_lineas(df, pdi_catalog=None):
             st.session_state[state_key] = True
         is_expanded = st.session_state.get(state_key, False)
 
-        gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.78)} 0%, {_hex_to_rgba(color, 0.32)} 45%, rgba(255,255,255,0.08) 100%)"
-        ficha_html = f'''
-        <div style="background:{gradient_bg}; border-radius:20px; padding:18px 22px; margin-bottom:10px; box-shadow:0 18px 38px rgba(0,0,0,0.12);">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:18px; min-width:0;">
-                <div style="min-width:0;">
-                    <div style="font-size:1.2rem; font-weight:800; color:#FFFFFF; margin-bottom:6px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">{linea}</div>
-                    <div style="font-size:0.9rem; color:rgba(255,255,255,0.82);">{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="padding:10px 18px; border-radius:999px; background: rgba(255,255,255,0.14); color:#FFFFFF; font-weight:700; min-width:100px; text-align:center;">{cump_val:.1f}%</div>
-                </div>
-            </div>
-        </div>
-        '''
+        display_linea = str(linea).replace("_", " ")
+        header = (
+            f"🎯 {display_linea} — {n_ind} indicadores · {n_obj} objetivos · {n_meta} metas · Cumplimiento {cump_val:.1f}%"
+        )
 
-        cols = st.columns([0.96, 0.04])
-        with cols[0]:
-            st.markdown(ficha_html, unsafe_allow_html=True)
-        with cols[1]:
-            if st.button("▼" if is_expanded else "▶", key=f"toggle_linea_{line_key}"):
-                st.session_state[state_key] = not is_expanded
+        if state_key not in st.session_state:
+            st.session_state[state_key] = False
 
-        if is_expanded:
-            st.markdown(f'<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
+        with st.expander(header, expanded=st.session_state[state_key], key=state_key):
+            card_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.94)} 0%, {_hex_to_rgba(color, 0.68)} 40%, {_hex_to_rgba(color, 0.52)} 100%)"
+            text_color = _contrast_text_color(color)
+            badge_bg = "rgba(255,255,255,0.18)" if text_color == "#FFFFFF" else "rgba(0,0,0,0.12)"
+            badge_color = "#FFFFFF" if text_color == "#FFFFFF" else "#111111"
+            st.markdown(
+                f"<div style='background:{card_bg}; border-radius:20px; padding:18px 22px; margin-bottom:18px; box-shadow:0 18px 38px rgba(0,0,0,0.12); color:{text_color};'>"
+                f"<div style='display:flex; justify-content:space-between; align-items:center; gap:18px; min-width:0;'>"
+                f"<div style='min-width:0;'>"
+                f"<div style='font-size:1.15rem; font-weight:800; color:{text_color}; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>{display_linea}</div>"
+                f"<div style='font-size:0.9rem; color:rgba(255,255,255,0.88);'>{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>"
+                f"</div>"
+                f"<div style='display:flex; align-items:center; gap:12px;'>"
+                f"<div style='padding:10px 18px; border-radius:999px; background: {badge_bg}; color:{badge_color}; font-weight:700; min-width:100px; text-align:center;'>{cump_val:.1f}%</div>"
+                f"</div>"
+                f"</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
             subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
@@ -267,5 +284,4 @@ def render_tab_lineas(df, pdi_catalog=None):
                 _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
-            st.markdown("</div>", unsafe_allow_html=True)
 
