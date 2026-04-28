@@ -112,7 +112,7 @@ def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
     meta_cat = _meta_catalog_for_objetivos(pdi_catalog)
     objetivos = sorted(df_linea['Objetivo'].dropna().unique().tolist())
     for obj in objetivos:
-        with st.expander(f"🎯 {obj}"):
+        with st.expander(f"Objetivo estratégico: {obj}"):
             df_obj = df_linea[df_linea['Objetivo'] == obj].copy()
             metas = []
             if not meta_cat.empty:
@@ -120,7 +120,7 @@ def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
                 metas = meta_cat[meta_cat['_obj_key'] == obj_key]['Meta_Estrategica'].dropna().unique().tolist()
             if metas:
                 for meta in metas:
-                    with st.expander(f"🏆 Meta Estratégica: {meta}"):
+                    with st.expander(f"Meta Estratégica: {meta}"):
                         df_meta = df_obj.copy()
                         # Filtrar por meta estratégica si hay columna en df_obj
                         if 'Meta_Estrategica' in df_meta.columns:
@@ -206,7 +206,7 @@ def _render_subtab_analisis(df_linea, linea, color):
     if ai_resp:
         st.markdown(f"""
         <div style='padding: 15px; background-color: #F8F9FA; border-left: 5px solid {color}; border-radius: 5px; margin-bottom: 20px;'>
-            <h5 style='margin-top: 0; color: #1A3A5C;'>🧠 Insights y Directrices Estratégicas</h5>
+            <h5 style='margin-top: 0; color: #1A3A5C;'><i class='fa-solid fa-brain' style='margin-right:8px;'></i>Insights y Directrices Estratégicas</h5>
         </div>
         """, unsafe_allow_html=True)
         st.markdown(ai_resp)
@@ -246,37 +246,43 @@ def render_tab_lineas(df, pdi_catalog=None):
 
         line_key = _normalize_linea_key(linea)
         state_key = f"cmi_linea_open_{line_key}"
+        if state_key not in st.session_state:
+            st.session_state[state_key] = False
         if st.session_state.get("cmi_tab_linea_expand") and _normalize_linea_key(st.session_state["cmi_tab_linea_expand"]) == line_key:
             st.session_state[state_key] = True
         is_expanded = st.session_state.get(state_key, False)
 
         display_linea = str(linea).replace("_", " ")
-        header = (
-            f"🎯 {display_linea} — {n_ind} indicadores · {n_obj} objetivos · {n_meta} metas · Cumplimiento {cump_val:.1f}%"
+        gradient_light = _hex_to_rgba(color, 0.98)
+        gradient_mid = _hex_to_rgba(color, 0.76)
+        gradient_soft = _hex_to_rgba(color, 0.40)
+        header_html = (
+            f"<div style='background: linear-gradient(90deg, {gradient_light} 0%, {gradient_mid} 50%, {gradient_soft} 100%); border-radius:20px; padding:22px 24px; margin-bottom:14px; box-shadow:0 18px 36px rgba(15,23,42,0.10);'>"
+            f"<div style='display:flex; justify-content:space-between; align-items:center; gap:18px;'>"
+            f"<div style='display:flex; align-items:center; gap:16px; min-width:0;'>"
+            f"<span style='width:12px; height:56px; border-radius:999px; background:{color}; display:inline-block;'></span>"
+            f"<div style='min-width:0;'>"
+            f"<div style='font-size:1.12rem; font-weight:800; color:#FFFFFF; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>{display_linea}</div>"
+            f"<div style='font-size:0.92rem; color:rgba(255,255,255,0.92); margin-top:6px;'>{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>"
+            f"</div>"
+            f"</div>"
+            f"<div style='display:flex; align-items:center; gap:12px;'>"
+            f"<div style='padding:10px 18px; border-radius:999px; background:rgba(255,255,255,0.18); color:#FFFFFF; font-weight:700; min-width:100px; text-align:center;'>{cump_val:.1f}%</div>"
+            f"</div>"
+            f"</div>"
+            f"</div>"
         )
 
-        if state_key not in st.session_state:
-            st.session_state[state_key] = False
+        cols = st.columns([0.94, 0.06])
+        with cols[0]:
+            st.markdown(header_html, unsafe_allow_html=True)
+        with cols[1]:
+            toggle_label = "Cerrar" if is_expanded else "Ver"
+            if st.button(toggle_label, key=f"toggle_linea_{line_key}"):
+                st.session_state[state_key] = not is_expanded
 
-        with st.expander(header, expanded=st.session_state[state_key], key=state_key):
-            card_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.94)} 0%, {_hex_to_rgba(color, 0.68)} 40%, {_hex_to_rgba(color, 0.52)} 100%)"
-            text_color = _contrast_text_color(color)
-            badge_bg = "rgba(255,255,255,0.18)" if text_color == "#FFFFFF" else "rgba(0,0,0,0.12)"
-            badge_color = "#FFFFFF" if text_color == "#FFFFFF" else "#111111"
-            st.markdown(
-                f"<div style='background:{card_bg}; border-radius:20px; padding:18px 22px; margin-bottom:18px; box-shadow:0 18px 38px rgba(0,0,0,0.12); color:{text_color};'>"
-                f"<div style='display:flex; justify-content:space-between; align-items:center; gap:18px; min-width:0;'>"
-                f"<div style='min-width:0;'>"
-                f"<div style='font-size:1.15rem; font-weight:800; color:{text_color}; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>{display_linea}</div>"
-                f"<div style='font-size:0.9rem; color:rgba(255,255,255,0.88);'>{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>"
-                f"</div>"
-                f"<div style='display:flex; align-items:center; gap:12px;'>"
-                f"<div style='padding:10px 18px; border-radius:999px; background: {badge_bg}; color:{badge_color}; font-weight:700; min-width:100px; text-align:center;'>{cump_val:.1f}%</div>"
-                f"</div>"
-                f"</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
+        if is_expanded:
+            st.markdown('<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
             subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
@@ -284,4 +290,5 @@ def render_tab_lineas(df, pdi_catalog=None):
                 _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
+            st.markdown("</div>", unsafe_allow_html=True)
 
