@@ -235,33 +235,13 @@ def render_tab_lineas(df, pdi_catalog=None):
         if st.session_state.get("cmi_tab_linea_expand") and _normalize_linea_key(st.session_state["cmi_tab_linea_expand"]) == line_key:
             st.session_state[state_key] = True
         is_expanded = st.session_state.get(state_key, False)
-        arrow_symbol = "▼" if is_expanded else "▶"
-        gradient_bg = f"linear-gradient(90deg, {_hex_to_rgba(color, 0.16)} 0%, #ffffff 100%)"
 
-        ficha_html = f'''
-        <div style="background:{gradient_bg}; border-left:6px solid {color}; min-height:72px; display:flex;align-items:center;gap:18px;box-sizing:border-box; margin-bottom:10px; padding:14px 18px; border-radius:14px;">
-            <div style="display:flex;align-items:center;gap:12px;flex:1; min-width:0;">
-                <span style="background:{color}; width:14px; height:14px; border-radius:999px; display:inline-block;"></span>
-                <div style="min-width:0;">
-                    <div style="font-weight:700; color:#1A3A5C; font-size:18px; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{linea}</div>
-                    <div style="color:#4B5563; font-size:13px; margin-top:4px;">{n_ind} indicadores • {n_obj} objetivos • {n_meta} metas</div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="background:{color}; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.08); padding:8px 18px; border-radius:999px; font-weight:700; font-size:1rem;">{cump_val:.1f}%</span>
-            </div>
-        </div>
-        '''
+        header = (
+            f"🎯 {linea} — {n_ind} indicadores · {n_obj} objetivos · {n_meta} metas "
+            f"· Cumplimiento {cump_val:.1f}%"
+        )
 
-        cols = st.columns([0.88, 0.12])
-        with cols[0]:
-            st.markdown(ficha_html, unsafe_allow_html=True)
-        with cols[1]:
-            if st.button(arrow_symbol, key=f"toggle_linea_{line_key}"):
-                st.session_state[state_key] = not is_expanded
-
-        if is_expanded:
-            st.markdown(f'<div style="border:1px solid #D9E5F2; border-radius:14px; padding:18px; margin-bottom:18px; background:#FFFFFF;">', unsafe_allow_html=True)
+        with st.expander(header, expanded=is_expanded, key=state_key):
             subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
             with subtabs[0]:
                 _render_subtab_resumen(df_linea, linea, color)
@@ -269,5 +249,4 @@ def render_tab_lineas(df, pdi_catalog=None):
                 _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
-            st.markdown("</div>", unsafe_allow_html=True)
 
