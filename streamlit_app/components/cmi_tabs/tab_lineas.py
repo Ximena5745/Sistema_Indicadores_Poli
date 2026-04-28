@@ -227,6 +227,15 @@ def render_tab_lineas(df, pdi_catalog=None):
         st.info("No hay líneas estratégicas para mostrar.")
         return
 
+    if "cmi_lineas_open" not in st.session_state:
+        st.session_state["cmi_lineas_open"] = {}
+
+    if st.session_state.get("cmi_tab_linea_expand"):
+        expanded_target = _normalize_linea_key(st.session_state["cmi_tab_linea_expand"])
+        lineas_open = dict(st.session_state["cmi_lineas_open"])
+        lineas_open[expanded_target] = True
+        st.session_state["cmi_lineas_open"] = lineas_open
+
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
         color = linea_color(linea)
@@ -245,12 +254,8 @@ def render_tab_lineas(df, pdi_catalog=None):
             cump_val = 0.0
 
         line_key = _normalize_linea_key(linea)
-        state_key = f"cmi_linea_open_{line_key}"
-        if state_key not in st.session_state:
-            st.session_state[state_key] = False
-        if st.session_state.get("cmi_tab_linea_expand") and _normalize_linea_key(st.session_state["cmi_tab_linea_expand"]) == line_key:
-            st.session_state[state_key] = True
-        is_expanded = st.session_state.get(state_key, False)
+        lineas_open = dict(st.session_state.get("cmi_lineas_open", {}))
+        is_expanded = lineas_open.get(line_key, False)
 
         display_linea = str(linea).replace("_", " ")
         gradient_light = _hex_to_rgba(color, 0.98)
@@ -279,7 +284,8 @@ def render_tab_lineas(df, pdi_catalog=None):
         with cols[1]:
             toggle_label = "Cerrar" if is_expanded else "Ver"
             if st.button(toggle_label, key=f"toggle_linea_{line_key}"):
-                st.session_state[state_key] = not is_expanded
+                lineas_open[line_key] = not is_expanded
+                st.session_state["cmi_lineas_open"] = lineas_open
 
         if is_expanded:
             st.markdown('<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
