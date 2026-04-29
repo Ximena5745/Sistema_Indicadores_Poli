@@ -128,7 +128,8 @@ def inject_cmi_premium_css():
         .cmi-sparkbar-track {
             position: relative;
             flex: 1 1 360px;
-            min-width: 280px;
+            min-width: 360px;
+            max-width: 360px;
             height: 14px;
             background-color: #E5E7EB;
             border-radius: 999px;
@@ -138,6 +139,15 @@ def inject_cmi_premium_css():
             height: 100%;
             border-radius: 999px;
             box-shadow: 0 2px 6px rgba(15,23,42,0.12);
+        }
+        .cmi-sparkbar-marker {
+            position: absolute;
+            top: -4px;
+            left: calc(100% - 1px);
+            width: 2px;
+            height: 22px;
+            background: rgba(15,23,42,0.65);
+            border-radius: 2px;
         }
         .cmi-sparkbar-value {
             flex: 0 0 70px;
@@ -211,7 +221,7 @@ def render_sparkbar(val, nivel, label=None):
     except:
         return str(val)
         
-    width = min(100, val_float)
+    fill_pct = max(0.0, min(100.0, val_float))
     
     if "Peligro" in str(nivel):
         color = "#D32F2F"
@@ -224,13 +234,14 @@ def render_sparkbar(val, nivel, label=None):
     else:
         color = "#9E9E9E"
 
-    label_html = f"<div style='min-width: 220px; color: #111827; font-weight: 600; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>{label}</div>" if label else ""
+    label_html = f"<div class='cmi-sparkbar-label'>{label}</div>" if label else ""
 
     html = f"""
     <div class='cmi-sparkbar-row'>
         {label_html}
         <div class='cmi-sparkbar-track'>
-            <div class='cmi-sparkbar-fill' style='width: {width}%; background-color: {color};'></div>
+            <div class='cmi-sparkbar-fill' style='width: {fill_pct}%; background-color: {color};'></div>
+            <div class='cmi-sparkbar-marker' title='100%'></div>
         </div>
         <div class='cmi-sparkbar-value'>{val_float:.1f}%</div>
     </div>
