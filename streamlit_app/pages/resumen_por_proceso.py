@@ -142,11 +142,29 @@ def _latest_month_for_cierres(df: pd.DataFrame, year: int) -> int | None:
     return int(months.max()) if not months.empty else None
 
 
-def _render_process_card(name: str, indicadores: int, variation: float, color: str):
-    """Renderiza tarjeta de proceso con variación (copiado de resumen_general.py)"""
-    up = variation >= 0
-    variation_color = "#16A34A" if variation >= 0 else "#D32F2F"
-    arrow = "↑" if up else "↓"
+def _canonical_tipo_proceso(value: object) -> str | None:
+    txt = str(value or "").strip()
+    key = _norm_text(txt)
+    if not key or key in {"METRICA", "METRICAS"}:
+        return None
+
+    tipo_map = {_norm_text(t): t for t in TIPOS_PROCESO}
+    return tipo_map.get(key, txt)
+
+
+def _render_process_card(
+    name: str,
+    indicadores: int,
+    cumplimiento: float,
+    delta_vs_base: float | None,
+    color: str,
+):
+    """Renderiza tarjeta de tipo de proceso con cumplimiento promedio y delta vs año base."""
+    up = (delta_vs_base is not None) and (delta_vs_base >= 0)
+    delta_color = "#16A34A" if up else "#D32F2F"
+    delta_text = (
+        f"{delta_vs_base:+.1f} pp vs 2024" if delta_vs_base is not None and pd.notna(delta_vs_base) else "Sin dato 2024"
+    )
     spark = _sparkline_svg("#2A6BB0", up=up)
     st.markdown(
         f"""
@@ -155,10 +173,11 @@ def _render_process_card(name: str, indicadores: int, variation: float, color: s
                     border-top:4px solid {color};'>
             <p style='font-size:0.84rem;font-weight:700;margin:0;color:{color};'>{name}</p>
             <p style='font-size:0.75rem;color:#546D88;margin:0.2rem 0;'> {indicadores} indicadores</p>
-            <p style='font-size:1.5rem;font-weight:800;margin:0.3rem 0;line-height:1.1;color:{variation_color};'>
-                {abs(variation):.1f}% {arrow}
+            <p style='font-size:1.5rem;font-weight:800;margin:0.3rem 0;line-height:1.1;color:#1A3A5C;'>
+                {cumplimiento:.1f}%
             </p>
-            <p style='font-size:0.75rem;color:#546D88;margin:0;'>Variación</p>
+            <p style='font-size:0.75rem;color:#546D88;margin:0;'>Cumplimiento promedio</p>
+            <p style='font-size:0.74rem;font-weight:700;color:{delta_color};margin:0.15rem 0 0 0;'>{delta_text}</p>
             <div style='display:flex;justify-content:flex-end;margin-top:0.2rem;'>{spark}</div>
         </div>
         """,
@@ -2064,16 +2083,24 @@ def render() -> None:
         with st.spinner("Cargando resumen global de CMI por Procesos..."):
             _cierres_preview = preparar_pdi_con_cierre(int(global_year), 12)
             _latest_m = _latest_month_for_cierres(_cierres_preview, int(global_year)) or 12
-            _prev_m = _latest_month_for_cierres(_cierres_preview, int(global_year) - 1) or None
+            _base_year = 2024
+
+            _cierres_base_preview = preparar_pdi_con_cierre(int(_base_year), 12)
+            _base_m = _latest_month_for_cierres(_cierres_base_preview, int(_base_year)) or None
 
             cmi_global = preparar_pdi_con_cierre(int(global_year), _latest_m)
             cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id")
+
+            cmi_base_2024 = pd.DataFrame()
+            if _base_m is not None:
+                cmi_base_2024 = preparar_pdi_con_cierre(int(_base_year), int(_base_m))
+                cmi_base_2024 = filter_df_for_cmi_procesos(cmi_base_2024, id_column="Id")
 
         _latest_month_name = (
             MESES_OPCIONES[int(_latest_m) - 1] if _latest_m and 1 <= int(_latest_m) <= 12 else "Diciembre"
         )
         st.caption(
-            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación de variación contra {global_year - 1}."
+            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación base contra 2024."
         )
 
         # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
@@ -2090,24 +2117,39 @@ def render() -> None:
         except Exception:
             _subprocesos_cmi = set()
 
-        _subprocesos_validos = set(map_df["Subproceso"].dropna().unique()) if not map_df.empty else set()
-        if not cmi_global.empty and "Subproceso" in cmi_global.columns and _subprocesos_cmi:
-            cmi_global = cmi_global[cmi_global["Subproceso"].isin(_subprocesos_validos & _subprocesos_cmi)]
+        _subprocesos_validos = set(map_df["Subproceso"].dropna().astype(str).unique()) if not map_df.empty else set()
 
-        # Merge con tipos de proceso
-        if (
-            not cmi_global.empty
-            and not map_df.empty
-            and "Subproceso" in cmi_global.columns
-            and "Tipo de proceso" in map_df.columns
-        ):
-            cmi_global = cmi_global.merge(
-                map_df[[c for c in ["Subproceso", "Proceso", "Tipo de proceso"] if c in map_df.columns]].drop_duplicates(),
-                on="Subproceso",
-                how="left",
-            )
-            cmi_global = _ensure_tipo_proceso_cmi(cmi_global)
-            cmi_global = _ensure_proceso_cmi(cmi_global)
+        def _prepare_resumen_df(df_src: pd.DataFrame) -> pd.DataFrame:
+            df_out = df_src.copy()
+            if df_out.empty:
+                return df_out
+
+            if "Subproceso" in df_out.columns and _subprocesos_cmi:
+                valid_subs = _subprocesos_validos & _subprocesos_cmi
+                df_out = df_out[df_out["Subproceso"].astype(str).isin(valid_subs)]
+
+            if (
+                not df_out.empty
+                and not map_df.empty
+                and "Subproceso" in df_out.columns
+                and "Tipo de proceso" in map_df.columns
+            ):
+                df_out = df_out.merge(
+                    map_df[[c for c in ["Subproceso", "Proceso", "Tipo de proceso"] if c in map_df.columns]].drop_duplicates(),
+                    on="Subproceso",
+                    how="left",
+                )
+                df_out = _ensure_tipo_proceso_cmi(df_out)
+                df_out = _ensure_proceso_cmi(df_out)
+
+            if "Tipo de proceso" in df_out.columns:
+                df_out["Tipo de proceso"] = df_out["Tipo de proceso"].apply(_canonical_tipo_proceso)
+                df_out = df_out[df_out["Tipo de proceso"].notna()].copy()
+
+            return df_out
+
+        cmi_global = _prepare_resumen_df(cmi_global)
+        cmi_base_2024 = _prepare_resumen_df(cmi_base_2024)
 
         if cmi_global.empty:
             st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
@@ -2123,28 +2165,19 @@ def render() -> None:
                 .reset_index()
             )
 
-            # Variación respecto al año anterior
-            if _prev_m:
-                _cmi_prev = preparar_pdi_con_cierre(int(global_year) - 1, _prev_m)
-                _cmi_prev = filter_df_for_cmi_procesos(_cmi_prev, id_column="Id")
-                if not _cmi_prev.empty and not map_df.empty and "Subproceso" in _cmi_prev.columns:
-                    _cmi_prev = _cmi_prev.merge(
-                        map_df[[c for c in ["Subproceso", "Proceso", "Tipo de proceso"] if c in map_df.columns]].drop_duplicates(),
-                        on="Subproceso", how="left",
-                    )
-                    _cmi_prev = _ensure_tipo_proceso_cmi(_cmi_prev)
-                    _pct_prev = "cumplimiento_pct" if "cumplimiento_pct" in _cmi_prev.columns else "Cumplimiento_pct"
-                    prev_type = (
-                        _cmi_prev.groupby("Tipo de proceso", dropna=False)
-                        .agg(prev=(_pct_prev, "mean"))
-                        .reset_index()
-                    )
-                    type_curr = type_curr.merge(prev_type, on="Tipo de proceso", how="left")
-                    type_curr["change"] = type_curr["actual"] - type_curr["prev"]
-                else:
-                    type_curr["change"] = 0.0
+            # Delta respecto a 2024
+            if not cmi_base_2024.empty:
+                _pct_prev = "cumplimiento_pct" if "cumplimiento_pct" in cmi_base_2024.columns else "Cumplimiento_pct"
+                prev_type = (
+                    cmi_base_2024.groupby("Tipo de proceso", dropna=False)
+                    .agg(prev=(_pct_prev, "mean"))
+                    .reset_index()
+                )
+                type_curr = type_curr.merge(prev_type, on="Tipo de proceso", how="left")
+                type_curr["change"] = type_curr["actual"] - type_curr["prev"]
             else:
-                type_curr["change"] = 0.0
+                type_curr["prev"] = pd.NA
+                type_curr["change"] = pd.NA
 
             type_curr = type_curr[type_curr["Tipo de proceso"].notna()].copy()
             ordered_tipos = [t for t in TIPOS_PROCESO if t in type_curr["Tipo de proceso"].astype(str).tolist()]
@@ -2152,53 +2185,94 @@ def render() -> None:
                 tipo_cols = st.columns(min(4, len(ordered_tipos)))
                 for idx, tipo in enumerate(ordered_tipos[:4]):
                     row = type_curr[type_curr["Tipo de proceso"] == tipo].iloc[0]
-                    delta = float(row.get("change", 0.0) or 0.0)
+                    delta = pd.to_numeric(row.get("change"), errors="coerce")
                     tipo_color = get_tipo_color(tipo, light=False)
                     with tipo_cols[idx]:
                         _render_process_card(
                             name=tipo,
                             indicadores=int(row.get("indicadores", 0)),
-                            variation=delta,
+                            cumplimiento=float(row.get("actual", 0.0) or 0.0),
+                            delta_vs_base=None if pd.isna(delta) else float(delta),
                             color=tipo_color,
                         )
 
-            # ── Gráfico de barras: indicadores por proceso ────────────────────
-            st.markdown("##### Total Indicadores por Proceso")
-            process_col_bar = "Proceso" if "Proceso" in cmi_global.columns else "Subproceso"
-            bar_df = (
-                cmi_global.groupby(process_col_bar, dropna=False)["Indicador"]
-                .count()
-                .reset_index(name="Total")
-                .sort_values("Total", ascending=False)
-                .head(8)
+            # ── Gráfico principal: cumplimiento promedio por proceso ─────────
+            st.markdown("##### Procesos con mayor cumplimiento")
+            selected_tipo_chart = st.selectbox(
+                "Tipo de proceso (gráfica)",
+                options=["Todos"] + ordered_tipos,
+                index=0,
+                key="cmi_resumen_tipo_chart",
             )
-            if not bar_df.empty:
-                _bar_colors = ["#1E4C86", "#2A78C7", "#2EA75B", "#E7B339", "#F39C12", "#E31C8D", "#00BCD4", "#6C88B0"]
-                fig_bar = go.Figure(
+
+            chart_curr = cmi_global.copy()
+            chart_base = cmi_base_2024.copy()
+            if selected_tipo_chart != "Todos":
+                chart_curr = chart_curr[chart_curr["Tipo de proceso"].astype(str) == selected_tipo_chart]
+                if not chart_base.empty:
+                    chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
+
+            process_col_bar = "Proceso" if "Proceso" in chart_curr.columns else "Subproceso"
+            proc_curr = (
+                chart_curr.groupby(process_col_bar, dropna=False)
+                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+                .reset_index()
+            )
+
+            if not chart_base.empty:
+                _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
+                proc_base = (
+                    chart_base.groupby(process_col_bar, dropna=False)
+                    .agg(base_2024=(_base_pct_col, "mean"))
+                    .reset_index()
+                )
+                proc_comp = proc_curr.merge(proc_base, on=process_col_bar, how="left")
+            else:
+                proc_comp = proc_curr.copy()
+                proc_comp["base_2024"] = pd.NA
+
+            proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
+            proc_comp = proc_comp.sort_values("actual", ascending=False).head(10)
+
+            if not proc_comp.empty:
+                fig_bar = go.Figure()
+                fig_bar.add_trace(
                     go.Bar(
-                        x=bar_df[process_col_bar],
-                        y=bar_df["Total"],
-                        marker_color=_bar_colors[: len(bar_df)],
+                        name=f"Cumplimiento {global_year}",
+                        x=proc_comp[process_col_bar],
+                        y=proc_comp["actual"],
+                        marker_color="#1E4C86",
                     )
                 )
-                fig_bar.update_layout(height=360, margin=dict(t=20, b=120), xaxis_tickangle=-25, showlegend=False)
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-            # ── Variación de procesos respecto al año anterior ───────────────
-            best_proc_rows, worst_proc_rows = [], []
-            if _prev_m:
-                _cmi_prev_var = preparar_pdi_con_cierre(int(global_year) - 1, _prev_m)
-                _cmi_prev_var = filter_df_for_cmi_procesos(_cmi_prev_var, id_column="Id")
-                if not _cmi_prev_var.empty and not map_df.empty and "Subproceso" in _cmi_prev_var.columns:
-                    _cmi_prev_var = _cmi_prev_var.merge(
-                        map_df[[c for c in ["Subproceso", "Proceso", "Tipo de proceso"] if c in map_df.columns]].drop_duplicates(),
-                        on="Subproceso", how="left",
+                fig_bar.add_trace(
+                    go.Bar(
+                        name="Cumplimiento 2024",
+                        x=proc_comp[process_col_bar],
+                        y=proc_comp["base_2024"],
+                        marker_color="#9AB7D5",
                     )
-                    _cmi_prev_var = _ensure_proceso_cmi(_cmi_prev_var)
-                best_proc_rows, worst_proc_rows = _process_variation_for_rpp(cmi_global, _cmi_prev_var, process_col_bar)
+                )
+                fig_bar.update_layout(
+                    barmode="group",
+                    height=380,
+                    margin=dict(t=20, b=120),
+                    xaxis_tickangle=-25,
+                    yaxis_title="Cumplimiento promedio (%)",
+                    legend_title_text="Comparación histórica",
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+            else:
+                st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
 
-            _proc_counts = _process_counts_cmi(cmi_global, "Tipo de proceso") if "Tipo de proceso" in cmi_global.columns else pd.DataFrame()
-            _total_p = len(cmi_global)
+            # ── Variación de procesos respecto a 2024 ────────────────────────
+            best_proc_rows, worst_proc_rows = [], []
+            _ins_curr = chart_curr.copy()
+            _ins_base = chart_base.copy()
+            if not _ins_base.empty:
+                best_proc_rows, worst_proc_rows = _process_variation_for_rpp(_ins_curr, _ins_base, process_col_bar)
+
+            _proc_counts = _process_counts_cmi(_ins_curr, "Tipo de proceso") if "Tipo de proceso" in _ins_curr.columns else pd.DataFrame()
+            _total_p = len(_ins_curr)
             _health_p = 0
             if not _proc_counts.empty:
                 _health_p = _proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
@@ -2258,13 +2332,9 @@ def render() -> None:
                 unsafe_allow_html=True,
             )
 
-
+    with tabs[1]:
         st.markdown("### Información por proceso")
-        info_df = _build_info_table(latest)
-        if info_df.empty:
-            st.info("Sin información para el filtro actual.")
-        else:
-            st.dataframe(info_df, use_container_width=True, hide_index=True)
+        st.info("Esta sección no aplica para el alcance actual del rediseño del Resumen CMI por Procesos.")
 
     with tabs[2]:
         st.markdown("### Indicadores")
