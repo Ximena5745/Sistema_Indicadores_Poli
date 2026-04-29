@@ -2233,11 +2233,19 @@ def render() -> None:
                 if not chart_base.empty:
                     chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
 
-            process_col_bar = "Proceso" if "Proceso" in chart_curr.columns else "Subproceso"
+            process_col_bar = (
+                "Subproceso_final"
+                if "Subproceso_final" in chart_curr.columns
+                else ("Subproceso" if "Subproceso" in chart_curr.columns else ("Proceso" if "Proceso" in chart_curr.columns else "Subproceso"))
+            )
             proc_curr = (
                 chart_curr.groupby(process_col_bar, dropna=False)
                 .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
                 .reset_index()
+            )
+            proc_count = proc_curr[process_col_bar].nunique()
+            st.caption(
+                f"Agrupando por: {process_col_bar}. Procesos únicos con datos: {proc_count}."
             )
 
             if not chart_base.empty:
