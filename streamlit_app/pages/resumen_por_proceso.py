@@ -2230,9 +2230,9 @@ def render() -> None:
                     chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
 
             process_col_bar = (
-                "Subproceso_final"
-                if "Subproceso_final" in chart_curr.columns
-                else ("Subproceso" if "Subproceso" in chart_curr.columns else ("Proceso" if "Proceso" in chart_curr.columns else "Subproceso"))
+                "Proceso"
+                if "Proceso" in chart_curr.columns
+                else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
             )
             proc_curr = (
                 chart_curr.groupby(process_col_bar, dropna=False)
@@ -2267,14 +2267,30 @@ def render() -> None:
                         x=proc_comp[process_col_bar],
                         y=proc_comp["actual"],
                         marker_color="#1E4C86",
+                        yaxis="y1",
                     )
                 )
+                if proc_comp["base_2024"].notna().any():
+                    fig_bar.add_trace(
+                        go.Bar(
+                            name=f"Cumplimiento {_base_year}",
+                            x=proc_comp[process_col_bar],
+                            y=proc_comp["base_2024"],
+                            marker_color="#9AB7D5",
+                            yaxis="y1",
+                        )
+                    )
                 fig_bar.add_trace(
-                    go.Bar(
-                        name=f"Cumplimiento {_base_year}",
+                    go.Scatter(
+                        name="Variación 2025 vs 2024",
                         x=proc_comp[process_col_bar],
-                        y=proc_comp["base_2024"],
-                        marker_color="#9AB7D5",
+                        y=proc_comp["delta_2024"].round(1),
+                        mode="lines+markers+text",
+                        text=proc_comp["delta_2024"].round(1).astype(str) + "%",
+                        textposition="top center",
+                        marker=dict(color="#E4572E", size=8),
+                        line=dict(color="#E4572E", width=2, dash="dash"),
+                        yaxis="y2",
                     )
                 )
                 fig_bar.update_layout(
@@ -2282,10 +2298,33 @@ def render() -> None:
                     height=380,
                     margin=dict(t=20, b=120),
                     xaxis_tickangle=-25,
-                    yaxis_title="Cumplimiento promedio (%)",
+                    xaxis_title="Proceso",
+                    yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
+                    yaxis2=dict(
+                        title="Variación (%)",
+                        overlaying="y",
+                        side="right",
+                        showgrid=False,
+                    ),
                     legend_title_text="Comparación histórica",
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
+
+                proc_table = proc_comp[[process_col_bar, "actual", "base_2024", "delta_2024"]].copy()
+                proc_table = proc_table.rename(
+                    columns={
+                        process_col_bar: "Proceso",
+                        "actual": f"Cumplimiento {global_year}",
+                        "base_2024": f"Cumplimiento {_base_year}",
+                        "delta_2024": "Delta"
+                    }
+                )
+                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
+                    if col in proc_table.columns:
+                        proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+                st.markdown("#### Tabla de procesos comparativa")
+                st.dataframe(proc_table, use_container_width=True, hide_index=True)
             else:
                 st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
 
