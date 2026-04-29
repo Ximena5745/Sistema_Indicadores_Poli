@@ -167,14 +167,20 @@ def inject_cmi_premium_css():
         }
         .cmi-lineas-root {
             width: 100%;
-            padding: 0 16px;
+            padding: 0 40px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
         }
         .cmi-lineas-section {
-            margin: 0 0 18px 0;
-            padding: 32px 44px 32px 44px;
-            border-radius: 24px;
-            background-color: rgba(255,255,255,0.02);
+            width: 100%;
+            max-width: 1180px;
+            margin: 20px 0 24px 0;
+            padding: 36px 56px 36px 56px;
+            border-radius: 28px;
+            background-color: rgba(255,255,255,0.04);
             box-shadow: 0 0 0 1px rgba(15,23,42,0.04);
+            box-sizing: border-box;
         }
         .cmi-line-card {
             width: 100%;
