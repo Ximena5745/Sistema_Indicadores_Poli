@@ -165,11 +165,16 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
+        .cmi-lineas-root {
+            width: 100%;
+            padding: 0 16px;
+        }
         .cmi-lineas-section {
             margin: 0 0 18px 0;
-            padding: 28px 36px 28px 36px;
+            padding: 32px 44px 32px 44px;
             border-radius: 24px;
             background-color: rgba(255,255,255,0.02);
+            box-shadow: 0 0 0 1px rgba(15,23,42,0.04);
         }
         .cmi-line-card {
             width: 100%;
