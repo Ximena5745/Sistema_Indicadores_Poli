@@ -112,12 +112,12 @@ def inject_cmi_premium_css():
         .cmi-sparkbar-row {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 18px;
             margin-bottom: 14px;
+            width: 100%;
         }
         .cmi-sparkbar-label {
-            min-width: 220px;
-            max-width: 220px;
+            flex: 0 0 240px;
             color: #0F172A;
             font-size: 0.95rem;
             font-weight: 600;
@@ -127,8 +127,8 @@ def inject_cmi_premium_css():
         }
         .cmi-sparkbar-track {
             position: relative;
-            flex: none;
-            width: 320px;
+            flex: 1 1 360px;
+            min-width: 280px;
             height: 14px;
             background-color: #E5E7EB;
             border-radius: 999px;
@@ -140,18 +140,43 @@ def inject_cmi_premium_css():
             box-shadow: 0 2px 6px rgba(15,23,42,0.12);
         }
         .cmi-sparkbar-value {
-            min-width: 52px;
+            flex: 0 0 70px;
             text-align: right;
             color: #0F172A;
             font-weight: 700;
+            white-space: nowrap;
+        }
+        .cmi-lineas-section {
+            padding: 0 16px 12px 16px;
         }
         .cmi-line-card {
+            width: 100%;
             border-radius: 20px;
             padding: 22px 24px;
-            margin-bottom: 14px;
+            margin-bottom: 18px;
             box-shadow: 0 18px 36px rgba(15,23,42,0.10);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             border: 1px solid rgba(255,255,255,0.08);
+        }
+        .cmi-line-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            width: 100%;
+        }
+        .cmi-line-card-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .cmi-line-card-actions button {
+            min-width: 100px;
+            height: 42px;
+            border-radius: 999px;
+            font-weight: 700;
         }
         .cmi-line-card:hover {
             transform: translateY(-2px);

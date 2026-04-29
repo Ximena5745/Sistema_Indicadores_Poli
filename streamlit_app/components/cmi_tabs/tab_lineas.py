@@ -64,6 +64,11 @@ def _meta_catalog_for_objetivos(pdi_catalog):
     cat = cat.drop_duplicates(subset=["_obj_key"], keep="first")
     return cat[["_obj_key", "Meta_Estrategica"]]
 
+
+def _toggle_linea_state(state_key):
+    st.session_state[state_key] = not st.session_state.get(state_key, False)
+
+
 def _render_subtab_resumen(df_linea, linea, color):
     cump = df_linea["cumplimiento_pct"].mean() if "cumplimiento_pct" in df_linea.columns else 0
     if pd.isna(cump):
@@ -241,8 +246,11 @@ def render_tab_lineas(df, pdi_catalog=None):
         st.info("No hay líneas estratégicas para mostrar.")
         return
 
-    expanded_target = _normalize_linea_key(st.session_state.get("cmi_tab_linea_expand", ""))
+    expanded_target_raw = st.session_state.get("cmi_tab_linea_expand", "")
+    expanded_target = _normalize_linea_key(expanded_target_raw)
+    expanded_applied_key = f"cmi_tab_linea_expand_applied_{expanded_target}"
 
+    st.markdown("<div class='cmi-lineas-section'>", unsafe_allow_html=True)
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
         color = linea_color(linea)
@@ -265,8 +273,9 @@ def render_tab_lineas(df, pdi_catalog=None):
         state_key = f"cmi_linea_open_{line_key}"
         if state_key not in st.session_state:
             st.session_state[state_key] = False
-        if expanded_target and line_key_norm == expanded_target:
+        if expanded_target and line_key_norm == expanded_target and not st.session_state.get(expanded_applied_key, False):
             st.session_state[state_key] = True
+            st.session_state[expanded_applied_key] = True
         is_expanded = st.session_state[state_key]
         display_linea = html.escape(str(linea).replace("_", " ") or "Línea")
         gradient_light = _hex_to_rgba(color, 0.98)
@@ -290,13 +299,17 @@ def render_tab_lineas(df, pdi_catalog=None):
             f"</div>"
         )
 
-        cols = st.columns([0.92, 0.08])
+        cols = st.columns([0.88, 0.12])
         with cols[0]:
             st.markdown(header_html, unsafe_allow_html=True)
         with cols[1]:
             toggle_label = "Cerrar" if st.session_state[state_key] else "Ver"
-            if st.button(toggle_label, key=f"toggle_linea_{line_key}"):
-                st.session_state[state_key] = not st.session_state[state_key]
+            st.button(
+                toggle_label,
+                key=f"toggle_linea_{line_key}",
+                on_click=_toggle_linea_state,
+                args=(state_key,),
+            )
 
         if is_expanded:
             st.markdown('<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
@@ -308,4 +321,5 @@ def render_tab_lineas(df, pdi_catalog=None):
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
             st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
