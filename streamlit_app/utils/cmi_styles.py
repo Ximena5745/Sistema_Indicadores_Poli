@@ -167,21 +167,34 @@ def inject_cmi_premium_css():
         }
         /* Apply padding to main content when CMI Estratégico lines are present */
         .stMainBlockContainer:has(.cmi-estrategico-lineas-section) {
-            padding: 0 40px !important;
+            padding: 0 !important;
             overflow-x: hidden !important;
-            box-sizing: border-box;
-            width: 100% !important;
+        }
+        /* Apply padding only to first-level divs (title, filters, controls, not tab content) */
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) > div:first-child {
+            padding: 0 40px !important;
+        }
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) > div:nth-child(2) {
+            padding: 0 40px !important;
+        }
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) > div:nth-child(3) {
+            padding: 0 40px !important;
+        }
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) > div:nth-child(4) {
+            padding: 0 40px !important;
+        }
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) > div:nth-child(5) {
+            padding: 0 40px !important;
         }
         /* Alternative for nested elements */
         .stContainer:has(.cmi-estrategico-lineas-section) {
-            padding: 0 40px !important;
-            overflow-x: hidden !important;
-            box-sizing: border-box;
+            padding: 0 !important;
         }
-        /* CMI Estratégico lines root */
+        /* CMI Estratégico lines root - inherits padding from parent */
         .cmi-estrategico-lineas-root {
             margin: 0 !important;
             width: 100% !important;
+            padding: 0 40px !important;
             box-sizing: border-box;
             display: flex;
             justify-content: center;
