@@ -166,33 +166,30 @@ def inject_cmi_premium_css():
             white-space: nowrap;
         }
         .cmi-estrategico-page {
-            width: 100%;
+            width: calc(100% - 80px) !important;
+            margin: 0 40px !important;
+            padding: 0 !important;
             box-sizing: border-box;
-            padding: 0 40px !important;
         }
-        /* Force Streamlit tabs to respect padding */
-        .cmi-estrategico-page .stTabs [data-baseweb="tab-list"] {
+        /* Reset padding and margin for all nested elements */
+        .cmi-estrategico-page > * {
             padding-left: 0 !important;
             padding-right: 0 !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
         }
-        /* Force columns inside page to respect padding */
-        .cmi-estrategico-page [data-testid="column"] {
+        /* Force all Streamlit containers inside page */
+        .cmi-estrategico-page .stTabs,
+        .cmi-estrategico-page .stColumn,
+        .cmi-estrategico-page .stColumns,
+        .cmi-estrategico-page [role="tablist"] {
             padding-left: 0 !important;
             padding-right: 0 !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
         }
-        /* Force markdown containers */
-        .cmi-estrategico-page [data-testid="stMarkdownContainer"] {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-        }
-        /* General tabs container */
-        .cmi-estrategico-page .stTabs {
+        /* Deep nesting for tab content */
+        .cmi-estrategico-page .stTabs > div {
             padding-left: 0 !important;
             padding-right: 0 !important;
             margin-left: 0 !important;
