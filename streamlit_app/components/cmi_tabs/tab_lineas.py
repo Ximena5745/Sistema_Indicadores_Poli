@@ -7,7 +7,6 @@ import unicodedata
 from streamlit_app.utils.cmi_helpers import linea_color
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
 from services.strategic_indicators import load_cierres
-from streamlit_app.utils.cmi_styles import format_meta_pdi
 
 
 def _normalize_linea_key(linea):
@@ -151,66 +150,98 @@ def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
                 _render_tabla_indicadores(df_obj)
 
 def _render_tabla_indicadores(df):
-    from streamlit_app.utils.cmi_styles import render_sparkbar, format_nivel_badge, format_meta_pdi
+    from streamlit_app.utils.cmi_styles import format_nivel_badge
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+
     if df.empty:
         st.info("No hay indicadores para mostrar.")
         return
-    
-    # Preparar solo las columnas solicitadas: Indicador, Proceso, Meta, Ejecución, Cumplimiento %, Estado
+
     df_work = df.copy()
-    
-    # Formatear Meta con signo si existe
-    if "Meta" in df_work.columns:
-        meta_signo = (
-            df_work["Meta_Signo"] if "Meta_Signo" in df_work.columns else pd.Series([""] * len(df_work), index=df_work.index)
+
+    # Usar formateo canónico del proyecto para respetar signo/decimales y reglas especiales.
+    ejec_col = "Ejecucion" if "Ejecucion" in df_work.columns else ("Ejecución" if "Ejecución" in df_work.columns else None)
+    if "Meta" in df_work.columns and ejec_col is not None:
+        df_work = formatear_meta_ejecucion_df(df_work, meta_col="Meta", ejec_col=ejec_col)
+
+    proceso_col = ""
+    for cand in ["Proceso", "Subproceso", "Area"]:
+        if cand in df_work.columns:
+            proceso_col = cand
+            break
+
+    meta_col = "Meta" if "Meta" in df_work.columns else ""
+    ejec_data_col = "Ejecucion" if "Ejecucion" in df_work.columns else ("Ejecución" if "Ejecución" in df_work.columns else "")
+
+    def _compact_cumplimiento_html(val, nivel):
+        try:
+            v = float(val)
+        except Exception:
+            return "—"
+
+        fill = max(0.0, min(100.0, v))
+        n_txt = str(nivel or "")
+        if "Peligro" in n_txt:
+            color = "#D32F2F"
+        elif "Alerta" in n_txt:
+            color = "#FBAF17"
+        elif "Sobrecumplimiento" in n_txt:
+            color = "#6699FF"
+        elif "Cumplimiento" in n_txt:
+            color = "#43A047"
+        else:
+            color = "#9E9E9E"
+
+        return (
+            "<div style='display:flex;align-items:center;gap:8px;'>"
+            "<div style='flex:1 1 auto;height:10px;background:#E5E7EB;border-radius:999px;overflow:hidden;'>"
+            f"<div style='height:10px;width:{fill:.1f}%;background:{color};border-radius:999px;'></div>"
+            "</div>"
+            f"<span style='min-width:52px;text-align:right;font-weight:700;color:#0F172A;'>{v:.1f}%</span>"
+            "</div>"
         )
-        decimales = (
-            df_work["Decimales"] if "Decimales" in df_work.columns else pd.Series([1] * len(df_work), index=df_work.index)
+
+    rows_html = []
+    for _, row in df_work.iterrows():
+        indicador = html.escape(str(row.get("Indicador", "")))
+        proceso = html.escape(str(row.get(proceso_col, ""))) if proceso_col else ""
+        meta_txt = html.escape(str(row.get(meta_col, "—"))) if meta_col else "—"
+        ejec_txt = html.escape(str(row.get(ejec_data_col, "—"))) if ejec_data_col else "—"
+
+        nivel = row.get("Nivel de cumplimiento", "")
+        if "cumplimiento_pct" in df_work.columns:
+            cump_html = _compact_cumplimiento_html(row.get("cumplimiento_pct", 0), nivel)
+        else:
+            cump_html = "—"
+        estado_html = format_nivel_badge(nivel)
+
+        rows_html.append(
+            "<tr>"
+            f"<td>{indicador}</td>"
+            f"<td>{proceso}</td>"
+            f"<td>{meta_txt}</td>"
+            f"<td>{ejec_txt}</td>"
+            f"<td>{cump_html}</td>"
+            f"<td>{estado_html}</td>"
+            "</tr>"
         )
-        df_work["Meta"] = [format_meta_pdi(m, s, d) for m, s, d in zip(df_work["Meta"], meta_signo, decimales)]
-    
-    # Formatear Ejecución con signo si existe
-    if "Ejecucion" in df_work.columns:
-        ejec_signo = (
-            df_work["Ejecucion_Signo"] if "Ejecucion_Signo" in df_work.columns else pd.Series([""] * len(df_work), index=df_work.index)
-        )
-        decimales_ejec = (
-            df_work["Decimales_Ejecucion"] if "Decimales_Ejecucion" in df_work.columns else pd.Series([1] * len(df_work), index=df_work.index)
-        )
-        df_work["Ejecucion"] = [format_meta_pdi(e, s, d) for e, s, d in zip(df_work["Ejecucion"], ejec_signo, decimales_ejec)]
-    
-    # Crear columna Cumplimiento % y Estado
-    if "cumplimiento_pct" in df_work.columns and "Nivel de cumplimiento" in df_work.columns:
-        df_work["Cumplimiento %"] = df_work.apply(
-            lambda row: render_sparkbar(row["cumplimiento_pct"], row["Nivel de cumplimiento"]), 
-            axis=1
-        )
-        df_work["Estado"] = df_work["Nivel de cumplimiento"].apply(format_nivel_badge)
-    
-    # Seleccionar solo columnas solicitadas
-    cols_solicitadas = [
-        "Indicador", 
-        "Proceso",  # Si existe
-        "Meta", 
-        "Ejecucion", 
-        "Cumplimiento %", 
-        "Estado"
-    ]
-    
-    # Filtrar columnas que existen en el dataframe
-    cols_presentes = [c for c in cols_solicitadas if c in df_work.columns]
-    
-    # Si no existe "Proceso", intentar usar "Subproceso" o similar
-    if "Proceso" not in cols_presentes and "Subproceso" in df_work.columns:
-        cols_presentes = ["Indicador", "Subproceso"] + [c for c in cols_presentes if c != "Indicador"]
-    
-    df_tabla = df_work[cols_presentes].copy()
-    
-    # Renderizar como tabla HTML simple
-    html = df_tabla.to_html(escape=False, index=False, classes='table table-hover', border=0)
-    html = html.replace('<th>', '<th style="text-align: left; background-color: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6;">')
-    html = html.replace('<td>', '<td style="padding: 10px; border-bottom: 1px solid #e9ecef; vertical-align: middle;">')
-    st.markdown(html, unsafe_allow_html=True)
+
+    table_html = (
+        "<div class='cmi-objetivos-table-wrap'>"
+        "<table class='cmi-objetivos-table'>"
+        "<thead><tr>"
+        "<th>Indicador</th>"
+        "<th>Proceso</th>"
+        "<th>Meta con Signo</th>"
+        "<th>Ejecucion con Signo</th>"
+        "<th>Cumplimiento %</th>"
+        "<th>Estado</th>"
+        "</tr></thead>"
+        f"<tbody>{''.join(rows_html)}</tbody>"
+        "</table>"
+        "</div>"
+    )
+    st.markdown(table_html, unsafe_allow_html=True)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _get_ai_linea(linea, cump, n_ind, n_riesgo, df_json):

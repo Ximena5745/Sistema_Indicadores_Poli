@@ -165,27 +165,61 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
-        /* CMI Estratégico page marker - only apply spacing on this specific page */
-        .cmi-estrategico-page-marker {
-            display: none;
-            position: absolute;
-            pointer-events: none;
-            z-index: -1000;
-        }
-        
-        /* When cmi-estrategico-page-marker is present, style the main container with proper padding */
-        .cmi-estrategico-page-marker ~ div [data-testid="stMainBlockContainer"],
-        .cmi-estrategico-page-marker ~ div ~ div [data-testid="stMainBlockContainer"],
-        body:has(.cmi-estrategico-page-marker) [data-testid="stMainBlockContainer"] {
-            padding: 0 40px !important;
+        /* Ajuste robusto para CMI Estratégico: padding sobre wrappers propios */
+        .cmi-estrategico-lineas-root {
+            width: 100%;
+            padding: 0 40px;
             box-sizing: border-box;
-            max-width: 1400px;
-            margin: 0 auto !important;
+            overflow-x: hidden;
         }
-        
-        /* Fallback: use data attribute if marker is visible to browser */
-        [data-testid="stMainBlockContainer"] {
+        .cmi-estrategico-lineas-section {
+            width: 100%;
+            max-width: 1320px;
+            margin: 0 auto;
             box-sizing: border-box;
+        }
+        .cmi-objetivos-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid #D9E5F2;
+            border-radius: 12px;
+            background: #FFFFFF;
+        }
+        .cmi-objetivos-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .cmi-objetivos-table th:nth-child(1), .cmi-objetivos-table td:nth-child(1) { width: 28%; }
+        .cmi-objetivos-table th:nth-child(2), .cmi-objetivos-table td:nth-child(2) { width: 20%; }
+        .cmi-objetivos-table th:nth-child(3), .cmi-objetivos-table td:nth-child(3) { width: 10%; }
+        .cmi-objetivos-table th:nth-child(4), .cmi-objetivos-table td:nth-child(4) { width: 10%; }
+        .cmi-objetivos-table th:nth-child(5), .cmi-objetivos-table td:nth-child(5) { width: 22%; }
+        .cmi-objetivos-table th:nth-child(6), .cmi-objetivos-table td:nth-child(6) { width: 10%; }
+        .cmi-objetivos-table th {
+            text-align: left;
+            background-color: #F8FAFC;
+            padding: 10px;
+            border-bottom: 2px solid #DEE2E6;
+            color: #0F172A;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .cmi-objetivos-table td {
+            padding: 10px;
+            border-bottom: 1px solid #E9ECEF;
+            vertical-align: middle;
+            color: #0F172A;
+            white-space: normal;
+            word-break: break-word;
+        }
+        @media (max-width: 900px) {
+            .cmi-estrategico-lineas-root {
+                padding: 0 16px;
+            }
+            .cmi-objetivos-table {
+                min-width: 920px;
+            }
         }
         .cmi-line-card {
             width: 100%;

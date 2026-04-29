@@ -43,9 +43,6 @@ def render():
     from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
     inject_cmi_premium_css()
     
-    # Marcador para CSS específico de esta página
-    st.markdown("<div class='cmi-estrategico-page-marker'></div>", unsafe_allow_html=True)
-    
     st.title("CMI Estratégico")
     st.caption("Indicadores del Plan Estratégico (PDI) interactivo y detallado.")
 
