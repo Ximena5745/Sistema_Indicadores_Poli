@@ -167,22 +167,31 @@ def inject_cmi_premium_css():
         }
         /* Apply padding to main content when CMI Estratégico lines are present */
         .stMainBlockContainer:has(.cmi-estrategico-lineas-section) {
-            padding: 0 40px !important;
+            padding: 0 !important;
         }
-        /* Alternative for older browsers - apply to direct parent of content */
+        /* Apply margin to ALL content in CMI Estratégico page */
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) > div {
+            margin-left: 40px !important;
+            margin-right: 40px !important;
+            box-sizing: border-box;
+        }
+        /* Alternative for nested elements */
         .stContainer:has(.cmi-estrategico-lineas-section) {
-            padding: 0 40px !important;
+            padding: 0 !important;
         }
-        .cmi-estrategico-page .cmi-estrategico-lineas-root {
-            width: 100%;
+        /* CMI Estratégico lines root - already has margin from parent */
+        .cmi-estrategico-lineas-root {
+            margin: 0 !important;
+            width: 100% !important;
             box-sizing: border-box;
             display: flex;
             justify-content: center;
         }
-        .cmi-estrategico-page .cmi-estrategico-lineas-section {
+        /* CMI Estratégico lines section */
+        .cmi-estrategico-lineas-section {
             width: 100%;
             max-width: 1180px;
-            margin: 20px 0 24px 0;
+            margin: 20px auto 24px auto !important;
             padding: 36px 56px !important;
             border-radius: 28px;
             background-color: rgba(255,255,255,0.04);
