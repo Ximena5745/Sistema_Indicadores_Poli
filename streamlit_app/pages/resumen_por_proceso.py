@@ -136,9 +136,17 @@ def _latest_month_for_cierres(df: pd.DataFrame, year: int) -> int | None:
     if year_col is None:
         return None
     subset = df[pd.to_numeric(df[year_col], errors="coerce") == year].copy()
-    if subset.empty or "Mes_num" not in subset.columns:
+    if subset.empty:
         return None
-    months = pd.to_numeric(subset["Mes_num"], errors="coerce").dropna().astype(int)
+
+    if "Mes_num" in subset.columns:
+        months = pd.to_numeric(subset["Mes_num"], errors="coerce")
+    elif "Mes" in subset.columns:
+        months = subset["Mes"].apply(_mes_to_num)
+    else:
+        return None
+
+    months = pd.to_numeric(months, errors="coerce").dropna().astype(int)
     return int(months.max()) if not months.empty else None
 
 
@@ -157,13 +165,15 @@ def _render_process_card(
     indicadores: int,
     cumplimiento: float,
     delta_vs_base: float | None,
+    base_year: int | None,
     color: str,
 ):
     """Renderiza tarjeta de tipo de proceso con cumplimiento promedio y delta vs año base."""
     up = (delta_vs_base is not None) and (delta_vs_base >= 0)
     delta_color = "#16A34A" if up else "#D32F2F"
+    base_label = str(base_year) if base_year is not None else "base"
     delta_text = (
-        f"{delta_vs_base:+.1f} pp vs 2024" if delta_vs_base is not None and pd.notna(delta_vs_base) else "Sin dato 2024"
+        f"{delta_vs_base:+.1f} pp vs {base_label}" if delta_vs_base is not None and pd.notna(delta_vs_base) else f"Sin dato {base_label}"
     )
     spark = _sparkline_svg("#2A6BB0", up=up)
     st.markdown(
@@ -304,14 +314,19 @@ def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, dis
     if base_df.empty or prev_df.empty:
         return [], []
 
+    curr_pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in base_df.columns else "cumplimiento_pct"
+    prev_pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in prev_df.columns else "cumplimiento_pct"
+    if curr_pct_col not in base_df.columns or prev_pct_col not in prev_df.columns:
+        return [], []
+
     curr_proc = (
         base_df.groupby(display_col, dropna=False)
-        .agg(indicadores=("Indicador", "count"), actual=("Cumplimiento_pct", "mean"))
+        .agg(indicadores=("Indicador", "count"), actual=(curr_pct_col, "mean"))
         .reset_index()
     )
     prev_proc = (
         prev_df.groupby(display_col, dropna=False)
-        .agg(prev=("Cumplimiento_pct", "mean"))
+        .agg(prev=(prev_pct_col, "mean"))
         .reset_index()
     )
     merged = curr_proc.merge(prev_proc, on=display_col, how="left")
@@ -2083,10 +2098,12 @@ def render() -> None:
         with st.spinner("Cargando resumen global de CMI por Procesos..."):
             _cierres_preview = preparar_pdi_con_cierre(int(global_year), 12)
             _latest_m = _latest_month_for_cierres(_cierres_preview, int(global_year)) or 12
-            _base_year = 2024
+            _base_year = int(global_year) - 1
 
-            _cierres_base_preview = preparar_pdi_con_cierre(int(_base_year), 12)
-            _base_m = _latest_month_for_cierres(_cierres_base_preview, int(_base_year)) or None
+            _base_m = None
+            if _base_year in years:
+                _cierres_base_preview = preparar_pdi_con_cierre(int(_base_year), 12)
+                _base_m = _latest_month_for_cierres(_cierres_base_preview, int(_base_year))
 
             cmi_global = preparar_pdi_con_cierre(int(global_year), _latest_m)
             cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id")
@@ -2099,8 +2116,9 @@ def render() -> None:
         _latest_month_name = (
             MESES_OPCIONES[int(_latest_m) - 1] if _latest_m and 1 <= int(_latest_m) <= 12 else "Diciembre"
         )
+        _base_caption = f"Cierre {_base_year}" if _base_m is not None else f"Sin cierre {_base_year}"
         st.caption(
-            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación base contra 2024."
+            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación: Cierre {global_year} vs {_base_caption}."
         )
 
         # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
@@ -2193,17 +2211,20 @@ def render() -> None:
                             indicadores=int(row.get("indicadores", 0)),
                             cumplimiento=float(row.get("actual", 0.0) or 0.0),
                             delta_vs_base=None if pd.isna(delta) else float(delta),
+                            base_year=_base_year,
                             color=tipo_color,
                         )
 
             # ── Gráfico principal: cumplimiento promedio por proceso ─────────
             st.markdown("##### Procesos con mayor cumplimiento")
-            selected_tipo_chart = st.selectbox(
+            selected_tipo_chart = st.segmented_control(
                 "Tipo de proceso (gráfica)",
                 options=["Todos"] + ordered_tipos,
-                index=0,
+                default="Todos",
                 key="cmi_resumen_tipo_chart",
             )
+            if selected_tipo_chart is None:
+                selected_tipo_chart = "Todos"
 
             chart_curr = cmi_global.copy()
             chart_base = cmi_base_2024.copy()
@@ -2246,7 +2267,7 @@ def render() -> None:
                 )
                 fig_bar.add_trace(
                     go.Bar(
-                        name="Cumplimiento 2024",
+                        name=f"Cumplimiento {_base_year}",
                         x=proc_comp[process_col_bar],
                         y=proc_comp["base_2024"],
                         marker_color="#9AB7D5",
@@ -2282,6 +2303,11 @@ def render() -> None:
                 + (f" | Mejora: {best_proc_rows[0]['name']}" if best_proc_rows else "")
                 + (f" | Riesgo: {worst_proc_rows[0]['name']}" if worst_proc_rows else "")
             )
+            if _base_m is not None and 1 <= int(_base_m) <= 12:
+                _base_month_name = MESES_OPCIONES[int(_base_m) - 1]
+                _base_detail = f"Base comparativa usada: cierre {_base_year} ({_base_month_name})."
+            else:
+                _base_detail = f"Base comparativa usada: sin cierre disponible para {_base_year}."
             _best_html = _build_ia_rows_rpp(best_proc_rows)
             _worst_html = _build_ia_rows_rpp(worst_proc_rows)
 
@@ -2290,6 +2316,7 @@ def render() -> None:
                 <div class='rpp-summary-card'>
                     <h4 class='rpp-summary-title'>Insights del corte</h4>
                     <p class='rpp-summary-text'>{_op_summary}</p>
+                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
