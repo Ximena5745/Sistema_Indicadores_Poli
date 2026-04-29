@@ -42,106 +42,111 @@ def _default_corte(anio: int | None) -> str:
 def render():
     from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
     inject_cmi_premium_css()
-    
-    st.title("CMI Estratégico")
-    st.caption("Indicadores del Plan Estratégico (PDI) interactivo y detallado.")
 
-    cierres = load_cierres()
-    if cierres.empty:
-        st.error("No se encontró información de cierres en Resultados Consolidados.xlsx.")
-        return
+    # Padding exclusivo para CMI Estratégico via layout (sin tocar otras páginas).
+    pad_left, content_col, pad_right = st.columns([0.035, 0.93, 0.035])
+    with content_col:
+        st.title("CMI Estratégico")
+        st.caption("Indicadores del Plan Estratégico (PDI) interactivo y detallado.")
 
-    anios = sorted(
-        pd.to_numeric(cierres["Anio"], errors="coerce").dropna().astype(int).unique().tolist()
-    )
-    if not anios:
-        st.error("No hay años disponibles en consolidado de cierres.")
-        return
+        cierres = load_cierres()
+        if cierres.empty:
+            st.error("No se encontró información de cierres en Resultados Consolidados.xlsx.")
+            return
 
-    # Filtros Globales
-    with st.expander("🔎 Filtros Globales", expanded=False):
-        if st.button("Limpiar filtros", key="cmi_pdi_clear_tab"):
-            for k in ["cmi_tab_anio", "cmi_tab_corte", "cmi_tab_linea", "cmi_tab_objetivo", "cmi_tab_nombre"]:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.rerun()
+        anios = sorted(
+            pd.to_numeric(cierres["Anio"], errors="coerce").dropna().astype(int).unique().tolist()
+        )
+        if not anios:
+            st.error("No hay años disponibles en consolidado de cierres.")
+            return
 
-        _anio_default = _default_anio(anios)
-        _fc1, _fc2 = st.columns(2)
-        with _fc1:
-            anio = st.selectbox("Año de corte", options=anios, index=anios.index(_anio_default) if _anio_default in anios else 0, key="cmi_tab_anio")
-        with _fc2:
-            _corte_default = _default_corte(int(anio) if anio is not None else None)
-            corte = st.selectbox(
-                "Corte semestral",
-                list(CORTE_SEMESTRAL.keys()),
-                index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
-                key="cmi_tab_corte",
-            )
-        mes = CORTE_SEMESTRAL[corte]
+        pdi_catalog = pd.DataFrame()
 
-        df = preparar_pdi_con_cierre(int(anio), int(mes))
-        df = filter_df_for_cmi_estrategico(df, id_column="Id")
+        # Filtros Globales
+        with st.expander("🔎 Filtros Globales", expanded=False):
+            if st.button("Limpiar filtros", key="cmi_pdi_clear_tab"):
+                for k in ["cmi_tab_anio", "cmi_tab_corte", "cmi_tab_linea", "cmi_tab_objetivo", "cmi_tab_nombre"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
 
-        if not df.empty:
-            pdi_catalog = load_pdi_catalog()
-            lineas = sorted(df["Linea"].dropna().astype(str).unique().tolist())
-            
-            _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
-            with _ff1:
-                linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_tab_linea")
-            
-            df_obj = df if linea_sel == "Todas" else df[df["Linea"] == linea_sel]
-            objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
-            
-            with _ff2:
-                objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos, key="cmi_tab_objetivo")
-            with _ff3:
-                nombre_q = st.text_input("Buscar indicador", key="cmi_tab_nombre", placeholder="Texto en nombre del indicador")
-                
-            df_filtrado = aplicar_filtros_globales(df, pdi_catalog, linea_sel, objetivo_sel, nombre_q)
-        else:
-            df_filtrado = pd.DataFrame()
+            _anio_default = _default_anio(anios)
+            _fc1, _fc2 = st.columns(2)
+            with _fc1:
+                anio = st.selectbox("Año de corte", options=anios, index=anios.index(_anio_default) if _anio_default in anios else 0, key="cmi_tab_anio")
+            with _fc2:
+                _corte_default = _default_corte(int(anio) if anio is not None else None)
+                corte = st.selectbox(
+                    "Corte semestral",
+                    list(CORTE_SEMESTRAL.keys()),
+                    index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
+                    key="cmi_tab_corte",
+                )
+            mes = CORTE_SEMESTRAL[corte]
 
-    if df_filtrado.empty:
-        st.warning("No hay indicadores para los filtros seleccionados.")
-        return
+            df = preparar_pdi_con_cierre(int(anio), int(mes))
+            df = filter_df_for_cmi_estrategico(df, id_column="Id")
 
-    # Navegación principal controlable por estado
-    tab_names = [
-        "Resumen Desglosado", 
-        "Líneas Estratégicas", 
-        "Listado de Indicadores", 
-        "Alertas"
-    ]
+            if not df.empty:
+                pdi_catalog = load_pdi_catalog()
+                lineas = sorted(df["Linea"].dropna().astype(str).unique().tolist())
 
-    # Navegación desde CTA "Ver análisis detallado" de Vista rápida.
-    # Evita rerun por mutar query_params; se procesa una vez por valor.
-    linea_target = st.query_params.get("cmi_linea")
-    if linea_target:
-        if isinstance(linea_target, list):
-            linea_target = linea_target[0]
-        linea_target = str(linea_target).strip()
-        if linea_target and st.session_state.get("_cmi_linea_processed") != linea_target:
-            st.session_state["cmi_tab_linea_expand"] = linea_target
-            st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
-            st.session_state["_cmi_linea_processed"] = linea_target
+                _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
+                with _ff1:
+                    linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_tab_linea")
 
-    if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in tab_names:
-        st.session_state["cmi_tab_panel"] = "Resumen Desglosado"
+                df_obj = df if linea_sel == "Todas" else df[df["Linea"] == linea_sel]
+                objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
 
-    selected_panel = st.segmented_control(
-        "Sección",
-        options=tab_names,
-        key="cmi_tab_panel",
-        label_visibility="collapsed",
-    )
+                with _ff2:
+                    objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos, key="cmi_tab_objetivo")
+                with _ff3:
+                    nombre_q = st.text_input("Buscar indicador", key="cmi_tab_nombre", placeholder="Texto en nombre del indicador")
 
-    if selected_panel == "Resumen Desglosado":
-        render_tab_resumen(df_filtrado)
-    elif selected_panel == "Líneas Estratégicas":
-        render_tab_lineas(df_filtrado, pdi_catalog=pdi_catalog)
-    elif selected_panel == "Listado de Indicadores":
-        render_tab_listado(df_filtrado)
-    elif selected_panel == "Alertas":
-        render_tab_alertas(df_filtrado)
+                df_filtrado = aplicar_filtros_globales(df, pdi_catalog, linea_sel, objetivo_sel, nombre_q)
+            else:
+                df_filtrado = pd.DataFrame()
+
+        if df_filtrado.empty:
+            st.warning("No hay indicadores para los filtros seleccionados.")
+            return
+
+        # Navegación principal controlable por estado
+        tab_names = [
+            "Resumen Desglosado",
+            "Líneas Estratégicas",
+            "Listado de Indicadores",
+            "Alertas"
+        ]
+
+        # Navegación desde CTA "Ver análisis detallado" de Vista rápida.
+        # Evita rerun por mutar query_params; se procesa una vez por valor.
+        linea_target = st.query_params.get("cmi_linea")
+        if linea_target:
+            if isinstance(linea_target, list):
+                linea_target = linea_target[0]
+            linea_target = str(linea_target).strip()
+            if linea_target and st.session_state.get("_cmi_linea_processed") != linea_target:
+                st.session_state["cmi_tab_linea_expand"] = linea_target
+                st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
+                st.session_state["_cmi_linea_processed"] = linea_target
+
+        if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in tab_names:
+            st.session_state["cmi_tab_panel"] = "Resumen Desglosado"
+
+        selected_panel = st.segmented_control(
+            "Sección",
+            options=tab_names,
+            key="cmi_tab_panel",
+            label_visibility="collapsed",
+        )
+
+        if selected_panel == "Resumen Desglosado":
+            render_tab_resumen(df_filtrado)
+        elif selected_panel == "Líneas Estratégicas":
+            render_tab_lineas(df_filtrado, pdi_catalog=pdi_catalog)
+        elif selected_panel == "Listado de Indicadores":
+            render_tab_listado(df_filtrado)
+        elif selected_panel == "Alertas":
+            render_tab_alertas(df_filtrado)
