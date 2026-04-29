@@ -11,14 +11,12 @@ from plotly.subplots import make_subplots
 
 
 import sys
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
-from services.strategic_indicators import preparar_pdi_con_cierre
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
 
 MESES_OPCIONES = [
@@ -2094,31 +2092,29 @@ def render() -> None:
                 "Año", options=years, index=len(years) - 1 if years else 0, key="cmi_global_year"
             )
 
-        # Cargar datos usando última cierre disponible para el año seleccionado
+        # Cargar datos desde el Consolidado Semestral para el año seleccionado
         with st.spinner("Cargando resumen global de CMI por Procesos..."):
-            _cierres_preview = preparar_pdi_con_cierre(int(global_year), 12)
-            _latest_m = _latest_month_for_cierres(_cierres_preview, int(global_year)) or 12
+            _latest_m = _get_prev_month_for_year(tracking_df, int(global_year)) or 12
             _base_year = int(global_year) - 1
 
-            _base_m = None
-            if _base_year in years:
-                _cierres_base_preview = preparar_pdi_con_cierre(int(_base_year), 12)
-                _base_m = _latest_month_for_cierres(_cierres_base_preview, int(_base_year))
-
-            cmi_global = preparar_pdi_con_cierre(int(global_year), _latest_m)
+            cmi_global = tracking_df[tracking_df["Anio"] == int(global_year)].copy()
+            cmi_global = _prepare_tracking(cmi_global, map_df, month_num=_latest_m)
             cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id")
 
             cmi_base_2024 = pd.DataFrame()
-            if _base_m is not None:
-                cmi_base_2024 = preparar_pdi_con_cierre(int(_base_year), int(_base_m))
-                cmi_base_2024 = filter_df_for_cmi_procesos(cmi_base_2024, id_column="Id")
+            if _base_year in years:
+                _base_m = _get_prev_month_for_year(tracking_df, int(_base_year))
+                if _base_m is not None:
+                    cmi_base_2024 = tracking_df[tracking_df["Anio"] == int(_base_year)].copy()
+                    cmi_base_2024 = _prepare_tracking(cmi_base_2024, map_df, month_num=int(_base_m))
+                    cmi_base_2024 = filter_df_for_cmi_procesos(cmi_base_2024, id_column="Id")
 
         _latest_month_name = (
             MESES_OPCIONES[int(_latest_m) - 1] if _latest_m and 1 <= int(_latest_m) <= 12 else "Diciembre"
         )
-        _base_caption = f"Cierre {_base_year}" if _base_m is not None else f"Sin cierre {_base_year}"
+        _base_caption = f"Último mes {_base_year}" if _base_m is not None else f"Sin datos {_base_year}"
         st.caption(
-            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación: Cierre {global_year} vs {_base_caption}."
+            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación: {global_year} vs {_base_caption}."
         )
 
         # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
