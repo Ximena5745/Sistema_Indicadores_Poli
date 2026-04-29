@@ -127,7 +127,8 @@ def inject_cmi_premium_css():
         }
         .cmi-sparkbar-track {
             position: relative;
-            flex-grow: 1;
+            flex: none;
+            width: 320px;
             height: 14px;
             background-color: #E5E7EB;
             border-radius: 999px;

@@ -571,6 +571,7 @@ def _preparar_indicadores_con_cierre(
     return merged
 
 
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     """
     Preparar indicadores Plan Estratégico (PDI) con cierre.
@@ -586,6 +587,7 @@ def preparar_pdi_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     )
 
 
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def preparar_cna_con_cierre(anio: int, mes: int) -> pd.DataFrame:
     """
     Preparar indicadores CNA con cierre.
