@@ -50,18 +50,37 @@ def _contrast_text_color(hex_color):
 
 def _meta_catalog_for_objetivos(pdi_catalog):
     if pdi_catalog is None or getattr(pdi_catalog, "empty", True):
-        return pd.DataFrame(columns=["_obj_key", "Meta_Estrategica"])
+        return pd.DataFrame(columns=["_obj_key", "_meta_key", "Meta_Estrategica", "Id"])
 
     cols = set(pdi_catalog.columns)
     if "Objetivo" not in cols or "Meta_Estrategica" not in cols:
-        return pd.DataFrame(columns=["_obj_key", "Meta_Estrategica"])
+        return pd.DataFrame(columns=["_obj_key", "_meta_key", "Meta_Estrategica", "Id"])
 
-    cat = pdi_catalog[["Objetivo", "Meta_Estrategica"]].copy()
+    use_cols = ["Objetivo", "Meta_Estrategica"] + (["Id"] if "Id" in cols else [])
+    cat = pdi_catalog[use_cols].copy()
     cat["_obj_key"] = cat["Objetivo"].apply(_normalize_linea_key)
     cat["Meta_Estrategica"] = cat["Meta_Estrategica"].astype(str).str.strip()
+    cat["_meta_key"] = cat["Meta_Estrategica"].apply(_normalize_linea_key)
+    if "Id" in cat.columns:
+        cat["Id"] = cat["Id"].astype(str).str.strip()
+    else:
+        cat["Id"] = ""
     cat = cat[(cat["_obj_key"] != "") & (cat["Meta_Estrategica"] != "")]
-    cat = cat.drop_duplicates(subset=["_obj_key"], keep="first")
-    return cat[["_obj_key", "Meta_Estrategica"]]
+    cat = cat.drop_duplicates(subset=["_obj_key", "_meta_key", "Id"], keep="first")
+    return cat[["_obj_key", "_meta_key", "Meta_Estrategica", "Id"]]
+
+
+def _normalize_id(value) -> str:
+    if pd.isna(value):
+        return ""
+    txt = str(value).strip()
+    if txt == "":
+        return ""
+    try:
+        f = float(txt)
+        return str(int(f)) if f.is_integer() else txt
+    except Exception:
+        return txt
 
 
 def _toggle_linea_state(state_key):
@@ -135,15 +154,41 @@ def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
             metas = []
             if not meta_cat.empty:
                 obj_key = _normalize_linea_key(obj)
-                metas = meta_cat[meta_cat['_obj_key'] == obj_key]['Meta_Estrategica'].dropna().unique().tolist()
+                metas = meta_cat[meta_cat['_obj_key'] == obj_key]['Meta_Estrategica'].dropna().astype(str).str.strip().unique().tolist()
             if metas:
                 for meta in metas:
                     with st.expander(f"Meta Estratégica: {meta}"):
-                        df_meta = df_obj.copy()
-                        # Filtrar por meta estratégica si hay columna en df_obj
-                        if 'Meta_Estrategica' in df_meta.columns:
-                            df_meta = df_meta[df_meta['Meta_Estrategica'] == meta]
-                        # Mostrar tabla de indicadores
+                        if len(metas) == 1:
+                            _render_tabla_indicadores(df_obj.copy())
+                            continue
+
+                        df_meta = pd.DataFrame()
+
+                        # 1) Intento principal: mapear por IDs del catálogo (Objetivo + Meta).
+                        obj_key = _normalize_linea_key(obj)
+                        meta_key = _normalize_linea_key(meta)
+                        ids_meta = set(
+                            meta_cat[
+                                (meta_cat['_obj_key'] == obj_key) &
+                                (meta_cat['_meta_key'] == meta_key)
+                            ]["Id"].astype(str).str.strip().replace("", pd.NA).dropna().tolist()
+                        )
+
+                        if ids_meta and 'Id' in df_obj.columns:
+                            df_meta = df_obj[df_obj['Id'].apply(_normalize_id).isin({_normalize_id(x) for x in ids_meta})].copy()
+
+                        # 2) Fallback: comparar por texto normalizado de Meta_Estrategica.
+                        if df_meta.empty and 'Meta_Estrategica' in df_obj.columns:
+                            meta_series = df_obj['Meta_Estrategica'].fillna('').astype(str).str.strip()
+                            non_empty_count = int((meta_series != '').sum())
+                            if non_empty_count > 0:
+                                mask = meta_series.apply(_normalize_linea_key) == meta_key
+                                df_meta = df_obj[mask].copy()
+
+                        # 3) Fallback de seguridad: si el objetivo solo tiene una meta, mostrar todos sus indicadores.
+                        if df_meta.empty and len(metas) == 1:
+                            df_meta = df_obj.copy()
+
                         _render_tabla_indicadores(df_meta)
             else:
                 # Si no hay metas estratégicas, mostrar todos los indicadores del objetivo
@@ -232,8 +277,8 @@ def _render_tabla_indicadores(df):
         "<thead><tr>"
         "<th>Indicador</th>"
         "<th>Proceso</th>"
-        "<th>Meta con Signo</th>"
-        "<th>Ejecucion con Signo</th>"
+        "<th>Meta</th>"
+        "<th>Ejecución</th>"
         "<th>Cumplimiento %</th>"
         "<th>Estado</th>"
         "</tr></thead>"
@@ -377,15 +422,17 @@ def render_tab_lineas(df, pdi_catalog=None):
             )
 
         if is_expanded:
-            st.markdown('<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
-            subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
-            with subtabs[0]:
-                _render_subtab_resumen(df_linea, linea, color)
-            with subtabs[1]:
-                _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
-            with subtabs[2]:
-                _render_subtab_analisis(df_linea, linea, color)
-            st.markdown("</div>", unsafe_allow_html=True)
+            detail_cols = st.columns([0.88, 0.12])
+            with detail_cols[0]:
+                st.markdown('<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
+                subtabs = st.tabs(["Resumen", "Objetivos, Metas e Indicadores", "Análisis"])
+                with subtabs[0]:
+                    _render_subtab_resumen(df_linea, linea, color)
+                with subtabs[1]:
+                    _render_subtab_objetivos(df_linea, linea, pdi_catalog=pdi_catalog)
+                with subtabs[2]:
+                    _render_subtab_analisis(df_linea, linea, color)
+                st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 

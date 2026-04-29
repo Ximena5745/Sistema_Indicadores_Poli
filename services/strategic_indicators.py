@@ -99,14 +99,16 @@ def _id_limpio(x) -> str:
 
 # ──────────────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
-def load_pdi_catalog() -> pd.DataFrame:
+def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
     if not RAW_XLSX.exists():
-        return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
+        base_cols = ["Linea", "Objetivo", "Meta_Estrategica"]
+        return pd.DataFrame(columns=(base_cols + ["Id"] if include_ids else base_cols))
     try:
         # La fuente real de la jerarquía Línea -> Objetivo -> Meta Estratégica está en Worksheet.
         df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
     except Exception:
-        return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
+        base_cols = ["Linea", "Objetivo", "Meta_Estrategica"]
+        return pd.DataFrame(columns=(base_cols + ["Id"] if include_ids else base_cols))
 
     df.columns = [str(c).strip() for c in df.columns]
     c_linea = _find_col(
@@ -128,9 +130,12 @@ def load_pdi_catalog() -> pd.DataFrame:
         ],
     )
     if not c_linea or not c_obj:
-        return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
+        base_cols = ["Linea", "Objetivo", "Meta_Estrategica"]
+        return pd.DataFrame(columns=(base_cols + ["Id"] if include_ids else base_cols))
 
-    cols = [c_linea, c_obj] + ([c_meta_est] if c_meta_est else [])
+    c_id = _find_col(df, ["Id", "ID"])
+
+    cols = [c_linea, c_obj] + ([c_meta_est] if c_meta_est else []) + ([c_id] if c_id else [])
     out = df[cols].copy().rename(columns={c_linea: "Linea", c_obj: "Objetivo"})
     if c_meta_est:
         out = out.rename(columns={c_meta_est: "Meta_Estrategica"})
@@ -140,16 +145,28 @@ def load_pdi_catalog() -> pd.DataFrame:
     out["Linea"] = out["Linea"].astype(str).str.strip()
     out["Objetivo"] = out["Objetivo"].astype(str).str.strip()
     out["Meta_Estrategica"] = out["Meta_Estrategica"].astype(str).str.strip()
+    if c_id:
+        out = out.rename(columns={c_id: "Id"})
+        out["Id"] = out["Id"].apply(_id_limpio)
+    else:
+        out["Id"] = ""
     out = out[(out["Linea"] != "") & (out["Objetivo"] != "")]
-    # Deduplicar por jerarquía y conservar la primera meta no vacía por objetivo.
+    # Limpiar NaN textual.
     out["Meta_Estrategica"] = out["Meta_Estrategica"].replace("nan", "")
-    out = (
+
+    if include_ids:
+        out = out[(out["Meta_Estrategica"] != "") & (out["Id"] != "")]
+        out = out.drop_duplicates(subset=["Linea", "Objetivo", "Meta_Estrategica", "Id"]).reset_index(drop=True)
+        return out[["Linea", "Objetivo", "Meta_Estrategica", "Id"]]
+
+    # Modo compacto para merges generales: una meta representativa por objetivo.
+    compact = (
         out.sort_values(["Linea", "Objetivo"])
         .groupby(["Linea", "Objetivo"], as_index=False)
         .agg({"Meta_Estrategica": "first"})
         .reset_index(drop=True)
     )
-    return out
+    return compact
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)

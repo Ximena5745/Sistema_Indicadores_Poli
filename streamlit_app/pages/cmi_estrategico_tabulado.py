@@ -89,7 +89,7 @@ def render():
             df = filter_df_for_cmi_estrategico(df, id_column="Id")
 
             if not df.empty:
-                pdi_catalog = load_pdi_catalog()
+                pdi_catalog = load_pdi_catalog(include_ids=True)
                 lineas = sorted(df["Linea"].dropna().astype(str).unique().tolist())
 
                 _ff1, _ff2, _ff3 = st.columns([1, 2, 2])

@@ -196,6 +196,8 @@ def inject_cmi_premium_css():
         .cmi-objetivos-table th:nth-child(4), .cmi-objetivos-table td:nth-child(4) { width: 10%; }
         .cmi-objetivos-table th:nth-child(5), .cmi-objetivos-table td:nth-child(5) { width: 22%; }
         .cmi-objetivos-table th:nth-child(6), .cmi-objetivos-table td:nth-child(6) { width: 10%; }
+        .cmi-objetivos-table th:nth-child(3), .cmi-objetivos-table th:nth-child(4) { text-align: center; }
+        .cmi-objetivos-table td:nth-child(3), .cmi-objetivos-table td:nth-child(4) { text-align: center; }
         .cmi-objetivos-table th {
             text-align: left;
             background-color: #F8FAFC;
