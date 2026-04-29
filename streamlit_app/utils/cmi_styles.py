@@ -166,7 +166,10 @@ def inject_cmi_premium_css():
             white-space: nowrap;
         }
         .cmi-lineas-section {
-            padding: 0 16px 12px 16px;
+            margin: 0 0 18px 0;
+            padding: 28px 36px 28px 36px;
+            border-radius: 24px;
+            background-color: rgba(255,255,255,0.02);
         }
         .cmi-line-card {
             width: 100%;
