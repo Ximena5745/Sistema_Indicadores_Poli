@@ -250,7 +250,8 @@ def render_tab_lineas(df, pdi_catalog=None):
     expanded_target = _normalize_linea_key(expanded_target_raw)
     expanded_applied_key = f"cmi_tab_linea_expand_applied_{expanded_target}"
 
-    st.markdown("<div class='cmi-estrategico-lineas-root'><div class='cmi-estrategico-lineas-section'>", unsafe_allow_html=True)
+    st.markdown("<div class='cmi-estrategico-lineas-root'>", unsafe_allow_html=True)
+    st.markdown("<div class='cmi-estrategico-lineas-section'>", unsafe_allow_html=True)
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
         color = linea_color(linea)
@@ -321,5 +322,6 @@ def render_tab_lineas(df, pdi_catalog=None):
             with subtabs[2]:
                 _render_subtab_analisis(df_linea, linea, color)
             st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 

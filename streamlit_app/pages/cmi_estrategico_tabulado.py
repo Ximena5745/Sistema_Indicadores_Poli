@@ -42,7 +42,7 @@ def _default_corte(anio: int | None) -> str:
 def render():
     from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
     inject_cmi_premium_css()
-    st.markdown("<div class='cmi-estrategico-page'>", unsafe_allow_html=True)
+    
     st.title("CMI Estratégico")
     st.caption("Indicadores del Plan Estratégico (PDI) interactivo y detallado.")
 
@@ -145,5 +145,3 @@ def render():
         render_tab_listado(df_filtrado)
     elif selected_panel == "Alertas":
         render_tab_alertas(df_filtrado)
-
-    st.markdown("</div>", unsafe_allow_html=True)

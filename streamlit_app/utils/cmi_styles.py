@@ -165,35 +165,13 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
-        .cmi-estrategico-page {
-            width: calc(100% - 80px) !important;
-            margin: 0 40px !important;
-            padding: 0 !important;
-            box-sizing: border-box;
+        /* Apply padding to main content when CMI Estratégico lines are present */
+        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) {
+            padding: 0 40px !important;
         }
-        /* Reset padding and margin for all nested elements */
-        .cmi-estrategico-page > * {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-        }
-        /* Force all Streamlit containers inside page */
-        .cmi-estrategico-page .stTabs,
-        .cmi-estrategico-page .stColumn,
-        .cmi-estrategico-page .stColumns,
-        .cmi-estrategico-page [role="tablist"] {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-        }
-        /* Deep nesting for tab content */
-        .cmi-estrategico-page .stTabs > div {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
+        /* Alternative for older browsers - apply to direct parent of content */
+        .stContainer:has(.cmi-estrategico-lineas-section) {
+            padding: 0 40px !important;
         }
         .cmi-estrategico-page .cmi-estrategico-lineas-root {
             width: 100%;
