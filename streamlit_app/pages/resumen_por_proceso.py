@@ -195,6 +195,91 @@ def _build_ia_rows_rpp(rows: list[dict]) -> str:
     return out
 
 
+def _render_resumen_procesos_style() -> None:
+    """Estilos claros y legibles solo para la pestaña Resumen del CMI por Procesos."""
+    st.markdown(
+        """
+        <style>
+        .rpp-summary-card {
+            background: #ffffff;
+            border: 1px solid #dbe5f2;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(12, 34, 64, 0.06);
+            padding: 14px 16px;
+            margin: 10px 0 8px 0;
+        }
+        .rpp-summary-title {
+            margin: 0 0 6px 0;
+            color: #173a63;
+            font-size: 0.94rem;
+            font-weight: 700;
+        }
+        .rpp-summary-text {
+            margin: 0;
+            color: #3f5875;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+        .rpp-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .rpp-panel {
+            background: #ffffff;
+            border: 1px solid #d7e4f2;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(17, 46, 81, 0.05);
+        }
+        .rpp-panel-title {
+            margin: 0 0 8px 0;
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: #1a3f6d;
+        }
+        .rpp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            color: #23384f;
+        }
+        .rpp-table th {
+            text-align: left;
+            background: #f4f8fd;
+            color: #35506e;
+            font-weight: 700;
+            padding: 8px 10px;
+            border-bottom: 1px solid #d9e4f2;
+        }
+        .rpp-table th:last-child,
+        .rpp-table td:last-child {
+            text-align: right;
+        }
+        .rpp-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #edf2f8;
+            vertical-align: top;
+        }
+        .rpp-table tr:last-child td {
+            border-bottom: none;
+        }
+        .rpp-empty {
+            color: #697b90;
+            font-style: italic;
+        }
+        @media (max-width: 920px) {
+            .rpp-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, display_col: str) -> tuple[list, list]:
     """Calcula mejores y peores variaciones entre períodos."""
     if base_df.empty or prev_df.empty:
@@ -1867,6 +1952,9 @@ def render() -> None:
     procesos_all = sorted(full_work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
 
     st.markdown("#### Filtros")
+    st.caption(
+        "Usa los filtros para cambiar el corte de evaluación. El Resumen consolida los indicadores activos de CMI por Procesos y mantiene la semántica oficial de niveles."
+    )
     c1, c2, c3 = st.columns(3)
     with c1:
         default_year = 2025 if 2025 in years else (years[-1] if years else None)
@@ -1961,6 +2049,7 @@ def render() -> None:
     )
 
     with tabs[0]:
+        _render_resumen_procesos_style()
         st.markdown("### CMI por Procesos — Vista Global")
         st.caption("Fuente: Consolidado Cierres · Resultados Consolidados.xlsx — Filtrado por año, sin filtros de proceso/subproceso")
 
@@ -1972,12 +2061,20 @@ def render() -> None:
             )
 
         # Cargar datos usando última cierre disponible para el año seleccionado
-        _cierres_preview = preparar_pdi_con_cierre(int(global_year), 12)
-        _latest_m = _latest_month_for_cierres(_cierres_preview, int(global_year)) or 12
-        _prev_m = _latest_month_for_cierres(_cierres_preview, int(global_year) - 1) or None
+        with st.spinner("Cargando resumen global de CMI por Procesos..."):
+            _cierres_preview = preparar_pdi_con_cierre(int(global_year), 12)
+            _latest_m = _latest_month_for_cierres(_cierres_preview, int(global_year)) or 12
+            _prev_m = _latest_month_for_cierres(_cierres_preview, int(global_year) - 1) or None
 
-        cmi_global = preparar_pdi_con_cierre(int(global_year), _latest_m)
-        cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id")
+            cmi_global = preparar_pdi_con_cierre(int(global_year), _latest_m)
+            cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id")
+
+        _latest_month_name = (
+            MESES_OPCIONES[int(_latest_m) - 1] if _latest_m and 1 <= int(_latest_m) <= 12 else "Diciembre"
+        )
+        st.caption(
+            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación de variación contra {global_year - 1}."
+        )
 
         # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
         try:
@@ -2116,49 +2213,50 @@ def render() -> None:
 
             st.markdown(
                 f"""
-                <div style='background:#1A2B3C;border-radius:10px;padding:1rem 1.2rem;margin:1rem 0 0.5rem 0;color:#E8EDF5;'>
-                    <h4 style='margin:0 0 0.5rem 0;font-size:1rem;'>Perspectivas Operativas</h4>
-                    <div style='background:rgba(255,255,255,0.08);border-radius:6px;padding:0.5rem 0.75rem;font-size:0.82rem;'>
-                        {_op_summary}
-                    </div>
+                <div class='rpp-summary-card'>
+                    <h4 class='rpp-summary-title'>Insights del corte</h4>
+                    <p class='rpp-summary-text'>{_op_summary}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            _op_c1, _op_c2 = st.columns(2)
-            with _op_c1:
-                st.markdown(
-                    f"""
-                    <div style='background:#1A2B3C;border-radius:10px;padding:1rem 1.2rem;color:#E8EDF5;'>
-                        <div style='font-weight:700;font-size:0.88rem;margin-bottom:0.5rem;'>Indicadores que mejoraron (Proceso)</div>
-                        <table style='width:100%;border-collapse:collapse;font-size:0.82rem;'>
-                            <thead><tr>
-                                <th style='text-align:left;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.15);'>Proceso</th>
-                                <th style='text-align:right;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.15);'>Variación</th>
-                            </tr></thead>
+            if not _best_html:
+                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
+            if not _worst_html:
+                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
+
+            st.markdown(
+                f"""
+                <div class='rpp-grid'>
+                    <div class='rpp-panel'>
+                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
+                        <table class='rpp-table'>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
                             <tbody>{_best_html}</tbody>
                         </table>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            with _op_c2:
-                st.markdown(
-                    f"""
-                    <div style='background:#1A2B3C;border-radius:10px;padding:1rem 1.2rem;color:#E8EDF5;'>
-                        <div style='font-weight:700;font-size:0.88rem;margin-bottom:0.5rem;'>Indicadores en riesgo (Proceso)</div>
-                        <table style='width:100%;border-collapse:collapse;font-size:0.82rem;'>
-                            <thead><tr>
-                                <th style='text-align:left;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.15);'>Proceso</th>
-                                <th style='text-align:right;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.15);'>Variación</th>
-                            </tr></thead>
+                    <div class='rpp-panel'>
+                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
+                        <table class='rpp-table'>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
                             <tbody>{_worst_html}</tbody>
                         </table>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
         st.markdown("### Información por proceso")
