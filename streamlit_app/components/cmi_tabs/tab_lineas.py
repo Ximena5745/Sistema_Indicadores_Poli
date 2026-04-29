@@ -91,9 +91,9 @@ def _render_subtab_resumen(df_linea, linea, color):
         ("Total indicadores", str(n_ind), "#2563EB"),
     ]
 
-    cols = st.columns(3)
+    cols = st.columns(6)
     for idx, (title, value, border_color) in enumerate(metrics):
-        with cols[idx % 3]:
+        with cols[idx]:
             st.markdown(
                 f"""
                 <div style='padding:18px; border-radius:16px; border:1px solid #E5E7EB; background:#FFFFFF; box-shadow:0 8px 20px rgba(15,23,42,0.06); margin-bottom:12px;'>

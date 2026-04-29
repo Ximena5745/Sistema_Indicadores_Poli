@@ -117,23 +117,25 @@ def inject_cmi_premium_css():
             width: 100%;
         }
         .cmi-sparkbar-label {
-            flex: 0 0 240px;
+            flex: 0 0 280px;
             color: #0F172A;
             font-size: 0.95rem;
             font-weight: 600;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow: visible;
+            text-overflow: unset;
+            white-space: normal;
+            line-height: 1.3;
+            word-break: break-word;
         }
         .cmi-sparkbar-track {
             position: relative;
-            flex: 1 1 360px;
-            min-width: 360px;
-            max-width: 360px;
+            flex: 1 1 auto;
+            min-width: 280px;
             height: 14px;
             background-color: #E5E7EB;
             border-radius: 999px;
             overflow: hidden;
+            width: 100%;
         }
         .cmi-sparkbar-fill {
             height: 100%;
