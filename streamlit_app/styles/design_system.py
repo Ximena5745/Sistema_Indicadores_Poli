@@ -30,7 +30,7 @@ COLORS = {
     "info_dark": "#1565C0",  # Azul info oscuro
     # Colores de cumplimiento específicos
     "cumplimiento": "#43A047",
-    "sobrecumplimiento": "#1A3A5C",
+    "sobrecumplimiento": "#6699FF",
     "alerta": "#FBAF17",
     "peligro": "#D32F2F",
     "sin_dato": "#9E9E9E",

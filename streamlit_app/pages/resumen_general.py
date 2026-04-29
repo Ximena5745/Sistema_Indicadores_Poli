@@ -1950,7 +1950,7 @@ def render():
             }
             return [
                 (total, "Total", "#0B5FFF"),
-                (counts["Sobrecumplimiento"], "Sobrecumplimiento", "#173D66"),
+                (counts["Sobrecumplimiento"], "Sobrecumplimiento", "#6699FF"),
                 (counts["Cumplimiento"], "Cumplimiento", "#16A34A"),
                 (counts["Alerta"], "Alerta", "#F59E0B"),
                 (counts["Peligro"], "Peligro", "#D32F2F"),

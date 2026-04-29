@@ -41,7 +41,7 @@ MES_MAP = {m.upper(): i + 1 for i, m in enumerate(MESES_OPCIONES)}
 # ── Estilos y funciones de renderizado de resumen_general.py ──────────────────
 
 NIVELES_COLORS = {
-    "sobrecumplimiento": "#1565C0",
+    "sobrecumplimiento": "#6699FF",
     "cumplimiento": "#2E7D32",
     "alerta": "#F9A825",
     "peligro": "#C62828",

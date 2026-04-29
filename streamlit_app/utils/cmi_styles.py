@@ -106,31 +106,37 @@ def inject_cmi_premium_css():
         .badge-peligro { background-color: #D32F2F; color: white; }
         .badge-alerta { background-color: #FBAF17; color: #101827; }
         .badge-cump { background-color: #43A047; color: white; }
-        .badge-sobre { background-color: #1A3A5C; color: white; }
+        .badge-sobre { background-color: #6699FF; color: white; }
         .badge-default { background-color: #E5E7EB; color: #101827; }
 
         .cmi-sparkbar-row {
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 16px;
             margin-bottom: 14px;
             width: 100%;
         }
         .cmi-sparkbar-label {
-            flex: 0 0 280px;
+            flex: 0 0 45%;
             color: #0F172A;
             font-size: 0.95rem;
             font-weight: 600;
-            overflow: visible;
-            text-overflow: unset;
-            white-space: normal;
-            line-height: 1.3;
-            word-break: break-word;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+        .cmi-sparkbar-bararea {
+            flex: 0 0 55%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 200px;
         }
         .cmi-sparkbar-track {
             position: relative;
             flex: 1 1 auto;
-            min-width: 280px;
+            min-width: 0;
             height: 14px;
             background-color: #E5E7EB;
             border-radius: 999px;
@@ -152,7 +158,8 @@ def inject_cmi_premium_css():
             border-radius: 2px;
         }
         .cmi-sparkbar-value {
-            flex: 0 0 70px;
+            flex: 0 0 15%;
+            min-width: 60px;
             text-align: right;
             color: #0F172A;
             font-weight: 700;
@@ -230,7 +237,7 @@ def render_sparkbar(val, nivel, label=None):
     elif "Alerta" in str(nivel):
         color = "#FBAF17"
     elif "Sobrecumplimiento" in str(nivel):
-        color = "#1A3A5C"
+        color = "#6699FF"
     elif "Cumplimiento" in str(nivel):
         color = "#43A047"
     else:
@@ -241,11 +248,13 @@ def render_sparkbar(val, nivel, label=None):
     html = f"""
     <div class='cmi-sparkbar-row'>
         {label_html}
-        <div class='cmi-sparkbar-track'>
-            <div class='cmi-sparkbar-fill' style='width: {fill_pct}%; background-color: {color};'></div>
-            <div class='cmi-sparkbar-marker' title='100%'></div>
+        <div class='cmi-sparkbar-bararea'>
+            <div class='cmi-sparkbar-track'>
+                <div class='cmi-sparkbar-fill' style='width: {fill_pct}%; background-color: {color};'></div>
+                <div class='cmi-sparkbar-marker' title='100%'></div>
+            </div>
+            <div class='cmi-sparkbar-value'>{val_float:.1f}%</div>
         </div>
-        <div class='cmi-sparkbar-value'>{val_float:.1f}%</div>
     </div>
     """
     return html

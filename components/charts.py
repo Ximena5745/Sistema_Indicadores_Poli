@@ -377,7 +377,7 @@ def panel_detalle_indicador(df_ind: pd.DataFrame, id_ind: str, df_full: pd.DataF
         "Peligro":          "#C62828",
         "Alerta":           "#F57F17",
         "Cumplimiento":     "#2E7D32",
-        "Sobrecumplimiento":"#0277BD",
+        "Sobrecumplimiento":"#6699FF",
         "Sin dato":         "#9E9E9E",
     }
     badge_col = BADGE_COLOR.get(categoria, "#9E9E9E")

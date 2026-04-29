@@ -156,7 +156,7 @@ class TestColorAndIconHelpers:
         assert obtener_color_categoria("Peligro") == "#D32F2F"
         assert obtener_color_categoria("Alerta") == "#FBAF17"
         assert obtener_color_categoria("Cumplimiento") == "#43A047"
-        assert obtener_color_categoria("Sobrecumplimiento") == "#1A3A5C"
+        assert obtener_color_categoria("Sobrecumplimiento") == "#6699FF"
         assert obtener_color_categoria("Sin dato") == "#BDBDBD"
 
     def test_obtener_icono_categoria(self):

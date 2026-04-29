@@ -485,7 +485,7 @@ def render():
     st.plotly_chart(sunburst, use_container_width=True)
 
     kpi_cols = st.columns(5)
-    colors = ["#0B5FFF", "#1A3A5C", "#43A047", "#FBAF17", "#D32F2F"]
+    colors = ["#0B5FFF", "#6699FF", "#43A047", "#FBAF17", "#D32F2F"]
     values = [
         count_total,
         counts["Sobrecumplimiento"],
@@ -579,7 +579,7 @@ def render():
                 name="Sobrecumplimiento",
                 x=proc_counts[process_col],
                 y=proc_counts["Sobrecumplimiento"],
-                marker_color="#1A3A5C",
+                marker_color="#6699FF",
             )
         )
         fig.add_trace(

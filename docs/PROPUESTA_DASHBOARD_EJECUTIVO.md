@@ -726,7 +726,7 @@ COLORES DE CATEGORÍA:
 ├── Peligro:     #D32F2F (Rojo)
 ├── Alerta:      #FBAF17 (Naranja/Dorado)
 ├── Cumplimiento:#43A047 (Verde)
-└── Sobrecumpl:#1A3A5C (Azul oscuro)
+└── Sobrecumpl:#6699FF (Azul)
 
 COLORES DE LÍNEA (PDI):
 ├── Expansión:                    #FBAF17

@@ -42,7 +42,7 @@
 | Peligro | `#D32F2F` 🔴 | Cumplimiento < 80% |
 | Alerta | `#FBAF17` 🟡 | Cumplimiento 80-99% |
 | Cumplimiento | `#43A047` 🟢 | Cumplimiento 100%+ |
-| Sobrecumplimiento | `#1A3A5C` 🔵 | Cumplimiento ≥ 105% |
+| Sobrecumplimiento | `#6699FF` 🔵 | Cumplimiento ≥ 105% |
 | Sin Dato | `#9E9E9E` ⚪ | Sin información |
 
 ### 2.3 Personalización
@@ -53,7 +53,7 @@ colores_personalizados = {
     "Peligro": "#D32F2F",
     "Alerta": "#FBAF17", 
     "Cumplimiento": "#43A047",
-    "Sobrecumplimiento": "#1A3A5C"
+    "Sobrecumplimiento": "#6699FF"
 }
 
 # Aplicar a gráfico

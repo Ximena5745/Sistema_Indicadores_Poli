@@ -69,7 +69,7 @@ _KANBAN_COLS = [
     ("Peligro", "#FFCDD2", "#C62828", "🔴"),
     ("Alerta", "#FEF9E7", "#F57F17", "🟡"),
     ("Cumplimiento", "#E8F5E9", "#2E7D32", "🟢"),
-    ("Sobrecumplimiento", "#E3F2FD", "#1565C0", "🔵"),
+    ("Sobrecumplimiento", "#DCE6FF", "#6699FF", "🔵"),
     (_PEND, "#F5F5F5", "#616161", "⚪"),
 ]
 

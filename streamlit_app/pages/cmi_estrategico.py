@@ -345,7 +345,7 @@ def render():
         "Peligro": "#FFCDD2",
         "Alerta": "#FEF3D0",
         "Cumplimiento": "#E8F5E9",
-        "Sobrecumplimiento": "#D0E4FF",
+        "Sobrecumplimiento": "#DCE6FF",
         "No aplica": "#ECEFF1",
         "Pendiente de reporte": "#F5F5F5",
     }
@@ -394,7 +394,7 @@ def render():
             "Peligro": "#C62828",
             "Alerta": "#F9A825",
             "Cumplimiento": "#2E7D32",
-            "Sobrecumplimiento": "#1565C0",
+            "Sobrecumplimiento": "#6699FF",
             "No aplica": "#616161",
             "Pendiente de reporte": "#9E9E9E",
         }

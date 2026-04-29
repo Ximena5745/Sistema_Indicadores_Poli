@@ -23,10 +23,10 @@ except ImportError:
         "primary_light": "#2E5C8A",
     }
     COLOR_CATEGORIA = {
-        "Peligro": "#D32F2F", 
-        "Alerta": "#FBAF17", 
-        "Cumplimiento": "#43A047", 
-        "Sobrecumplimiento": "#1A3A5C"
+        "Peligro": "#D32F2F",
+        "Alerta": "#FBAF17",
+        "Cumplimiento": "#43A047",
+        "Sobrecumplimiento": "#6699FF"
     }
 
 # Colores por línea estratégica (del docs/core/04_Dashboard.md)
@@ -36,7 +36,7 @@ LINEA_COLORES = {
     "calidad": "#EC0677",
     "experiencia": "#1FB2DE",
     "sostenibilidad": "#A6CE38",
-    "educacion para toda la vida": "#0F385A"
+    "educacion para toda la vida": "#0F385A",
 }
 LINEA_DISPLAY_MAP = {
     "expansion": "Expansión",

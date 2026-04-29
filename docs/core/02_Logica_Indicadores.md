@@ -35,7 +35,7 @@ cumplimiento = min(cumplimiento, 1.3)  # 130%
 | **< 80%** | Peligro | `PEL` | `#D32F2F` 🔴 |
 | **80% - 99.99%** | Alerta | `ALE` | `#FBAF17` 🟡 |
 | **100% - 104.99%** | Cumplimiento | `CUM` | `#43A047` 🟢 |
-| **≥ 105%** | Sobrecumplimiento | `SOB` | `#1A3A5C` 🔵 |
+| **≥ 105%** | Sobrecumplimiento | `SOB` | `#6699FF` 🔵 |
 
 #### 📅 Indicadores PLAN ANUAL (Régimen Especial PA)
 
