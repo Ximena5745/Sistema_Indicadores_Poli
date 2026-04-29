@@ -1,3 +1,4 @@
+import hashlib
 import html
 import streamlit as st
 import pandas as pd
@@ -13,6 +14,12 @@ def _normalize_linea_key(linea):
     txt = str(linea or "").strip().lower().replace("_", " ")
     txt = unicodedata.normalize("NFD", txt)
     return "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+
+
+def _key_for_linea(linea):
+    normalized = _normalize_linea_key(linea)
+    hashed = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:10]
+    return f"{normalized}_{hashed}" if normalized else hashed
 
 
 def _hex_to_rgba(hex_color, alpha=0.12):
@@ -234,9 +241,7 @@ def render_tab_lineas(df, pdi_catalog=None):
         st.info("No hay líneas estratégicas para mostrar.")
         return
 
-    if st.session_state.get("cmi_tab_linea_expand") and "cmi_linea_open_" not in st.session_state:
-        expanded_target = _normalize_linea_key(st.session_state["cmi_tab_linea_expand"])
-        st.session_state[f"cmi_linea_open_{expanded_target}"] = True
+    expanded_target = _normalize_linea_key(st.session_state.get("cmi_tab_linea_expand", ""))
 
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
@@ -255,12 +260,15 @@ def render_tab_lineas(df, pdi_catalog=None):
         if pd.isna(cump_val):
             cump_val = 0.0
 
-        line_key = _normalize_linea_key(linea)
+        line_key_norm = _normalize_linea_key(linea)
+        line_key = _key_for_linea(linea)
         state_key = f"cmi_linea_open_{line_key}"
         if state_key not in st.session_state:
             st.session_state[state_key] = False
+        if expanded_target and line_key_norm == expanded_target:
+            st.session_state[state_key] = True
         is_expanded = st.session_state[state_key]
-        display_linea = str(linea).replace("_", " ")
+        display_linea = html.escape(str(linea).replace("_", " ") or "Línea")
         gradient_light = _hex_to_rgba(color, 0.98)
         gradient_mid = _hex_to_rgba(color, 0.76)
         gradient_soft = _hex_to_rgba(color, 0.40)

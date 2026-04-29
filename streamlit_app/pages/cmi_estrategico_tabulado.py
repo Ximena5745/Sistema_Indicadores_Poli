@@ -119,8 +119,10 @@ def render():
     # Evita rerun por mutar query_params; se procesa una vez por valor.
     linea_target = st.query_params.get("cmi_linea")
     if linea_target:
-        linea_target = str(linea_target)
-        if st.session_state.get("_cmi_linea_processed") != linea_target:
+        if isinstance(linea_target, list):
+            linea_target = linea_target[0]
+        linea_target = str(linea_target).strip()
+        if linea_target and st.session_state.get("_cmi_linea_processed") != linea_target:
             st.session_state["cmi_tab_linea_expand"] = linea_target
             st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
             st.session_state["_cmi_linea_processed"] = linea_target

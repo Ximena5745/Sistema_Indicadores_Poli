@@ -98,6 +98,7 @@ def _id_limpio(x) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_pdi_catalog() -> pd.DataFrame:
     if not RAW_XLSX.exists():
         return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
@@ -175,6 +176,7 @@ def load_cna_catalog() -> pd.DataFrame:
     return out.drop_duplicates().reset_index(drop=True)
 
 
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_worksheet_flags() -> pd.DataFrame:
     """Cargador de flags con caché manual como fallback."""
     # Intentar caché manual primero
@@ -266,6 +268,7 @@ def load_worksheet_flags() -> pd.DataFrame:
     return out
 
 
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
 def load_cierres() -> pd.DataFrame:
     """Cargador de cierres con caché manual como fallback."""
     # Intentar caché manual primero
