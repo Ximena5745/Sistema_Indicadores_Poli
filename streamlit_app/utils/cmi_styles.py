@@ -165,18 +165,22 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
-        .cmi-estrategico-lineas-root {
+        .cmi-estrategico-page {
             width: 100%;
+            box-sizing: border-box;
             padding: 0 40px !important;
+        }
+        .cmi-estrategico-page .cmi-estrategico-lineas-root {
+            width: 100%;
             box-sizing: border-box;
             display: flex;
             justify-content: center;
         }
-        .cmi-estrategico-lineas-section {
+        .cmi-estrategico-page .cmi-estrategico-lineas-section {
             width: 100%;
             max-width: 1180px;
             margin: 20px 0 24px 0;
-            padding: 36px 56px 36px 56px !important;
+            padding: 36px 56px !important;
             border-radius: 28px;
             background-color: rgba(255,255,255,0.04);
             box-shadow: 0 0 0 1px rgba(15,23,42,0.04);
