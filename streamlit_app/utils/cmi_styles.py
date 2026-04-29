@@ -165,18 +165,18 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
-        .cmi-lineas-root {
+        .cmi-estrategico-page .cmi-lineas-root {
             width: 100%;
-            padding: 0 40px;
+            padding: 0 40px !important;
             box-sizing: border-box;
             display: flex;
             justify-content: center;
         }
-        .cmi-lineas-section {
+        .cmi-estrategico-page .cmi-lineas-section {
             width: 100%;
             max-width: 1180px;
             margin: 20px 0 24px 0;
-            padding: 36px 56px 36px 56px;
+            padding: 36px 56px 36px 56px !important;
             border-radius: 28px;
             background-color: rgba(255,255,255,0.04);
             box-shadow: 0 0 0 1px rgba(15,23,42,0.04);
