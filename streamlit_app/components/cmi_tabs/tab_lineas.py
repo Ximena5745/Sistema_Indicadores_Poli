@@ -250,7 +250,7 @@ def render_tab_lineas(df, pdi_catalog=None):
     expanded_target = _normalize_linea_key(expanded_target_raw)
     expanded_applied_key = f"cmi_tab_linea_expand_applied_{expanded_target}"
 
-    st.markdown("<div class='cmi-lineas-root'><div class='cmi-lineas-section'>", unsafe_allow_html=True)
+    st.markdown("<div class='cmi-estrategico-lineas-root'><div class='cmi-estrategico-lineas-section'>", unsafe_allow_html=True)
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
         color = linea_color(linea)

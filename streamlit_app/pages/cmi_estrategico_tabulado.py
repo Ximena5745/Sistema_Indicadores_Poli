@@ -130,7 +130,6 @@ def render():
     if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in tab_names:
         st.session_state["cmi_tab_panel"] = "Resumen Desglosado"
 
-    st.markdown("<div class='cmi-estrategico-page'>", unsafe_allow_html=True)
     selected_panel = st.segmented_control(
         "Sección",
         options=tab_names,
@@ -146,5 +145,3 @@ def render():
         render_tab_listado(df_filtrado)
     elif selected_panel == "Alertas":
         render_tab_alertas(df_filtrado)
-
-    st.markdown("</div>", unsafe_allow_html=True)

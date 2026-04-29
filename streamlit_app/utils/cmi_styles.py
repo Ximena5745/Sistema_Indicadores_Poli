@@ -165,14 +165,14 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
-        .cmi-estrategico-page .cmi-lineas-root {
+        .cmi-estrategico-lineas-root {
             width: 100%;
             padding: 0 40px !important;
             box-sizing: border-box;
             display: flex;
             justify-content: center;
         }
-        .cmi-estrategico-page .cmi-lineas-section {
+        .cmi-estrategico-lineas-section {
             width: 100%;
             max-width: 1180px;
             margin: 20px 0 24px 0;
