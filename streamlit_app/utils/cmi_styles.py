@@ -165,30 +165,26 @@ def inject_cmi_premium_css():
             font-weight: 700;
             white-space: nowrap;
         }
-        /* Simple approach: Apply padding to main container */
-        .stMainBlockContainer:has(.cmi-estrategico-lineas-section) {
+        /* CMI Estratégico page marker - only apply spacing on this specific page */
+        .cmi-estrategico-page-marker {
+            display: none;
+            position: absolute;
+            pointer-events: none;
+            z-index: -1000;
+        }
+        
+        /* When cmi-estrategico-page-marker is present, style the main container with proper padding */
+        .cmi-estrategico-page-marker ~ div [data-testid="stMainBlockContainer"],
+        .cmi-estrategico-page-marker ~ div ~ div [data-testid="stMainBlockContainer"],
+        body:has(.cmi-estrategico-page-marker) [data-testid="stMainBlockContainer"] {
             padding: 0 40px !important;
-            overflow-x: hidden !important;
             box-sizing: border-box;
+            max-width: 1400px;
+            margin: 0 auto !important;
         }
-        /* CMI Estratégico lines root - no additional padding */
-        .cmi-estrategico-lineas-root {
-            margin: 0 !important;
-            width: 100% !important;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: center;
-            overflow-x: hidden;
-        }
-        /* CMI Estratégico lines section */
-        .cmi-estrategico-lineas-section {
-            width: 100%;
-            max-width: 1180px;
-            margin: 20px auto 24px auto !important;
-            padding: 36px 56px !important;
-            border-radius: 28px;
-            background-color: rgba(255,255,255,0.04);
-            box-shadow: 0 0 0 1px rgba(15,23,42,0.04);
+        
+        /* Fallback: use data attribute if marker is visible to browser */
+        [data-testid="stMainBlockContainer"] {
             box-sizing: border-box;
         }
         .cmi-line-card {

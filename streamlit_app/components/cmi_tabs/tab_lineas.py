@@ -155,26 +155,59 @@ def _render_tabla_indicadores(df):
     if df.empty:
         st.info("No hay indicadores para mostrar.")
         return
-    # Enriquecer y formatear columnas
-    if "Meta" in df.columns:
+    
+    # Preparar solo las columnas solicitadas: Indicador, Proceso, Meta, Ejecución, Cumplimiento %, Estado
+    df_work = df.copy()
+    
+    # Formatear Meta con signo si existe
+    if "Meta" in df_work.columns:
         meta_signo = (
-            df["Meta_Signo"] if "Meta_Signo" in df.columns else pd.Series([""] * len(df), index=df.index)
+            df_work["Meta_Signo"] if "Meta_Signo" in df_work.columns else pd.Series([""] * len(df_work), index=df_work.index)
         )
         decimales = (
-            df["Decimales"] if "Decimales" in df.columns else pd.Series([1] * len(df), index=df.index)
+            df_work["Decimales"] if "Decimales" in df_work.columns else pd.Series([1] * len(df_work), index=df_work.index)
         )
-        df["Meta"] = [format_meta_pdi(m, s, d) for m, s, d in zip(df["Meta"], meta_signo, decimales)]
-    if "cumplimiento_pct" in df.columns and "Nivel de cumplimiento" in df.columns:
-        df["Cumplimiento %"] = df.apply(lambda row: render_sparkbar(row["cumplimiento_pct"], row["Nivel de cumplimiento"]), axis=1)
-        df["Estado"] = df["Nivel de cumplimiento"].apply(format_nivel_badge)
-        df = df.drop(columns=["cumplimiento_pct", "Nivel de cumplimiento"])
-    ordered_cols = [
-        "Id", "Indicador", "Meta", "Ejecucion", "Cumplimiento %", "Estado"
+        df_work["Meta"] = [format_meta_pdi(m, s, d) for m, s, d in zip(df_work["Meta"], meta_signo, decimales)]
+    
+    # Formatear Ejecución con signo si existe
+    if "Ejecucion" in df_work.columns:
+        ejec_signo = (
+            df_work["Ejecucion_Signo"] if "Ejecucion_Signo" in df_work.columns else pd.Series([""] * len(df_work), index=df_work.index)
+        )
+        decimales_ejec = (
+            df_work["Decimales_Ejecucion"] if "Decimales_Ejecucion" in df_work.columns else pd.Series([1] * len(df_work), index=df_work.index)
+        )
+        df_work["Ejecucion"] = [format_meta_pdi(e, s, d) for e, s, d in zip(df_work["Ejecucion"], ejec_signo, decimales_ejec)]
+    
+    # Crear columna Cumplimiento % y Estado
+    if "cumplimiento_pct" in df_work.columns and "Nivel de cumplimiento" in df_work.columns:
+        df_work["Cumplimiento %"] = df_work.apply(
+            lambda row: render_sparkbar(row["cumplimiento_pct"], row["Nivel de cumplimiento"]), 
+            axis=1
+        )
+        df_work["Estado"] = df_work["Nivel de cumplimiento"].apply(format_nivel_badge)
+    
+    # Seleccionar solo columnas solicitadas
+    cols_solicitadas = [
+        "Indicador", 
+        "Proceso",  # Si existe
+        "Meta", 
+        "Ejecucion", 
+        "Cumplimiento %", 
+        "Estado"
     ]
-    cols_presentes = [c for c in ordered_cols if c in df.columns]
-    extras = [c for c in df.columns if c not in cols_presentes]
-    df = df[cols_presentes + extras]
-    html = df.to_html(escape=False, index=False, classes='table table-hover', border=0)
+    
+    # Filtrar columnas que existen en el dataframe
+    cols_presentes = [c for c in cols_solicitadas if c in df_work.columns]
+    
+    # Si no existe "Proceso", intentar usar "Subproceso" o similar
+    if "Proceso" not in cols_presentes and "Subproceso" in df_work.columns:
+        cols_presentes = ["Indicador", "Subproceso"] + [c for c in cols_presentes if c != "Indicador"]
+    
+    df_tabla = df_work[cols_presentes].copy()
+    
+    # Renderizar como tabla HTML simple
+    html = df_tabla.to_html(escape=False, index=False, classes='table table-hover', border=0)
     html = html.replace('<th>', '<th style="text-align: left; background-color: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6;">')
     html = html.replace('<td>', '<td style="padding: 10px; border-bottom: 1px solid #e9ecef; vertical-align: middle;">')
     st.markdown(html, unsafe_allow_html=True)
