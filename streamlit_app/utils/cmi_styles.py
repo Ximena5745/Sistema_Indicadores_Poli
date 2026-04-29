@@ -170,6 +170,34 @@ def inject_cmi_premium_css():
             box-sizing: border-box;
             padding: 0 40px !important;
         }
+        /* Force Streamlit tabs to respect padding */
+        .cmi-estrategico-page .stTabs [data-baseweb="tab-list"] {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        /* Force columns inside page to respect padding */
+        .cmi-estrategico-page [data-testid="column"] {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        /* Force markdown containers */
+        .cmi-estrategico-page [data-testid="stMarkdownContainer"] {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        /* General tabs container */
+        .cmi-estrategico-page .stTabs {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
         .cmi-estrategico-page .cmi-estrategico-lineas-root {
             width: 100%;
             box-sizing: border-box;
