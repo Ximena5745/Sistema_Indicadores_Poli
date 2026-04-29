@@ -88,22 +88,95 @@ def inject_cmi_premium_css():
         }
         
         /* Badges custom */
-        .badge-peligro {
-            background-color: #D32F2F; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        .badge-peligro,
+        .badge-alerta,
+        .badge-cump,
+        .badge-sobre,
+        .badge-default {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
-        .badge-alerta {
-            background-color: #FBAF17; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        .badge-peligro { background-color: #D32F2F; color: white; }
+        .badge-alerta { background-color: #FBAF17; color: #101827; }
+        .badge-cump { background-color: #43A047; color: white; }
+        .badge-sobre { background-color: #1A3A5C; color: white; }
+        .badge-default { background-color: #E5E7EB; color: #101827; }
+
+        .cmi-sparkbar-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 14px;
         }
-        .badge-cump {
-            background-color: #43A047; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        .cmi-sparkbar-label {
+            min-width: 220px;
+            max-width: 220px;
+            color: #0F172A;
+            font-size: 0.95rem;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .badge-sobre {
-            background-color: #1A3A5C; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        .cmi-sparkbar-track {
+            position: relative;
+            flex-grow: 1;
+            height: 14px;
+            background-color: #E5E7EB;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .cmi-sparkbar-fill {
+            height: 100%;
+            border-radius: 999px;
+            box-shadow: 0 2px 6px rgba(15,23,42,0.12);
+        }
+        .cmi-sparkbar-value {
+            min-width: 52px;
+            text-align: right;
+            color: #0F172A;
+            font-weight: 700;
+        }
+        .cmi-line-card {
+            border-radius: 20px;
+            padding: 22px 24px;
+            margin-bottom: 14px;
+            box-shadow: 0 18px 36px rgba(15,23,42,0.10);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .cmi-line-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 24px 48px rgba(15,23,42,0.14);
+        }
+        .cmi-line-card-open {
+            border-color: rgba(255,255,255,0.18);
+        }
+        .cmi-line-card-meta {
+            color: rgba(255,255,255,0.92);
+            font-size: 0.92rem;
+            margin-top: 6px;
+        }
+        .cmi-line-pill {
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.18);
+            color: #FFFFFF;
+            font-weight: 700;
+            min-width: 100px;
+            text-align: center;
         }
     </style>
     """, unsafe_allow_html=True)
 
-def render_sparkbar(val, nivel):
+def render_sparkbar(val, nivel, label=None):
     """
     Retorna HTML de una mini barra de progreso basado en el porcentaje de cumplimiento.
     """
@@ -114,19 +187,26 @@ def render_sparkbar(val, nivel):
         
     width = min(100, val_float)
     
-    # Determinar color basado en el nivel si es string, si no, heurística básica
-    if "Peligro" in str(nivel): color = "#D32F2F"
-    elif "Alerta" in str(nivel): color = "#FBAF17"
-    elif "Sobrecumplimiento" in str(nivel): color = "#1A3A5C"
-    elif "Cumplimiento" in str(nivel): color = "#43A047"
-    else: color = "#9E9E9E"
+    if "Peligro" in str(nivel):
+        color = "#D32F2F"
+    elif "Alerta" in str(nivel):
+        color = "#FBAF17"
+    elif "Sobrecumplimiento" in str(nivel):
+        color = "#1A3A5C"
+    elif "Cumplimiento" in str(nivel):
+        color = "#43A047"
+    else:
+        color = "#9E9E9E"
+
+    label_html = f"<div style='min-width: 220px; color: #111827; font-weight: 600; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>{label}</div>" if label else ""
 
     html = f"""
-    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between;">
-        <span style="min-width: 45px; font-weight: bold;">{val_float:.1f}%</span>
-        <div style="flex-grow: 1; margin-left: 10px; background-color: #E0E0E0; height: 8px; border-radius: 4px; overflow: hidden;">
-            <div style="width: {width}%; background-color: {color}; height: 100%;"></div>
+    <div class='cmi-sparkbar-row'>
+        {label_html}
+        <div class='cmi-sparkbar-track'>
+            <div class='cmi-sparkbar-fill' style='width: {width}%; background-color: {color};'></div>
         </div>
+        <div class='cmi-sparkbar-value'>{val_float:.1f}%</div>
     </div>
     """
     return html
@@ -137,12 +217,12 @@ def format_nivel_badge(nivel):
     """
     n_str = str(nivel)
     if "Peligro" in n_str:
-        return f'<span class="badge-peligro">🔴 Peligro</span>'
+        return f'<span class="badge-peligro">Peligro</span>'
     elif "Alerta" in n_str:
-        return f'<span class="badge-alerta">🟡 Alerta</span>'
+        return f'<span class="badge-alerta">Alerta</span>'
     elif "Sobrecumplimiento" in n_str:
-        return f'<span class="badge-sobre">🔵 Sobrecumpl.</span>'
+        return f'<span class="badge-sobre">Sobrecumplimiento</span>'
     elif "Cumplimiento" in n_str:
-        return f'<span class="badge-cump">🟢 Cumple</span>'
+        return f'<span class="badge-cump">Cumplimiento</span>'
     else:
-        return f'<span style="background-color: #E0E0E0; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">⚪ {n_str}</span>'
+        return f'<span style="background-color: #E0E0E0; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">{n_str}</span>'

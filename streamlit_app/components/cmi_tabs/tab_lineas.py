@@ -94,17 +94,24 @@ def _render_subtab_resumen(df_linea, linea, color):
             )
 
     if "Indicador" in df_linea.columns and "cumplimiento_pct" in df_linea.columns:
-        df_ind = df_linea[["Indicador", "cumplimiento_pct"]].dropna(subset=["Indicador"]).copy()
+        df_ind = df_linea[["Indicador", "cumplimiento_pct", "Nivel de cumplimiento"]].dropna(subset=["Indicador"]).copy()
         if not df_ind.empty:
             df_ind["cumplimiento_pct"] = pd.to_numeric(df_ind["cumplimiento_pct"], errors="coerce")
             df_ind = df_ind.sort_values("cumplimiento_pct", ascending=False).head(6)
 
+            st.markdown(
+                "<div style='margin-top:18px; padding:18px; border-radius:18px; background:#F8FAFF; border:1px solid #E2E8F0;'>"
+                "<div style='font-size:0.95rem; font-weight:700; color:#0F172A; margin-bottom:12px;'>Indicadores principales</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+            from streamlit_app.utils.cmi_styles import render_sparkbar
             for _, row in df_ind.iterrows():
-                pct = 0.0 if pd.isna(row["cumplimiento_pct"]) else float(row["cumplimiento_pct"])
-                progress_value = min(max(pct / 100.0, 0.0), 1.0)
                 label = str(row["Indicador"])
-                st.markdown(f"**{label}**  \n{pct:.1f}% de cumplimiento")
-                st.progress(progress_value)
+                nivel = row.get("Nivel de cumplimiento", "")
+                bar_html = render_sparkbar(row["cumplimiento_pct"], nivel, label=label)
+                st.markdown(bar_html, unsafe_allow_html=True)
 
 def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
 
@@ -227,14 +234,9 @@ def render_tab_lineas(df, pdi_catalog=None):
         st.info("No hay líneas estratégicas para mostrar.")
         return
 
-    if "cmi_lineas_open" not in st.session_state:
-        st.session_state["cmi_lineas_open"] = {}
-
-    if st.session_state.get("cmi_tab_linea_expand"):
+    if st.session_state.get("cmi_tab_linea_expand") and "cmi_linea_open_" not in st.session_state:
         expanded_target = _normalize_linea_key(st.session_state["cmi_tab_linea_expand"])
-        lineas_open = dict(st.session_state["cmi_lineas_open"])
-        lineas_open[expanded_target] = True
-        st.session_state["cmi_lineas_open"] = lineas_open
+        st.session_state[f"cmi_linea_open_{expanded_target}"] = True
 
     for linea in lineas:
         df_linea = df[df[linea_col] == linea].copy()
@@ -254,38 +256,39 @@ def render_tab_lineas(df, pdi_catalog=None):
             cump_val = 0.0
 
         line_key = _normalize_linea_key(linea)
-        lineas_open = dict(st.session_state.get("cmi_lineas_open", {}))
-        is_expanded = lineas_open.get(line_key, False)
-
+        state_key = f"cmi_linea_open_{line_key}"
+        if state_key not in st.session_state:
+            st.session_state[state_key] = False
+        is_expanded = st.session_state[state_key]
         display_linea = str(linea).replace("_", " ")
         gradient_light = _hex_to_rgba(color, 0.98)
         gradient_mid = _hex_to_rgba(color, 0.76)
         gradient_soft = _hex_to_rgba(color, 0.40)
+        open_class = " cmi-line-card-open" if is_expanded else ""
         header_html = (
-            f"<div style='background: linear-gradient(90deg, {gradient_light} 0%, {gradient_mid} 50%, {gradient_soft} 100%); border-radius:20px; padding:22px 24px; margin-bottom:14px; box-shadow:0 18px 36px rgba(15,23,42,0.10);'>"
+            f"<div class='cmi-line-card{open_class}' style='background: linear-gradient(90deg, {gradient_light} 0%, {gradient_mid} 50%, {gradient_soft} 100%);'>"
             f"<div style='display:flex; justify-content:space-between; align-items:center; gap:18px;'>"
             f"<div style='display:flex; align-items:center; gap:16px; min-width:0;'>"
             f"<span style='width:12px; height:56px; border-radius:999px; background:{color}; display:inline-block;'></span>"
             f"<div style='min-width:0;'>"
             f"<div style='font-size:1.12rem; font-weight:800; color:#FFFFFF; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>{display_linea}</div>"
-            f"<div style='font-size:0.92rem; color:rgba(255,255,255,0.92); margin-top:6px;'>{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>"
+            f"<div class='cmi-line-card-meta'>{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>"
             f"</div>"
             f"</div>"
             f"<div style='display:flex; align-items:center; gap:12px;'>"
-            f"<div style='padding:10px 18px; border-radius:999px; background:rgba(255,255,255,0.18); color:#FFFFFF; font-weight:700; min-width:100px; text-align:center;'>{cump_val:.1f}%</div>"
+            f"<div class='cmi-line-pill'>{cump_val:.1f}%</div>"
             f"</div>"
             f"</div>"
             f"</div>"
         )
 
-        cols = st.columns([0.94, 0.06])
+        cols = st.columns([0.92, 0.08])
         with cols[0]:
             st.markdown(header_html, unsafe_allow_html=True)
         with cols[1]:
-            toggle_label = "Cerrar" if is_expanded else "Ver"
+            toggle_label = "Cerrar" if st.session_state[state_key] else "Ver"
             if st.button(toggle_label, key=f"toggle_linea_{line_key}"):
-                lineas_open[line_key] = not is_expanded
-                st.session_state["cmi_lineas_open"] = lineas_open
+                st.session_state[state_key] = not st.session_state[state_key]
 
         if is_expanded:
             st.markdown('<div style="border:1px solid #D9E5F2; border-radius:18px; padding:20px; margin-bottom:22px; background:#FFFFFF;">', unsafe_allow_html=True)
