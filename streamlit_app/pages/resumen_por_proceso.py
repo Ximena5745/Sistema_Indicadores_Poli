@@ -2521,19 +2521,222 @@ def render() -> None:
             )
 
     with tabs[1]:
-        st.markdown("### Indicadores propuestos por proceso y subproceso")
+        st.markdown("### Propuesta de mejora")
         st.caption(
-            "Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos."
+            "Gráficas, tablas e insights que complementan la sección Resumen CMI por Procesos."
         )
-        df_prop, msg_prop = _load_indicadores_propuestos(proceso_sel, subproceso_sel)
-        if msg_prop:
-            st.warning(msg_prop)
-        else:
-            _render_tarjetas_propuestos(df_prop)
+        _render_propuesta_resumen(
+            latest,
+            proceso_sel,
+            subproceso_sel,
+            _latest_month_name,
+            int(global_year),
+        )
 
-def _load_indicadores_propuestos(
-    proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
-):
+        if not cmi_global.empty:
+            st.markdown("##### Procesos con mayor cumplimiento")
+            selected_tipo_chart = st.segmented_control(
+                "Tipo de proceso (gráfica)",
+                options=["Todos"] + ordered_tipos,
+                default="Todos",
+                key="cmi_propuesta_tipo_chart",
+            )
+            if selected_tipo_chart is None:
+                selected_tipo_chart = "Todos"
+
+            chart_curr = cmi_global.copy()
+            chart_base = cmi_base_2024.copy()
+            if selected_tipo_chart != "Todos":
+                chart_curr = chart_curr[chart_curr["Tipo de proceso"].astype(str) == selected_tipo_chart]
+                if not chart_base.empty:
+                    chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
+
+            process_col_bar = (
+                "Proceso"
+                if "Proceso" in chart_curr.columns
+                else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
+            )
+            group_cols = [process_col_bar]
+            if "Tipo de proceso" in chart_curr.columns:
+                group_cols.append("Tipo de proceso")
+
+            proc_curr = (
+                chart_curr.groupby(group_cols, dropna=False)
+                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+                .reset_index()
+            )
+            proc_count = proc_curr[process_col_bar].nunique()
+            st.caption(
+                f"Agrupando por: {process_col_bar}. Procesos únicos con datos: {proc_count}."
+            )
+
+            if not chart_base.empty:
+                _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
+                proc_base = (
+                    chart_base.groupby(group_cols, dropna=False)
+                    .agg(base_2024=(_base_pct_col, "mean"))
+                    .reset_index()
+                )
+                proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
+            else:
+                proc_comp = proc_curr.copy()
+                proc_comp["base_2024"] = pd.NA
+
+            proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
+            proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
+
+            if not proc_comp.empty:
+                fig_bar = go.Figure()
+                fig_bar.add_trace(
+                    go.Bar(
+                        name=f"Cumplimiento {global_year}",
+                        x=proc_comp[process_col_bar],
+                        y=proc_comp["actual"],
+                        marker_color="#1E4C86",
+                        yaxis="y1",
+                    )
+                )
+                if proc_comp["base_2024"].notna().any():
+                    fig_bar.add_trace(
+                        go.Bar(
+                            name=f"Cumplimiento {_base_year}",
+                            x=proc_comp[process_col_bar],
+                            y=proc_comp["base_2024"],
+                            marker_color="#9AB7D5",
+                            yaxis="y1",
+                        )
+                    )
+                fig_bar.add_trace(
+                    go.Scatter(
+                        name="Variación 2025 vs 2024",
+                        x=proc_comp[process_col_bar],
+                        y=proc_comp["delta_2024"].round(1),
+                        mode="lines+markers+text",
+                        text=proc_comp["delta_2024"].round(1).astype(str) + "%",
+                        textposition="top center",
+                        marker=dict(color="#E4572E", size=8),
+                        line=dict(color="#E4572E", width=2, dash="dash"),
+                        yaxis="y2",
+                    )
+                )
+                fig_bar.update_layout(
+                    barmode="group",
+                    height=380,
+                    margin=dict(t=20, b=120),
+                    xaxis_tickangle=-25,
+                    xaxis_title="Proceso",
+                    yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
+                    yaxis2=dict(
+                        title="Variación (%)",
+                        overlaying="y",
+                        side="right",
+                        showgrid=False,
+                    ),
+                    legend_title_text="Comparación histórica",
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+                table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
+                if "Tipo de proceso" in proc_comp.columns:
+                    table_cols.insert(0, "Tipo de proceso")
+
+                proc_table = proc_comp[table_cols].copy()
+                proc_table = proc_table.rename(
+                    columns={
+                        process_col_bar: "Proceso",
+                        "actual": f"Cumplimiento {global_year}",
+                        "base_2024": f"Cumplimiento {_base_year}",
+                        "delta_2024": "Delta"
+                    }
+                )
+                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
+                    if col in proc_table.columns:
+                        proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+                if "Tipo de proceso" in proc_table.columns:
+                    proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
+
+                st.markdown("#### Tabla de procesos comparativa")
+                st.dataframe(proc_table, use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
+
+            best_proc_rows, worst_proc_rows = [], []
+            _ins_curr = chart_curr.copy()
+            _ins_base = chart_base.copy()
+            if not _ins_base.empty:
+                best_proc_rows, worst_proc_rows = _process_variation_for_rpp(_ins_curr, _ins_base, process_col_bar)
+
+            _proc_counts = _process_counts_cmi(_ins_curr, "Tipo de proceso") if "Tipo de proceso" in _ins_curr.columns else pd.DataFrame()
+            _total_p = len(_ins_curr)
+            _health_p = 0
+            if not _proc_counts.empty:
+                _health_p = _proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
+            _health_pct = round(_health_p / max(_total_p, 1) * 100, 1)
+            _op_summary = (
+                f"{_health_pct}% de indicadores de proceso en niveles saludables"
+                + (f" | Mejora: {best_proc_rows[0]['name']}" if best_proc_rows else "")
+                + (f" | Riesgo: {worst_proc_rows[0]['name']}" if worst_proc_rows else "")
+            )
+            if _base_m is not None and 1 <= int(_base_m) <= 12:
+                _base_month_name = MESES_OPCIONES[int(_base_m) - 1]
+                _base_detail = f"Base comparativa usada: cierre {_base_year} ({_base_month_name})."
+            else:
+                _base_detail = f"Base comparativa usada: sin cierre disponible para {_base_year}."
+            _best_html = _build_ia_rows_rpp(best_proc_rows)
+            _worst_html = _build_ia_rows_rpp(worst_proc_rows)
+
+            st.markdown(
+                f"""
+                <div class='rpp-summary-card'>
+                    <h4 class='rpp-summary-title'>Insights del corte</h4>
+                    <p class='rpp-summary-text'>{_op_summary}</p>
+                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if not _best_html:
+                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
+            if not _worst_html:
+                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
+
+            st.markdown(
+                f"""
+                <div class='rpp-grid'>
+                    <div class='rpp-panel'>
+                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
+                        <table class='rpp-table'>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
+                            <tbody>{_best_html}</tbody>
+                        </table>
+                    </div>
+                    <div class='rpp-panel'>
+                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
+                        <table class='rpp-table'>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
+                            <tbody>{_worst_html}</tbody>
+                        </table>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    def _load_indicadores_propuestos(
+        proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
+    ):
     import pandas as pd
 
     EXCEL_PATH = (
