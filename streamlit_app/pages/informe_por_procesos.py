@@ -267,10 +267,6 @@ def render() -> None:
 
     tabs = st.tabs(
         [
-            "Por Unidad",
-            "Por Frecuencia",
-            "Por Clasificación",
-            "Consolidado",
             "Indicadores",
             "Evolución",
             "Calidad",
@@ -281,59 +277,13 @@ def render() -> None:
     )
 
     with tabs[0]:
-        st.markdown("### Informe por Unidad")
-        if filtered.empty:
-            st.info("No hay datos disponibles.")
-        else:
-            unidad_summary = _build_summary_by_unit(filtered)
-            st.dataframe(
-                unidad_summary.sort_values(["cumplimiento", "indicadores"], ascending=[False, False]).head(50),
-                use_container_width=True,
-            )
-
-    with tabs[1]:
-        st.markdown("### Informe por Frecuencia")
-        if filtered.empty:
-            st.info("No hay datos disponibles.")
-        else:
-            frecuencia_summary = _build_frequency_summary(filtered)
-            st.dataframe(
-                frecuencia_summary.sort_values(["Periodicidad", "Mes"]).head(50),
-                use_container_width=True,
-            )
-
-    with tabs[2]:
-        st.markdown("### Informe por Clasificación")
-        if filtered.empty:
-            st.info("No hay datos disponibles.")
-        else:
-            clasificacion_summary = _build_classification_summary(filtered)
-            if clasificacion_summary.empty:
-                st.info("No hay columnas de clasificación disponibles en los datos.")
-            else:
-                sort_keys = [c for c in ["Clasificacion", "Tipo de proceso"] if c in clasificacion_summary.columns]
-                sort_keys.append("cumplimiento")
-                st.dataframe(
-                    clasificacion_summary.sort_values(sort_keys, ascending=[True] * (len(sort_keys) - 1) + [False]).head(50),
-                    use_container_width=True,
-                )
-
-    with tabs[3]:
-        st.markdown("### Consolidado de indicadores")
-        if filtered.empty:
-            st.info("No hay datos disponibles.")
-        else:
-            cols = _build_consolidated_columns(filtered)
-            st.dataframe(filtered[cols].head(100), use_container_width=True)
-
-    with tabs[4]:
         st.markdown("### Indicadores")
         if filtered.empty:
             st.info("No hay datos disponibles.")
         else:
             _render_indicadores_subproceso_cards(filtered, historic_base, int(anio), selected_month_num, map_df, proceso_sel)
 
-    with tabs[5]:
+    with tabs[1]:
         st.markdown("### Evolución")
         if filtered.empty:
             st.info("No hay datos disponibles.")

@@ -1457,11 +1457,6 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
             
             st.markdown("")
     
-    elif category == "Plan de Retos":
-        # Tabla por línea para retos
-        st.markdown("### Retos por Línea Estratégica")
-        _build_table_retos_por_linea(linea_summary)
-    
     elif category in ["Indicadores", "Proyectos"]:
         # Tablas originales de indicadores que mejoraron / en riesgo
         best_rows_html = _build_trend_rows_with_linea(best_improvements_e, positive=True)
@@ -2104,7 +2099,9 @@ def render():
     else:
         unit_label = "indicadores"
     
-    ficha_cols = st.columns(6)
+    # Solo mostrar fichas para Indicadores y Proyectos
+    if categoria not in ["Plan de Retos", "Consolidado"]:
+        ficha_cols = st.columns(6)
     for idx, card_def in enumerate(strategic_defs):
         row = norm_to_row.get(card_def["key"])
         if row is None:
@@ -2148,8 +2145,8 @@ def render():
                 unit_label=unit_label,
             )
 
-    # --- Sunburst (no mostrar para Consolidado) ---
-    if categoria != "Consolidado" and not objetivo_df.empty:
+    # --- Sunburst (no mostrar para Consolidado y Plan de Retos) ---
+    if categoria not in ["Consolidado", "Plan de Retos"] and not objetivo_df.empty:
         st.markdown("<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>", unsafe_allow_html=True)
         sunburst = _build_sunburst(objetivo_df)
         st.plotly_chart(sunburst, use_container_width=True)
