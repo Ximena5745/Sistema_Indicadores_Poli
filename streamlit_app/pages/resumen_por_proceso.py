@@ -2734,9 +2734,9 @@ def render() -> None:
                 unsafe_allow_html=True,
             )
 
-    def _load_indicadores_propuestos(
-        proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
-    ):
+def _load_indicadores_propuestos(
+    proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
+):
     import pandas as pd
 
     EXCEL_PATH = (
