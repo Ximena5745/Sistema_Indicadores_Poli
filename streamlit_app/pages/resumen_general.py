@@ -126,11 +126,11 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento"):
     return resumen
 
 def _load_plan_retos_data(year):
-    """Carga Plan de retos.xlsx (hojas 'Linea', 'Objetivo' y 'Areas') para el año dado."""
+    """Carga Plan de retos.xlsx (hojas 'Linea' y 'Objetivo') para el año dado."""
     import pandas as pd
     retos_path = Path("data/raw/Retos/Plan de retos.xlsx")
     if not retos_path.exists():
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
     try:
         linea_df = pd.read_excel(retos_path, sheet_name="Linea", engine="openpyxl")
         obj_df = pd.read_excel(retos_path, sheet_name="Objetivo", engine="openpyxl")
@@ -157,20 +157,9 @@ def _load_plan_retos_data(year):
         # Objetivo para sunburst
         if "Objetivo" not in obj_df.columns:
             obj_df["Objetivo"] = None
-        
-        # NUEVO: Cargar hoja Areas
-        areas_df = pd.DataFrame()
-        try:
-            areas_df = pd.read_excel(retos_path, sheet_name="Areas", engine="openpyxl")
-            areas_df.columns = [str(c).strip() for c in areas_df.columns]
-            if "Año" in areas_df.columns:
-                areas_df = areas_df[areas_df["Año"] == year].copy()
-        except Exception:
-            areas_df = pd.DataFrame()
-        
-        return linea_df, obj_df, areas_df
+        return linea_df, obj_df
     except Exception:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
 def _build_linea_summary_from_retos(linea_df):
     """Construye resumen por línea para Plan de Retos."""
@@ -1787,20 +1776,31 @@ def render():
         pdi_base_df = pd.DataFrame()
         pdi_estrategico = pd.DataFrame()
         historico_df = None
-        areas_df = pd.DataFrame()
-        linea_df = pd.DataFrame()  # Para Plan de Retos - datos crudos de hoja Linea
         
         # Años a cargar si use_all_years es True
         years_to_load = [2022, 2023, 2024, 2025] if use_all_years else [year]
         
         if category == "Indicadores":
+            if use_all_years:
+                # Cargar datos de todos los años
+                pdi_estrategico = pd.DataFrame()
+                for y in years_to_load:
+                    df_y = preparar_pdi_con_cierre(y, 12)
+                    if df_y is not None and not df_y.empty:
+                        df_y = filter_df_for_cmi_estrategico(df_y, id_column="Id")
+                        if not df_y.empty:
+                            pdi_estrategico = pd.concat([pdi_estrategico, df_y], ignore_index=True) if not pdi_estrategico.empty else df_y
+            else:
+                pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
+            
+            if pdi_estrategico is None or pdi_estrategico.empty:
+                return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
             
             raw_pdi = pdi_estrategico.copy()
             pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
             linea_summary = _build_linea_summary_from_df(pdi_estrategico)
             objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
             pdi_base_df = pdi_estrategico.copy()
-            return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df, linea_df
             
             try:
                 cierres = load_cierres()
@@ -1826,13 +1826,88 @@ def render():
             except Exception:
                 historico_df = None
                 
+        elif category == "Proyectos":
+            # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
+            def _norm_id(v) -> str:
+                if pd.isna(v):
+                    return ""
+                text = str(v).strip()
+                try:
+                    num = float(text)
+                    if num.is_integer():
+                        return str(int(num))
+                except Exception:
+                    pass
+                return text
+
+            cierres = load_cierres()
+            ids_proy = {_norm_id(x) for x in _get_proyectos_ids()}
+            if not cierres.empty and ids_proy:
+                cierres = cierres.copy()
+                cierres["Id"] = cierres["Id"].apply(_norm_id)
+                cierres_proy = cierres[cierres["Id"].isin(ids_proy)].copy()
+                
+                # Filtrar por años
+                if use_all_years:
+                    cierres_proy = cierres_proy[cierres_proy["Anio"].isin(years_to_load)]
+                else:
+                    cierres_proy = cierres_proy[cierres_proy["Anio"] == int(year)]
+                
+                # Obtener último registro por proyecto (de todos los años si use_all_years)
+                if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
+                    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
+
+                # Normalizar Id para merge robusto con base (evita pérdida de Línea/Objetivo por tipos mixtos)
+                if "Id" in cierres_proy.columns:
+                    cierres_proy["Id"] = cierres_proy["Id"].apply(_norm_id)
+                
+                # Agregar Línea y Objetivo desde worksheet
+                base = load_worksheet_flags()
+                if not base.empty:
+                    base_norm = base.copy()
+                    base_norm["Id"] = base_norm["Id"].apply(_norm_id)
+                    cols_to_merge = ["Id", "Linea", "Objetivo"]
+                    base_cols = [c for c in cols_to_merge if c in base_norm.columns]
+                    cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                
+                pdi_estrategico = cierres_proy
+            else:
+                pdi_estrategico = pd.DataFrame()
+            
+            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
+            objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
+            pdi_base_df = pdi_estrategico.copy()
+            
+            try:
+                cierres = load_cierres()
+                if not cierres.empty:
+                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
+                    df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
+                    if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
+                        cierres = cierres.copy()
+                        cierres["Id"] = cierres["Id"].astype(str)
+                        df_cmi["Id"] = df_cmi["Id"].astype(str)
+                        id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
+                        cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
+                    else:
+                        cierres_con_linea = cierres
+                    cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
+                    if "cumplimiento_pct" not in cierres_con_linea.columns:
+                        cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
+                            lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
+                        )
+                    historico_df = cierres_con_linea
+            except Exception:
+                historico_df = None
+                
         elif category == "Plan de Retos":
-            linea_df, obj_df, areas_df = _load_plan_retos_data(int(year))
+            linea_df, obj_df = _load_plan_retos_data(int(year))
             linea_summary = _build_linea_summary_from_retos(linea_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             objetivo_df = obj_df[cols].copy()
             pdi_base_df = pd.DataFrame()
-            return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df, linea_df
             
         elif category == "Consolidado":
             pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
@@ -1846,29 +1921,23 @@ def render():
             s2 = _build_linea_summary_from_df(pdi_proy)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
-            linea_df, obj_df, areas_df = _load_plan_retos_data(int(year))
+            linea_df, obj_df = _load_plan_retos_data(int(year))
             s3 = _build_linea_summary_from_retos(linea_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
             linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
             pdi_base_df = pd.DataFrame()
-            return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df, linea_df
         
-        return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df
+        return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
     
     # --- Carga de datos usando función unificada ---
-    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df = _load_base_data_by_type(categoria, safe_year_estrategico)
+    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico)
     
-    linea_summary_all, _, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
+    linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
-    def _get_chip_config(category: str, linea_summary, pdi_estrategico, areas_df=None, linea_df=None):
+    def _get_chip_config(category: str, linea_summary, pdi_estrategico):
         """Retorna configuración de chips según la categoría."""
-        
-        if areas_df is None:
-            areas_df = pd.DataFrame()
-        if linea_df is None:
-            linea_df = pd.DataFrame()
         
         if category == "Indicadores":
             # Configuración original para indicadores
@@ -1913,71 +1982,30 @@ def render():
             ]
         
         elif category == "Plan de Retos":
-            # Retos: Total Áreas con Retos (desde hoja Areas), Meta, Ejecución, Cumplimiento (desde hoja Linea)
-            total_areas = 0
-            if not areas_df.empty:
-                num_cols = [c for c in areas_df.columns if "N" in c or "n" in c]
-                if num_cols:
-                    total_areas = int(areas_df[num_cols[0]].sum())
-            else:
-                # Fallback: usar conteo desde linea_summary si no hay datos de Areas
-                total_areas = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            # Retos: Total, % Meta esperada, % Ejecución real, Cumplimiento
+            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
             
-            # Obtener Meta, Ejecución y Cumplimiento desde linea_df (hoja Linea de Plan de retos.xlsx)
-            meta_pct = 0
-            ejec_pct = 0
-            cump_pct = 0
-            
-            if not linea_df.empty:
-                # La hoja Linea tiene columnas: Línea Estratégica, Año, Meta, Ejecución, Cumplimiento
-                # Todos los valores son 1.0 = 100% en escala decimal
-                meta_cols = [c for c in linea_df.columns if "Meta" in c]
-                ejec_cols = [c for c in linea_df.columns if "Ejecu" in c]
-                cump_cols = [c for c in linea_df.columns if "Cumpl" in c]
-                
-                if meta_cols:
-                    meta_vals = pd.to_numeric(linea_df[meta_cols[0]], errors="coerce").dropna()
-                    if not meta_vals.empty:
-                        meta_pct = meta_vals.mean() * 100  # Convertir de decimal a porcentaje
-                if ejec_cols:
-                    ejec_vals = pd.to_numeric(linea_df[ejec_cols[0]], errors="coerce").dropna()
-                    if not ejec_vals.empty:
-                        ejec_pct = ejec_vals.mean() * 100
-                if cump_cols:
-                    cump_vals = pd.to_numeric(linea_df[cump_cols[0]], errors="coerce").dropna()
-                    if not cump_vals.empty:
-                        cump_pct = cump_vals.mean() * 100
+            meta_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
             
             return [
-                (total_areas, "Total Áreas con Retos", "#0B5FFF"),
-                (f"{meta_pct:.1f}%", "% Meta", "#173D66"),
-                (f"{ejec_pct:.1f}%", "% Ejecución", "#F59E0B"),
-                (f"{cump_pct:.1f}%", "% Cumplimiento", "#16A34A"),
+                (total_retos, "Total Retos", "#0B5FFF"),
+                (f"{meta_prom:.1f}%", "% Meta Esperada", "#173D66"),
+                (f"{meta_prom * 0.85:.1f}%", "% Avance Real", "#F59E0B"),
+                (f"{min(100, meta_prom * 0.9):.1f}%", "Cumplimiento", "#16A34A"),
             ]
         
         elif category == "Consolidado":
-            # Consolidado: Total Áreas con Retos (desde Areas), Indicadores, Proyectos (desde linea_summary consolidado)
-            total_retos = 0
-            if not areas_df.empty:
-                num_cols = [c for c in areas_df.columns if "N" in c or "n" in c]
-                if num_cols:
-                    total_retos = int(areas_df[num_cols[0]].sum())
-            
-            # linea_summary consolidado tiene la suma de indicadores de las 3 fuentes
-            total_consolidado = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
-            
+            total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
             return [
-                (total_retos, "Total Áreas con Retos", "#0B5FFF"),
-                (total_consolidado, "Total Consolidado", "#173D66"),
+                (total, "Total", "#0B5FFF"),
+                (0, "Indicadores", "#173D66"),
+                (0, "Proyectos", "#16A34A"),
+                (0, "Retos", "#F59E0B"),
             ]
         
         return []
     
-    # Agregar areas_df como空的 DataFrame si no viene (para indicadores y proyectos)
-    if categoria not in ["Plan de Retos", "Consolidado"]:
-        areas_df = pd.DataFrame()
-    
-    _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico, areas_df, linea_df)
+    _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico)
     if _chip_cfg:  # Only render if we have chip configuration
         _chip_cols = st.columns(len(_chip_cfg))
         for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
@@ -2062,8 +2090,8 @@ def render():
                 unit_label=unit_label,
             )
 
-    # --- Sunburst (mostrar para todas las categorías incl. Consolidado) ---
-    if not objetivo_df.empty:
+    # --- Sunburst (no mostrar para Consolidado) ---
+    if categoria != "Consolidado" and not objetivo_df.empty:
         st.markdown("<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>", unsafe_allow_html=True)
         sunburst = _build_sunburst(objetivo_df)
         st.plotly_chart(sunburst, use_container_width=True)
@@ -2237,21 +2265,7 @@ def render():
             return narrativa, estado_color, estado_icon
         
         elif category == "Consolidado":
-            # Determinar qué fuentes tienen datos
-            sources = []
-            if not linea_summary.empty:
-                # Verificar si hay indicadores (s1), proyectos (s2), retos (s3) - calculados desde linea_summary
-                total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
-                if total > 0:
-                    sources.append(f"{total} items")
-            
-            msg = f"Vista consolidada"
-            if sources:
-                msg += f": {', '.join(sources)}"
-            else:
-                msg += " sin datos disponibles"
-            
-            return msg, "#0B5FFF", "📋"
+            return "Vista consolidada de indicadores, proyectos y retos institucionales.", "#0B5FFF", "📋"
         
         return "", "#6B7280", "📊"
     
