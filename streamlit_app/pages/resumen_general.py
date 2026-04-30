@@ -252,34 +252,49 @@ def _merge_consolidado_by_source(s1, s2, s3):
     Merge mantiene conteos separados por fuente.
     Retorna: Linea, N_Indicadores, N_Proyectos, N_Retos, Cumpl_Promedio
     """
-    all_lineas = pd.concat([s1[["Linea"]], s2[["Linea"]], s3[["Linea"]]]).drop_duplicates()
+    # Recoger todas las líneas de las fuentes que tienen datos
+    dfs_with_linea = []
+    for s in [s1, s2, s3]:
+        if s is not None and not s.empty and "Linea" in s.columns:
+            dfs_with_linea.append(s[["Linea"]])
+    
+    if not dfs_with_linea:
+        # No hay datos, retornar DataFrame vacío con columnas
+        return pd.DataFrame(columns=["Linea", "N_Indicadores", "N_Proyectos", "N_Retos", "Cumpl_Promedio", "Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"])
+    
+    all_lineas = pd.concat(dfs_with_linea).drop_duplicates()
     out = all_lineas.copy()
     
     # Obtener N_Indicadores de cada fuente
-    if s1 is not None and "N_Indicadores" in s1.columns:
-        out["N_Indicadores"] = s1.set_index("Linea")["N_Indicadores"].fillna(0)
+    if s1 is not None and not s1.empty and "Linea" in s1.columns and "N_Indicadores" in s1.columns:
+        out = out.merge(s1[["Linea", "N_Indicadores"]].rename(columns={"N_Indicadores": "N_Indicadores"}), on="Linea", how="left")
+        out["N_Indicadores"] = out["N_Indicadores"].fillna(0)
     else:
         out["N_Indicadores"] = 0
     
-    if s2 is not None and "N_Indicadores" in s2.columns:
-        out["N_Proyectos"] = s2.set_index("Linea")["N_Indicadores"].fillna(0)
+    if s2 is not None and not s2.empty and "Linea" in s2.columns and "N_Indicadores" in s2.columns:
+        out = out.merge(s2[["Linea", "N_Indicadores"]].rename(columns={"N_Indicadores": "N_Proyectos"}), on="Linea", how="left")
+        out["N_Proyectos"] = out["N_Proyectos"].fillna(0)
     else:
         out["N_Proyectos"] = 0
     
-    if s3 is not None and "N_Indicadores" in s3.columns:
-        out["N_Retos"] = s3.set_index("Linea")["N_Indicadores"].fillna(0)
+    if s3 is not None and not s3.empty and "Linea" in s3.columns and "N_Indicadores" in s3.columns:
+        out = out.merge(s3[["Linea", "N_Indicadores"]].rename(columns={"N_Indicadores": "N_Retos"}), on="Linea", how="left")
+        out["N_Retos"] = out["N_Retos"].fillna(0)
     else:
         out["N_Retos"] = 0
     
     # Calcular promedio simple de cumplimiento
-    cump_vals = []
+    cump_list = []
     for s in [s1, s2, s3]:
-        if s is not None and "Cumpl_Promedio" in s.columns:
-            cump_vals.append(s.set_index("Linea")["Cumpl_Promedio"])
+        if s is not None and not s.empty and "Linea" in s.columns and "Cumpl_Promedio" in s.columns:
+            cump_list.append(s[["Linea", "Cumpl_Promedio"]])
     
-    if cump_vals:
-        dfc = pd.concat(cump_vals, axis=1).fillna(0)
-        out["Cumpl_Promedio"] = pd.to_numeric(dfc.mean(axis=1), errors="coerce").fillna(0)
+    if cump_list:
+        cump_df = pd.concat(cump_list)
+        cump_avg = cump_df.groupby("Linea")["Cumpl_Promedio"].mean().reset_index()
+        out = out.merge(cump_avg, on="Linea", how="left")
+        out["Cumpl_Promedio"] = out["Cumpl_Promedio"].fillna(0)
     else:
         out["Cumpl_Promedio"] = 0
     

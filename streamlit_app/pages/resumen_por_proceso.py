@@ -18,6 +18,14 @@ from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
+from streamlit_app.components.dashboard_components import (
+    render_executive_kpis,
+    render_alertas_criticas,
+    render_tabla_analitica,
+    render_fichas_indicadores,
+    render_analisis_unidad,
+    render_historico_tab,
+)
 
 MESES_OPCIONES = [
     "Enero",
@@ -2184,6 +2192,7 @@ def render() -> None:
         [
             "📋 Resumen",
             "💡 Propuesta",
+            "📈 Análisis Avanzado",
         ]
     )
 
@@ -2520,6 +2529,34 @@ def render() -> None:
                 unsafe_allow_html=True,
             )
 
+        # ── Sección ampliada: KPIs, Alertas, Tabla, Fichas, Unidad ──────────
+        if not cmi_global.empty:
+            _pct_g = (
+                "cumplimiento_pct"
+                if "cumplimiento_pct" in cmi_global.columns
+                else "Cumplimiento_pct"
+            )
+
+            st.divider()
+            st.markdown("#### 📊 KPIs Ejecutivos del Corte")
+            render_executive_kpis(cmi_global, _pct_g)
+
+            st.divider()
+            st.markdown("#### 🚨 Alertas y Hallazgos")
+            render_alertas_criticas(cmi_global, _pct_g)
+
+            st.divider()
+            st.markdown("#### 📋 Tabla Analítica de Indicadores")
+            render_tabla_analitica(cmi_global, _pct_g)
+
+            st.divider()
+            st.markdown("#### 🗂️ Fichas de Indicadores")
+            render_fichas_indicadores(cmi_global, _pct_g)
+
+            st.divider()
+            st.markdown("#### 🏢 Análisis por Unidad Organizacional")
+            render_analisis_unidad(cmi_global, _pct_g)
+
     with tabs[1]:
         st.markdown("### Propuesta de mejora")
         st.caption(
@@ -2733,6 +2770,22 @@ def render() -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
+    with tabs[2]:
+        st.markdown("### 📈 Análisis Avanzado — Histórico de Indicadores")
+        st.caption(
+            "Evolución temporal de indicadores seleccionados. "
+            "Compara períodos y detecta tendencias (↑ creciente, ↓ decreciente, → estable)."
+        )
+        if not cmi_global.empty:
+            _pct_g2 = (
+                "cumplimiento_pct"
+                if "cumplimiento_pct" in cmi_global.columns
+                else "Cumplimiento_pct"
+            )
+            render_historico_tab(cmi_global, _pct_g2)
+        else:
+            st.info("No hay datos disponibles para el análisis histórico en este corte.")
 
 def _load_indicadores_propuestos(
     proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
