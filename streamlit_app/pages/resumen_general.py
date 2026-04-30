@@ -126,25 +126,30 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento"):
     return resumen
 
 def _load_plan_retos_data(year):
-    """Carga Plan de retos.xlsx (hojas 'Linea', 'Objetivo' y 'Areas') para el año dado."""
+    """Carga Plan de retos.xlsx (hojas 'Linea', 'Objetivo', 'Planes' y 'Areas') para el año dado."""
     import pandas as pd
     retos_path = Path("data/raw/Retos/Plan de retos.xlsx")
     if not retos_path.exists():
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     try:
         linea_df = pd.read_excel(retos_path, sheet_name="Linea", engine="openpyxl")
         obj_df = pd.read_excel(retos_path, sheet_name="Objetivo", engine="openpyxl")
+        planes_df = pd.read_excel(retos_path, sheet_name="Planes", engine="openpyxl")
         # Normalizar nombres
         linea_df.columns = [str(c).strip() for c in linea_df.columns]
         obj_df.columns = [str(c).strip() for c in obj_df.columns]
+        planes_df.columns = [str(c).strip() for c in planes_df.columns]
         # Filtrar por año
         linea_df = linea_df[linea_df["Año"] == year].copy() if "Año" in linea_df.columns else linea_df
         obj_df = obj_df[obj_df["Año"] == year].copy() if "Año" in obj_df.columns else obj_df
+        planes_df = planes_df[planes_df["Año"] == year].copy() if "Año" in planes_df.columns else planes_df
         # Normalizar nombres para sunburst
         if "Línea Estratégica" in linea_df.columns:
             linea_df = linea_df.rename(columns={"Línea Estratégica": "Linea"})
         if "Línea Estratégica" in obj_df.columns:
             obj_df = obj_df.rename(columns={"Línea Estratégica": "Linea"})
+        if "Desglose" in planes_df.columns:
+            planes_df = planes_df.rename(columns={"Desglose": "Linea"})
         if "Cumplimiento" in linea_df.columns:
             linea_df = linea_df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
         if "Cumplimiento" in obj_df.columns:
@@ -168,16 +173,23 @@ def _load_plan_retos_data(year):
         except Exception:
             areas_df = pd.DataFrame()
         
-        return linea_df, obj_df, areas_df
+        return linea_df, obj_df, areas_df, planes_df
     except Exception:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-def _build_linea_summary_from_retos(linea_df):
-    """Construye resumen por línea para Plan de Retos."""
+def _build_linea_summary_from_retos(linea_df, planes_df=None):
+    """Construye resumen por línea para Plan de Retos. Si planes_df existe, usa para N_Indicadores."""
     if linea_df.empty or "Linea" not in linea_df.columns:
         return pd.DataFrame(columns=["Linea","N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"])
     df = linea_df.copy()
-    # Asumimos que cada fila es una línea, con cumplimiento_pct
+    
+    # Si tenemos planes_df, usar para N_Indicadores
+    if planes_df is not None and not planes_df.empty and "Linea" in planes_df.columns and "N°" in planes_df.columns:
+        # Crear mapa de línea a conteo
+        line_to_count = dict(zip(planes_df["Linea"], planes_df["N°"]))
+    else:
+        line_to_count = {}
+    
     def _cat(pct):
         if pd.isna(pct): return "Sin dato"
         pct = float(pct)
@@ -185,11 +197,14 @@ def _build_linea_summary_from_retos(linea_df):
         if pct >= 100: return "Cumplimiento"
         if pct >= 80: return "Alerta"
         return "Peligro"
+    
+    # Usar cumplimiento de linea_df para categorías
     df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_cat)
+    
+    # Calcular resumen
     resumen = (
         df.groupby("Linea", dropna=False)
         .agg(
-            N_Indicadores=("cumplimiento_pct", "size"),
             Cumpl_Promedio=("cumplimiento_pct", "mean"),
             Sobrecumplimiento=("Nivel de cumplimiento", lambda s: (s=="Sobrecumplimiento").sum()),
             Cumplimiento=("Nivel de cumplimiento", lambda s: (s=="Cumplimiento").sum()),
@@ -198,6 +213,15 @@ def _build_linea_summary_from_retos(linea_df):
         )
         .reset_index()
     )
+    
+    # Agregar N_Indicadores desde planes_df si existe
+    if line_to_count:
+        resumen["N_Indicadores"] = resumen["Linea"].map(line_to_count).fillna(0).astype(int)
+    else:
+        resumen["N_Indicadores"] = df.groupby("Linea", dropna=False).size().reset_index()["Linea"].map(
+            linea_df.groupby("Linea", dropna=False).size()
+        ).fillna(0).astype(int)
+    
     return resumen
 
 def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
@@ -1910,8 +1934,8 @@ def render():
                 historico_df = None
                 
         elif category == "Plan de Retos":
-            linea_df, obj_df, areas_df = _load_plan_retos_data(int(year))
-            linea_summary = _build_linea_summary_from_retos(linea_df)
+            linea_df, obj_df, areas_df, planes_df = _load_plan_retos_data(int(year))
+            linea_summary = _build_linea_summary_from_retos(linea_df, planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             objetivo_df = obj_df[cols].copy()
             pdi_base_df = pd.DataFrame()
@@ -1929,8 +1953,8 @@ def render():
             s2 = _build_linea_summary_from_df(pdi_proy)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
-            linea_df, obj_df, areas_df = _load_plan_retos_data(int(year))
-            s3 = _build_linea_summary_from_retos(linea_df)
+            linea_df, obj_df, areas_df, planes_df = _load_plan_retos_data(int(year))
+            s3 = _build_linea_summary_from_retos(linea_df, planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
             linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)

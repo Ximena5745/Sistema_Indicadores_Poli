@@ -2183,13 +2183,7 @@ def render() -> None:
     tabs = st.tabs(
         [
             "📋 Resumen",
-            "ℹ️ Información por proceso",
-            "📊 Indicadores",
-            "📈 Evolución",
-            "✅ Calidad",
-            "🔍 Auditoría",
             "💡 Propuesta",
-            "🤖 Análisis IA",
         ]
     )
 
@@ -2323,21 +2317,6 @@ def render() -> None:
                             base_year=_base_year,
                             color=tipo_color,
                         )
-
-            _render_resumen_overview_cards(
-                cmi_global,
-                proceso_sel,
-                subproceso_sel,
-                int(global_year),
-                _latest_month_name,
-            )
-            _render_propuesta_resumen(
-                latest,
-                proceso_sel,
-                subproceso_sel,
-                _latest_month_name,
-                int(global_year),
-            )
 
             # ── Gráfico principal: cumplimiento promedio por proceso ─────────
             st.markdown("##### Procesos con mayor cumplimiento")
@@ -2542,122 +2521,15 @@ def render() -> None:
             )
 
     with tabs[1]:
-        st.markdown("### Información por proceso")
-        st.info("Esta sección no aplica para el alcance actual del rediseño del Resumen CMI por Procesos.")
-
-    with tabs[2]:
-        st.markdown("### Indicadores")
-        _render_indicadores_subproceso_cards(
-            latest, full_work_df, anio, selected_month_num, map_df, proceso_sel
+        st.markdown("### Indicadores propuestos por proceso y subproceso")
+        st.caption(
+            "Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos."
         )
-
-    with tabs[3]:
-        st.markdown("### Evolución de indicadores")
-        if historic_base.empty:
-            st.warning("No hay datos históricos para el filtro activo.")
+        df_prop, msg_prop = _load_indicadores_propuestos(proceso_sel, subproceso_sel)
+        if msg_prop:
+            st.warning(msg_prop)
         else:
-            indicador_options = sorted(
-                historic_base["Indicador"].dropna().astype(str).unique().tolist()
-            )
-            if not indicador_options:
-                st.info("No hay indicadores históricos disponibles para el filtro activo.")
-            else:
-                selected_indicator = st.selectbox(
-                    "Indicador para evolución", options=indicador_options, index=0
-                )
-                if selected_indicator:
-                    hist_df = _build_indicator_history(historic_base, selected_indicator)
-                    if hist_df.empty:
-                        st.info("No hay histórico disponible para el indicador seleccionado.")
-                    else:
-                        st.plotly_chart(
-                            grafico_historico_indicador(
-                                hist_df, titulo=f"Evolución de {selected_indicator}"
-                            ),
-                            use_container_width=True,
-                        )
-                        hist_table = tabla_historica_indicador(hist_df)
-                        if hist_table.empty:
-                            st.info("No hay registros históricos con cumplimiento calculado.")
-                        else:
-                            st.markdown("#### Detalle histórico")
-                            st.dataframe(hist_table, use_container_width=True, hide_index=True)
-
-    with tabs[4]:
-        st.markdown("### Calidad")
-        calidad_df, calidad_msg = _load_calidad_data()
-        if calidad_msg:
-            st.warning(calidad_msg)
-        else:
-            if proceso_sel != "Todos":
-                proc_norm = _norm_text(proceso_sel)
-                calidad_df = calidad_df.copy()
-                calidad_df["_proc_norm"] = calidad_df["Proceso"].astype(str).map(_norm_text)
-                filtro = calidad_df[calidad_df["_proc_norm"] == proc_norm]
-                if filtro.empty:
-                    filtro = calidad_df[
-                        calidad_df["_proc_norm"].apply(lambda x: proc_norm in x or x in proc_norm)
-                    ]
-                calidad_df = filtro.drop(columns=["_proc_norm"], errors="ignore")
-
-            if subproceso_sel != "Todos" and "Subproceso" in calidad_df.columns:
-                sub_norm = _norm_text(subproceso_sel)
-                calidad_df = calidad_df[
-                    calidad_df["Subproceso"].astype(str).map(_norm_text) == sub_norm
-                ]
-
-            if calidad_df.empty:
-                st.info("Sin datos de calidad para el filtro seleccionado.")
-            else:
-                _render_calidad_kpis_cards(calidad_df)
-
-                view = calidad_df.copy()
-                if "Estado calidad" in view.columns:
-                    view = view.rename(columns={"Estado calidad": "Calificación"})
-
-                detalle_cols = [
-                    c
-                    for c in [
-                        "Subproceso",
-                        "Temática",
-                        "I. OPORTUNIDAD",
-                        "II. COMPLETITUD",
-                        "III. CONSISTENCIA",
-                        "IV. PRECISIÓN",
-                        "V. PROTOCOLO",
-                        "Calificación",
-                    ]
-                    if c in view.columns
-                ]
-
-                view = view[detalle_cols].copy()
-
-                def _style_cell(val: object) -> str:
-                    label, bg, fg = _calif_style_token(val)
-                    _ = label
-                    return f"background-color: {bg}; color: {fg}; font-weight: 700;"
-
-                style_cols = [
-                    c
-                    for c in [
-                        "I. OPORTUNIDAD",
-                        "II. COMPLETITUD",
-                        "III. CONSISTENCIA",
-                        "IV. PRECISIÓN",
-                        "V. PROTOCOLO",
-                        "Calificación",
-                    ]
-                    if c in view.columns
-                ]
-                styled = view.style
-                for c in style_cols:
-                    styled = styled.map(_style_cell, subset=[c])
-
-                st.dataframe(styled, use_container_width=True, hide_index=True)
-
-    with tabs[5]:
-        st.markdown("### Auditoría")
-        _render_auditoria_tab(selected_process_label)
+            _render_tarjetas_propuestos(df_prop)
 
     def _load_indicadores_propuestos(
         proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
@@ -2842,36 +2714,4 @@ def render() -> None:
                                         unsafe_allow_html=True,
                                     )
 
-    with tabs[6]:
-        st.markdown("### Indicadores propuestos por proceso y subproceso")
-        st.caption(
-            "Esta visualización se actualiza automáticamente con el archivo fuente de indicadores propuestos."
-        )
-        df_prop, msg_prop = _load_indicadores_propuestos(proceso_sel, subproceso_sel)
-        if msg_prop:
-            st.warning(msg_prop)
-        else:
-            _render_tarjetas_propuestos(df_prop)
 
-    with tabs[7]:
-        st.markdown("### Análisis IA")
-        cumplimiento = pd.to_numeric(latest.get("Cumplimiento_pct"), errors="coerce")
-        riesgos = latest[cumplimiento < 80]
-        alertas = latest[(cumplimiento >= 80) & (cumplimiento < 100)]
-
-        st.write(
-            f"Se identifican {len(riesgos)} indicadores en peligro y {len(alertas)} en alerta para el filtro activo."
-        )
-        if not riesgos.empty:
-            cols = [
-                c
-                for c in ["Indicador", "Subproceso_final", "Cumplimiento_pct"]
-                if c in riesgos.columns
-            ]
-            preview = riesgos[cols].copy().sort_values("Cumplimiento_pct", ascending=True).head(10)
-            preview = preview.rename(
-                columns={"Subproceso_final": "Subproceso", "Cumplimiento_pct": "Cumplimiento (%)"}
-            )
-            st.dataframe(preview, use_container_width=True, hide_index=True)
-        else:
-            st.success("No hay indicadores en peligro para el corte seleccionado.")
