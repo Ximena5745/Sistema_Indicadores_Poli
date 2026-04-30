@@ -126,11 +126,11 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento"):
     return resumen
 
 def _load_plan_retos_data(year):
-    """Carga Plan de retos.xlsx (hojas 'Linea' y 'Objetivo') para el año dado."""
+    """Carga Plan de retos.xlsx (hojas 'Linea', 'Objetivo' y 'Areas') para el año dado."""
     import pandas as pd
     retos_path = Path("data/raw/Retos/Plan de retos.xlsx")
     if not retos_path.exists():
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     try:
         linea_df = pd.read_excel(retos_path, sheet_name="Linea", engine="openpyxl")
         obj_df = pd.read_excel(retos_path, sheet_name="Objetivo", engine="openpyxl")
@@ -157,9 +157,20 @@ def _load_plan_retos_data(year):
         # Objetivo para sunburst
         if "Objetivo" not in obj_df.columns:
             obj_df["Objetivo"] = None
-        return linea_df, obj_df
+        
+        # Cargar hoja Areas
+        areas_df = pd.DataFrame()
+        try:
+            areas_df = pd.read_excel(retos_path, sheet_name="Areas", engine="openpyxl")
+            areas_df.columns = [str(c).strip() for c in areas_df.columns]
+            if "Año" in areas_df.columns:
+                areas_df = areas_df[areas_df["Año"] == year].copy()
+        except Exception:
+            areas_df = pd.DataFrame()
+        
+        return linea_df, obj_df, areas_df
     except Exception:
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 def _build_linea_summary_from_retos(linea_df):
     """Construye resumen por línea para Plan de Retos."""
@@ -1903,11 +1914,12 @@ def render():
                 historico_df = None
                 
         elif category == "Plan de Retos":
-            linea_df, obj_df = _load_plan_retos_data(int(year))
+            linea_df, obj_df, areas_df = _load_plan_retos_data(int(year))
             linea_summary = _build_linea_summary_from_retos(linea_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             objetivo_df = obj_df[cols].copy()
             pdi_base_df = pd.DataFrame()
+            return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df
             
         elif category == "Consolidado":
             pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
@@ -1921,23 +1933,34 @@ def render():
             s2 = _build_linea_summary_from_df(pdi_proy)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
-            linea_df, obj_df = _load_plan_retos_data(int(year))
+            linea_df, obj_df, areas_df = _load_plan_retos_data(int(year))
             s3 = _build_linea_summary_from_retos(linea_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
             linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
             pdi_base_df = pd.DataFrame()
         
-        return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
+        return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df
     
     # --- Carga de datos usando función unificada ---
-    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico)
+    result = _load_base_data_by_type(categoria, safe_year_estrategico)
+    # Ajustar según cantidad de valores retornados
+    if categoria == "Plan de Retos":
+        linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df = result
+    else:
+        linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = result[:5]
+        areas_df = pd.DataFrame()
     
     linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
-    def _get_chip_config(category: str, linea_summary, pdi_estrategico):
+    def _get_chip_config(category: str, linea_summary, pdi_estrategico, areas_df=None, year=None):
         """Retorna configuración de chips según la categoría."""
+        
+        if areas_df is None:
+            areas_df = pd.DataFrame()
+        if year is None:
+            year = 2026
         
         if category == "Indicadores":
             # Configuración original para indicadores
@@ -1982,16 +2005,50 @@ def render():
             ]
         
         elif category == "Plan de Retos":
-            # Retos: Total, % Meta esperada, % Ejecución real, Cumplimiento
-            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            # Retos: Total Áreas con Retos (desde hoja Areas), datos reales de hoja Linea
+            total_areas = 0
+            if not areas_df.empty:
+                num_cols = [c for c in areas_df.columns if "N" in c]
+                if num_cols:
+                    total_areas = int(areas_df[num_cols[0]].sum())
             
-            meta_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
+            # Obtener datos reales de hoja Linea para Meta, Ejecución y Cumplimiento
+            meta_pct = 0
+            ejec_pct = 0
+            cump_pct = 0
+            
+            linea_df = pd.DataFrame()
+            try:
+                retos_path = Path("data/raw/Retos/Plan de retos.xlsx")
+                if retos_path.exists():
+                    linea_df = pd.read_excel(retos_path, sheet_name="Linea", engine="openpyxl")
+                    linea_df.columns = [str(c).strip() for c in linea_df.columns]
+                    if "Año" in linea_df.columns:
+                        linea_df = linea_df[linea_df["Año"] == year].copy()
+                    if not linea_df.empty:
+                        meta_cols = [c for c in linea_df.columns if "Meta" in c]
+                        ejec_cols = [c for c in linea_df.columns if "Ejecu" in c]
+                        cump_cols = [c for c in linea_df.columns if "Cumpl" in c]
+                        if meta_cols:
+                            meta_vals = pd.to_numeric(linea_df[meta_cols[0]], errors="coerce").dropna()
+                            if not meta_vals.empty:
+                                meta_pct = meta_vals.mean() * 100
+                        if ejec_cols:
+                            ejec_vals = pd.to_numeric(linea_df[ejec_cols[0]], errors="coerce").dropna()
+                            if not ejec_vals.empty:
+                                ejec_pct = ejec_vals.mean() * 100
+                        if cump_cols:
+                            cump_vals = pd.to_numeric(linea_df[cump_cols[0]], errors="coerce").dropna()
+                            if not cump_vals.empty:
+                                cump_pct = cump_vals.mean() * 100
+            except Exception:
+                pass
             
             return [
-                (total_retos, "Total Retos", "#0B5FFF"),
-                (f"{meta_prom:.1f}%", "% Meta Esperada", "#173D66"),
-                (f"{meta_prom * 0.85:.1f}%", "% Avance Real", "#F59E0B"),
-                (f"{min(100, meta_prom * 0.9):.1f}%", "Cumplimiento", "#16A34A"),
+                (total_areas, "Total Áreas con Retos", "#0B5FFF"),
+                (f"{meta_pct:.1f}%", "% Meta", "#173D66"),
+                (f"{ejec_pct:.1f}%", "% Ejecución", "#F59E0B"),
+                (f"{cump_pct:.1f}%", "% Cumplimiento", "#16A34A"),
             ]
         
         elif category == "Consolidado":
@@ -2005,7 +2062,7 @@ def render():
         
         return []
     
-    _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico)
+    _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico, areas_df, safe_year_estrategico)
     if _chip_cfg:  # Only render if we have chip configuration
         _chip_cols = st.columns(len(_chip_cfg))
         for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):

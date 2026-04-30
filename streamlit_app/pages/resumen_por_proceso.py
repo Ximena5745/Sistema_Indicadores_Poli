@@ -349,9 +349,17 @@ def _get_prev_month_for_year(tracking_df: pd.DataFrame, year: int) -> int | None
     if tracking_df.empty or "Anio" not in tracking_df.columns:
         return None
     subset = tracking_df[tracking_df["Anio"] == year].copy()
-    if subset.empty or "Mes_num" not in subset.columns:
+    if subset.empty:
         return None
-    months = pd.to_numeric(subset["Mes_num"], errors="coerce").dropna().astype(int)
+
+    if "Mes_num" in subset.columns:
+        months = pd.to_numeric(subset["Mes_num"], errors="coerce")
+    elif "Mes" in subset.columns:
+        months = subset["Mes"].apply(_mes_to_num)
+    else:
+        return None
+
+    months = pd.to_numeric(months, errors="coerce").dropna().astype(int)
     return int(months.max()) if not months.empty else None
 
 
@@ -2234,8 +2242,12 @@ def render() -> None:
                 if "Proceso" in chart_curr.columns
                 else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
             )
+            group_cols = [process_col_bar]
+            if "Tipo de proceso" in chart_curr.columns:
+                group_cols.append("Tipo de proceso")
+
             proc_curr = (
-                chart_curr.groupby(process_col_bar, dropna=False)
+                chart_curr.groupby(group_cols, dropna=False)
                 .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
                 .reset_index()
             )
@@ -2247,17 +2259,17 @@ def render() -> None:
             if not chart_base.empty:
                 _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
                 proc_base = (
-                    chart_base.groupby(process_col_bar, dropna=False)
+                    chart_base.groupby(group_cols, dropna=False)
                     .agg(base_2024=(_base_pct_col, "mean"))
                     .reset_index()
                 )
-                proc_comp = proc_curr.merge(proc_base, on=process_col_bar, how="left")
+                proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
             else:
                 proc_comp = proc_curr.copy()
                 proc_comp["base_2024"] = pd.NA
 
             proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
-            proc_comp = proc_comp.sort_values("actual", ascending=False).head(10)
+            proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
 
             if not proc_comp.empty:
                 fig_bar = go.Figure()
@@ -2310,7 +2322,11 @@ def render() -> None:
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-                proc_table = proc_comp[[process_col_bar, "actual", "base_2024", "delta_2024"]].copy()
+                table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
+                if "Tipo de proceso" in proc_comp.columns:
+                    table_cols.insert(0, "Tipo de proceso")
+
+                proc_table = proc_comp[table_cols].copy()
                 proc_table = proc_table.rename(
                     columns={
                         process_col_bar: "Proceso",
@@ -2322,6 +2338,9 @@ def render() -> None:
                 for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
                     if col in proc_table.columns:
                         proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+                if "Tipo de proceso" in proc_table.columns:
+                    proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
 
                 st.markdown("#### Tabla de procesos comparativa")
                 st.dataframe(proc_table, use_container_width=True, hide_index=True)
