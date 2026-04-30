@@ -2338,7 +2338,14 @@ def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFram
 
 
 def render() -> None:
-    st.title("Resumen por procesos")
+    st.title("CMI por Procesos — Resumen")
+    st.markdown(
+        """
+        **Nuevas pestañas agregadas:** `Procesos y Unidades`, `Indicadores`, `Alertas`, `Propuesta`, `Análisis Avanzado`.
+        Usa los filtros globales de la parte superior para segmentar por Unidad, Proceso, Subproceso, Año, Mes, Frecuencia, Clasificación y Tipo de indicador.
+        """,
+        unsafe_allow_html=True,
+    )
 
     ds = DataService()
     tracking_df = ds.get_tracking_data()
