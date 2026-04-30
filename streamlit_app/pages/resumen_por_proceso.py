@@ -307,6 +307,111 @@ def _render_resumen_procesos_style() -> None:
     )
 
 
+def _render_resumen_overview_cards(
+    df: pd.DataFrame,
+    selected_process: str,
+    selected_subprocess: str,
+    global_year: int,
+    month_name: str,
+) -> None:
+    if df.empty:
+        st.info("No hay datos disponibles para el resumen general del corte actual.")
+        return
+
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in df.columns else None
+    )
+    cumplimiento = pd.to_numeric(df[pct_col], errors="coerce") if pct_col else pd.Series(dtype="float64")
+    avg_cumpl = float(cumplimiento.mean()) if not cumplimiento.dropna().empty else 0.0
+    total_process = int(df["Proceso_padre"].dropna().nunique()) if "Proceso_padre" in df.columns else 0
+    total_subprocess = int(df["Subproceso_final"].dropna().nunique()) if "Subproceso_final" in df.columns else 0
+    total_indicadores = int(df["Indicador"].dropna().shape[0]) if "Indicador" in df.columns else 0
+    riesgos = int((cumplimiento < 80).sum()) if not cumplimiento.empty else 0
+    alertas = int(((cumplimiento >= 80) & (cumplimiento < 100)).sum()) if not cumplimiento.empty else 0
+
+    st.markdown(
+        f"""
+        <div style='display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin:16px 0;'>
+            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
+                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Indicadores activos</div>
+                <div style='font-size:2rem;font-weight:800;color:#1e3a8a;'>{total_indicadores}</div>
+                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Proceso actual: {selected_process}</div>
+            </div>
+            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
+                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Procesos / subprocesos</div>
+                <div style='font-size:2rem;font-weight:800;color:#1e3a8a;'>{total_process}</div>
+                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Subprocesos: {total_subprocess}</div>
+            </div>
+            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
+                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Cumplimiento promedio</div>
+                <div style='font-size:2rem;font-weight:800;color:#047857;'>{avg_cumpl:.1f}%</div>
+                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Corte: {month_name} {global_year}</div>
+            </div>
+            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
+                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Alertas y riesgos</div>
+                <div style='font-size:2rem;font-weight:800;color:#b45309;'>{alertas}</div>
+                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Riesgos: {riesgos}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_propuesta_resumen(
+    latest_df: pd.DataFrame,
+    proceso_actual: str,
+    subproceso_actual: str,
+    month_name: str,
+    year: int,
+) -> None:
+    st.markdown("#### Propuesta de acción")
+    if latest_df.empty:
+        st.info("No hay datos de indicadores en el corte actual para generar una propuesta.")
+        return
+
+    propuesta = _build_propuestos(latest_df, proceso_actual)
+    if propuesta.empty:
+        st.info("No se generó una propuesta con los datos disponibles.")
+        return
+
+    row = propuesta.iloc[0].to_dict()
+    cards = [
+        ("Plan de mejoramiento", row.get("Plan de mejoramiento", "Sin datos"), "#fef3c7", "#92400e"),
+        ("PDI 2026-2030", row.get("PDI 2026-2030", "Sin datos"), "#dbeafe", "#1e40af"),
+        ("SGA", row.get("SGA", "Sin datos"), "#ede9fe", "#4c1d95"),
+        ("Retos", row.get("Retos", "Sin datos"), "#ecfccb", "#365314"),
+    ]
+    cols = st.columns(4)
+    for col, (title, text, background, title_color) in zip(cols, cards):
+        col.markdown(
+            f"""
+            <div style='background:{background};border:1px solid {title_color};border-radius:14px;padding:14px;min-height:130px;'>
+                <div style='font-size:0.8rem;font-weight:700;color:{title_color};margin-bottom:10px;'>{title}</div>
+                <div style='font-size:0.85rem;color:#1f2937;line-height:1.4;min-height:92px;'>{text}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in latest_df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in latest_df.columns else None
+    )
+    if pct_col:
+        riesgos = latest_df[pd.to_numeric(latest_df[pct_col], errors="coerce") < 80].copy()
+        if not riesgos.empty:
+            top_riesgos = riesgos.sort_values(pct_col).head(3)
+            st.markdown("**Top 3 indicadores críticos**")
+            for _, r in top_riesgos.iterrows():
+                indicador = str(r.get("Indicador", "Sin nombre"))
+                proc = str(r.get("Proceso_padre", "Sin proceso"))
+                valor = pd.to_numeric(r.get(pct_col), errors="coerce")
+                valor_text = f"{valor:.1f}%" if pd.notna(valor) else "Sin dato"
+                st.markdown(f"- **{indicador}** ({proc}) — Cumplimiento: {valor_text}")
+        else:
+            st.success("No hay indicadores críticos para el corte actual.")
+
+
 def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, display_col: str) -> tuple[list, list]:
     """Calcula mejores y peores variaciones entre períodos."""
     if base_df.empty or prev_df.empty:
@@ -2077,13 +2182,13 @@ def render() -> None:
 
     tabs = st.tabs(
         [
-            "📋 Resumen general",
+            "📋 Resumen",
             "ℹ️ Información por proceso",
             "📊 Indicadores",
             "📈 Evolución",
             "✅ Calidad",
             "🔍 Auditoría",
-            "💡 Propuestos",
+            "💡 Propuesta",
             "🤖 Análisis IA",
         ]
     )
@@ -2218,6 +2323,21 @@ def render() -> None:
                             base_year=_base_year,
                             color=tipo_color,
                         )
+
+            _render_resumen_overview_cards(
+                cmi_global,
+                proceso_sel,
+                subproceso_sel,
+                int(global_year),
+                _latest_month_name,
+            )
+            _render_propuesta_resumen(
+                latest,
+                proceso_sel,
+                subproceso_sel,
+                _latest_month_name,
+                int(global_year),
+            )
 
             # ── Gráfico principal: cumplimiento promedio por proceso ─────────
             st.markdown("##### Procesos con mayor cumplimiento")

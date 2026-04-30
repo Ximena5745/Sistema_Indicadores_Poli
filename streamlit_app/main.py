@@ -152,8 +152,8 @@ def main():
         cmi_estrategico_tabulado.render()
 
     elif menu == "CMI por Procesos":
-        from streamlit_app.pages import cmi_por_procesos_resumen
-        cmi_por_procesos_resumen.render()
+        from streamlit_app.pages import resumen_por_proceso
+        resumen_por_proceso.render()
 
     elif menu == "Informe por Procesos":
         from streamlit_app.pages import informe_por_procesos

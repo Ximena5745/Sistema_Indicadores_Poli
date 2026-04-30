@@ -7,8 +7,9 @@ import plotly.graph_objects as go
 
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
-from streamlit_app.pages.cmi_por_procesos_resumen import _mes_to_num, _get_prev_month_for_year
 from streamlit_app.pages.resumen_por_proceso import (
+    _mes_to_num,
+    _get_prev_month_for_year,
     _build_indicator_history,
     _default_month_num,
     _latest_per_indicator,
