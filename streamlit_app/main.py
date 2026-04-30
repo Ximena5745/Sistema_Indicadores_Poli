@@ -36,8 +36,10 @@ def main():
         from streamlit_app.pages import (
             cmi_estrategico,
             gestion_om,
+            informe_por_procesos,
             plan_mejoramiento,
             resumen_general,
+            resumen_por_procesos,
             resumen_por_proceso,
             seguimiento_reportes,
             tablero_operativo,
@@ -47,9 +49,11 @@ def main():
         from .pages import (
             cmi_estrategico,
             gestion_om,
+            informe_por_procesos,
             plan_mejoramiento,
             resumen_general,
             resumen_por_proceso,
+            resumen_por_procesos,
             seguimiento_reportes,
             tablero_operativo,
             pdi_acreditacion,
@@ -88,6 +92,7 @@ def main():
                 "◫  Resumen General",
                 "⌂  CMI Estratégico",
                 "◷  CMI por Procesos",
+                "◯  Informe por Procesos",
                 "◐  Plan de Mejoramiento",
                 "─────────────────────",
                 "◧  Seguimiento Operativo",
@@ -97,6 +102,7 @@ def main():
                 "◫  Resumen General": "Resumen General",
                 "⌂  CMI Estratégico": "CMI Estratégico",
                 "◷  CMI por Procesos": "CMI por Procesos",
+                "◯  Informe por Procesos": "Informe por Procesos",
                 "◐  Plan de Mejoramiento": "Plan de Mejoramiento",
                 "─────────────────────": "divider",
                 "◧  Seguimiento Operativo": "Seguimiento Operativo",
@@ -148,7 +154,12 @@ def main():
         cmi_estrategico_tabulado.render()
 
     elif menu == "CMI por Procesos":
-        resumen_por_proceso.render()
+        from streamlit_app.pages import cmi_por_procesos_resumen
+        cmi_por_procesos_resumen.render()
+
+    elif menu == "Informe por Procesos":
+        from streamlit_app.pages import informe_por_procesos
+        informe_por_procesos.render()
 
     elif menu == "Plan de Mejoramiento":
         plan_mejoramiento.render()

@@ -1787,6 +1787,7 @@ def render():
         pdi_base_df = pd.DataFrame()
         pdi_estrategico = pd.DataFrame()
         historico_df = None
+        areas_df = pd.DataFrame()
         
         # Años a cargar si use_all_years es True
         years_to_load = [2022, 2023, 2024, 2025] if use_all_years else [year]

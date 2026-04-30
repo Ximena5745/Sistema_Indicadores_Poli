@@ -126,3 +126,15 @@ class TestResumenPorProcesoEdgeCases:
         """Test string with extra whitespace and %"""
         result = normalizar_valor_a_porcentaje("  95  %")
         assert result == 95 or pd.isna(result)  # May or may not parse
+
+
+def test_cmi_por_procesos_resumen_renderable():
+    import streamlit_app.pages.cmi_por_procesos_resumen as resumen
+
+    assert hasattr(resumen, "render")
+
+
+def test_informe_por_procesos_renderable():
+    import streamlit_app.pages.informe_por_procesos as informe
+
+    assert hasattr(informe, "render")
