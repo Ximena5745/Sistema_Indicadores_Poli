@@ -2099,51 +2099,49 @@ def render():
     else:
         unit_label = "indicadores"
     
-    # Solo mostrar fichas para Indicadores y Proyectos
+# Solo mostrar fichas para Indicadores y Proyectos
     if categoria not in ["Plan de Retos", "Consolidado"]:
         ficha_cols = st.columns(6)
-    for idx, card_def in enumerate(strategic_defs):
-        row = norm_to_row.get(card_def["key"])
-        if row is None:
-            alt_keys = [card_def["key"]] + card_def.get("alt", [])
-            matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
-            row = norm_to_row.get(matched[0]) if matched else None
-        if row is not None:
-            try:
-                n_ind = int(float(row.get("N_Indicadores", 0)))
-            except (ValueError, TypeError):
+        for idx, card_def in enumerate(strategic_defs):
+            row = norm_to_row.get(card_def["key"])
+            if row is None:
+                alt_keys = [card_def["key"]] + card_def.get("alt", [])
+                matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
+                row = norm_to_row.get(matched[0]) if matched else None
+            if row is not None:
+                try:
+                    n_ind = int(float(row.get("N_Indicadores", 0)))
+                except (ValueError, TypeError):
+                    n_ind = 0
+                try:
+                    cumpl = float(row.get("Cumpl_Promedio", 0))
+                except (ValueError, TypeError):
+                    cumpl = 0.0
+            else:
                 n_ind = 0
-            try:
-                cumpl = float(row.get("Cumpl_Promedio", 0))
-            except (ValueError, TypeError):
                 cumpl = 0.0
-        else:
-            n_ind = 0
-            cumpl = 0.0
-        historico = None
-        if row is not None and historico_df is not None and not historico_df.empty:
-            try:
-                linea_nombre = row["Linea"]
-                df_hist = historico_df[historico_df["Linea"] == linea_nombre].copy()
-                if not df_hist.empty and "Anio" in df_hist.columns and "cumplimiento_pct" in df_hist.columns:
-                    historico = (
-                        df_hist.groupby("Anio", dropna=False)["cumplimiento_pct"].mean().reset_index()
-                    )
-                    historico = historico[historico["Anio"].notna()]
-                    historico = historico.rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
-                    historico = historico.sort_values("Año")
-            except Exception:
-                pass
-        with ficha_cols[idx % 6]:
-            _render_strategy_card(
-                title=card_def["label"],
-                indicators=n_ind,
-                cumplimiento=cumpl,
-                color=card_def["color"],
-                icon=card_def["icon"],
-                historico=historico,
-                unit_label=unit_label,
-            )
+            historico = None
+            if row is not None and historico_df is not None and not historico_df.empty:
+                try:
+                    linea_nombre = row["Linea"]
+                    df_hist = historico_df[historico_df["Linea"] == linea_nombre].copy()
+                    if not df_hist.empty and "Anio" in df_hist.columns and "cumplimiento_pct" in df_hist.columns:
+                        historico = df_hist.groupby("Anio", dropna=False)["cumplimiento_pct"].mean().reset_index()
+                        historico = historico[historico["Anio"].notna()]
+                        historico = historico.rename(columns={"Anio": "Año", "cumplimiento_pct": "Cumplimiento"})
+                        historico = historico.sort_values("Año")
+                except Exception:
+                    pass
+            with ficha_cols[idx % 6]:
+                _render_strategy_card(
+                    title=card_def["label"],
+                    indicators=n_ind,
+                    cumplimiento=cumpl,
+                    color=card_def["color"],
+                    icon=card_def["icon"],
+                    historico=historico,
+                    unit_label=unit_label,
+)
 
     # --- Sunburst (no mostrar para Consolidado y Plan de Retos) ---
     if categoria not in ["Consolidado", "Plan de Retos"] and not objetivo_df.empty:

@@ -309,7 +309,7 @@ def render() -> None:
                         st.markdown("#### Detalle histórico")
                         st.dataframe(hist_table, use_container_width=True, hide_index=True)
 
-    with tabs[6]:
+    with tabs[2]:
         st.markdown("### Calidad")
         calidad_df, calidad_msg = _load_calidad_data()
         if calidad_msg:
@@ -330,11 +330,11 @@ def render() -> None:
                 _render_calidad_kpis_cards(calidad_df)
                 st.dataframe(calidad_df.head(100), use_container_width=True)
 
-    with tabs[7]:
+    with tabs[3]:
         st.markdown("### Auditoría")
         _render_auditoria_tab(selected_process_label)
 
-    with tabs[8]:
+    with tabs[4]:
         st.markdown("### Propuestas")
         propuestas_df, propuestas_msg = _load_propuestas(proceso_sel, subproceso_sel)
         if propuestas_msg:
@@ -342,7 +342,7 @@ def render() -> None:
         else:
             _render_propuestas(propuestas_df)
 
-    with tabs[9]:
+    with tabs[5]:
         st.markdown("### Análisis IA")
         if filtered.empty:
             st.info("No hay datos disponibles.")
