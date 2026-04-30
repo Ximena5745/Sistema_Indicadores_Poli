@@ -610,6 +610,12 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
         print(f"No se pudo exportar columnas: {e}")
 
     df = pdi_df.copy()
+    # Garantizar que Sunburst siempre reciba datos: si no hay datos o faltan columnas claves,
+    # insertar un nodo dummy con 0% de cumplimiento para asegurar renderización.
+    required_cols = {"Linea", "Objetivo", "cumplimiento_pct"}
+    has_required = required_cols.issubset(set(df.columns))
+    if df.empty or (not has_required) or ("cumplimiento_pct" in df.columns and df["cumplimiento_pct"].isna().all()):
+        df = pd.DataFrame({"Linea": ["Sin datos"], "Objetivo": ["Sin datos"], "cumplimiento_pct": [0.0]})
     # Normalizar y limpiar cumplimiento_pct: convertir a numérico y eliminar inf
     try:
         import numpy as np
@@ -2019,7 +2025,15 @@ def render():
             
             # Calcular promedio de cumplimiento para cada objetivo
             objetivo_df = pd.concat([o1,o2,o3], ignore_index=True)
-            if not objetivo_df.empty and "cumplimiento_pct" in objetivo_df.columns:
+            # Asegurar que haya una columna de cumplimiento para la gráfica de sunburst
+            if objetivo_df.empty:
+                # Intentar rellenar con datos de linea_summary para evitar que la sunburst falle
+                if not linea_summary.empty and "Linea" in linea_summary.columns and "Objetivo" in linea_summary.columns:
+                    objetivo_df = linea_summary[["Linea","Objetivo"]].copy()
+                    objetivo_df["cumplimiento_pct"] = 0.0
+                else:
+                    objetivo_df = objetivo_df.copy()
+            if "cumplimiento_pct" in objetivo_df.columns:
                 objetivo_df["cumplimiento_pct"] = pd.to_numeric(objetivo_df["cumplimiento_pct"], errors="coerce")
                 objetivo_df = objetivo_df.groupby(["Linea", "Objetivo"], dropna=False)["cumplimiento_pct"].mean().reset_index()
             

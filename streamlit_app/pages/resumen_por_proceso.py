@@ -26,6 +26,8 @@ from streamlit_app.components.dashboard_components import (
     render_analisis_unidad,
     render_historico_tab,
 )
+from streamlit_app.components.cmi_tabs.tab_alertas import render_tab_alertas
+from streamlit_app.components.heatmap_chart import render_performance_heatmap
 
 MESES_OPCIONES = [
     "Enero",
@@ -366,6 +368,139 @@ def _render_resumen_overview_cards(
     )
 
 
+def _load_indicadores_por_cmi() -> pd.DataFrame:
+    path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(path, sheet_name=0, engine="openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
+def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
+    if df_cmi.empty:
+        st.info("No se encontró el archivo Indicadores por CMI con el detalle de periodicidad y tipo de indicador.")
+        return
+
+    period_col = _first_col(df_cmi, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
+    type_col = _first_col(df_cmi, ["Tipo de indicador", "Tipo de indicador", "Tipo", "tipo_indicador"])
+
+    if period_col is None and type_col is None:
+        st.warning("El archivo Indicadores por CMI no contiene columnas de Periodicidad o Tipo de indicador.")
+        return
+
+    cols = st.columns(2)
+    if period_col is not None:
+        counts = (
+            df_cmi[period_col]
+            .fillna("Sin periodicidad")
+            .astype(str)
+            .value_counts()
+            .reset_index()
+            .rename(columns={"index": "Periodicidad", period_col: "Indicadores"})
+        )
+        counts = counts.sort_values("Indicadores", ascending=False)
+        fig = px.bar(
+            counts,
+            x="Periodicidad",
+            y="Indicadores",
+            text="Indicadores",
+            title="Indicadores por periodicidad",
+            color="Indicadores",
+            color_continuous_scale="Blues",
+        )
+        fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
+        cols[0].plotly_chart(fig, use_container_width=True)
+
+    if type_col is not None:
+        counts = (
+            df_cmi[type_col]
+            .fillna("Sin tipo")
+            .astype(str)
+            .value_counts()
+            .reset_index()
+            .rename(columns={"index": "Tipo de indicador", type_col: "Indicadores"})
+        )
+        counts = counts.sort_values("Indicadores", ascending=False)
+        fig = px.bar(
+            counts,
+            x="Tipo de indicador",
+            y="Indicadores",
+            text="Indicadores",
+            title="Indicadores por tipo de indicador",
+            color="Indicadores",
+            color_continuous_scale="Greens",
+        )
+        fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
+        cols[1].plotly_chart(fig, use_container_width=True)
+
+
+def _render_tab_indicadores(
+    df: pd.DataFrame,
+    cmi_catalog: pd.DataFrame,
+) -> None:
+    st.markdown("### Indicadores por Línea, Proceso y Subproceso")
+    if df.empty:
+        st.info("No hay indicadores activos para mostrar en esta vista.")
+        return
+
+    search = st.text_input("Buscar indicador", key="tab_indicadores_search")
+    if search:
+        df = df[df["Indicador"].astype(str).str.contains(search, case=False, na=False)]
+
+    linea_col = _first_col(df, ["Linea", "Línea", "Linea estratégica", "Linea estrategica"])
+    if linea_col is None:
+        linea_col = "Linea"
+        df[linea_col] = df.get("Linea", df.get("Proceso_padre", "Sin línea"))
+
+    df = df.copy()
+    df[linea_col] = df[linea_col].fillna("Sin línea")
+
+    if cmi_catalog is not None and not cmi_catalog.empty:
+        tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
+    else:
+        tipo_col = _first_col(df, ["Tipo de indicador", "Tipo", "tipo_indicador"])
+
+    process_col = _first_col(df, ["Proceso_padre", "Proceso", "Proceso Padre", "Proceso_padre"])
+    subproceso_col = _first_col(df, ["Subproceso_final", "Subproceso", "Subproceso_final"])
+    pct_col = _first_col(df, ["cumplimiento_pct", "Cumplimiento_pct"])
+
+    if pct_col is None:
+        pct_col = "Cumplimiento_pct"
+
+    lineas = sorted(df[linea_col].dropna().astype(str).unique().tolist())
+    if not lineas:
+        st.warning("No se encontraron líneas para mostrar.")
+        return
+
+    for linea in lineas:
+        with st.expander(f"{linea} — {len(df[df[linea_col] == linea])} indicadores", expanded=False):
+            group_df = df[df[linea_col] == linea].copy()
+            display_cols = [c for c in [process_col, subproceso_col, tipo_col, "Indicador", "Meta", "Ejecucion", pct_col, "Nivel de cumplimiento"] if c in group_df.columns]
+            display_df = group_df[display_cols].copy()
+            if pct_col in display_df.columns:
+                display_df[pct_col] = pd.to_numeric(display_df[pct_col], errors="coerce").round(1)
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+            sel_indicador = st.selectbox(
+                "Seleccionar indicador para ver ficha",
+                [""] + group_df["Indicador"].astype(str).fillna(" ").tolist(),
+                key=f"tab_indicadores_sel_{linea}",
+            )
+            if sel_indicador:
+                row = group_df[group_df["Indicador"].astype(str) == sel_indicador].head(1)
+                if not row.empty and st.button("Ver ficha", key=f"tab_indicadores_button_{linea}"):
+                    render_modal_ficha(row.iloc[0])
+
+    st.markdown("#### Total de indicadores por línea")
+    counts = df[linea_col].astype(str).value_counts().reset_index()
+    counts.columns = ["Linea", "Indicadores"]
+    st.bar_chart(counts.set_index("Linea"))
+
+
 def _render_propuesta_resumen(
     latest_df: pd.DataFrame,
     proceso_actual: str,
@@ -418,6 +553,139 @@ def _render_propuesta_resumen(
                 st.markdown(f"- **{indicador}** ({proc}) — Cumplimiento: {valor_text}")
         else:
             st.success("No hay indicadores críticos para el corte actual.")
+
+
+def _render_tab_procesos_unidades(
+    cmi_global: pd.DataFrame,
+    cmi_base_2024: pd.DataFrame,
+    global_year: int,
+    base_year: int,
+    month_name: str,
+) -> None:
+    st.markdown("### Procesos y Unidades")
+    st.caption("Comparativo de procesos y análisis de unidades organizacionales en el corte actual.")
+
+    if cmi_global.empty:
+        st.info("No hay datos para mostrar en Procesos y Unidades.")
+        return
+
+    pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_global.columns else (
+        "Cumplimiento_pct" if "Cumplimiento_pct" in cmi_global.columns else None
+    )
+
+    _render_resumen_overview_cards(cmi_global, "Global", "Todos", global_year, month_name)
+
+    st.markdown("#### Tabla de Procesos Comparativa")
+    process_col_bar = (
+        "Proceso"
+        if "Proceso" in cmi_global.columns
+        else ("Subproceso_final" if "Subproceso_final" in cmi_global.columns else ("Subproceso" if "Subproceso" in cmi_global.columns else "Proceso"))
+    )
+    group_cols = [process_col_bar]
+    if "Tipo de proceso" in cmi_global.columns:
+        group_cols.append("Tipo de proceso")
+
+    proc_curr = (
+        cmi_global.groupby(group_cols, dropna=False)
+        .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+        .reset_index()
+    )
+
+    if not cmi_base_2024.empty:
+        _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_base_2024.columns else "Cumplimiento_pct"
+        proc_base = (
+            cmi_base_2024.groupby(group_cols, dropna=False)
+            .agg(base_2024=(_base_pct_col, "mean"))
+            .reset_index()
+        )
+        proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
+    else:
+        proc_comp = proc_curr.copy()
+        proc_comp["base_2024"] = pd.NA
+
+    proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
+    proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(12)
+
+    if not proc_comp.empty:
+        proc_table = proc_comp.copy()
+        proc_table = proc_table.rename(
+            columns={
+                process_col_bar: "Proceso",
+                "actual": f"Cumplimiento {global_year}",
+                "base_2024": f"Cumplimiento {base_year}",
+                "delta_2024": "Delta",
+            }
+        )
+        for col in [f"Cumplimiento {global_year}", f"Cumplimiento {base_year}", "Delta"]:
+            if col in proc_table.columns:
+                proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+        st.dataframe(proc_table, use_container_width=True, hide_index=True)
+    else:
+        st.info("No hay procesos con datos para mostrar en la tabla comparativa.")
+
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.markdown("#### Ranking por Unidad Organizacional")
+        if "Unidad" in cmi_global.columns:
+            render_analisis_unidad(cmi_global, pct_col)
+        else:
+            st.info("No hay datos de Unidad organizacional disponibles en este corte.")
+
+    with col2:
+        st.markdown("#### Heatmap — Cumplimiento por Unidad y Periodo")
+        if "Unidad" in cmi_global.columns and "Mes" in cmi_global.columns:
+            heat_df = cmi_global.copy()
+            heat_df["Mes_num"] = heat_df["Mes"].apply(_mes_to_num)
+            heat_df = heat_df[heat_df["Mes_num"].notna()].copy()
+            heat_df["Periodo"] = heat_df["Mes_num"].apply(lambda v: MESES_OPCIONES[int(v) - 1] if pd.notna(v) and 1 <= int(v) <= 12 else str(v))
+            if not heat_df.empty:
+                fig_heat = render_performance_heatmap(
+                    heat_df,
+                    x_col="Periodo",
+                    y_col="Unidad",
+                    value_col=pct_col,
+                    title="Cumplimiento por Unidad y Período",
+                    height=360,
+                )
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.info("No hay datos de mes válidos para generar el heatmap.")
+        else:
+            st.info("No hay datos de unidad o periodo para generar el heatmap.")
+
+    if not proc_comp.empty:
+        st.markdown("#### Desempeño Comparativo — 2025 vs 2024")
+        fig_cmp = go.Figure()
+        fig_cmp.add_trace(
+            go.Bar(
+                name=f"Cumplimiento {global_year}",
+                x=proc_comp[process_col_bar],
+                y=proc_comp["actual"],
+                marker_color="#1E4C86",
+            )
+        )
+        if proc_comp["base_2024"].notna().any():
+            fig_cmp.add_trace(
+                go.Bar(
+                    name=f"Cumplimiento {base_year}",
+                    x=proc_comp[process_col_bar],
+                    y=proc_comp["base_2024"],
+                    marker_color="#9AB7D5",
+                )
+            )
+        fig_cmp.update_layout(
+            barmode="group",
+            height=340,
+            margin=dict(t=25, b=120),
+            xaxis_tickangle=-25,
+            xaxis_title="Proceso",
+            yaxis_title="Cumplimiento promedio (%)",
+            legend_title_text="Año",
+        )
+        st.plotly_chart(fig_cmp, use_container_width=True)
+    else:
+        st.info("No hay datos suficientes para generar el análisis comparativo de procesos.")
 
 
 def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, display_col: str) -> tuple[list, list]:
@@ -693,7 +961,7 @@ def _prepare_tracking(
 
     if not map_df.empty and {"Subproceso", "Proceso"}.issubset(map_df.columns):
         sub_map = (
-            map_df[["Subproceso", "Proceso"]].dropna().drop_duplicates(subset=["Subproceso"]).copy()
+            map_df[["Subproceso", "Proceso", "Unidad"]].dropna(subset=["Subproceso"]).drop_duplicates(subset=["Subproceso"]).copy()
         )
         sub_map["sub_norm"] = sub_map["Subproceso"].astype(str).map(_norm_text)
 
@@ -701,7 +969,7 @@ def _prepare_tracking(
         out["proc_norm"] = out["proc_input"].map(_norm_text)
 
         out = out.merge(
-            sub_map[["sub_norm", "Proceso"]].rename(columns={"Proceso": "Proceso_padre_sub"}),
+            sub_map[["sub_norm", "Proceso", "Unidad"]].rename(columns={"Proceso": "Proceso_padre_sub", "Unidad": "Unidad_sub"}),
             left_on="proc_norm",
             right_on="sub_norm",
             how="left",
@@ -713,10 +981,12 @@ def _prepare_tracking(
         else:
             out["Subproceso_final"] = out["proc_input"]
 
+        out["Unidad"] = out["Unidad_sub"].fillna("Sin unidad")
+
         out = out.drop(
             columns=[
                 c
-                for c in ["proc_input", "proc_norm", "sub_norm", "Proceso_padre_sub"]
+                for c in ["proc_input", "proc_norm", "sub_norm", "Proceso_padre_sub", "Unidad_sub"]
                 if c in out.columns
             ]
         )
@@ -2102,23 +2372,99 @@ def render() -> None:
     # Aplicar filtro global CMI por Procesos: solo indicadores con 'Subprocesos' == 1
     full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=default_month_num)
+    cmi_catalog = _load_indicadores_por_cmi()
     procesos_all = sorted(full_work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+
+    unidad_col = _first_col(snapshot_df, ["Unidad"])
+    proceso_col = "Proceso_padre"
+    subproceso_col = "Subproceso_final"
+    frecuencia_col = _first_col(snapshot_df, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
+    clasificacion_col = _first_col(snapshot_df, ["Clasificación", "Clasificacion", "Categoria"])
+    tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
 
     st.markdown("#### Filtros")
     st.caption(
         "Usa los filtros para cambiar el corte de evaluación. El Resumen consolida los indicadores activos de CMI por Procesos y mantiene la semántica oficial de niveles."
     )
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        default_year = 2025 if 2025 in years else (years[-1] if years else None)
-        default_year_idx = years.index(default_year) if default_year in years else 0
-        anio = st.selectbox("Año", options=years, index=default_year_idx if years else None)
-    with c2:
-        mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month))
-    with c3:
-        proceso_placeholder = st.empty()
 
-    # Recalcular datos del corte según mes seleccionado para que Meta/Ejecución/Cumplimiento respondan al filtro
+    unidad_options = ["Todos"]
+    if unidad_col and unidad_col in snapshot_df.columns:
+        unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
+
+    c1, c2, c3 = st.columns([1.3, 1.3, 1.3])
+    with c1:
+        unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad")
+    with c2:
+        proceso_df = snapshot_df.copy()
+        if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
+            proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
+        proceso_options = ["Todos"] + sorted(
+            proceso_df[proceso_col].dropna().astype(str).unique().tolist()
+        )
+        proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso")
+    with c3:
+        sub_df = snapshot_df.copy()
+        if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
+            sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
+        if proceso_sel != "Todos":
+            sub_df = sub_df[sub_df[proceso_col].astype(str) == proceso_sel]
+        subproceso_options = ["Todos"] + sorted(
+            sub_df[subproceso_col].dropna().astype(str).unique().tolist()
+        )
+        subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso")
+
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
+        year_options = [str(y) for y in years] if years else [str(default_year)]
+        default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
+        anio = st.segmented_control(
+            "Año",
+            options=year_options,
+            default=default_year_label,
+            key="filter_anio",
+        )
+        anio = int(anio) if anio is not None else None
+    with c2:
+        mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
+    with c3:
+        frecuencia_options = ["Todos"]
+        if frecuencia_col and frecuencia_col in snapshot_df.columns:
+            frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
+        elif not cmi_catalog.empty:
+            catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
+            if catalog_freq_col is not None:
+                frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
+        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        clasificacion_options = ["Todos"]
+        if clasificacion_col and clasificacion_col in snapshot_df.columns:
+            clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
+        clasificacion_sel = st.segmented_control(
+            "Clasificación",
+            options=clasificacion_options,
+            default="Todos",
+            key="filter_clasificacion",
+        )
+    with c2:
+        tipo_options = ["Todos"]
+        if tipo_indicador_col and tipo_indicador_col in snapshot_df.columns:
+            tipo_options += sorted(snapshot_df[tipo_indicador_col].dropna().astype(str).unique().tolist())
+        else:
+            catalog_tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
+            if not cmi_catalog.empty and catalog_tipo_col is not None:
+                tipo_options += sorted(
+                    cmi_catalog[catalog_tipo_col].dropna().astype(str).unique().tolist()
+                )
+        tipo_indicador_sel = st.segmented_control(
+            "Tipo de indicador",
+            options=tipo_options,
+            default="Todos",
+            key="filter_tipo_indicador",
+        )
+
+    # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (
         MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     )
@@ -2136,30 +2482,21 @@ def render() -> None:
         mes_num = MESES_OPCIONES.index(mes) + 1
         base_filtered = base_filtered[base_filtered["Mes"].apply(_mes_to_num) == float(mes_num)]
 
-    procesos_filtrados = sorted(
-        base_filtered["Proceso_padre"].dropna().astype(str).unique().tolist()
-    )
-    opciones_proceso = ["Todos"] + (procesos_filtrados if procesos_filtrados else procesos_all)
-    default_index = 1 if len(opciones_proceso) > 1 else 0
-
-    proceso_sel = proceso_placeholder.selectbox(
-        "Proceso (Filtro Padre)", options=opciones_proceso, index=default_index
-    )
-
     filtered = base_filtered.copy()
+    if unidad_sel != "Todos" and unidad_col and unidad_col in filtered.columns:
+        filtered = filtered[filtered[unidad_col].astype(str) == unidad_sel]
     if proceso_sel != "Todos":
-        filtered = filtered[filtered["Proceso_padre"].astype(str) == proceso_sel]
+        filtered = filtered[filtered[proceso_col].astype(str) == proceso_sel]
+    if subproceso_sel != "Todos":
+        filtered = filtered[filtered[subproceso_col].astype(str) == subproceso_sel]
+    if frecuencia_sel != "Todos" and frecuencia_col and frecuencia_col in filtered.columns:
+        filtered = filtered[filtered[frecuencia_col].astype(str) == frecuencia_sel]
+    if clasificacion_sel != "Todos" and clasificacion_col and clasificacion_col in filtered.columns:
+        filtered = filtered[filtered[clasificacion_col].astype(str) == clasificacion_sel]
+    if tipo_indicador_sel != "Todos" and tipo_indicador_col and tipo_indicador_col in filtered.columns:
+        filtered = filtered[filtered[tipo_indicador_col].astype(str) == tipo_indicador_sel]
 
-    subproceso_sel = "Todos"
-    if proceso_sel != "Todos":
-        subprocesos_filtrados = sorted(
-            filtered["Subproceso_final"].dropna().astype(str).unique().tolist()
-        )
-        if subprocesos_filtrados:
-            sub_options = ["Todos"] + subprocesos_filtrados
-            subproceso_sel = st.selectbox("Subproceso", options=sub_options, index=0)
-            if subproceso_sel != "Todos":
-                filtered = filtered[filtered["Subproceso_final"].astype(str) == subproceso_sel]
+    filtered = _ensure_nivel_cumplimiento(filtered)
 
     if filtered.empty:
         st.info(
@@ -2185,12 +2522,15 @@ def render() -> None:
         ]
 
     st.caption(
-        f"Filtro Padre activo: {selected_process_label} | Subproceso: {selected_subprocess_label} | Corte: {mes} {anio}"
+        f"Unidad: {unidad_sel} · Proceso: {selected_process_label} · Subproceso: {selected_subprocess_label} · Año: {anio} · Mes: {mes} · Frecuencia: {frecuencia_sel} · Clasificación: {clasificacion_sel} · Tipo: {tipo_indicador_sel}"
     )
 
     tabs = st.tabs(
         [
             "📋 Resumen",
+            "🏢 Procesos y Unidades",
+            "📊 Indicadores",
+            "🚨 Alertas",
             "💡 Propuesta",
             "📈 Análisis Avanzado",
         ]
@@ -2284,6 +2624,8 @@ def render() -> None:
         if cmi_global.empty:
             st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
         else:
+            _render_resumen_overview_cards(cmi_global, "Global", "Todos", int(global_year), _latest_month_name)
+            _render_cmi_por_cmi_summary_charts(cmi_catalog)
             # ── Fichas KPI por Tipo de proceso (4 tipos globales) ─────────────
             st.markdown("##### Monitoreo por Tipo de Proceso")
 
@@ -2558,6 +2900,15 @@ def render() -> None:
             render_analisis_unidad(cmi_global, _pct_g)
 
     with tabs[1]:
+        _render_tab_procesos_unidades(cmi_global, cmi_base_2024, int(global_year), _base_year, _latest_month_name)
+
+    with tabs[2]:
+        _render_tab_indicadores(filtered, cmi_catalog)
+
+    with tabs[3]:
+        render_tab_alertas(filtered)
+
+    with tabs[4]:
         st.markdown("### Propuesta de mejora")
         st.caption(
             "Gráficas, tablas e insights que complementan la sección Resumen CMI por Procesos."
@@ -2771,7 +3122,7 @@ def render() -> None:
                 unsafe_allow_html=True,
             )
 
-    with tabs[2]:
+    with tabs[5]:
         st.markdown("### 📈 Análisis Avanzado — Histórico de Indicadores")
         st.caption(
             "Evolución temporal de indicadores seleccionados. "
