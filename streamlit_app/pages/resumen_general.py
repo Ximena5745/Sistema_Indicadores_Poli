@@ -2001,7 +2001,13 @@ def render():
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
             linea_summary = _merge_consolidado_by_source(s1, s2, s3)
+            
+            # Calcular promedio de cumplimiento para cada objetivo
             objetivo_df = pd.concat([o1,o2,o3], ignore_index=True)
+            if not objetivo_df.empty and "cumplimiento_pct" in objetivo_df.columns:
+                objetivo_df["cumplimiento_pct"] = pd.to_numeric(objetivo_df["cumplimiento_pct"], errors="coerce")
+                objetivo_df = objetivo_df.groupby(["Linea", "Objetivo"], dropna=False)["cumplimiento_pct"].mean().reset_index()
+            
             pdi_base_df = pd.DataFrame()
         
         return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df
@@ -2168,6 +2174,8 @@ def render():
         unit_label = "proyectos"
     elif categoria == "Plan de Retos":
         unit_label = "retos"
+    elif categoria == "Consolidado":
+        unit_label = "items"
     else:
         unit_label = "indicadores"
     
@@ -2179,7 +2187,28 @@ def render():
             alt_keys = [card_def["key"]] + card_def.get("alt", [])
             matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
             row = norm_to_row.get(matched[0]) if matched else None
-        if row is not None:
+        
+        # Manejar Consolidado: obtener los 3 conteos separados
+        if categoria == "Consolidado" and row is not None:
+            try:
+                n_ind = int(float(row.get("N_Indicadores", 0)))
+            except:
+                n_ind = 0
+            try:
+                n_proy = int(float(row.get("N_Proyectos", 0)))
+            except:
+                n_proy = 0
+            try:
+                n_retos = int(float(row.get("N_Retos", 0)))
+            except:
+                n_retos = 0
+            # Total para mostrar en la ficha
+            n_ind = n_ind + n_proy + n_retos
+            try:
+                cumpl = float(row.get("Cumpl_Promedio", 0))
+            except:
+                cumpl = 0.0
+        elif row is not None:
             try:
                 n_ind = int(float(row.get("N_Indicadores", 0)))
             except (ValueError, TypeError):
