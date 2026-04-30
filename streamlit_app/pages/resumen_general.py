@@ -1805,7 +1805,7 @@ def render():
                 pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
             
             if pdi_estrategico is None or pdi_estrategico.empty:
-                return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
+                return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df
             
             raw_pdi = pdi_estrategico.copy()
             pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
