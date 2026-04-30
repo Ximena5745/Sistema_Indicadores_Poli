@@ -247,6 +247,49 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
         objetivo_df["cumplimiento_pct"] = pd.to_numeric(objetivo_df["cumplimiento_pct"], errors="coerce")
     return out, objetivo_df
 
+def _merge_consolidado_by_source(s1, s2, s3):
+    """
+    Merge mantiene conteos separados por fuente.
+    Retorna: Linea, N_Indicadores, N_Proyectos, N_Retos, Cumpl_Promedio
+    """
+    all_lineas = pd.concat([s1[["Linea"]], s2[["Linea"]], s3[["Linea"]]]).drop_duplicates()
+    out = all_lineas.copy()
+    
+    # Obtener N_Indicadores de cada fuente
+    if s1 is not None and "N_Indicadores" in s1.columns:
+        out["N_Indicadores"] = s1.set_index("Linea")["N_Indicadores"].fillna(0)
+    else:
+        out["N_Indicadores"] = 0
+    
+    if s2 is not None and "N_Indicadores" in s2.columns:
+        out["N_Proyectos"] = s2.set_index("Linea")["N_Indicadores"].fillna(0)
+    else:
+        out["N_Proyectos"] = 0
+    
+    if s3 is not None and "N_Indicadores" in s3.columns:
+        out["N_Retos"] = s3.set_index("Linea")["N_Indicadores"].fillna(0)
+    else:
+        out["N_Retos"] = 0
+    
+    # Calcular promedio simple de cumplimiento
+    cump_vals = []
+    for s in [s1, s2, s3]:
+        if s is not None and "Cumpl_Promedio" in s.columns:
+            cump_vals.append(s.set_index("Linea")["Cumpl_Promedio"])
+    
+    if cump_vals:
+        dfc = pd.concat(cump_vals, axis=1).fillna(0)
+        out["Cumpl_Promedio"] = pd.to_numeric(dfc.mean(axis=1), errors="coerce").fillna(0)
+    else:
+        out["Cumpl_Promedio"] = 0
+    
+    # Agregar columnas faltantes
+    for col in ["Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]:
+        out[col] = 0
+    
+    out = out.reset_index(drop=True)
+    return out
+
 try:
     ss = st.session_state
 except Exception:
@@ -1957,7 +2000,8 @@ def render():
             s3 = _build_linea_summary_from_retos(linea_df, planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
-            linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
+            linea_summary = _merge_consolidado_by_source(s1, s2, s3)
+            objetivo_df = pd.concat([o1,o2,o3], ignore_index=True)
             pdi_base_df = pd.DataFrame()
         
         return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico, areas_df
@@ -2072,12 +2116,16 @@ def render():
             ]
         
         elif category == "Consolidado":
-            total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
+            total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
+            total_retos = int(linea_summary["N_Retos"].sum()) if not linea_summary.empty and "N_Retos" in linea_summary.columns else 0
+            cump_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
+            
             return [
-                (total, "Total", "#0B5FFF"),
-                (0, "Indicadores", "#173D66"),
-                (0, "Proyectos", "#16A34A"),
-                (0, "Retos", "#F59E0B"),
+                (total_ind, "Indicadores", "#173D66"),
+                (total_proy, "Proyectos", "#16A34A"),
+                (total_retos, "Retos", "#F59E0B"),
+                (f"{cump_prom:.1f}%", "% Cumplimiento", "#0B5FFF"),
             ]
         
         return []

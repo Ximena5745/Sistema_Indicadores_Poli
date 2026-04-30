@@ -2531,187 +2531,187 @@ def render() -> None:
         else:
             _render_tarjetas_propuestos(df_prop)
 
-    def _load_indicadores_propuestos(
-        proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
-    ):
-        import pandas as pd
+def _load_indicadores_propuestos(
+    proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
+):
+    import pandas as pd
 
-        EXCEL_PATH = (
-            Path(__file__).parents[2]
-            / "data"
-            / "raw"
-            / "Propuesta Indicadores"
-            / "Indicadores Propuestos.xlsx"
+    EXCEL_PATH = (
+        Path(__file__).parents[2]
+        / "data"
+        / "raw"
+        / "Propuesta Indicadores"
+        / "Indicadores Propuestos.xlsx"
+    )
+    if not EXCEL_PATH.exists():
+        return pd.DataFrame(), f"No existe el archivo: {EXCEL_PATH}"
+    try:
+        # Retos
+        retos = pd.read_excel(EXCEL_PATH, sheet_name="Retos")
+        retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][
+            ["Proceso", "Subproceso", "Indicador Propuesto"]
+        ]
+        retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
+        retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(
+            str
         )
-        if not EXCEL_PATH.exists():
-            return pd.DataFrame(), f"No existe el archivo: {EXCEL_PATH}"
-        try:
-            # Retos
-            retos = pd.read_excel(EXCEL_PATH, sheet_name="Retos")
-            retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][
-                ["Proceso", "Subproceso", "Indicador Propuesto"]
-            ]
-            retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
-            retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(
-                str
-            )
-            factor_ret = _first_col(retos, ["Factor", "FACTOR"])
-            car_ret = _first_col(retos, ["Caracteristica", "Característica", "CARACTERÍSTICA"])
-            if factor_ret is not None:
-                retos_filtrados["Factor"] = retos.loc[retos_filtrados.index, factor_ret].astype(str)
-            else:
-                retos_filtrados["Factor"] = ""
-            if car_ret is not None:
-                retos_filtrados["Característica"] = retos.loc[
-                    retos_filtrados.index, car_ret
-                ].astype(str)
-            else:
-                retos_filtrados["Característica"] = ""
-            retos_filtrados["Fuente"] = "Retos"
-
-            # Proyectos
-            proyectos = pd.read_excel(EXCEL_PATH, sheet_name="Proyectos")
-            proyectos_filtrados = proyectos[proyectos["Propuesta"].str.upper() == "SI"][
-                ["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]
-            ]
-            proyectos_filtrados = proyectos_filtrados.rename(
-                columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"}
-            )
-            proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
-            proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados[
-                "Indicador Propuesto"
+        factor_ret = _first_col(retos, ["Factor", "FACTOR"])
+        car_ret = _first_col(retos, ["Caracteristica", "Característica", "CARACTERÍSTICA"])
+        if factor_ret is not None:
+            retos_filtrados["Factor"] = retos.loc[retos_filtrados.index, factor_ret].astype(str)
+        else:
+            retos_filtrados["Factor"] = ""
+        if car_ret is not None:
+            retos_filtrados["Característica"] = retos.loc[
+                retos_filtrados.index, car_ret
             ].astype(str)
-            proyectos_filtrados["Factor"] = ""
-            proyectos_filtrados["Característica"] = ""
-            proyectos_filtrados["Fuente"] = "Proyectos"
+        else:
+            retos_filtrados["Característica"] = ""
+        retos_filtrados["Fuente"] = "Retos"
 
-            # Plan de mejoramiento
-            plan = pd.read_excel(EXCEL_PATH, sheet_name="Plan de mejoramiento", header=1)
-            plan_filtrados = plan[plan["Propuesta Indicador"].str.upper() == "SI"][
-                ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"]
-            ]
-            plan_filtrados = plan_filtrados.rename(
-                columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"}
-            )
-            plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
-            plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(
-                str
-            )
-            factor_col = _first_col(plan, ["FACTOR", "Factor"])
-            car_col = _first_col(plan, ["CARACTERÍSTICA", "Característica", "CARACTERISTICA"])
-            plan_filtrados["Factor"] = (
-                plan.loc[plan_filtrados.index, factor_col].astype(str)
-                if factor_col is not None
-                else ""
-            )
-            plan_filtrados["Característica"] = (
-                plan.loc[plan_filtrados.index, car_col].astype(str) if car_col is not None else ""
-            )
-            plan_filtrados["Fuente"] = "Plan de mejoramiento"
+        # Proyectos
+        proyectos = pd.read_excel(EXCEL_PATH, sheet_name="Proyectos")
+        proyectos_filtrados = proyectos[proyectos["Propuesta"].str.upper() == "SI"][
+            ["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]
+        ]
+        proyectos_filtrados = proyectos_filtrados.rename(
+            columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"}
+        )
+        proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
+        proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados[
+            "Indicador Propuesto"
+        ].astype(str)
+        proyectos_filtrados["Factor"] = ""
+        proyectos_filtrados["Característica"] = ""
+        proyectos_filtrados["Fuente"] = "Proyectos"
 
-            # Calidad
-            calidad = pd.read_excel(EXCEL_PATH, sheet_name="Calidad")
-            calidad_filtrados = calidad[["Proceso", "Subroceso", "Propuesta SGC (Indicadores)"]]
-            calidad_filtrados = calidad_filtrados.rename(
-                columns={
-                    "Subroceso": "Subproceso",
-                    "Propuesta SGC (Indicadores)": "Indicador Propuesto",
-                }
-            )
-            calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
-            calidad_filtrados["Indicador Propuesto"] = calidad_filtrados[
-                "Indicador Propuesto"
-            ].astype(str)
-            calidad_filtrados["Factor"] = ""
-            calidad_filtrados["Característica"] = ""
-            calidad_filtrados["Fuente"] = "Calidad"
+        # Plan de mejoramiento
+        plan = pd.read_excel(EXCEL_PATH, sheet_name="Plan de mejoramiento", header=1)
+        plan_filtrados = plan[plan["Propuesta Indicador"].str.upper() == "SI"][
+            ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"]
+        ]
+        plan_filtrados = plan_filtrados.rename(
+            columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"}
+        )
+        plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
+        plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(
+            str
+        )
+        factor_col = _first_col(plan, ["FACTOR", "Factor"])
+        car_col = _first_col(plan, ["CARACTERÍSTICA", "Característica", "CARACTERISTICA"])
+        plan_filtrados["Factor"] = (
+            plan.loc[plan_filtrados.index, factor_col].astype(str)
+            if factor_col is not None
+            else ""
+        )
+        plan_filtrados["Característica"] = (
+            plan.loc[plan_filtrados.index, car_col].astype(str) if car_col is not None else ""
+        )
+        plan_filtrados["Fuente"] = "Plan de mejoramiento"
 
-            df_final = pd.concat(
-                [retos_filtrados, proyectos_filtrados, plan_filtrados, calidad_filtrados],
-                ignore_index=True,
-            )
-            df_final = df_final.drop_duplicates(
-                subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"]
-            )
+        # Calidad
+        calidad = pd.read_excel(EXCEL_PATH, sheet_name="Calidad")
+        calidad_filtrados = calidad[["Proceso", "Subroceso", "Propuesta SGC (Indicadores)"]]
+        calidad_filtrados = calidad_filtrados.rename(
+            columns={
+                "Subroceso": "Subproceso",
+                "Propuesta SGC (Indicadores)": "Indicador Propuesto",
+            }
+        )
+        calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
+        calidad_filtrados["Indicador Propuesto"] = calidad_filtrados[
+            "Indicador Propuesto"
+        ].astype(str)
+        calidad_filtrados["Factor"] = ""
+        calidad_filtrados["Característica"] = ""
+        calidad_filtrados["Fuente"] = "Calidad"
 
-            if proceso_actual != "Todos" and "Proceso" in df_final.columns:
-                proceso_norm = _norm_text(proceso_actual)
-                df_final = df_final[df_final["Proceso"].astype(str).map(_norm_text) == proceso_norm]
+        df_final = pd.concat(
+            [retos_filtrados, proyectos_filtrados, plan_filtrados, calidad_filtrados],
+            ignore_index=True,
+        )
+        df_final = df_final.drop_duplicates(
+            subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"]
+        )
 
-            if subproceso_actual != "Todos" and "Subproceso" in df_final.columns:
-                sub_norm = _norm_text(subproceso_actual)
-                df_final = df_final[df_final["Subproceso"].astype(str).map(_norm_text) == sub_norm]
+        if proceso_actual != "Todos" and "Proceso" in df_final.columns:
+            proceso_norm = _norm_text(proceso_actual)
+            df_final = df_final[df_final["Proceso"].astype(str).map(_norm_text) == proceso_norm]
 
-            return df_final, None
-        except Exception as e:
-            return pd.DataFrame(), f"Error leyendo indicadores propuestos: {e}"
+        if subproceso_actual != "Todos" and "Subproceso" in df_final.columns:
+            sub_norm = _norm_text(subproceso_actual)
+            df_final = df_final[df_final["Subproceso"].astype(str).map(_norm_text) == sub_norm]
 
-    def _render_tarjetas_propuestos(df):
-        if df.empty:
-            st.info("No hay indicadores propuestos para mostrar.")
-            return
-        source_style = {
-            "Retos": {"bg": "#e8f5e9", "border": "#66bb6a", "title": "#1b5e20"},
-            "Proyectos": {"bg": "#e3f2fd", "border": "#42a5f5", "title": "#0d47a1"},
-            "Plan de mejoramiento": {"bg": "#fff3e0", "border": "#ffb74d", "title": "#e65100"},
-            "Calidad": {"bg": "#f3e5f5", "border": "#ba68c8", "title": "#4a148c"},
-        }
-        source_order = ["Retos", "Proyectos", "Plan de mejoramiento", "Calidad"]
+        return df_final, None
+    except Exception as e:
+        return pd.DataFrame(), f"Error leyendo indicadores propuestos: {e}"
 
-        procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist())
-        proc_tabs = st.tabs(procesos)
+def _render_tarjetas_propuestos(df):
+    if df.empty:
+        st.info("No hay indicadores propuestos para mostrar.")
+        return
+    source_style = {
+        "Retos": {"bg": "#e8f5e9", "border": "#66bb6a", "title": "#1b5e20"},
+        "Proyectos": {"bg": "#e3f2fd", "border": "#42a5f5", "title": "#0d47a1"},
+        "Plan de mejoramiento": {"bg": "#fff3e0", "border": "#ffb74d", "title": "#e65100"},
+        "Calidad": {"bg": "#f3e5f5", "border": "#ba68c8", "title": "#4a148c"},
+    }
+    source_order = ["Retos", "Proyectos", "Plan de mejoramiento", "Calidad"]
 
-        for tab, proceso in zip(proc_tabs, procesos):
-            with tab:
-                proc_df = df[df["Proceso"].astype(str) == proceso].copy()
-                subps = sorted(proc_df["Subproceso"].dropna().astype(str).unique().tolist())
-                if not subps:
-                    st.info("Sin subprocesos con propuestas para este proceso.")
-                    continue
+    procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist())
+    proc_tabs = st.tabs(procesos)
 
-                sub_tabs = st.tabs(subps)
-                for sub_tab, sp in zip(sub_tabs, subps):
-                    with sub_tab:
-                        sp_df_all = proc_df[proc_df["Subproceso"].astype(str) == sp].copy()
-                        col_blocks = st.columns(4)
-                        for i, fuente in enumerate(source_order):
-                            with col_blocks[i]:
-                                style = source_style[fuente]
+    for tab, proceso in zip(proc_tabs, procesos):
+        with tab:
+            proc_df = df[df["Proceso"].astype(str) == proceso].copy()
+            subps = sorted(proc_df["Subproceso"].dropna().astype(str).unique().tolist())
+            if not subps:
+                st.info("Sin subprocesos con propuestas para este proceso.")
+                continue
+
+            sub_tabs = st.tabs(subps)
+            for sub_tab, sp in zip(sub_tabs, subps):
+                with sub_tab:
+                    sp_df_all = proc_df[proc_df["Subproceso"].astype(str) == sp].copy()
+                    col_blocks = st.columns(4)
+                    for i, fuente in enumerate(source_order):
+                        with col_blocks[i]:
+                            style = source_style[fuente]
+                            st.markdown(
+                                f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
+                                unsafe_allow_html=True,
+                            )
+                            src_df = sp_df_all[sp_df_all["Fuente"].astype(str) == fuente].copy()
+                            if src_df.empty:
+                                st.caption("Sin propuestas")
+                                continue
+
+                            for _, r in src_df.iterrows():
+                                ind = str(r.get("Indicador Propuesto", "")).strip()
+                                fac = str(r.get("Factor", "")).strip()
+                                car = str(r.get("Característica", "")).strip()
+                                extra = ""
+                                if fuente == "Plan de mejoramiento":
+                                    tags = []
+                                    if fac and fac.lower() != "nan":
+                                        tags.append(f"Factor: {fac}")
+                                    if car and car.lower() != "nan":
+                                        tags.append(f"Característica: {car}")
+                                    extra = (
+                                        "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>"
+                                        + " | ".join(tags)
+                                        + "</div>"
+                                        if tags
+                                        else ""
+                                    )
                                 st.markdown(
-                                    f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
+                                    f"""
+                                    <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
+                                        <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
+                                        {extra}
+                                    </div>
+                                    """,
                                     unsafe_allow_html=True,
                                 )
-                                src_df = sp_df_all[sp_df_all["Fuente"].astype(str) == fuente].copy()
-                                if src_df.empty:
-                                    st.caption("Sin propuestas")
-                                    continue
-
-                                for _, r in src_df.iterrows():
-                                    ind = str(r.get("Indicador Propuesto", "")).strip()
-                                    fac = str(r.get("Factor", "")).strip()
-                                    car = str(r.get("Característica", "")).strip()
-                                    extra = ""
-                                    if fuente == "Plan de mejoramiento":
-                                        tags = []
-                                        if fac and fac.lower() != "nan":
-                                            tags.append(f"Factor: {fac}")
-                                        if car and car.lower() != "nan":
-                                            tags.append(f"Característica: {car}")
-                                        extra = (
-                                            "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>"
-                                            + " | ".join(tags)
-                                            + "</div>"
-                                            if tags
-                                            else ""
-                                        )
-                                    st.markdown(
-                                        f"""
-                                        <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
-                                            <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
-                                            {extra}
-                                        </div>
-                                        """,
-                                        unsafe_allow_html=True,
-                                    )
 
 
