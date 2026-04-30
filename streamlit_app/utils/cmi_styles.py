@@ -259,6 +259,121 @@ def inject_cmi_premium_css():
         .cmi-line-card-open {
             border-color: rgba(255,255,255,0.18);
         }
+        .cmi-listado-intro {
+            color: #334155;
+            margin-bottom: 12px;
+            font-size: 0.96rem;
+        }
+        .cmi-listado-table {
+            display: grid;
+            gap: 0;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #E2E8F0;
+            background: #ffffff;
+            margin-bottom: 12px;
+        }
+        .cmi-listado-row {
+            display: grid;
+            grid-template-columns: 0.7fr 4.5fr 2.2fr 3.5fr 1.1fr 1.1fr 1.5fr 2fr 1.6fr;
+            gap: 12px;
+            padding: 14px 16px;
+            align-items: center;
+            border-bottom: 1px solid #E2E8F0;
+            background: #ffffff;
+        }
+        .cmi-listado-header {
+            background: #F8FAFC;
+            color: #0F172A;
+            font-weight: 700;
+        }
+        .cmi-listado-cell {
+            display: flex;
+            align-items: center;
+            min-height: 34px;
+            color: #0F172A;
+            font-size: 0.93rem;
+            line-height: 1.3;
+        }
+        .cmi-listado-cell-sm {
+            max-width: 80px;
+        }
+        .cmi-listado-cell-md {
+            max-width: 150px;
+        }
+        .cmi-listado-cell-lg {
+            max-width: 220px;
+        }
+        .cmi-listado-cell-xl {
+            min-width: 240px;
+        }
+        .cmi-listado-indicador {
+            font-weight: 600;
+            color: #0F172A;
+        }
+        .cmi-listado-objetivo {
+            color: #334155;
+            font-size: 0.92rem;
+        }
+        .cmi-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+        .cmi-linea-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid #CBD5E1;
+            background: #F8FAFC;
+            color: #0F172A;
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+        .cmi-linea-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+        @media (max-width: 1100px) {
+            .cmi-listado-row {
+                grid-template-columns: 0.8fr 4fr 2fr 2.5fr 1fr 1fr 1.3fr 1.5fr 1.3fr;
+            }
+        }
+        @media (max-width: 920px) {
+            .cmi-listado-table,
+            .cmi-listado-row,
+            .cmi-listado-header {
+                display: block;
+            }
+            .cmi-listado-row {
+                padding: 14px 14px;
+                border-bottom: 1px solid #E2E8F0;
+            }
+            .cmi-listado-cell {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 8px;
+            }
+            .cmi-listado-cell::before {
+                content: attr(data-label);
+                color: #64748B;
+                font-weight: 700;
+                margin-right: 8px;
+            }
+        }
+        }
         .cmi-line-card-meta {
             color: rgba(255,255,255,0.92);
             font-size: 0.92rem;

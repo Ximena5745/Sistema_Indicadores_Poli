@@ -2428,7 +2428,7 @@ def render() -> None:
                     ),
                     legend_title_text="Comparación histórica",
                 )
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, use_container_width=True, key="cmi_resumen_bar_chart")
 
                 table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
                 if "Tipo de proceso" in proc_comp.columns:
@@ -2671,7 +2671,7 @@ def render() -> None:
                     ),
                     legend_title_text="Comparación histórica",
                 )
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, use_container_width=True, key="cmi_propuesta_bar_chart")
 
                 table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
                 if "Tipo de proceso" in proc_comp.columns:

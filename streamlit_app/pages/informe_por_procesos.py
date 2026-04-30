@@ -104,7 +104,74 @@ def _render_propuestas(df: pd.DataFrame) -> None:
         st.info("No hay indicadores propuestos para el filtro seleccionado.")
         return
 
-    st.dataframe(df.sort_values(["Fuente", "Proceso", "Subproceso"], ascending=[True, True, True]).head(100), use_container_width=True)
+    source_style = {
+        "Retos": {"bg": "#e8f5e9", "border": "#66bb6a", "title": "#1b5e20"},
+        "Proyectos": {"bg": "#e3f2fd", "border": "#42a5f5", "title": "#0d47a1"},
+        "Plan de mejoramiento": {"bg": "#fff3e0", "border": "#ffb74d", "title": "#e65100"},
+        "Calidad": {"bg": "#f3e5f5", "border": "#ba68c8", "title": "#4a148c"},
+    }
+    source_order = ["Retos", "Proyectos", "Plan de mejoramiento", "Calidad"]
+
+    procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist())
+    if not procesos:
+        st.info("No hay procesos definidos en los indicadores propuestos.")
+        return
+
+    proc_tabs = st.tabs(procesos)
+    for tab, proceso in zip(proc_tabs, procesos):
+        with tab:
+            proc_df = df[df["Proceso"].astype(str) == proceso].copy()
+            subps = sorted(proc_df["Subproceso"].dropna().astype(str).unique().tolist())
+            if not subps:
+                st.info("Sin subprocesos con propuestas para este proceso.")
+                continue
+
+            sub_tabs = st.tabs(subps)
+            for sub_tab, sp in zip(sub_tabs, subps):
+                with sub_tab:
+                    sp_df_all = proc_df[proc_df["Subproceso"].astype(str) == sp].copy()
+                    col_blocks = st.columns(4)
+                    for i, fuente in enumerate(source_order):
+                        with col_blocks[i]:
+                            style = source_style[fuente]
+                            st.markdown(
+                                f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
+                                unsafe_allow_html=True,
+                            )
+                            src_df = sp_df_all[sp_df_all["Fuente"].astype(str) == fuente].copy()
+                            if src_df.empty:
+                                st.caption("Sin propuestas")
+                                continue
+
+                            for _, r in src_df.iterrows():
+                                ind = str(r.get("Indicador Propuesto", "")).strip()
+                                if not ind:
+                                    continue
+                                fac = str(r.get("Factor", "")).strip()
+                                car = str(r.get("Característica", "")).strip()
+                                extra = ""
+                                if fuente == "Plan de mejoramiento":
+                                    tags = []
+                                    if fac and fac.lower() != "nan":
+                                        tags.append(f"Factor: {fac}")
+                                    if car and car.lower() != "nan":
+                                        tags.append(f"Característica: {car}")
+                                    extra = (
+                                        "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>"
+                                        + " | ".join(tags)
+                                        + "</div>"
+                                        if tags
+                                        else ""
+                                    )
+                                st.markdown(
+                                    f"""
+                                    <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
+                                        <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
+                                        {extra}
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
 
 
 def _build_summary_by_unit(df: pd.DataFrame) -> pd.DataFrame:
