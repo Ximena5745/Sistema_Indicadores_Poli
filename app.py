@@ -15,7 +15,7 @@ STREAMLIT_APP_PATH = PROJECT_ROOT / "streamlit_app"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 if str(STREAMLIT_APP_PATH) not in sys.path:
-    sys.path.insert(0, str(STREAMLIT_APP_PATH))
+    sys.path.append(str(STREAMLIT_APP_PATH))
 
 
 def _get_git_commit_short():

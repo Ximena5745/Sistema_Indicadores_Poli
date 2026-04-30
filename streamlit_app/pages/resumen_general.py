@@ -1952,7 +1952,7 @@ def render():
         linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = result[:5]
         areas_df = pd.DataFrame()
     
-    linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
+    linea_summary_all, *_ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
     def _get_chip_config(category: str, linea_summary, pdi_estrategico, areas_df=None, year=None):
