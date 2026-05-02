@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import unicodedata
-from streamlit_app.utils.cmi_helpers import linea_color
+from streamlit_app.utils.cmi_helpers import linea_color, linea_icon_svg
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
 from services.strategic_indicators import load_cierres
 
@@ -144,55 +144,121 @@ def _render_subtab_resumen(df_linea, linea, color):
                 st.markdown(bar_html, unsafe_allow_html=True)
 
 def _render_subtab_objetivos(df_linea, linea, pdi_catalog=None):
+    color = linea_color(linea)
+    bg_soft = _hex_to_rgba(color, 0.07)
 
-    st.markdown(f"**Estructura jerárquica de Objetivos, Metas e Indicadores para {linea}**")
+    # CSS para las tarjetas de objetivo y meta
+    st.markdown(
+        f"""<style>
+        .obj-card {{
+            border-radius:14px;border:1.5px solid {color}44;
+            background:{bg_soft};margin-bottom:10px;overflow:hidden;
+        }}
+        .obj-card-header {{
+            background:{color};color:#fff;padding:10px 16px;
+            font-size:0.9rem;font-weight:700;line-height:1.4;
+            display:flex;align-items:center;justify-content:space-between;gap:10px;
+        }}
+        .meta-card {{
+            border-radius:10px;border:1px solid #CBD5E1;
+            background:#F8FAFC;margin:8px 0;overflow:hidden;
+        }}
+        .meta-card-header {{
+            background:#E0F2FE;color:#0369A1;padding:7px 14px;
+            font-size:0.82rem;font-weight:700;line-height:1.4;
+            display:flex;align-items:center;justify-content:space-between;gap:8px;
+        }}
+        .meta-card-body {{ padding:8px 14px 12px; }}
+        .badge-count {{
+            background:rgba(255,255,255,0.22);border-radius:999px;
+            font-size:0.71rem;padding:2px 9px;font-weight:700;white-space:nowrap;
+        }}
+        .meta-badge-count {{
+            background:#BAE6FD;color:#075985;border-radius:999px;
+            font-size:0.71rem;padding:2px 8px;font-weight:700;white-space:nowrap;
+        }}
+        .cmi-objetivos-table-wrap {{overflow-x:auto;margin-top:4px;}}
+        .cmi-objetivos-table {{width:100%;border-collapse:collapse;font-size:0.82rem;}}
+        .cmi-objetivos-table th {{
+            background:#1A3A5C;color:#fff;padding:7px 10px;
+            text-align:left;font-size:0.75rem;font-weight:700;
+            letter-spacing:.05em;text-transform:uppercase;
+        }}
+        .cmi-objetivos-table td {{
+            padding:6px 10px;border-bottom:1px solid #E2E8F0;
+            vertical-align:top;color:#0F172A;
+        }}
+        .cmi-objetivos-table tr:nth-child(even) td {{background:#F8FAFC;}}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"<p style='font-size:0.85rem;color:#475569;margin-bottom:10px'>"
+        f"Estructura jerárquica de <b>Objetivos, Metas e Indicadores</b> para "
+        f"<span style='color:{color};font-weight:700'>{linea}</span></p>",
+        unsafe_allow_html=True,
+    )
+
     meta_cat = _meta_catalog_for_objetivos(pdi_catalog)
     objetivos = sorted(df_linea['Objetivo'].dropna().unique().tolist())
+
     for obj in objetivos:
-        with st.expander(f"Objetivo estratégico: {obj}"):
-            df_obj = df_linea[df_linea['Objetivo'] == obj].copy()
-            metas = []
-            if not meta_cat.empty:
-                obj_key = _normalize_linea_key(obj)
-                metas = meta_cat[meta_cat['_obj_key'] == obj_key]['Meta_Estrategica'].dropna().astype(str).str.strip().unique().tolist()
+        df_obj = df_linea[df_linea['Objetivo'] == obj].copy()
+        n_ind_obj = len(df_obj)
+        obj_icon = linea_icon_svg(linea, size=20)
+
+        # ── Tarjeta de Objetivo ──────────────────────────────────────────────
+        st.markdown(
+            f"<div class='obj-card'>"
+            f"<div class='obj-card-header'>"
+            f"<span style='display:flex;align-items:center;gap:8px'>"
+            f"{obj_icon}"
+            f"<span>Objetivo estratégico: {obj}</span>"
+            f"</span>"
+            f"<span class='badge-count'>{n_ind_obj} indicador{'es' if n_ind_obj != 1 else ''}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+        metas = []
+        if not meta_cat.empty:
+            obj_key = _normalize_linea_key(obj)
+            metas = meta_cat[meta_cat['_obj_key'] == obj_key]['Meta_Estrategica'].dropna().astype(str).str.strip().unique().tolist()
+
+        with st.container():
             if metas:
                 for meta in metas:
-                    with st.expander(f"Meta Estratégica: {meta}"):
-                        if len(metas) == 1:
-                            _render_tabla_indicadores(df_obj.copy())
-                            continue
+                    obj_key = _normalize_linea_key(obj)
+                    meta_key = _normalize_linea_key(meta)
 
-                        df_meta = pd.DataFrame()
+                    df_meta = pd.DataFrame()
+                    ids_meta = set(
+                        meta_cat[
+                            (meta_cat['_obj_key'] == obj_key) &
+                            (meta_cat['_meta_key'] == meta_key)
+                        ]["Id"].astype(str).str.strip().replace("", pd.NA).dropna().tolist()
+                    )
+                    if ids_meta and 'Id' in df_obj.columns:
+                        df_meta = df_obj[df_obj['Id'].apply(_normalize_id).isin({_normalize_id(x) for x in ids_meta})].copy()
 
-                        # 1) Intento principal: mapear por IDs del catálogo (Objetivo + Meta).
-                        obj_key = _normalize_linea_key(obj)
-                        meta_key = _normalize_linea_key(meta)
-                        ids_meta = set(
-                            meta_cat[
-                                (meta_cat['_obj_key'] == obj_key) &
-                                (meta_cat['_meta_key'] == meta_key)
-                            ]["Id"].astype(str).str.strip().replace("", pd.NA).dropna().tolist()
-                        )
+                    if df_meta.empty and 'Meta_Estrategica' in df_obj.columns:
+                        mask = df_obj['Meta_Estrategica'].fillna('').astype(str).str.strip().apply(_normalize_linea_key) == meta_key
+                        df_meta = df_obj[mask].copy()
 
-                        if ids_meta and 'Id' in df_obj.columns:
-                            df_meta = df_obj[df_obj['Id'].apply(_normalize_id).isin({_normalize_id(x) for x in ids_meta})].copy()
+                    if df_meta.empty and len(metas) == 1:
+                        df_meta = df_obj.copy()
 
-                        # 2) Fallback: comparar por texto normalizado de Meta_Estrategica.
-                        if df_meta.empty and 'Meta_Estrategica' in df_obj.columns:
-                            meta_series = df_obj['Meta_Estrategica'].fillna('').astype(str).str.strip()
-                            non_empty_count = int((meta_series != '').sum())
-                            if non_empty_count > 0:
-                                mask = meta_series.apply(_normalize_linea_key) == meta_key
-                                df_meta = df_obj[mask].copy()
+                    n_ind_meta = len(df_meta)
 
-                        # 3) Fallback de seguridad: si el objetivo solo tiene una meta, mostrar todos sus indicadores.
-                        if df_meta.empty and len(metas) == 1:
-                            df_meta = df_obj.copy()
-
-                        _render_tabla_indicadores(df_meta)
+                    # Tarjeta de Meta dentro del expander (st.expander aplica padding interno)
+                    with st.expander(f"Meta Estratégica: {meta}  ·  {n_ind_meta} indicador{'es' if n_ind_meta != 1 else ''}", expanded=False):
+                        _render_tabla_indicadores(df_meta if not df_meta.empty else df_obj.copy())
             else:
-                # Si no hay metas estratégicas, mostrar todos los indicadores del objetivo
-                _render_tabla_indicadores(df_obj)
+                with st.expander("Indicadores del objetivo", expanded=True):
+                    _render_tabla_indicadores(df_obj)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 def _render_tabla_indicadores(df):
     from streamlit_app.utils.cmi_styles import format_nivel_badge
@@ -392,11 +458,12 @@ def render_tab_lineas(df, pdi_catalog=None):
         gradient_mid = _hex_to_rgba(color, 0.76)
         gradient_soft = _hex_to_rgba(color, 0.40)
         open_class = " cmi-line-card-open" if is_expanded else ""
+        icon_svg = linea_icon_svg(linea, size=32)
         header_html = (
             f"<div class='cmi-line-card{open_class}' style='background: linear-gradient(90deg, {gradient_light} 0%, {gradient_mid} 50%, {gradient_soft} 100%);'>"
             f"<div style='display:flex; justify-content:space-between; align-items:center; gap:18px;'>"
             f"<div style='display:flex; align-items:center; gap:16px; min-width:0;'>"
-            f"<span style='width:12px; height:56px; border-radius:999px; background:{color}; display:inline-block;'></span>"
+            f"<span style='width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0'>{icon_svg}</span>"
             f"<div style='min-width:0;'>"
             f"<div style='font-size:1.12rem; font-weight:800; color:#FFFFFF; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>{display_linea}</div>"
             f"<div class='cmi-line-card-meta'>{n_ind} indicadores · {n_obj} objetivos · {n_meta} metas</div>"

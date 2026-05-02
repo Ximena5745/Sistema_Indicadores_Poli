@@ -2015,6 +2015,17 @@ def render():
             ids_proy = _get_proyectos_ids()
             pdi_proy = pdi_proy[pdi_proy["Id"].astype(str).isin(ids_proy)].copy() if not pdi_proy.empty and ids_proy else pd.DataFrame()
             s2 = _build_linea_summary_from_df(pdi_proy)
+            # Sumarizar Proyectos por Línea para 2022-2025 y exponer en la consolidación
+            try:
+                if pdi_proy is not None and not pdi_proy.empty and "Linea" in pdi_proy.columns:
+                    proy_by_linea = pdi_proy.groupby("Linea").size().reset_index(name="N_Proyectos_Total")
+                    s2 = s2.merge(proy_by_linea, on="Linea", how="left")
+                    if "N_Proyectos" not in s2.columns and "N_Proyectos_Total" in s2.columns:
+                        s2["N_Proyectos"] = s2["N_Proyectos_Total"].fillna(0).astype(int)
+                    elif "N_Proyectos" in s2.columns:
+                        s2["N_Proyectos"] = s2["N_Proyectos"].fillna(0).astype(int)
+            except Exception:
+                pass
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
             linea_df, obj_df, areas_df, planes_df = _load_plan_retos_data(int(year))
@@ -2150,11 +2161,12 @@ def render():
                 (f"{cump_pct:.1f}%", "% Cumplimiento", "#16A34A"),
             ]
         
-        elif category == "Consolidado":
+elif category == "Consolidado":
+            # Conteo individual para cada fuente; solo el % Cumplimiento se promedia
             total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
             total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
             total_retos = int(linea_summary["N_Retos"].sum()) if not linea_summary.empty and "N_Retos" in linea_summary.columns else 0
-            cump_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
+            cump_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty and "Cumpl_Promedio" in linea_summary.columns else 0.0
             
             return [
                 (total_ind, "Indicadores", "#173D66"),
@@ -2447,7 +2459,17 @@ def render():
             return narrativa, estado_color, estado_icon
         
         elif category == "Consolidado":
-            return "Vista consolidada de indicadores, proyectos y retos institucionales.", "#0B5FFF", "📋"
+            # Narrativa más detallada para el PDI consolidado
+            total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
+            total_pro = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
+            total_retos = int(linea_summary["N_Retos"].sum()) if not linea_summary.empty and "N_Retos" in linea_summary.columns else 0
+            cump_prom = float(linea_summary["Cumpl_Promedio"].mean()) if not linea_summary.empty and "Cumpl_Promedio" in linea_summary.columns else 0.0
+            narrative = (
+                f"Vista consolidada de indicadores, proyectos y retos institucionales. "
+                f"Totales - Indicadores: {total_ind}, Proyectos: {total_pro}, Retos: {total_retos}. "
+                f"Cumplimiento promedio: {cump_prom:.1f}%"
+            )
+            return narrative, "#0B5FFF", "📋"
         
         return "", "#6B7280", "📊"
     

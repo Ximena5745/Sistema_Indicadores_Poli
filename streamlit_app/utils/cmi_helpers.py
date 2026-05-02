@@ -112,3 +112,70 @@ def linea_color(linea: str) -> str:
         if "educaci" in txt or "toda la vida" in txt:
             return "#0F385A"
         return "#1A3A5C"
+
+
+def linea_icon_svg(linea: str, size: int = 28) -> str:
+    """Retorna un SVG inline representativo para cada línea estratégica.
+
+    Iconos basados en Heroicons / Material paths (licencia MIT).
+    Colores oficiales del sistema de diseño institucional.
+    No utiliza emojis.
+    """
+    import unicodedata as _ud
+
+    txt = str(linea or "").strip().lower()
+    txt = "".join(
+        ch for ch in _ud.normalize("NFD", txt) if _ud.category(ch) != "Mn"
+    )
+    color = linea_color(linea)
+
+    def _svg(path: str, viewbox: str = "0 0 24 24") -> str:
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
+            f'viewBox="{viewbox}" fill="none" stroke="{color}" '
+            f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+            f'{path}</svg>'
+        )
+
+    # Calidad — círculo con marca de verificación (award / check)
+    if "calidad" in txt:
+        return _svg(
+            '<circle cx="12" cy="8" r="6"/>'
+            '<path d="M9 12l2 2 4-4"/>'
+            '<path d="M8.5 14.5L6 22l6-3 6 3-2.5-7.5"/>'
+        )
+    # Expansión — flecha hacia arriba en círculo / cohete
+    if "expansi" in txt:
+        return _svg(
+            '<path d="M12 2C8 8 6 14 12 22c6-8 4-14 0-20z"/>'
+            '<circle cx="12" cy="12" r="2" fill="' + color + '" stroke="none"/>'
+            '<path d="M8 20c-2 0-4-2-4-4s1.5-3 3-3"/>'
+            '<path d="M16 20c2 0 4-2 4-4s-1.5-3-3-3"/>'
+        )
+    # Experiencia — estrella / usuario con corazón
+    if "experien" in txt:
+        return _svg(
+            '<path d="M12 2l2.09 6.26H21l-5.45 3.97L17.18 18 12 14.27 6.82 18l1.63-5.77L3 8.26h6.91z"/>'
+        )
+    # Sostenibilidad — hoja / reciclaje
+    if "sostenib" in txt or "sustentab" in txt:
+        return _svg(
+            '<path d="M12 2a10 10 0 0 1 0 20A10 10 0 0 1 12 2z"/>'
+            '<path d="M8 12c0-3.31 2.69-6 6-6v6H8z" fill="' + color + '22" stroke="' + color + '"/>'
+            '<path d="M14 12v6c-3.31 0-6-2.69-6-6"/>'
+        )
+    # Educación para toda la vida — libro abierto
+    if "educaci" in txt or "toda la vida" in txt:
+        return _svg(
+            '<path d="M2 6s4-2 10-2 10 2 10 2v14s-4-2-10-2S2 20 2 20z"/>'
+            '<line x1="12" y1="4" x2="12" y2="18"/>'
+        )
+    # Transformación organizacional — engranaje / flechas circulares
+    if "transform" in txt:
+        return _svg(
+            '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83'
+            'M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>'
+            '<circle cx="12" cy="12" r="3"/>'
+        )
+    # Fallback — diamante
+    return _svg('<path d="M12 2l10 10-10 10L2 12z"/>')

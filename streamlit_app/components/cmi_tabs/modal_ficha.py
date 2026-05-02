@@ -92,48 +92,99 @@ def _hist_fig(hist: pd.DataFrame) -> go.Figure | None:
     h = h.sort_values("Periodo").tail(12)
 
     fig = go.Figure()
-    # Ejecutado
+
+    has_primary = False
+
+    # ── Ejecución (barras) ───────────────────────────────────────────────────
     if "Ejecucion" in h.columns:
         ev = pd.to_numeric(h["Ejecucion"], errors="coerce")
-        if ev.notna().sum() > 1:
-            fig.add_trace(go.Scatter(
-                x=h["Periodo"], y=ev, mode="lines+markers",
-                name="Ejecutado",
-                line=dict(color=COLORES.get("primario", "#1A3A5C"), width=2),
-                marker=dict(size=7, color=COLORES.get("primario", "#1A3A5C")),
+        if ev.notna().sum() >= 1:
+            fig.add_trace(go.Bar(
+                x=h["Periodo"], y=ev, name="Ejecución",
+                marker_color=COLORES.get("primario", "#1A3A5C"),
+                opacity=0.85,
+                yaxis="y1",
             ))
-    # Meta
+            has_primary = True
+
+    # ── Meta (línea discontinua) ─────────────────────────────────────────────
     if "Meta" in h.columns:
         mv = pd.to_numeric(h["Meta"], errors="coerce")
-        if mv.notna().sum() > 1:
+        if mv.notna().sum() >= 1:
             fig.add_trace(go.Scatter(
-                x=h["Periodo"], y=mv, mode="lines",
+                x=h["Periodo"], y=mv, mode="lines+markers",
                 name="Meta",
-                line=dict(color="#CBD5E1", width=1.5, dash="dash"),
+                line=dict(color="#F59E0B", width=2, dash="dash"),
+                marker=dict(size=6, symbol="diamond"),
+                yaxis="y1",
             ))
-    # Fallback: cumplimiento_pct
-    if len(fig.data) == 0 and "cumplimiento_pct" in h.columns:
-        fig.add_trace(go.Scatter(
-            x=h["Periodo"],
-            y=pd.to_numeric(h["cumplimiento_pct"], errors="coerce"),
-            mode="lines+markers", name="Cumplimiento %",
-            line=dict(color=COLORES.get("primario", "#1A3A5C"), width=2),
-        ))
-        fig.add_hline(y=100, line_dash="dot", line_color="#43A047",
-                      annotation_text="Meta 100%", annotation_position="bottom right")
+            has_primary = True
 
+    # ── % Cumplimiento (línea — eje secundario) ──────────────────────────────
+    cump_vals = pd.Series(dtype=float)
+    if "cumplimiento_pct" in h.columns:
+        cump_vals = pd.to_numeric(h["cumplimiento_pct"], errors="coerce")
+        if cump_vals.notna().sum() >= 1:
+            fig.add_trace(go.Scatter(
+                x=h["Periodo"], y=cump_vals, mode="lines+markers",
+                name="% Cumplimiento",
+                line=dict(color="#0EA5E9", width=2),
+                marker=dict(size=7, color="#0EA5E9"),
+                yaxis="y2",
+            ))
+            # Anotación de variación en el último punto conocido
+            valid_idx = cump_vals.dropna().index
+            if len(valid_idx) >= 2:
+                last_i = valid_idx[-1]
+                prev_i = valid_idx[-2]
+                delta = float(cump_vals[last_i]) - float(cump_vals[prev_i])
+                delta_text = f"+{delta:.1f}pp" if delta >= 0 else f"{delta:.1f}pp"
+                arrow_color = "#16A34A" if delta >= 0 else "#DC2626"
+                fig.add_annotation(
+                    x=h.loc[last_i, "Periodo"],
+                    y=float(cump_vals[last_i]),
+                    text=f"<b>{delta_text}</b>",
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowcolor=arrow_color,
+                    arrowsize=1.2,
+                    font=dict(size=10, color=arrow_color, family="Inter, sans-serif"),
+                    bgcolor="white",
+                    bordercolor=arrow_color,
+                    borderwidth=1,
+                    borderpad=3,
+                    yref="y2",
+                    ay=-30,
+                )
+
+    # Fallback: solo cumplimiento si no hay ejecución/meta
+    if not has_primary and cump_vals.empty:
+        return None
     if len(fig.data) == 0:
         return None
 
     fig.update_layout(
-        margin=dict(t=10, b=10, l=10, r=10),
-        height=210,
+        margin=dict(t=20, b=10, l=10, r=50),
+        height=230,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
+        barmode="overlay",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                     font=dict(size=10)),
         xaxis=dict(showgrid=False, tickfont=dict(size=9)),
-        yaxis=dict(showgrid=True, gridcolor="#F1F5F9", tickfont=dict(size=9)),
+        yaxis=dict(
+            title="Valor",
+            showgrid=True, gridcolor="#F1F5F9", tickfont=dict(size=9),
+            side="left",
+        ),
+        yaxis2=dict(
+            title="% Cumpl.",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+            tickfont=dict(size=9),
+            ticksuffix="%",
+        ),
         font=dict(family="Inter, sans-serif"),
     )
     return fig

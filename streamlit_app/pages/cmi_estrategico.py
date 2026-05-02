@@ -123,35 +123,52 @@ def render():
         st.error("No hay años disponibles en consolidado de cierres.")
         return
 
-    with st.expander("🔎 Filtros", expanded=False):
-        if st.button("Limpiar filtros", key="cmi_pdi_clear"):
+    # ── Estilos neon-azul para segmented_control seleccionado ────────────────
+    st.markdown(
+        """<style>
+        [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+            background: linear-gradient(135deg,#00B4FF 0%,#0066FF 100%) !important;
+            color:#FFFFFF !important;
+            border-color:#00B4FF !important;
+            box-shadow:0 0 10px rgba(0,180,255,.55),0 0 3px rgba(0,180,255,.25) !important;
+        }
+        </style>""",
+        unsafe_allow_html=True,
+    )
+
+    _anio_default = _default_anio(anios)
+    _fc1, _fc2, _fc_btn = st.columns([2, 2, 1])
+    with _fc1:
+        anio = st.segmented_control(
+            "Año de corte", options=anios, default=_anio_default, key="cmi_pdi_anio"
+        )
+        if anio is None:
+            anio = _anio_default
+    with _fc2:
+        _corte_default = _default_corte(int(anio) if anio is not None else None)
+        corte = st.segmented_control(
+            "Corte semestral",
+            options=list(CORTE_SEMESTRAL.keys()),
+            default=_corte_default,
+            key="cmi_pdi_corte",
+        )
+        if corte is None:
+            corte = _corte_default
+    with _fc_btn:
+        st.markdown("<div style='margin-top:26px'>", unsafe_allow_html=True)
+        if st.button("Limpiar", key="cmi_pdi_clear", use_container_width=True):
             for k in [
                 "cmi_pdi_anio",
-                "cmi_pdi_mes",
+                "cmi_pdi_corte",
                 "cmi_pdi_linea",
                 "cmi_pdi_objetivo",
                 "cmi_pdi_nombre",
-                "_cmi_pdi_last_anio",
             ]:
                 if k in st.session_state:
                     del st.session_state[k]
             st.rerun()
-
-        _anio_default = _default_anio(anios)
-        _fc1, _fc2 = st.columns(2)
-        with _fc1:
-            anio = st.segmented_control(
-                "Año de corte", options=anios, default=_anio_default, key="cmi_pdi_anio"
-            )
-        with _fc2:
-            _corte_default = _default_corte(int(anio) if anio is not None else None)
-            corte = st.selectbox(
-                "Corte semestral",
-                list(CORTE_SEMESTRAL.keys()),
-                index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
-                key="cmi_pdi_corte",
-            )
-        mes = CORTE_SEMESTRAL[corte]
+        st.markdown("</div>", unsafe_allow_html=True)
+    mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_pdi_con_cierre(int(anio), int(mes))
 

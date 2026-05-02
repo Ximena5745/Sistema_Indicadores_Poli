@@ -4,6 +4,7 @@ import io
 from math import ceil
 
 from streamlit_app.utils.cmi_helpers import linea_color
+from streamlit_app.utils.formatting import meta_his_signo, ejecucion_his_signo
 from streamlit_app.components.ui.pagination import PaginationManager
 
 # ── Columnas relevantes para el export a Excel ───────────────────────────────
@@ -131,12 +132,33 @@ def _render_row(row: pd.Series, idx: int, global_idx: int) -> None:
     cump = pd.to_numeric(row.get("cumplimiento_pct"), errors="coerce")
     nivel = str(row.get("Nivel de cumplimiento", "—") or "—")
 
-    def _fmt(v):
-        try:
-            f = float(v)
-            return f"{f:,.1f}" if pd.notna(f) else "—"
-        except Exception:
+    # Formateo canónico: respeta signo (%, $, ENT, DEC…) y decimales de cada indicador.
+    # Los nombres de columna Meta y Ejecucion NO se modifican.
+    def _safe_fmt_meta(row_d: dict) -> str:
+        v = row_d.get("Meta")
+        if v is None or str(v).strip() in ("", "nan", "None"):
             return "—"
+        try:
+            if pd.isna(float(str(v).strip())):
+                return "—"
+        except (ValueError, TypeError):
+            pass
+        return meta_his_signo(row_d) or "—"
+
+    def _safe_fmt_ejec(row_d: dict) -> str:
+        v = row_d.get("Ejecucion")
+        if v is None or str(v).strip() in ("", "nan", "None"):
+            return "—"
+        try:
+            if pd.isna(float(str(v).strip())):
+                return "—"
+        except (ValueError, TypeError):
+            pass
+        return ejecucion_his_signo(row_d) or "—"
+
+    row_dict = row.to_dict()
+    meta_fmt = _safe_fmt_meta(row_dict)
+    ejec_fmt = _safe_fmt_ejec(row_dict)
 
     cols[0].markdown(
         f"<div class='tl-num' style='padding-top:5px'>{row.get('Id', '')}</div>",
@@ -151,8 +173,8 @@ def _render_row(row: pd.Series, idx: int, global_idx: int) -> None:
         f"<div class='tl-obj' title='{objetivo}'>{objetivo}</div>",
         unsafe_allow_html=True,
     )
-    cols[4].markdown(f"<div class='tl-num'>{_fmt(meta_raw)}</div>", unsafe_allow_html=True)
-    cols[5].markdown(f"<div class='tl-num'>{_fmt(ejec_raw)}</div>", unsafe_allow_html=True)
+    cols[4].markdown(f"<div class='tl-num'>{meta_fmt}</div>", unsafe_allow_html=True)
+    cols[5].markdown(f"<div class='tl-num'>{ejec_fmt}</div>", unsafe_allow_html=True)
     cols[6].markdown(
         f"<div class='tl-num'>{f'{cump:.1f}%' if pd.notna(cump) else '—'}</div>",
         unsafe_allow_html=True,
