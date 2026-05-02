@@ -8,8 +8,6 @@ from services.strategic_indicators import (
     preparar_pdi_con_cierre,
     load_cierres,
 )
-from streamlit_app.utils.cmi_helpers import aplicar_filtros_globales
-
 from streamlit_app.components.cmi_tabs import (
     render_tab_resumen,
     render_tab_listado,
@@ -63,10 +61,10 @@ def render():
 
         pdi_catalog = pd.DataFrame()
 
-        # Filtros Globales
+        # Filtros Globales — solo Año y Corte Semestral
         with st.expander("🔎 Filtros Globales", expanded=False):
             if st.button("Limpiar filtros", key="cmi_pdi_clear_tab"):
-                for k in ["cmi_tab_anio", "cmi_tab_corte", "cmi_tab_linea", "cmi_tab_objetivo", "cmi_tab_nombre"]:
+                for k in ["cmi_tab_anio", "cmi_tab_corte"]:
                     if k in st.session_state:
                         del st.session_state[k]
                 st.rerun()
@@ -88,29 +86,46 @@ def render():
             df = preparar_pdi_con_cierre(int(anio), int(mes))
             df = filter_df_for_cmi_estrategico(df, id_column="Id")
 
-            if not df.empty:
-                pdi_catalog = load_pdi_catalog(include_ids=True)
-                lineas = sorted(df["Linea"].dropna().astype(str).unique().tolist())
-
-                _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
-                with _ff1:
-                    linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_tab_linea")
-
-                df_obj = df if linea_sel == "Todas" else df[df["Linea"] == linea_sel]
-                objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
-
-                with _ff2:
-                    objetivo_sel = st.selectbox("Objetivo estratégico", ["Todos"] + objetivos, key="cmi_tab_objetivo")
-                with _ff3:
-                    nombre_q = st.text_input("Buscar indicador", key="cmi_tab_nombre", placeholder="Texto en nombre del indicador")
-
-                df_filtrado = aplicar_filtros_globales(df, pdi_catalog, linea_sel, objetivo_sel, nombre_q)
-            else:
-                df_filtrado = pd.DataFrame()
-
-        if df_filtrado.empty:
+        if df.empty:
             st.warning("No hay indicadores para los filtros seleccionados.")
             return
+
+        pdi_catalog = load_pdi_catalog(include_ids=True)
+        df_filtrado = df
+
+        # Enriquecer df_filtrado con metadatos de Ficha_Tecnica.xlsx (join por Id).
+        # Aporta: Descripcion, Responsable del calculo, Fuente V1, Formula, Frecuencia.
+        # Fuente única de verdad — no duplica lógica de cálculo.
+        try:
+            from services.data_loader import cargar_ficha_tecnica as _cft
+            _ft = _cft()
+            if not _ft.empty and "Id" in _ft.columns:
+                # La columna de descripción puede venir con encoding roto (Latin-1 mal leído).
+                # Se detecta dinámicamente buscando la columna que contiene "descripci" (case-insensitive).
+                _desc_col = next(
+                    (c for c in _ft.columns if "descripci" in c.lower()),
+                    None,
+                )
+                _wanted = [
+                    c for c in [
+                        _desc_col,
+                        "Responsable del calculo",
+                        "Fuente V1",
+                        "Formula",
+                        "Frecuencia",
+                    ]
+                    if c and c in _ft.columns
+                ]
+                _ft_sub = _ft[["Id"] + _wanted].drop_duplicates(subset="Id", keep="first").copy()
+                if _desc_col and _desc_col in _ft_sub.columns:
+                    _ft_sub = _ft_sub.rename(columns={_desc_col: "Descripcion"})
+                # Normalizar ambas claves a string antes del join para evitar mismatch int↔str.
+                df_filtrado = df_filtrado.copy()
+                df_filtrado["Id"] = df_filtrado["Id"].astype(str)
+                _ft_sub["Id"] = _ft_sub["Id"].astype(str)
+                df_filtrado = df_filtrado.merge(_ft_sub, on="Id", how="left")
+        except Exception:
+            pass  # Si falla el join, la ficha renderiza con los campos disponibles
 
         # Navegación principal controlable por estado
         tab_names = [

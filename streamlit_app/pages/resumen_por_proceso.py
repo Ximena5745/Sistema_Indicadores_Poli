@@ -386,7 +386,7 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
         return
 
     period_col = _first_col(df_cmi, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
-    type_col = _first_col(df_cmi, ["Tipo de indicador", "Tipo de indicador", "Tipo", "tipo_indicador"])
+    type_col = _first_col(df_cmi, ["Tipo de indicador", "Tipo", "tipo_indicador"])
 
     if period_col is None and type_col is None:
         st.warning("El archivo Indicadores por CMI no contiene columnas de Periodicidad o Tipo de indicador.")
@@ -394,48 +394,58 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
 
     cols = st.columns(2)
     if period_col is not None:
-        counts = (
-            df_cmi[period_col]
-            .fillna("Sin periodicidad")
-            .astype(str)
-            .value_counts()
-            .reset_index()
-            .rename(columns={"index": "Periodicidad", period_col: "Indicadores"})
-        )
-        counts = counts.sort_values("Indicadores", ascending=False)
-        fig = px.bar(
-            counts,
-            x="Periodicidad",
-            y="Indicadores",
-            text="Indicadores",
-            title="Indicadores por periodicidad",
-            color="Indicadores",
-            color_continuous_scale="Blues",
-        )
-        fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
-        cols[0].plotly_chart(fig, use_container_width=True)
+        series = df_cmi[period_col].fillna("Sin periodicidad").astype(str)
+        if series.empty:
+            st.warning(f"No hay datos en la columna {period_col} para periodicidad.")
+        else:
+            counts = (
+                series
+                .value_counts()
+                .reset_index()
+            )
+            counts.columns = ["Periodicidad", "Indicadores"]
+            counts = counts.sort_values("Indicadores", ascending=False)
+            if counts.empty:
+                st.warning("No hay datos para periodicidad.")
+            else:
+                fig = px.bar(
+                    counts,
+                    x="Periodicidad",
+                    y="Indicadores",
+                    text="Indicadores",
+                    title="Indicadores por periodicidad",
+                    color="Indicadores",
+                    color_continuous_scale="Blues",
+                )
+                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
+                cols[0].plotly_chart(fig, use_container_width=True)
 
     if type_col is not None:
-        counts = (
-            df_cmi[type_col]
-            .fillna("Sin tipo")
-            .astype(str)
-            .value_counts()
-            .reset_index()
-            .rename(columns={"index": "Tipo de indicador", type_col: "Indicadores"})
-        )
-        counts = counts.sort_values("Indicadores", ascending=False)
-        fig = px.bar(
-            counts,
-            x="Tipo de indicador",
-            y="Indicadores",
-            text="Indicadores",
-            title="Indicadores por tipo de indicador",
-            color="Indicadores",
-            color_continuous_scale="Greens",
-        )
-        fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
-        cols[1].plotly_chart(fig, use_container_width=True)
+        series = df_cmi[type_col].fillna("Sin tipo").astype(str)
+        if series.empty:
+            st.warning(f"No hay datos en la columna {type_col} para tipo de indicador.")
+        else:
+            counts = (
+                series
+                .value_counts()
+                .reset_index()
+            )
+            counts.columns = ["Tipo de indicador", "Indicadores"]
+            counts = counts.sort_values("Indicadores", ascending=False)
+            if counts.empty:
+                st.warning("No hay datos para tipo de indicador.")
+            else:
+                fig = px.bar(
+                    counts,
+                    x="Tipo de indicador",
+                    y="Indicadores",
+                    text="Indicadores",
+                    title="Indicadores por tipo de indicador",
+                    color="Indicadores",
+                    color_continuous_scale="Greens",
+                )
+                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
+                cols[1].plotly_chart(fig, use_container_width=True)
 
 
 def _render_tab_indicadores(

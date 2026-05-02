@@ -574,3 +574,82 @@ def construir_opciones_indicadores(df: pd.DataFrame) -> dict:
         label = f"{row['Id']} — {row.get('Indicador', '')}"
         opciones[label] = row["Id"]
     return dict(sorted(opciones.items()))
+
+
+# ── Metadatos Kawak para Ficha Técnica ────────────────────────────────────────
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cargar_metadatos_kawak() -> pd.DataFrame:
+    """
+    Carga metadatos de indicadores desde tres fuentes Kawak para la ficha técnica.
+
+    Fuentes:
+      - Consolidado_API_Kawak.xlsx  → descripcion, responsable (registro más reciente por Id)
+      - Ficha_Tecnica_Indicadores.xlsx → Formula (vacío si no hay datos)
+      - Indicadores Kawak.xlsx        → Periodicidad (año más reciente por Id)
+
+    Retorna un DataFrame con columnas: Id, descripcion, responsable, Formula, Periodicidad
+    (una fila por Id, con la información más actualizada disponible).
+    """
+    FUENTES = DATA_RAW / "Fuentes Consolidadas"
+    result: pd.DataFrame = pd.DataFrame()
+
+    # ── 1. Consolidado_API_Kawak.xlsx → descripcion, responsable ──────────────
+    api_path = FUENTES / "Consolidado_API_Kawak.xlsx"
+    if api_path.exists():
+        try:
+            df_api = pd.read_excel(api_path, engine="openpyxl")
+            df_api.columns = [str(c).strip() for c in df_api.columns]
+            df_api = df_api.rename(columns={"ID": "Id"})
+            df_api["Id"] = df_api["Id"].apply(_id_a_str)
+            if "fecha" in df_api.columns:
+                df_api["fecha"] = pd.to_datetime(df_api["fecha"], errors="coerce")
+                df_api = df_api.sort_values("fecha", ascending=False)
+            cols_api = ["Id"] + [c for c in ["descripcion", "responsable"] if c in df_api.columns]
+            result = df_api[cols_api].drop_duplicates(subset=["Id"], keep="first").reset_index(drop=True)
+        except Exception:
+            pass
+
+    # ── 2. Ficha_Tecnica_Indicadores.xlsx → Formula ───────────────────────────
+    ficha_path = DATA_RAW / "Ficha_Tecnica_Indicadores.xlsx"
+    if ficha_path.exists():
+        try:
+            df_ficha = pd.read_excel(ficha_path, engine="openpyxl")
+            df_ficha.columns = [str(c).strip() for c in df_ficha.columns]
+            id_col = next(
+                (c for c in ["ID Kawak", "Id Ind"] if c in df_ficha.columns), None
+            )
+            if id_col and "Formula" in df_ficha.columns:
+                df_ficha = (
+                    df_ficha[[id_col, "Formula"]]
+                    .rename(columns={id_col: "Id"})
+                    .copy()
+                )
+                df_ficha["Id"] = df_ficha["Id"].apply(_id_a_str)
+                df_ficha = df_ficha.drop_duplicates(subset=["Id"], keep="first")
+                if result.empty:
+                    result = df_ficha
+                else:
+                    result = result.merge(df_ficha, on="Id", how="left")
+        except Exception:
+            pass
+
+    # ── 3. Indicadores Kawak.xlsx → Periodicidad (año más reciente) ───────────
+    kawak_path = FUENTES / "Indicadores Kawak.xlsx"
+    if kawak_path.exists():
+        try:
+            df_kw = pd.read_excel(kawak_path, engine="openpyxl")
+            df_kw.columns = [str(c).strip() for c in df_kw.columns]
+            df_kw["Id"] = df_kw["Id"].apply(_id_a_str)
+            if "Año" in df_kw.columns:
+                df_kw = df_kw.sort_values("Año", ascending=False)
+            cols_kw = ["Id"] + [c for c in ["Periodicidad"] if c in df_kw.columns]
+            df_kw = df_kw[cols_kw].drop_duplicates(subset=["Id"], keep="first")
+            if result.empty:
+                result = df_kw
+            else:
+                result = result.merge(df_kw, on="Id", how="left")
+        except Exception:
+            pass
+
+    return result
