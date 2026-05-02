@@ -687,10 +687,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
                 .reset_index()
             )
-            # Nivel 2: Objetivo (promedio) - drop_duplicates para evitar IDs duplicados en Sunburst
+            # Nivel 2: Objetivo (promedio)
             grouped = (
-                df.drop_duplicates(subset=["Linea", "Objetivo"])
-                .groupby(["Linea", "Objetivo"], dropna=False)
+                df.groupby(["Linea", "Objetivo"], dropna=False)
                 .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
                 .reset_index()
             )
@@ -703,7 +702,18 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             colors = []
 
             # Use counts for sizing but show cumplimiento_pct as text inside sectors
-            obj_counts = df.drop_duplicates(subset=["Linea", "Objetivo"]).groupby(["Linea", "Objetivo"]).size().to_dict()
+            obj_counts = df.groupby(["Linea", "Objetivo"]).size().to_dict()
+
+            # helper para crear ID único - usa nombre original con escape seguro para IDs
+            def _make_safe_id(prefix: str, name: str) -> str:
+                import re
+                if name is None:
+                    return f"{prefix}::unknown"
+                # Usar nombre original pero limpiar caracteres que rompen Plotly
+                safe = str(name).strip()[:50]  # limitar longitud
+                safe = re.sub(r'[<>:"/\\|?*]', '', safe)  # remover caracteres invalidos en IDs
+                safe = re.sub(r'\s+', '_', safe)  # espacos a underscores
+                return f"{prefix}::{safe}"
 
             # helper to match color keys ignoring accents/case
             def _norm_key(s: str) -> str:
@@ -717,13 +727,14 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 t = re.sub(r"[^0-9a-z]+", " ", t)
                 t = re.sub(r"\s+", " ", t).strip()
                 return t
+                return t
 
             normalized_color_map = {_norm_key(k): v for k, v in LINEA_COLORS.items()}
 
             # Centro: líneas estratégicas
             for _, line in lines.iterrows():
                 linea_name = str(line["Linea"]).strip()
-                line_id = f"line::{_norm_key(linea_name)}"
+                line_id = _make_safe_id("line", linea_name)  # ID unico con nombre original
                 labels.append(linea_name)
                 ids.append(line_id)
                 parents.append("")
@@ -747,9 +758,9 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 if not count or int(count) <= 0:
                     continue
                 parent_norm = _norm_key(parent_name)
-                parent_id = f"line::{parent_norm}"
+                parent_id = _make_safe_id("line", parent_name)
                 obj_norm = _norm_key(obj_name)
-                obj_id = f"obj::{parent_norm}::{obj_norm}"
+                obj_id = _make_safe_id("obj", f"{parent_name}_{obj_name}")  # ID unico
                 n_obj_linea = int(objetivos_por_linea.get(row["Linea"], 1) or 1)
                 obj_weight = max(1.0, line_min_weight / max(1, n_obj_linea))
                 labels.append(obj_name)
