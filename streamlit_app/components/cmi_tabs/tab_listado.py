@@ -38,7 +38,9 @@ def _nivel_badge_html(nivel: str) -> str:
     return (
         f"<span style='background:{bg};color:{tc};padding:3px 10px;"
         f"border-radius:999px;font-size:0.72rem;font-weight:700;"
-        f"white-space:nowrap;display:inline-block'>{nivel}</span>"
+        f"white-space:nowrap;display:inline-flex;align-items:center;gap:6px'>"
+        f"<span style='width:8px;height:8px;border-radius:50%;background:{tc};display:inline-block'></span>"
+        f"{nivel}</span>"
     )
 
 
@@ -129,7 +131,13 @@ def _render_row(row: pd.Series, idx: int, global_idx: int) -> None:
     objetivo = str(row.get("Objetivo", "") or "—")
     meta_raw = row.get("Meta")
     ejec_raw = row.get("Ejecucion")
-    cump = pd.to_numeric(row.get("cumplimiento_pct"), errors="coerce")
+    cump = pd.to_numeric(
+        row.get("cumplimiento_pct")
+        if "cumplimiento_pct" in row.index else row.get("Cumplimiento_pct")
+        if "Cumplimiento_pct" in row.index else row.get("cumplimiento")
+        if "cumplimiento" in row.index else row.get("Cumplimiento"),
+        errors="coerce",
+    )
     nivel = str(row.get("Nivel de cumplimiento", "—") or "—")
 
     # Formateo canónico: respeta signo (%, $, ENT, DEC…) y decimales de cada indicador.

@@ -13,6 +13,7 @@ Estructura:
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from typing import Optional
 from core.config import COLOR_CATEGORIA, COLOR_CATEGORIA_CLARO, COLORES
 from services.strategic_indicators import load_cierres
 
@@ -31,11 +32,21 @@ def _get_ai_ficha(nombre, linea, obj, meta, eje, nivel, cump):
     return analizar_ficha_cmi(nombre, linea, obj, str(meta), str(eje), nivel, str(cump))
 
 
+def _find_cumplimiento_col(df: pd.DataFrame) -> Optional[str]:
+    for candidate in ["cumplimiento_pct", "Cumplimiento_pct", "Cumplimiento", "cumplimiento"]:
+        if candidate in df.columns:
+            return candidate
+    return None
+
+
 def _tendencia_desde_hist(hist: pd.DataFrame) -> tuple:
     """Devuelve (label, icono) calculando delta entre último y penúltimo periodo."""
-    if hist.empty or "cumplimiento_pct" not in hist.columns:
+    if hist.empty:
         return "Sin datos", "→"
-    vals = pd.to_numeric(hist["cumplimiento_pct"], errors="coerce").dropna()
+    cump_col = _find_cumplimiento_col(hist)
+    if not cump_col:
+        return "Sin datos", "→"
+    vals = pd.to_numeric(hist[cump_col], errors="coerce").dropna()
     if len(vals) < 2:
         return "Estable", "→"
     delta = float(vals.iloc[-1]) - float(vals.iloc[-2])
@@ -83,7 +94,7 @@ def _donut_fig(cump: float, nivel: str) -> go.Figure:
     return fig
 
 
-def _hist_fig(hist: pd.DataFrame) -> go.Figure | None:
+def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
     if hist.empty:
         return None
     h = hist.copy()
@@ -104,26 +115,28 @@ def _hist_fig(hist: pd.DataFrame) -> go.Figure | None:
                 marker_color=COLORES.get("primario", "#1A3A5C"),
                 opacity=0.85,
                 yaxis="y1",
+                offsetgroup="ejec",
             ))
             has_primary = True
 
-    # ── Meta (línea discontinua) ─────────────────────────────────────────────
+    # ── Meta (barras) ───────────────────────────────────────────────────────
     if "Meta" in h.columns:
         mv = pd.to_numeric(h["Meta"], errors="coerce")
         if mv.notna().sum() >= 1:
-            fig.add_trace(go.Scatter(
-                x=h["Periodo"], y=mv, mode="lines+markers",
-                name="Meta",
-                line=dict(color="#F59E0B", width=2, dash="dash"),
-                marker=dict(size=6, symbol="diamond"),
+            fig.add_trace(go.Bar(
+                x=h["Periodo"], y=mv, name="Meta",
+                marker_color="#F59E0B",
+                opacity=0.65,
                 yaxis="y1",
+                offsetgroup="meta",
             ))
             has_primary = True
 
     # ── % Cumplimiento (línea — eje secundario) ──────────────────────────────
     cump_vals = pd.Series(dtype=float)
-    if "cumplimiento_pct" in h.columns:
-        cump_vals = pd.to_numeric(h["cumplimiento_pct"], errors="coerce")
+    cump_col = _find_cumplimiento_col(h)
+    if cump_col:
+        cump_vals = pd.to_numeric(h[cump_col], errors="coerce")
         if cump_vals.notna().sum() >= 1:
             fig.add_trace(go.Scatter(
                 x=h["Periodo"], y=cump_vals, mode="lines+markers",
@@ -164,11 +177,13 @@ def _hist_fig(hist: pd.DataFrame) -> go.Figure | None:
         return None
 
     fig.update_layout(
-        margin=dict(t=20, b=10, l=10, r=50),
-        height=230,
+        margin=dict(t=22, b=24, l=10, r=50),
+        height=320,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        barmode="overlay",
+        barmode="group",
+        bargap=0.18,
+        bargroupgap=0.08,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                     font=dict(size=10)),
         xaxis=dict(showgrid=False, tickfont=dict(size=9)),

@@ -687,9 +687,10 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
                 .reset_index()
             )
-            # Nivel 2: Objetivo (promedio)
+            # Nivel 2: Objetivo (promedio) - drop_duplicates para evitar IDs duplicados en Sunburst
             grouped = (
-                df.groupby(["Linea", "Objetivo"], dropna=False)
+                df.drop_duplicates(subset=["Linea", "Objetivo"])
+                .groupby(["Linea", "Objetivo"], dropna=False)
                 .agg(cumplimiento_pct=("cumplimiento_pct", "mean"))
                 .reset_index()
             )
@@ -702,7 +703,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
             colors = []
 
             # Use counts for sizing but show cumplimiento_pct as text inside sectors
-            obj_counts = df.groupby(["Linea", "Objetivo"]).size().to_dict()
+            obj_counts = df.drop_duplicates(subset=["Linea", "Objetivo"]).groupby(["Linea", "Objetivo"]).size().to_dict()
 
             # helper to match color keys ignoring accents/case
             def _norm_key(s: str) -> str:
@@ -719,18 +720,10 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
             normalized_color_map = {_norm_key(k): v for k, v in LINEA_COLORS.items()}
 
-            # Centro: líneas estratégicas - con contador para IDs únicos
-            line_counter = {}
+            # Centro: líneas estratégicas
             for _, line in lines.iterrows():
                 linea_name = str(line["Linea"]).strip()
-                line_norm = _norm_key(linea_name)
-                
-                # Generar ID único para la línea
-                if line_norm not in line_counter:
-                    line_counter[line_norm] = 0
-                line_counter[line_norm] += 1
-                line_id = f"line::{line_norm}::{line_counter[line_norm]}"
-                
+                line_id = f"line::{_norm_key(linea_name)}"
                 labels.append(linea_name)
                 ids.append(line_id)
                 parents.append("")
@@ -738,14 +731,13 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 customdata.append([
                     line["cumplimiento_pct"] if pd.notna(line["cumplimiento_pct"]) else 0
                 ])
-                colors.append(normalized_color_map.get(line_norm, "#6B728E"))
+                colors.append(normalized_color_map.get(_norm_key(linea_name), "#6B728E"))
 
             # Ancho mínimo por línea para evitar sectores demasiado angostos
             objetivos_por_linea = grouped.groupby("Linea", dropna=False).size().to_dict()
             line_min_weight = 2.0
 
             # Anillo externo: objetivos
-            obj_counter = {}  # Contador para IDs únicos
             for _, row in grouped.iterrows():
                 obj_name = str(row["Objetivo"]).strip()
                 parent_name = str(row["Linea"]).strip()
@@ -757,13 +749,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
                 parent_norm = _norm_key(parent_name)
                 parent_id = f"line::{parent_norm}"
                 obj_norm = _norm_key(obj_name)
-                
-                # Generar ID único para evitar duplicados
-                if parent_norm not in obj_counter:
-                    obj_counter[parent_norm] = 0
-                obj_counter[parent_norm] += 1
-                obj_id = f"obj::{parent_norm}::{obj_norm}::{obj_counter[parent_norm]}"
-                
+                obj_id = f"obj::{parent_norm}::{obj_norm}"
                 n_obj_linea = int(objetivos_por_linea.get(row["Linea"], 1) or 1)
                 obj_weight = max(1.0, line_min_weight / max(1, n_obj_linea))
                 labels.append(obj_name)
