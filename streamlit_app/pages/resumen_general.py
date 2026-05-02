@@ -2161,7 +2161,7 @@ def render():
                 (f"{cump_pct:.1f}%", "% Cumplimiento", "#16A34A"),
             ]
         
-elif category == "Consolidado":
+        elif category == "Consolidado":
             # Conteo individual para cada fuente; solo el % Cumplimiento se promedia
             total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
             total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
