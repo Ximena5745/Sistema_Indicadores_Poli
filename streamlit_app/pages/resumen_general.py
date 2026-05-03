@@ -2310,14 +2310,16 @@ def render():
             total_retos = _load_plan_retos_area_count(int(year_estrategico))
             if total_retos == 0:
                 total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
-            
-            meta_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
-            
+
+            meta_prom = 100.0
+            ejec_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
+            cumpl_prom = ejec_prom
+
             return [
                 (total_retos, "Áreas con Retos", "#0B5FFF"),
-                (f"{meta_prom:.1f}%", "% Meta Esperada", "#173D66"),
-                (f"{meta_prom * 0.85:.1f}%", "% Avance Real", "#F59E0B"),
-                (f"{min(100, meta_prom * 0.9):.1f}%", "Cumplimiento", "#16A34A"),
+                (f"{meta_prom:.0f}%", "% Meta Esperada", "#173D66"),
+                (f"{ejec_prom:.0f}%", "% Ejecución Real", "#F59E0B"),
+                (f"{cumpl_prom:.0f}%", "Cumplimiento", "#16A34A"),
             ]
         
         elif category == "Consolidado":
