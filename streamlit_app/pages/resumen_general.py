@@ -226,7 +226,7 @@ def _load_plan_retos_planes(year):
         return pd.DataFrame(columns=["Linea", "N_Planes"])
 
 
-def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None = None):
+def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None = None, planes_df: pd.DataFrame | None = None):
     """Construye resumen por línea para Plan de Retos."""
     if linea_df.empty or "Linea" not in linea_df.columns:
         return pd.DataFrame(columns=["Linea","N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"])
@@ -240,6 +240,19 @@ def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None =
         if pct >= 80: return "Alerta"
         return "Peligro"
     df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_cat)
+
+    def _norm_key(value):
+        import re, unicodedata
+
+        if pd.isna(value):
+            return ""
+        text = str(value).strip().lower()
+        text = unicodedata.normalize("NFD", text)
+        text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+        text = text.replace("_", " ")
+        text = re.sub(r"[^0-9a-z]+", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
 
     if objetivo_df is not None and "Linea" in objetivo_df.columns and "Objetivo" in objetivo_df.columns:
         objetivos_count = (
@@ -267,6 +280,19 @@ def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None =
     )
 
     resumen = resumen.merge(objetivos_count, on="Linea", how="left")
+    if planes_df is not None and "Linea" in planes_df.columns and "N_Planes" in planes_df.columns:
+        planes_df = planes_df.copy()
+        planes_df["Linea_norm"] = planes_df["Linea"].astype(str).apply(_norm_key)
+        planes_count = (
+            planes_df.groupby("Linea_norm", dropna=False)
+            .agg(N_Planes=("N_Planes", "sum"))
+            .reset_index()
+        )
+        resumen["Linea_norm"] = resumen["Linea"].astype(str).apply(_norm_key)
+        resumen = resumen.merge(planes_count, on="Linea_norm", how="left")
+        resumen["N_Indicadores"] = resumen["N_Planes"].fillna(resumen["N_Indicadores"]).astype(int)
+        resumen = resumen.drop(columns=["Linea_norm", "N_Planes"])
+
     return resumen
 
 def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
@@ -1856,8 +1882,10 @@ def _render_strategy_card(
     icon: str,
     historico=None,
     unit_label: str = "indicadores",
+    indicators: int | None = None,
     projects: int | None = None,
     retos: int | None = None,
+    retos_label: str = "Retos",
 ):
     """Renderiza una tarjeta de estrategia con mini gráfico de línea."""
     import streamlit as st
@@ -1925,11 +1953,12 @@ def _render_strategy_card(
     card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
     card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
     if projects is not None or retos is not None:
-        detail_parts = [f"Indicadores: {count}"]
+        detail_indicators = indicators if indicators is not None else count
+        detail_parts = [f"Indicadores: {detail_indicators}"]
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
-            detail_parts.append(f"Retos: {retos}")
+            detail_parts.append(f"{retos_label}: {retos}")
         detail_text = " · ".join(detail_parts)
         card_html += "<div style='font-size:11px;color:#444;margin-top:4px;'>" + detail_text + "</div>"
     card_html += "</div></div>"
@@ -2163,7 +2192,7 @@ def render():
             
             raw_pdi = pdi_estrategico.copy()
             pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
-            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
+            linea_summary = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
             pdi_base_df = pdi_estrategico.copy()
             
@@ -2239,7 +2268,7 @@ def render():
             else:
                 pdi_estrategico = pd.DataFrame()
             
-            linea_summary = _build_linea_summary_from_df(pdi_estrategico)
+            linea_summary = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
             objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
             pdi_base_df = pdi_estrategico.copy()
@@ -2269,7 +2298,8 @@ def render():
                 
         elif category == "Plan de Retos":
             linea_df, obj_df = _load_plan_retos_data(int(year))
-            linea_summary = _build_linea_summary_from_retos(linea_df, obj_df)
+            planes_df = _load_plan_retos_planes(int(year))
+            linea_summary = _build_linea_summary_from_retos(linea_df, obj_df, planes_df=planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             objetivo_df = obj_df[cols].copy()
             pdi_base_df = pd.DataFrame()
@@ -2279,6 +2309,7 @@ def render():
             pdi_proy = pd.DataFrame()
             linea_df = pd.DataFrame()
             obj_df = pd.DataFrame()
+            planes_df = pd.DataFrame()
             ids_proy = _get_proyectos_ids()
 
             for y in years_to_load:
@@ -2331,6 +2362,9 @@ def render():
                     linea_df = pd.concat([linea_df, retos_linea], ignore_index=True) if not linea_df.empty else retos_linea
                 if not retos_obj.empty:
                     obj_df = pd.concat([obj_df, retos_obj], ignore_index=True) if not obj_df.empty else retos_obj
+                plane_rows = _load_plan_retos_planes(int(y))
+                if not plane_rows.empty:
+                    planes_df = pd.concat([planes_df, plane_rows], ignore_index=True) if not planes_df.empty else plane_rows
 
             s1 = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_estrategico.columns]
@@ -2338,7 +2372,7 @@ def render():
             s2 = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
-            s3 = _build_linea_summary_from_retos(linea_df, obj_df)
+            s3 = _build_linea_summary_from_retos(linea_df, obj_df, planes_df=planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
             linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
@@ -2398,17 +2432,17 @@ def render():
             ]
         
         elif category == "Plan de Retos":
-            # Retos: Áreas con retos, % Meta esperada, % Ejecución real, Cumplimiento
-            total_retos = _load_plan_retos_area_count(int(year_estrategico))
+            # Retos: Plan de Retos, % Meta esperada, % Ejecución real, Cumplimiento
+            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
             if total_retos == 0:
-                total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+                total_retos = _load_plan_retos_area_count(int(year_estrategico))
 
             meta_prom = 100.0
             ejec_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
             cumpl_prom = ejec_prom
 
             return [
-                (total_retos, "Áreas con Retos", "#0B5FFF"),
+                (total_retos, "Plan de Retos", "#0B5FFF"),
                 (f"{meta_prom:.0f}%", "% Meta Esperada", "#173D66"),
                 (f"{ejec_prom:.0f}%", "% Ejecución Real", "#F59E0B"),
                 (f"{cumpl_prom:.0f}%", "Cumplimiento", "#16A34A"),
@@ -2425,7 +2459,7 @@ def render():
                 (f"{avg_cumpl:.1f}%", "Cumplimiento PDI", "#0B5FFF"),
                 (total_ind, "Indicadores", "#173D66"),
                 (total_proy, "Proyectos", "#16A34A"),
-                (total_retos, "Retos", "#F59E0B"),
+                (total_retos, "Plan de Retos", "#F59E0B"),
             ]
         
         return []
@@ -2546,8 +2580,10 @@ def render():
                 icon=card_def["icon"],
                 historico=historico,
                 unit_label=unit_label,
+                indicators=n_ind,
                 projects=n_proy if categoria == "Consolidado" else None,
                 retos=n_retos if categoria == "Consolidado" else None,
+                retos_label="Plan de Retos" if categoria == "Consolidado" else "Retos",
             )
 
     # --- Sunburst ---
