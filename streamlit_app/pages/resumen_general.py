@@ -1958,7 +1958,9 @@ def _render_strategy_card(
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
-            detail_parts.append(f"{retos_label}: {retos}")
+            # Evitar duplicar el mismo valor si la unidad ya es el label de retos
+            if str(retos_label).strip().lower() != str(unit).strip().lower():
+                detail_parts.append(f"{retos_label}: {retos}")
         detail_text = " · ".join(detail_parts)
         card_html += "<div style='font-size:11px;color:#444;margin-top:4px;'>" + detail_text + "</div>"
     card_html += "</div></div>"
