@@ -190,25 +190,50 @@ def _build_linea_summary_from_retos(linea_df):
     return resumen
 
 def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
-    """Promedia Cumpl_Promedio y suma N_Indicadores por línea; concatena objetivos."""
+    """Construye el resumen Consolidado con métricas separadas por componentes."""
     all_lineas = pd.concat([s1[["Linea"]], s2[["Linea"]], s3[["Linea"]]]).drop_duplicates()
-    out = all_lineas.copy()
-    for col in ["N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"]:
+    out = all_lineas.copy().set_index("Linea")
+
+    # Conteos separados por componente
+    out["N_Indicadores"] = 0
+    out["N_Proyectos"] = 0
+    out["N_Retos"] = 0
+    for name, summary in [("N_Indicadores", s1), ("N_Proyectos", s2), ("N_Retos", s3)]:
+        if "Linea" in summary.columns and "N_Indicadores" in summary.columns:
+            out[name] = pd.to_numeric(summary.set_index("Linea")["N_Indicadores"], errors="coerce")
+    out["N_Indicadores"] = out["N_Indicadores"].fillna(0).astype(int)
+    out["N_Proyectos"] = out["N_Proyectos"].fillna(0).astype(int)
+    out["N_Retos"] = out["N_Retos"].fillna(0).astype(int)
+    out["N_Total"] = out[["N_Indicadores", "N_Proyectos", "N_Retos"]].sum(axis=1).astype(int)
+
+    # Agregar promedios parciales por componente y promedio consolidado
+    def _avg_series(summary, name):
+        if "Linea" in summary.columns and "Cumpl_Promedio" in summary.columns:
+            ser = pd.to_numeric(summary.set_index("Linea")["Cumpl_Promedio"], errors="coerce")
+            ser.name = name
+            return ser
+        return pd.Series(name=name, dtype="float64")
+
+    avg_ind = _avg_series(s1, "Cumpl_Promedio_Indicadores")
+    avg_proy = _avg_series(s2, "Cumpl_Promedio_Proyectos")
+    avg_retos = _avg_series(s3, "Cumpl_Promedio_Retos")
+    out = out.join([avg_ind, avg_proy, avg_retos], how="left")
+    out["Cumpl_Promedio"] = out[["Cumpl_Promedio_Indicadores", "Cumpl_Promedio_Proyectos", "Cumpl_Promedio_Retos"]].mean(axis=1, skipna=True).fillna(0)
+
+    # Niveles agregados a partir de los tres componentes
+    for col in ["Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]:
         vals = []
-        for s in [s1,s2,s3]:
-            if col in s.columns:
-                vals.append(s.set_index("Linea")[col])
+        for summary in [s1, s2, s3]:
+            if col in summary.columns:
+                vals.append(summary.set_index("Linea")[col])
         if vals:
-            dfc = pd.concat(vals, axis=1).fillna(0)
-            if col=="Cumpl_Promedio":
-                out[col] = pd.to_numeric(dfc.mean(axis=1), errors="coerce").fillna(0)
-            else:
-                out[col] = pd.to_numeric(dfc.sum(axis=1), errors="coerce").fillna(0)
+            out[col] = pd.to_numeric(pd.concat(vals, axis=1).fillna(0).sum(axis=1), errors="coerce").fillna(0).astype(int)
         else:
             out[col] = 0
-    out = out.reset_index(drop=True)
 
-    objetivo_df = pd.concat([o1,o2,o3], ignore_index=True)
+    out = out.reset_index()
+
+    objetivo_df = pd.concat([o1, o2, o3], ignore_index=True)
     if not objetivo_df.empty:
         def _clean_label(value):
             import re, unicodedata
@@ -1673,7 +1698,15 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
 
 
 def _render_strategy_card(
-    title: str, indicators: int, cumplimiento: float, color: str, icon: str, historico=None, unit_label: str = "indicadores"
+    title: str,
+    count: int,
+    cumplimiento: float,
+    color: str,
+    icon: str,
+    historico=None,
+    unit_label: str = "indicadores",
+    projects: int | None = None,
+    retos: int | None = None,
 ):
     """Renderiza una tarjeta de estrategia con mini gráfico de línea."""
     import streamlit as st
@@ -1739,7 +1772,15 @@ def _render_strategy_card(
     card_html += "<div style='font-size:28px;margin-right:10px;'>" + icon + "</div>"
     card_html += "<div style='text-align:right;flex:1;'>"
     card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
-    card_html += "<div style='font-size:11px;color:#666;'>" + str(indicators) + " " + unit + "</div>"
+    card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
+    if projects is not None or retos is not None:
+        detail_parts = []
+        if projects is not None:
+            detail_parts.append(f"Proyectos: {projects}")
+        if retos is not None:
+            detail_parts.append(f"Retos: {retos}")
+        detail_text = " · ".join(detail_parts)
+        card_html += "<div style='font-size:11px;color:#444;margin-top:4px;'>" + detail_text + "</div>"
     card_html += "</div></div>"
     card_html += "<div style='font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;'>" + title + "</div>"
     card_html += sparkline
@@ -2083,18 +2124,40 @@ def render():
             pdi_base_df = pd.DataFrame()
             
         elif category == "Consolidado":
-            pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
-            pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
+            pdi_estrategico = pd.DataFrame()
+            pdi_proy = pd.DataFrame()
+            linea_df = pd.DataFrame()
+            obj_df = pd.DataFrame()
+            ids_proy = _get_proyectos_ids()
+
+            for y in years_to_load:
+                pdi_year = preparar_pdi_con_cierre(int(y), 12)
+                if pdi_year is None or pdi_year.empty:
+                    continue
+                pdi_year = filter_df_for_cmi_estrategico(pdi_year, id_column="Id")
+                if not pdi_year.empty:
+                    pdi_estrategico = pd.concat([pdi_estrategico, pdi_year], ignore_index=True) if not pdi_estrategico.empty else pdi_year
+
+                if ids_proy:
+                    try:
+                        pdi_year_proy = pdi_year[pdi_year["Id"].astype(str).isin(ids_proy)].copy()
+                    except Exception:
+                        pdi_year_proy = pdi_year[pdi_year["Id"].astype(str).fillna("").isin(ids_proy)].copy()
+                    if not pdi_year_proy.empty:
+                        pdi_proy = pd.concat([pdi_proy, pdi_year_proy], ignore_index=True) if not pdi_proy.empty else pdi_year_proy
+
+                retos_linea, retos_obj = _load_plan_retos_data(int(y))
+                if not retos_linea.empty:
+                    linea_df = pd.concat([linea_df, retos_linea], ignore_index=True) if not linea_df.empty else retos_linea
+                if not retos_obj.empty:
+                    obj_df = pd.concat([obj_df, retos_obj], ignore_index=True) if not obj_df.empty else retos_obj
+
             s1 = _build_linea_summary_from_df(pdi_estrategico)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_estrategico.columns]
             o1 = pdi_estrategico[cols].copy()
-            pdi_proy = preparar_pdi_con_cierre(int(year), 12)
-            ids_proy = _get_proyectos_ids()
-            pdi_proy = pdi_proy[pdi_proy["Id"].astype(str).isin(ids_proy)].copy() if not pdi_proy.empty and ids_proy else pd.DataFrame()
             s2 = _build_linea_summary_from_df(pdi_proy)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
-            linea_df, obj_df = _load_plan_retos_data(int(year))
             s3 = _build_linea_summary_from_retos(linea_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
@@ -2168,12 +2231,18 @@ def render():
             ]
         
         elif category == "Consolidado":
-            total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            if not linea_summary.empty:
+                total = int(linea_summary["N_Total"].sum()) if "N_Total" in linea_summary.columns else int(linea_summary["N_Indicadores"].sum())
+                total_ind = int(linea_summary["N_Indicadores"].sum()) if "N_Indicadores" in linea_summary.columns else 0
+                total_proy = int(linea_summary["N_Proyectos"].sum()) if "N_Proyectos" in linea_summary.columns else 0
+                total_retos = int(linea_summary["N_Retos"].sum()) if "N_Retos" in linea_summary.columns else 0
+            else:
+                total = total_ind = total_proy = total_retos = 0
             return [
                 (total, "Total", "#0B5FFF"),
-                (0, "Indicadores", "#173D66"),
-                (0, "Proyectos", "#16A34A"),
-                (0, "Retos", "#F59E0B"),
+                (total_ind, "Indicadores", "#173D66"),
+                (total_proy, "Proyectos", "#16A34A"),
+                (total_retos, "Retos", "#F59E0B"),
             ]
         
         return []
@@ -2212,7 +2281,12 @@ def render():
             norm_to_row[_norm_key(str(row["Linea"]))] = row_dict
     
     # Ajustar etiqueta según categoría
-    unit_label = "proyectos" if categoria == "Proyectos" else "indicadores"
+    if categoria == "Proyectos":
+        unit_label = "proyectos"
+    elif categoria == "Consolidado":
+        unit_label = "items"
+    else:
+        unit_label = "indicadores"
     
     ficha_cols = st.columns(6)
     for idx, card_def in enumerate(strategic_defs):
@@ -2223,15 +2297,25 @@ def render():
             row = norm_to_row.get(matched[0]) if matched else None
         if row is not None:
             try:
-                n_ind = int(float(row.get("N_Indicadores", 0)))
+                n_ind = int(float(row.get("N_Total", row.get("N_Indicadores", 0))))
             except (ValueError, TypeError):
                 n_ind = 0
+            try:
+                n_proy = int(float(row.get("N_Proyectos", 0)))
+            except (ValueError, TypeError):
+                n_proy = 0
+            try:
+                n_retos = int(float(row.get("N_Retos", 0)))
+            except (ValueError, TypeError):
+                n_retos = 0
             try:
                 cumpl = float(row.get("Cumpl_Promedio", 0))
             except (ValueError, TypeError):
                 cumpl = 0.0
         else:
             n_ind = 0
+            n_proy = 0
+            n_retos = 0
             cumpl = 0.0
         historico = None
         if row is not None and historico_df is not None and not historico_df.empty:
@@ -2250,12 +2334,14 @@ def render():
         with ficha_cols[idx % 6]:
             _render_strategy_card(
                 title=card_def["label"],
-                indicators=n_ind,
+                count=n_ind,
                 cumplimiento=cumpl,
                 color=card_def["color"],
                 icon=card_def["icon"],
                 historico=historico,
                 unit_label=unit_label,
+                projects=n_proy if categoria == "Consolidado" else None,
+                retos=n_retos if categoria == "Consolidado" else None,
             )
 
     # --- Sunburst ---
