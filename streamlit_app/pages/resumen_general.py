@@ -245,16 +245,64 @@ def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None =
 
 def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
     """Construye el resumen Consolidado con métricas separadas por componentes."""
-    all_lineas = pd.concat([s1[["Linea"]], s2[["Linea"]], s3[["Linea"]]]).drop_duplicates()
-    out = all_lineas.copy().set_index("Linea")
+    def _clean_label(value):
+        import re, unicodedata
+
+        if pd.isna(value):
+            return ""
+        text = str(value).strip()
+        text = text.replace("_", " ")
+        text = unicodedata.normalize("NFC", text)
+        text = re.sub(r"\s+", " ", text)
+        return text
+
+    def _norm_key(value):
+        import re, unicodedata
+
+        if pd.isna(value):
+            return ""
+        text = str(value).strip().lower()
+        text = unicodedata.normalize("NFD", text)
+        text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+        text = text.replace("_", " ")
+        text = re.sub(r"[^0-9a-z]+", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
+
+    def _normalize_summary(summary):
+        summary = summary.copy()
+        if "Linea" in summary.columns:
+            summary["Linea_norm"] = summary["Linea"].apply(_norm_key)
+        return summary
+
+    def _build_linea_labels(*summaries):
+        labels = {}
+        for summary in summaries:
+            if "Linea" in summary.columns:
+                for _, row in summary[["Linea", "Linea_norm"]].drop_duplicates().iterrows():
+                    key = row["Linea_norm"]
+                    if not key:
+                        continue
+                    if key not in labels:
+                        labels[key] = _clean_label(row["Linea"])
+        return labels
+
+    s1n = _normalize_summary(s1)
+    s2n = _normalize_summary(s2)
+    s3n = _normalize_summary(s3)
+
+    all_lineas = pd.concat(
+        [df[["Linea_norm"]] for df in [s1n, s2n, s3n] if "Linea_norm" in df.columns]
+    ).drop_duplicates()
+    out = all_lineas.copy().set_index("Linea_norm")
 
     # Conteos separados por componente
     out["N_Indicadores"] = 0
     out["N_Proyectos"] = 0
     out["N_Retos"] = 0
-    for name, summary in [("N_Indicadores", s1), ("N_Proyectos", s2), ("N_Retos", s3)]:
-        if "Linea" in summary.columns and "N_Indicadores" in summary.columns:
-            out[name] = pd.to_numeric(summary.set_index("Linea")["N_Indicadores"], errors="coerce")
+    for name, summary in [("N_Indicadores", s1n), ("N_Proyectos", s2n), ("N_Retos", s3n)]:
+        if "Linea_norm" in summary.columns and "N_Indicadores" in summary.columns:
+            out[name] = pd.to_numeric(summary.set_index("Linea_norm")["N_Indicadores"], errors="coerce")
     out["N_Indicadores"] = out["N_Indicadores"].fillna(0).astype(int)
     out["N_Proyectos"] = out["N_Proyectos"].fillna(0).astype(int)
     out["N_Retos"] = out["N_Retos"].fillna(0).astype(int)
@@ -262,30 +310,53 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
 
     # Agregar promedios parciales por componente y promedio consolidado
     def _avg_series(summary, name):
-        if "Linea" in summary.columns and "Cumpl_Promedio" in summary.columns:
-            ser = pd.to_numeric(summary.set_index("Linea")["Cumpl_Promedio"], errors="coerce")
+        if "Linea_norm" in summary.columns and "Cumpl_Promedio" in summary.columns:
+            ser = pd.to_numeric(summary.set_index("Linea_norm")["Cumpl_Promedio"], errors="coerce")
             ser.name = name
             return ser
         return pd.Series(name=name, dtype="float64")
 
-    avg_ind = _avg_series(s1, "Cumpl_Promedio_Indicadores")
-    avg_proy = _avg_series(s2, "Cumpl_Promedio_Proyectos")
-    avg_retos = _avg_series(s3, "Cumpl_Promedio_Retos")
+    avg_ind = _avg_series(s1n, "Cumpl_Promedio_Indicadores")
+    avg_proy = _avg_series(s2n, "Cumpl_Promedio_Proyectos")
+    avg_retos = _avg_series(s3n, "Cumpl_Promedio_Retos")
     out = out.join([avg_ind, avg_proy, avg_retos], how="left")
-    out["Cumpl_Promedio"] = out[["Cumpl_Promedio_Indicadores", "Cumpl_Promedio_Proyectos", "Cumpl_Promedio_Retos"]].mean(axis=1, skipna=True).fillna(0)
+    out["Cumpl_Promedio"] = out[
+        ["Cumpl_Promedio_Indicadores", "Cumpl_Promedio_Proyectos", "Cumpl_Promedio_Retos"]
+    ].mean(axis=1, skipna=True).fillna(0)
 
     # Niveles agregados a partir de los tres componentes
     for col in ["Sobrecumplimiento", "Cumplimiento", "Alerta", "Peligro"]:
         vals = []
-        for summary in [s1, s2, s3]:
-            if col in summary.columns:
-                vals.append(summary.set_index("Linea")[col])
+        for summary in [s1n, s2n, s3n]:
+            if col in summary.columns and "Linea_norm" in summary.columns:
+                vals.append(summary.set_index("Linea_norm")[col])
         if vals:
             out[col] = pd.to_numeric(pd.concat(vals, axis=1).fillna(0).sum(axis=1), errors="coerce").fillna(0).astype(int)
         else:
             out[col] = 0
 
+    linea_labels = _build_linea_labels(s1n, s2n, s3n)
     out = out.reset_index()
+    out["Linea"] = out["Linea_norm"].map(linea_labels).fillna(out["Linea_norm"])
+
+    # Reordenar para lectura
+    cols = [
+        "Linea",
+        "Linea_norm",
+        "N_Indicadores",
+        "N_Proyectos",
+        "N_Retos",
+        "N_Total",
+        "Cumpl_Promedio_Indicadores",
+        "Cumpl_Promedio_Proyectos",
+        "Cumpl_Promedio_Retos",
+        "Cumpl_Promedio",
+        "Sobrecumplimiento",
+        "Cumplimiento",
+        "Alerta",
+        "Peligro",
+    ]
+    out = out[[c for c in cols if c in out.columns]]
 
     objetivo_df = pd.concat([o1, o2, o3], ignore_index=True)
     if not objetivo_df.empty:
