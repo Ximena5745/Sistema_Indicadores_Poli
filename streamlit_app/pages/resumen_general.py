@@ -161,6 +161,35 @@ def _load_plan_retos_data(year):
     except Exception:
         return pd.DataFrame(), pd.DataFrame()
 
+
+def _load_plan_retos_area_count(year):
+    """Carga el conteo de áreas con retos por año desde la hoja 'Areas'."""
+    import unicodedata
+    path = Path("data/raw/Retos/Plan de retos.xlsx")
+    if not path.exists():
+        return 0
+    try:
+        df = pd.read_excel(path, sheet_name="Areas", engine="openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        normalized = {}
+        for c in df.columns:
+            text = str(c).strip().lower()
+            text = unicodedata.normalize("NFKD", text)
+            text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+            text = text.replace("º", "").replace("°", "").replace(" ", "")
+            normalized[text] = c
+        year_col = normalized.get("ano") or normalized.get("anio") or normalized.get("año")
+        count_col = normalized.get("n") or normalized.get("nº") or normalized.get("n°")
+        if year_col and count_col:
+            row = df[df[year_col] == year]
+            if not row.empty:
+                value = row.iloc[0][count_col]
+                return int(value) if pd.notna(value) else 0
+    except Exception:
+        pass
+    return 0
+
+
 def _build_linea_summary_from_retos(linea_df):
     """Construye resumen por línea para Plan de Retos."""
     if linea_df.empty or "Linea" not in linea_df.columns:
@@ -1774,7 +1803,12 @@ def _render_strategy_card(
     card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
     card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
     if projects is not None or retos is not None:
-        detail_parts = []
+        indicator_count = count
+        if projects is not None:
+            indicator_count -= projects
+        if retos is not None:
+            indicator_count -= retos
+        detail_parts = [f"Indicadores: {max(0, indicator_count)}"]
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
@@ -2139,12 +2173,38 @@ def render():
                     pdi_estrategico = pd.concat([pdi_estrategico, pdi_year], ignore_index=True) if not pdi_estrategico.empty else pdi_year
 
                 if ids_proy:
-                    try:
-                        pdi_year_proy = pdi_year[pdi_year["Id"].astype(str).isin(ids_proy)].copy()
-                    except Exception:
-                        pdi_year_proy = pdi_year[pdi_year["Id"].astype(str).fillna("").isin(ids_proy)].copy()
-                    if not pdi_year_proy.empty:
-                        pdi_proy = pd.concat([pdi_proy, pdi_year_proy], ignore_index=True) if not pdi_proy.empty else pdi_year_proy
+                    def _norm_id(v) -> str:
+                        if pd.isna(v):
+                            return ""
+                        text = str(v).strip()
+                        try:
+                            num = float(text)
+                            if num.is_integer():
+                                return str(int(num))
+                        except Exception:
+                            pass
+                        return text
+
+                    cierres = load_cierres()
+                    if not cierres.empty:
+                        cierres = cierres.copy()
+                        cierres["Id"] = cierres["Id"].apply(_norm_id)
+                        cierres_proy = cierres[cierres["Id"].isin(ids_proy)].copy()
+                        if use_all_years:
+                            cierres_proy = cierres_proy[cierres_proy["Anio"].isin(years_to_load)]
+                        else:
+                            cierres_proy = cierres_proy[cierres_proy["Anio"] == int(y)]
+                        if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
+                            cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
+                        base = load_worksheet_flags()
+                        if not base.empty:
+                            base_norm = base.copy()
+                            base_norm["Id"] = base_norm["Id"].apply(_norm_id)
+                            cols_to_merge = ["Id", "Linea", "Objetivo"]
+                            base_cols = [c for c in cols_to_merge if c in base_norm.columns]
+                            cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                        if not cierres_proy.empty:
+                            pdi_proy = pd.concat([pdi_proy, cierres_proy], ignore_index=True) if not pdi_proy.empty else cierres_proy
 
                 retos_linea, retos_obj = _load_plan_retos_data(int(y))
                 if not retos_linea.empty:
@@ -2218,28 +2278,29 @@ def render():
             ]
         
         elif category == "Plan de Retos":
-            # Retos: Total, % Meta esperada, % Ejecución real, Cumplimiento
-            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            # Retos: Áreas con retos, % Meta esperada, % Ejecución real, Cumplimiento
+            total_retos = _load_plan_retos_area_count(int(year_estrategico))
+            if total_retos == 0:
+                total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
             
             meta_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
             
             return [
-                (total_retos, "Total Retos", "#0B5FFF"),
+                (total_retos, "Áreas con Retos", "#0B5FFF"),
                 (f"{meta_prom:.1f}%", "% Meta Esperada", "#173D66"),
                 (f"{meta_prom * 0.85:.1f}%", "% Avance Real", "#F59E0B"),
                 (f"{min(100, meta_prom * 0.9):.1f}%", "Cumplimiento", "#16A34A"),
             ]
         
         elif category == "Consolidado":
-            if not linea_summary.empty:
-                total = int(linea_summary["N_Total"].sum()) if "N_Total" in linea_summary.columns else int(linea_summary["N_Indicadores"].sum())
-                total_ind = int(linea_summary["N_Indicadores"].sum()) if "N_Indicadores" in linea_summary.columns else 0
-                total_proy = int(linea_summary["N_Proyectos"].sum()) if "N_Proyectos" in linea_summary.columns else 0
-                total_retos = int(linea_summary["N_Retos"].sum()) if "N_Retos" in linea_summary.columns else 0
-            else:
-                total = total_ind = total_proy = total_retos = 0
+            avg_cumpl = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty and "Cumpl_Promedio" in linea_summary.columns else 0
+            total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
+            total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
+            total_retos = _load_plan_retos_area_count(int(year_estrategico))
+            if total_retos == 0 and not linea_summary.empty and "N_Retos" in linea_summary.columns:
+                total_retos = int(linea_summary["N_Retos"].sum())
             return [
-                (total, "Total", "#0B5FFF"),
+                (f"{avg_cumpl:.1f}%", "Cumplimiento PDI", "#0B5FFF"),
                 (total_ind, "Indicadores", "#173D66"),
                 (total_proy, "Proyectos", "#16A34A"),
                 (total_retos, "Retos", "#F59E0B"),
@@ -2283,8 +2344,6 @@ def render():
     # Ajustar etiqueta según categoría
     if categoria == "Proyectos":
         unit_label = "proyectos"
-    elif categoria == "Consolidado":
-        unit_label = "items"
     else:
         unit_label = "indicadores"
     
@@ -2297,7 +2356,7 @@ def render():
             row = norm_to_row.get(matched[0]) if matched else None
         if row is not None:
             try:
-                n_ind = int(float(row.get("N_Total", row.get("N_Indicadores", 0))))
+                n_ind = int(float(row.get("N_Indicadores", 0)))
             except (ValueError, TypeError):
                 n_ind = 0
             try:
