@@ -200,6 +200,32 @@ def _load_plan_retos_area_count(year):
     return 0
 
 
+def _load_plan_retos_planes(year):
+    """Carga los conteos por línea desde la hoja 'Planes' para el año dado."""
+    path = Path("data/raw/Retos/Plan de retos.xlsx")
+    if not path.exists():
+        return pd.DataFrame(columns=["Linea", "N_Planes"])
+    try:
+        df = pd.read_excel(path, sheet_name="Planes", engine="openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        if "Año" in df.columns:
+            df = df[df["Año"] == year].copy()
+        if "Desglose" in df.columns:
+            df = df.rename(columns={"Desglose": "Linea"})
+        if "N°" in df.columns:
+            df = df.rename(columns={"N°": "N_Planes"})
+        elif "N" in df.columns:
+            df = df.rename(columns={"N": "N_Planes"})
+        if "Linea" not in df.columns or "N_Planes" not in df.columns:
+            return pd.DataFrame(columns=["Linea", "N_Planes"])
+        df = df[["Linea", "N_Planes"]].copy()
+        df["Linea"] = df["Linea"].astype(str).str.strip()
+        df["N_Planes"] = pd.to_numeric(df["N_Planes"], errors="coerce").fillna(0).astype(int)
+        return df
+    except Exception:
+        return pd.DataFrame(columns=["Linea", "N_Planes"])
+
+
 def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None = None):
     """Construye resumen por línea para Plan de Retos."""
     if linea_df.empty or "Linea" not in linea_df.columns:
@@ -2392,9 +2418,9 @@ def render():
             avg_cumpl = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty and "Cumpl_Promedio" in linea_summary.columns else 0
             total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
             total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
-            total_retos = _load_plan_retos_area_count(int(year_estrategico))
-            if total_retos == 0 and not linea_summary.empty and "N_Retos" in linea_summary.columns:
-                total_retos = int(linea_summary["N_Retos"].sum())
+            total_retos = int(linea_summary["N_Retos"].sum()) if not linea_summary.empty and "N_Retos" in linea_summary.columns else 0
+            if total_retos == 0:
+                total_retos = _load_plan_retos_area_count(int(year_estrategico))
             return [
                 (f"{avg_cumpl:.1f}%", "Cumplimiento PDI", "#0B5FFF"),
                 (total_ind, "Indicadores", "#173D66"),
@@ -2422,6 +2448,16 @@ def render():
         {"key": "sostenibilidad", "alt": ["sustentabilidad"], "label": "Sostenibilidad", "icon": "🌱", "color": "#A6CE38"},
         {"key": "educacion para toda la vida", "alt": ["educacion para toda la vida"], "label": "Educacion para toda la vida", "icon": "🎓", "color": "#0F385A"},
     ]
+    planes_map = {}
+    if categoria == "Consolidado":
+        planes_df = _load_plan_retos_planes(int(year_estrategico))
+        if not planes_df.empty and "Linea" in planes_df.columns and "N_Planes" in planes_df.columns:
+            planes_map = {
+                _norm_key(str(linea)): int(n_planes)
+                for linea, n_planes in planes_df[["Linea", "N_Planes"]].drop_duplicates().itertuples(index=False)
+                if pd.notna(linea)
+            }
+
     norm_to_row = {}
     if not summary_for_cards.empty and "Linea" in summary_for_cards.columns:
         for _, row in summary_for_cards.iterrows():
@@ -2437,14 +2473,19 @@ def render():
                         row_dict[k] = v
                 except (ValueError, TypeError):
                     row_dict[k] = v
-            norm_to_row[_norm_key(str(row["Linea"]))] = row_dict
-    
+            linea_norm = _norm_key(str(row["Linea"]))
+            if categoria == "Consolidado" and linea_norm in planes_map:
+                row_dict["N_Planes"] = planes_map[linea_norm]
+            norm_to_row[linea_norm] = row_dict
+
     # Ajustar etiqueta según categoría
     if categoria == "Proyectos":
         unit_label = "proyectos"
+    elif categoria == "Consolidado":
+        unit_label = "planes"
     else:
         unit_label = "indicadores"
-    
+
     ficha_cols = st.columns(6)
     for idx, card_def in enumerate(strategic_defs):
         row = norm_to_row.get(card_def["key"])
@@ -2452,6 +2493,7 @@ def render():
             alt_keys = [card_def["key"]] + card_def.get("alt", [])
             matched = [k for k in norm_to_row.keys() if any(ak in k for ak in alt_keys)]
             row = norm_to_row.get(matched[0]) if matched else None
+
         if row is not None:
             try:
                 n_ind = int(float(row.get("N_Indicadores", 0)))
@@ -2469,11 +2511,17 @@ def render():
                 cumpl = float(row.get("Cumpl_Promedio", 0))
             except (ValueError, TypeError):
                 cumpl = 0.0
+            try:
+                count = int(float(row.get("N_Planes", row.get("N_Indicadores", 0))))
+            except (ValueError, TypeError):
+                count = n_ind
         else:
             n_ind = 0
             n_proy = 0
             n_retos = 0
             cumpl = 0.0
+            count = 0
+
         historico = None
         if row is not None and historico_df is not None and not historico_df.empty:
             try:
@@ -2488,10 +2536,11 @@ def render():
                     historico = historico.sort_values("Año")
             except Exception:
                 pass
+
         with ficha_cols[idx % 6]:
             _render_strategy_card(
                 title=card_def["label"],
-                count=n_ind,
+                count=count,
                 cumplimiento=cumpl,
                 color=card_def["color"],
                 icon=card_def["icon"],
