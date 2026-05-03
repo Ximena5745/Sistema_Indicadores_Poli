@@ -1883,6 +1883,7 @@ def _render_strategy_card(
     historico=None,
     unit_label: str = "indicadores",
     indicators: int | None = None,
+    indicators_label: str = "Indicadores",
     projects: int | None = None,
     retos: int | None = None,
     retos_label: str = "Retos",
@@ -1954,7 +1955,7 @@ def _render_strategy_card(
     card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
     if projects is not None or retos is not None:
         detail_indicators = indicators if indicators is not None else count
-        detail_parts = [f"Indicadores: {detail_indicators}"]
+        detail_parts = [f"{indicators_label}: {detail_indicators}"]
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
@@ -2299,8 +2300,23 @@ def render():
                 historico_df = None
                 
         elif category == "Plan de Retos":
-            linea_df, obj_df = _load_plan_retos_data(int(year))
-            planes_df = _load_plan_retos_planes(int(year))
+            linea_df = pd.DataFrame()
+            obj_df = pd.DataFrame()
+            planes_df = pd.DataFrame()
+            if use_all_years:
+                for y in years_to_load:
+                    linea_y, obj_y = _load_plan_retos_data(int(y))
+                    if not linea_y.empty:
+                        linea_df = pd.concat([linea_df, linea_y], ignore_index=True) if not linea_df.empty else linea_y
+                    if not obj_y.empty:
+                        obj_df = pd.concat([obj_df, obj_y], ignore_index=True) if not obj_df.empty else obj_y
+                    plane_y = _load_plan_retos_planes(int(y))
+                    if not plane_y.empty:
+                        planes_df = pd.concat([planes_df, plane_y], ignore_index=True) if not planes_df.empty else plane_y
+            else:
+                linea_df, obj_df = _load_plan_retos_data(int(year))
+                planes_df = _load_plan_retos_planes(int(year))
+
             linea_summary = _build_linea_summary_from_retos(linea_df, obj_df, planes_df=planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             objetivo_df = obj_df[cols].copy()
@@ -2519,6 +2535,8 @@ def render():
         unit_label = "proyectos"
     elif categoria == "Consolidado":
         unit_label = "planes"
+    elif categoria == "Plan de Retos":
+        unit_label = "Plan de Retos"
     else:
         unit_label = "indicadores"
 
@@ -2583,8 +2601,9 @@ def render():
                 historico=historico,
                 unit_label=unit_label,
                 indicators=n_ind,
+                indicators_label="Plan de Retos" if categoria == "Plan de Retos" else "Indicadores",
                 projects=n_proy if categoria == "Consolidado" else None,
-                retos=n_retos if categoria == "Consolidado" else None,
+                retos=None if categoria == "Consolidado" else n_retos,
                 retos_label="Plan de Retos" if categoria == "Consolidado" else "Retos",
             )
 
