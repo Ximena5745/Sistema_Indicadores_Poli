@@ -2601,9 +2601,9 @@ def render():
                 historico=historico,
                 unit_label=unit_label,
                 indicators=n_ind,
-                indicators_label="Plan de Retos" if categoria == "Plan de Retos" else "Indicadores",
+                indicators_label="Indicadores",
                 projects=n_proy if categoria == "Consolidado" else None,
-                retos=None if categoria == "Consolidado" else n_retos,
+                retos=None if categoria in ["Consolidado", "Plan de Retos"] else n_retos,
                 retos_label="Plan de Retos" if categoria == "Consolidado" else "Retos",
             )
 
