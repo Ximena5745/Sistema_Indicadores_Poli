@@ -103,18 +103,28 @@ def _get_proyectos_ids():
         return set()
     return set(str(int(x)) if isinstance(x, float) else str(x).strip() for x in df.loc[df["Proyecto"] == 1, "Id"].dropna())
 
-def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento"):
-    """Construye resumen por línea: N_Indicadores, Cumpl_Promedio, conteos por nivel."""
+def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_count_col: str | None = None):
+    """Construye resumen por línea: N_Indicadores, Cumpl_Promedio, conteos por nivel.
+
+    Si unique_count_col se provee y existe en el dataframe, se cuenta valores únicos
+    de esa columna por línea en lugar de contar filas repetidas en diferentes años.
+    """
     if df.empty or "Linea" not in df.columns:
         return pd.DataFrame(columns=["Linea","N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"])
     df = df.copy()
     if nivel_col not in df.columns:
         df = _ensure_nivel_cumplimiento(df)
         nivel_col = "Nivel de cumplimiento"
+
+    if unique_count_col and unique_count_col in df.columns:
+        count_agg = (unique_count_col, lambda s: s.dropna().astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+    else:
+        count_agg = ("Indicador", "count") if "Indicador" in df.columns else (df.columns[0], "size")
+
     resumen = (
         df.groupby("Linea", dropna=False)
         .agg(
-            N_Indicadores=("Indicador", "count") if "Indicador" in df.columns else (df.columns[0], "size"),
+            N_Indicadores=count_agg,
             Cumpl_Promedio=("cumplimiento_pct", "mean"),
             Sobrecumplimiento=(nivel_col, lambda s: (s=="Sobrecumplimiento").sum()),
             Cumplimiento=(nivel_col, lambda s: (s=="Cumplimiento").sum()),
@@ -190,7 +200,7 @@ def _load_plan_retos_area_count(year):
     return 0
 
 
-def _build_linea_summary_from_retos(linea_df):
+def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None = None):
     """Construye resumen por línea para Plan de Retos."""
     if linea_df.empty or "Linea" not in linea_df.columns:
         return pd.DataFrame(columns=["Linea","N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"])
@@ -204,10 +214,23 @@ def _build_linea_summary_from_retos(linea_df):
         if pct >= 80: return "Alerta"
         return "Peligro"
     df["Nivel de cumplimiento"] = df["cumplimiento_pct"].apply(_cat)
+
+    if objetivo_df is not None and "Linea" in objetivo_df.columns and "Objetivo" in objetivo_df.columns:
+        objetivos_count = (
+            objetivo_df.groupby("Linea", dropna=False)
+            .agg(N_Indicadores=("Objetivo", lambda s: s.dropna().astype(str).str.strip().replace("", pd.NA).dropna().nunique()))
+            .reset_index()
+        )
+    else:
+        objetivos_count = (
+            df.groupby("Linea", dropna=False)
+            .agg(N_Indicadores=("cumplimiento_pct", "size"))
+            .reset_index()
+        )
+
     resumen = (
         df.groupby("Linea", dropna=False)
         .agg(
-            N_Indicadores=("cumplimiento_pct", "size"),
             Cumpl_Promedio=("cumplimiento_pct", "mean"),
             Sobrecumplimiento=("Nivel de cumplimiento", lambda s: (s=="Sobrecumplimiento").sum()),
             Cumplimiento=("Nivel de cumplimiento", lambda s: (s=="Cumplimiento").sum()),
@@ -216,6 +239,8 @@ def _build_linea_summary_from_retos(linea_df):
         )
         .reset_index()
     )
+
+    resumen = resumen.merge(objetivos_count, on="Linea", how="left")
     return resumen
 
 def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
@@ -2152,7 +2177,7 @@ def render():
                 
         elif category == "Plan de Retos":
             linea_df, obj_df = _load_plan_retos_data(int(year))
-            linea_summary = _build_linea_summary_from_retos(linea_df)
+            linea_summary = _build_linea_summary_from_retos(linea_df, obj_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             objetivo_df = obj_df[cols].copy()
             pdi_base_df = pd.DataFrame()
@@ -2212,13 +2237,13 @@ def render():
                 if not retos_obj.empty:
                     obj_df = pd.concat([obj_df, retos_obj], ignore_index=True) if not obj_df.empty else retos_obj
 
-            s1 = _build_linea_summary_from_df(pdi_estrategico)
+            s1 = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_estrategico.columns]
             o1 = pdi_estrategico[cols].copy()
-            s2 = _build_linea_summary_from_df(pdi_proy)
+            s2 = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
-            s3 = _build_linea_summary_from_retos(linea_df)
+            s3 = _build_linea_summary_from_retos(linea_df, obj_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
             o3 = obj_df[cols].copy()
             linea_summary, objetivo_df = _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3)
@@ -2308,7 +2333,8 @@ def render():
         
         return []
     
-    _chip_cfg = _get_chip_config(categoria, linea_summary, pdi_estrategico)
+    chip_summary = linea_summary_all if categoria == "Consolidado" else linea_summary
+    _chip_cfg = _get_chip_config(categoria, chip_summary, pdi_estrategico)
     if _chip_cfg:  # Only render if we have chip configuration
         _chip_cols = st.columns(len(_chip_cfg))
         for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
