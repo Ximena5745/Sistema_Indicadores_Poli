@@ -210,12 +210,35 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
 
     objetivo_df = pd.concat([o1,o2,o3], ignore_index=True)
     if not objetivo_df.empty:
+        def _clean_label(value):
+            import re, unicodedata
+
+            if pd.isna(value):
+                return ""
+            text = str(value).strip()
+            text = text.replace("_", " ")
+            text = unicodedata.normalize("NFC", text)
+            text = re.sub(r"\s+", " ", text)
+            return text
+
+        def _norm_key(value):
+            import re, unicodedata
+
+            if pd.isna(value):
+                return ""
+            text = str(value).strip().lower()
+            text = unicodedata.normalize("NFD", text)
+            text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+            text = re.sub(r"[^0-9a-z]+", " ", text)
+            text = re.sub(r"\s+", " ", text).strip()
+            return text
+
         if "Linea" in objetivo_df.columns:
-            objetivo_df["Linea"] = objetivo_df["Linea"].astype(str).str.strip().str.replace("_", " ", regex=False)
-            objetivo_df["Linea"] = objetivo_df["Linea"].str.replace(r"\s+", " ", regex=True)
+            objetivo_df["Linea"] = objetivo_df["Linea"].apply(_clean_label)
+            objetivo_df["Linea_norm"] = objetivo_df["Linea"].apply(_norm_key)
         if "Objetivo" in objetivo_df.columns:
-            objetivo_df["Objetivo"] = objetivo_df["Objetivo"].astype(str).str.strip().str.replace("_", " ", regex=False)
-            objetivo_df["Objetivo"] = objetivo_df["Objetivo"].str.replace(r"\s+", " ", regex=True)
+            objetivo_df["Objetivo"] = objetivo_df["Objetivo"].apply(_clean_label)
+            objetivo_df["Objetivo_norm"] = objetivo_df["Objetivo"].apply(_norm_key)
         if "cumplimiento_pct" in objetivo_df.columns:
             objetivo_df["cumplimiento_pct"] = pd.to_numeric(objetivo_df["cumplimiento_pct"], errors="coerce")
 
@@ -224,9 +247,72 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
         if "Objetivo" in objetivo_df.columns:
             objetivo_df = objetivo_df[objetivo_df["Objetivo"].notna() & (objetivo_df["Objetivo"].astype(str).str.strip() != "")]
 
-        drop_subset = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in objetivo_df.columns]
-        if drop_subset:
-            objetivo_df = objetivo_df.drop_duplicates(subset=drop_subset)
+        if "Linea" in objetivo_df.columns and "Objetivo" in objetivo_df.columns:
+            import difflib
+
+            def _should_merge(a: str, b: str) -> bool:
+                if not a or not b:
+                    return False
+                a_low = a.lower().strip()
+                b_low = b.lower().strip()
+                if a_low in b_low or b_low in a_low:
+                    return True
+                return difflib.SequenceMatcher(None, a_low, b_low).ratio() >= 0.92
+
+            def _find(parent, x):
+                parent.setdefault(x, x)
+                if parent[x] != x:
+                    parent[x] = _find(parent, parent[x])
+                return parent[x]
+
+            mapping = {}
+            for linea, group in objetivo_df.groupby("Linea"):
+                values = group["Objetivo"].unique().tolist()
+                parent = {v: v for v in values}
+                for i, a in enumerate(values):
+                    for b in values[i + 1:]:
+                        if _should_merge(a, b):
+                            ra = _find(parent, a)
+                            rb = _find(parent, b)
+                            if ra != rb:
+                                if len(ra) <= len(rb):
+                                    parent[rb] = ra
+                                else:
+                                    parent[ra] = rb
+                for value in values:
+                    root = _find(parent, value)
+                    if root != value:
+                        mapping[value] = root
+            if mapping:
+                objetivo_df["Objetivo"] = objetivo_df["Objetivo"].replace(mapping)
+                if "Objetivo_norm" in objetivo_df.columns:
+                    objetivo_df["Objetivo_norm"] = objetivo_df["Objetivo"].apply(_norm_key)
+
+        group_cols = []
+        if "Linea_norm" in objetivo_df.columns:
+            group_cols.append("Linea_norm")
+        if "Objetivo_norm" in objetivo_df.columns:
+            group_cols.append("Objetivo_norm")
+
+        if group_cols:
+            def _pick_label(series):
+                modes = series.mode()
+                return modes.iloc[0] if not modes.empty else series.iloc[0]
+
+            agg = {
+                "cumplimiento_pct": ("cumplimiento_pct", "mean"),
+            }
+            if "Linea" in objetivo_df.columns:
+                agg["Linea"] = ("Linea", _pick_label)
+            if "Objetivo" in objetivo_df.columns:
+                agg["Objetivo"] = ("Objetivo", _pick_label)
+
+            objetivo_df = objetivo_df.groupby(group_cols, dropna=False).agg(**agg).reset_index(drop=True)
+        else:
+            drop_subset = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in objetivo_df.columns]
+            if drop_subset:
+                objetivo_df = objetivo_df.drop_duplicates(subset=drop_subset)
+
         objetivo_df = objetivo_df.reset_index(drop=True)
 
     return out, objetivo_df
@@ -604,6 +690,45 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
             df["Linea"] = df["Linea"].apply(_clean_label)
             df["Objetivo"] = df["Objetivo"].apply(_clean_label)
+
+            if not df.empty:
+                import difflib
+
+                def _should_merge(a: str, b: str) -> bool:
+                    if not a or not b:
+                        return False
+                    a_low = a.lower().strip()
+                    b_low = b.lower().strip()
+                    if a_low in b_low or b_low in a_low:
+                        return True
+                    return difflib.SequenceMatcher(None, a_low, b_low).ratio() >= 0.92
+
+                def _find(parent, x):
+                    parent.setdefault(x, x)
+                    if parent[x] != x:
+                        parent[x] = _find(parent, parent[x])
+                    return parent[x]
+
+                resolved = {}
+                for linea, group in df.groupby("Linea"):
+                    objectives = group["Objetivo"].unique().tolist()
+                    parent = {obj: obj for obj in objectives}
+                    for i, a in enumerate(objectives):
+                        for b in objectives[i + 1:]:
+                            if _should_merge(a, b):
+                                ra = _find(parent, a)
+                                rb = _find(parent, b)
+                                if ra != rb:
+                                    if len(ra) <= len(rb):
+                                        parent[rb] = ra
+                                    else:
+                                        parent[ra] = rb
+                    for obj in objectives:
+                        root = _find(parent, obj)
+                        if root != obj:
+                            resolved[obj] = root
+                if resolved:
+                    df["Objetivo"] = df["Objetivo"].replace(resolved)
 
         if df.empty:
             labels = ["Sin datos"]
