@@ -2197,7 +2197,7 @@ def render():
                 if not pdi_year.empty:
                     pdi_estrategico = pd.concat([pdi_estrategico, pdi_year], ignore_index=True) if not pdi_estrategico.empty else pdi_year
 
-                if ids_proy:
+                if ids_proy and (not use_all_years or pdi_proy.empty):
                     def _norm_id(v) -> str:
                         if pd.isna(v):
                             return ""
@@ -2229,7 +2229,10 @@ def render():
                             base_cols = [c for c in cols_to_merge if c in base_norm.columns]
                             cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
                         if not cierres_proy.empty:
-                            pdi_proy = pd.concat([pdi_proy, cierres_proy], ignore_index=True) if not pdi_proy.empty else cierres_proy
+                            if use_all_years:
+                                pdi_proy = cierres_proy
+                            else:
+                                pdi_proy = pd.concat([pdi_proy, cierres_proy], ignore_index=True) if not pdi_proy.empty else cierres_proy
 
                 retos_linea, retos_obj = _load_plan_retos_data(int(y))
                 if not retos_linea.empty:
@@ -2333,7 +2336,7 @@ def render():
         
         return []
     
-    chip_summary = linea_summary_all if categoria == "Consolidado" else linea_summary
+    chip_summary = linea_summary
     _chip_cfg = _get_chip_config(categoria, chip_summary, pdi_estrategico)
     if _chip_cfg:  # Only render if we have chip configuration
         _chip_cols = st.columns(len(_chip_cfg))
@@ -2342,6 +2345,7 @@ def render():
                 _render_chip(_cv, _cl, _co)
 
     # --- Fichas por línea estratégica ---
+    summary_for_cards = linea_summary if categoria == "Consolidado" else linea_summary_all
     strategic_defs = [
         {"key": "expansion", "alt": [], "label": "Expansion", "icon": "🚀", "color": "#FBAF17"},
         {"key": "transformacion organizacional", "alt": ["transformacion organizacional"], "label": "Transformacion organizacional", "icon": "📈", "color": "#42F2F2"},
@@ -2351,8 +2355,8 @@ def render():
         {"key": "educacion para toda la vida", "alt": ["educacion para toda la vida"], "label": "Educacion para toda la vida", "icon": "🎓", "color": "#0F385A"},
     ]
     norm_to_row = {}
-    if not linea_summary_all.empty and "Linea" in linea_summary_all.columns:
-        for _, row in linea_summary_all.iterrows():
+    if not summary_for_cards.empty and "Linea" in summary_for_cards.columns:
+        for _, row in summary_for_cards.iterrows():
             row_dict = {}
             for k, v in row.to_dict().items():
                 try:
