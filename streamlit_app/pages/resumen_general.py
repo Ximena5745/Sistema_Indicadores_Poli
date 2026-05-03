@@ -1828,12 +1828,7 @@ def _render_strategy_card(
     card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
     card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
     if projects is not None or retos is not None:
-        indicator_count = count
-        if projects is not None:
-            indicator_count -= projects
-        if retos is not None:
-            indicator_count -= retos
-        detail_parts = [f"Indicadores: {max(0, indicator_count)}"]
+        detail_parts = [f"Indicadores: {count}"]
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
