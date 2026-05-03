@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
+from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
 def render_tab_alertas(df):
     st.markdown("### Centro de Alertas y Notificaciones")
@@ -69,7 +70,20 @@ def render_tab_alertas(df):
             
     # Mostrar dataframe con columnas seleccionadas
     cols_mostrar = ["Id", "Indicador", "Linea", "Meta", "Ejecucion", "cumplimiento_pct", "Nivel de cumplimiento"]
-    df_tabla = df_vista[[c for c in cols_mostrar if c in df_vista.columns]]
+    df_tabla = df_vista[[c for c in cols_mostrar if c in df_vista.columns]].copy()
+
+    ejec_col = "Ejecucion" if "Ejecucion" in df_tabla.columns else ("Ejecución" if "Ejecución" in df_tabla.columns else None)
+    if "Meta" in df_tabla.columns and ejec_col is not None:
+        df_tabla = formatear_meta_ejecucion_df(df_tabla, meta_col="Meta", ejec_col=ejec_col)
+
+    if "cumplimiento_pct" in df_tabla.columns:
+        def _fmt_pct(value):
+            try:
+                return f"{float(value):.1f}%"
+            except Exception:
+                return "—"
+
+        df_tabla["cumplimiento_pct"] = df_tabla["cumplimiento_pct"].map(_fmt_pct)
     
     st.dataframe(
         df_tabla,

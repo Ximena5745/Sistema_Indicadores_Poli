@@ -109,6 +109,26 @@ CACHE_TTL = 300  # 5 minutos
 | **Razón** | Auditorías manuales, transparencia |
 | **Alternativa futura** | PostgreSQL para producción |
 
+### 2.4 Decisión: Mantener granularidad y agrupar en UI (CMI Estratégico)
+
+| Aspecto | Decisión |
+|---------|----------|
+| **Problema** | Replicación visual de indicadores en pestaña por Línea/Meta |
+| **Decisión final (PO)** | Mantener granularidad en datos y agrupar únicamente en UI |
+| **Razón** | Evitar pérdida de detalle histórico/funcional en catálogo y cierres |
+| **Implementación** | Agrupación por `Id` (fallback `Indicador`) en render de `tab_lineas.py` |
+
+**Impacto controlado:**
+- No se modifica lógica de cálculo ni consolidación.
+- No se compacta catálogo en backend.
+- Se evita duplicación visual sin afectar trazabilidad.
+
+**Archivos relacionados:**
+- [`streamlit_app/components/cmi_tabs/tab_lineas.py`](../../streamlit_app/components/cmi_tabs/tab_lineas.py)
+- [`streamlit_app/components/cmi_tabs/tab_alertas.py`](../../streamlit_app/components/cmi_tabs/tab_alertas.py)
+- [`services/ai_analysis.py`](../../services/ai_analysis.py)
+- [`scripts/detect_inconsistencias.py`](../../scripts/detect_inconsistencias.py)
+
 ---
 
 ## 3. Consolidados de Decisiones
