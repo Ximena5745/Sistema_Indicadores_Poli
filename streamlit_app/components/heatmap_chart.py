@@ -34,6 +34,18 @@ except ImportError:
         def get_palette_for_chart(**kwargs):
             return None
 
+# Ensure COLORS is not None
+if COLORS is None:
+    COLORS = {
+        "text_primary": "#1A1A1A",
+        "text_secondary": "#666666",
+        "danger": "#D32F2F",
+        "danger_light": "#EF5350",
+        "warning": "#FBAF17",
+        "success": "#43A047",
+        "primary": "#1A3A5C",
+    }
+
 
 def render_performance_heatmap(
     df,
@@ -61,10 +73,28 @@ def render_performance_heatmap(
     Returns:
         plotly.Figure
     """
+    if df is None or df.empty:
+        # Return empty figure if no data
+        fig = go.Figure()
+        fig.update_layout(
+            title=str(title) if title else "Sin datos disponibles",
+            annotations=[dict(text="No hay datos para mostrar", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)]
+        )
+        return fig
+
     # Crear matriz pivot
     pivot_df = df.pivot_table(values=value_col, index=y_col, columns=x_col, aggfunc="mean").fillna(
         0
     )
+
+    if pivot_df.empty:
+        # Return empty figure if pivot is empty
+        fig = go.Figure()
+        fig.update_layout(
+            title=str(title) if title else "Sin datos disponibles",
+            annotations=[dict(text="No hay datos para mostrar", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)]
+        )
+        return fig
 
     # Seleccionar paleta según línea/uso
     palette = get_palette_for_chart(kind=kind, linea=linea)
@@ -106,33 +136,41 @@ def render_performance_heatmap(
     )
 
     # Layout
-    fig.update_layout(
-        title={
-            "text": str(title) if title else "Matriz de Cumplimiento",
-            "x": 0.5,
-            "xanchor": "center",
-            "font": {"size": 20, "color": COLORS.get("text_primary", "#1A1A1A"), "family": "Inter, sans-serif"},
-        },
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        height=height,
-        xaxis_tickangle=-45,
-        xaxis=dict(
-            tickfont={"size": 11, "color": COLORS.get("text_secondary", "#666666")},
-            title_font={"size": 13, "color": COLORS.get("text_primary", "#1A1A1A")},
-        ),
-        yaxis=dict(
-            tickfont={"size": 11, "color": COLORS.get("text_secondary", "#666666")},
-            title_font={"size": 13, "color": COLORS.get("text_primary", "#1A1A1A")},
-        ),
-        coloraxis_colorbar=dict(
-            title="Cumplimiento %",
-            titleside="right",
-            tickfont={"size": 11},
-            title_font={"size": 12},
-        ),
-        margin=dict(l=80, r=80, t=80, b=80),
-    )
+    try:
+        fig.update_layout(
+            title={
+                "text": str(title) if title else "Matriz de Cumplimiento",
+                "x": 0.5,
+                "xanchor": "center",
+                "font": {"size": 20, "color": COLORS.get("text_primary", "#1A1A1A"), "family": "Inter, sans-serif"},
+            },
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            height=height,
+            xaxis_tickangle=-45,
+            xaxis=dict(
+                tickfont={"size": 11, "color": COLORS.get("text_secondary", "#666666")},
+                title_font={"size": 13, "color": COLORS.get("text_primary", "#1A1A1A")},
+            ),
+            yaxis=dict(
+                tickfont={"size": 11, "color": COLORS.get("text_secondary", "#666666")},
+                title_font={"size": 13, "color": COLORS.get("text_primary", "#1A1A1A")},
+            ),
+            coloraxis_colorbar=dict(
+                title="Cumplimiento %",
+                titleside="right",
+                tickfont={"size": 11},
+                title_font={"size": 12},
+            ),
+            margin=dict(l=80, r=80, t=80, b=80),
+        )
+    except Exception as e:
+        # Fallback layout si hay error
+        fig.update_layout(
+            title=str(title) if title else "Matriz de Cumplimiento",
+            height=height,
+            margin=dict(l=20, r=20, t=40, b=20),
+        )
 
     return fig
 
