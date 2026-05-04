@@ -17,7 +17,22 @@ except ImportError:
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from styles.design_system import COLORS, SHADOWS, get_palette_for_chart
+    try:
+        from styles.design_system import COLORS, SHADOWS, get_palette_for_chart
+    except ImportError:
+        # Fallback colors
+        COLORS = {
+            "text_primary": "#1A1A1A",
+            "text_secondary": "#666666",
+            "danger": "#D32F2F",
+            "danger_light": "#EF5350",
+            "warning": "#FBAF17",
+            "success": "#43A047",
+            "primary": "#1A3A5C",
+        }
+        SHADOWS = {}
+        def get_palette_for_chart(**kwargs):
+            return None
 
 
 def render_performance_heatmap(
@@ -93,22 +108,22 @@ def render_performance_heatmap(
     # Layout
     fig.update_layout(
         title={
-            "text": title,
+            "text": str(title) if title else "Matriz de Cumplimiento",
             "x": 0.5,
             "xanchor": "center",
-            "font": {"size": 20, "color": COLORS["text_primary"], "family": "Inter, sans-serif"},
+            "font": {"size": 20, "color": COLORS.get("text_primary", "#1A1A1A"), "family": "Inter, sans-serif"},
         },
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         height=height,
         xaxis_tickangle=-45,
         xaxis=dict(
-            tickfont={"size": 11, "color": COLORS["text_secondary"]},
-            title_font={"size": 13, "color": COLORS["text_primary"]},
+            tickfont={"size": 11, "color": COLORS.get("text_secondary", "#666666")},
+            title_font={"size": 13, "color": COLORS.get("text_primary", "#1A1A1A")},
         ),
         yaxis=dict(
-            tickfont={"size": 11, "color": COLORS["text_secondary"]},
-            title_font={"size": 13, "color": COLORS["text_primary"]},
+            tickfont={"size": 11, "color": COLORS.get("text_secondary", "#666666")},
+            title_font={"size": 13, "color": COLORS.get("text_primary", "#1A1A1A")},
         ),
         coloraxis_colorbar=dict(
             title="Cumplimiento %",
