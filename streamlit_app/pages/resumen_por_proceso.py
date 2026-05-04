@@ -15,19 +15,10 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
+from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
-from streamlit_app.components.dashboard_components import (
-    render_executive_kpis,
-    render_alertas_criticas,
-    render_tabla_analitica,
-    render_fichas_indicadores,
-    render_analisis_unidad,
-    render_historico_tab,
-)
-from streamlit_app.components.cmi_tabs.tab_alertas import render_tab_alertas
-from streamlit_app.components.heatmap_chart import render_performance_heatmap
 
 MESES_OPCIONES = [
     "Enero",
@@ -311,6 +302,48 @@ def _render_resumen_procesos_style() -> None:
                 grid-template-columns: 1fr;
             }
         }
+        .resumen-alert-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin: 14px 0 20px 0;
+        }
+        .resumen-alert-card {
+            background: #ffffff;
+            border: 1px solid #dbe5f2;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 2px 10px rgba(12, 34, 64, 0.05);
+        }
+        .resumen-alert-title {
+            margin: 0 0 10px 0;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #173a63;
+        }
+        .resumen-alert-stat {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #bc3f3f;
+            margin-bottom: 12px;
+        }
+        .resumen-alert-item {
+            margin-bottom: 8px;
+            color: #34435e;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+        .resumen-alert-item:last-child {
+            margin-bottom: 0;
+        }
+        @media (max-width: 920px) {
+            .rpp-grid {
+                grid-template-columns: 1fr;
+            }
+            .resumen-alert-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -368,147 +401,57 @@ def _render_resumen_overview_cards(
     )
 
 
-def _load_indicadores_por_cmi() -> pd.DataFrame:
-    path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
-    if not path.exists():
-        return pd.DataFrame()
-    try:
-        df = pd.read_excel(path, sheet_name=0, engine="openpyxl")
-        df.columns = [str(c).strip() for c in df.columns]
-        return df
-    except Exception:
-        return pd.DataFrame()
-
-
-def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
-    if df_cmi.empty:
-        st.info("No se encontró el archivo Indicadores por CMI con el detalle de periodicidad y tipo de indicador.")
-        return
-
-    period_col = _first_col(df_cmi, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
-    type_col = _first_col(df_cmi, ["Tipo de indicador", "Tipo", "tipo_indicador"])
-
-    if period_col is None and type_col is None:
-        st.warning("El archivo Indicadores por CMI no contiene columnas de Periodicidad o Tipo de indicador.")
-        return
-
-    cols = st.columns(2)
-    if period_col is not None:
-        series = df_cmi[period_col].fillna("Sin periodicidad").astype(str)
-        if series.empty:
-            st.warning(f"No hay datos en la columna {period_col} para periodicidad.")
-        else:
-            counts = (
-                series
-                .value_counts()
-                .reset_index()
-            )
-            counts.columns = ["Periodicidad", "Indicadores"]
-            counts = counts.sort_values("Indicadores", ascending=False)
-            if counts.empty:
-                st.warning("No hay datos para periodicidad.")
-            else:
-                fig = px.bar(
-                    counts,
-                    x="Periodicidad",
-                    y="Indicadores",
-                    text="Indicadores",
-                    title="Indicadores por periodicidad",
-                    color="Indicadores",
-                    color_continuous_scale="Blues",
-                )
-                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
-                cols[0].plotly_chart(fig, use_container_width=True)
-
-    if type_col is not None:
-        series = df_cmi[type_col].fillna("Sin tipo").astype(str)
-        if series.empty:
-            st.warning(f"No hay datos en la columna {type_col} para tipo de indicador.")
-        else:
-            counts = (
-                series
-                .value_counts()
-                .reset_index()
-            )
-            counts.columns = ["Tipo de indicador", "Indicadores"]
-            counts = counts.sort_values("Indicadores", ascending=False)
-            if counts.empty:
-                st.warning("No hay datos para tipo de indicador.")
-            else:
-                fig = px.bar(
-                    counts,
-                    x="Tipo de indicador",
-                    y="Indicadores",
-                    text="Indicadores",
-                    title="Indicadores por tipo de indicador",
-                    color="Indicadores",
-                    color_continuous_scale="Greens",
-                )
-                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
-                cols[1].plotly_chart(fig, use_container_width=True)
-
-
-def _render_tab_indicadores(
-    df: pd.DataFrame,
-    cmi_catalog: pd.DataFrame,
-) -> None:
-    st.markdown("### Indicadores por Línea, Proceso y Subproceso")
+def _render_resumen_alertas(df: pd.DataFrame) -> None:
     if df.empty:
-        st.info("No hay indicadores activos para mostrar en esta vista.")
         return
 
-    search = st.text_input("Buscar indicador", key="tab_indicadores_search")
-    if search:
-        df = df[df["Indicador"].astype(str).str.contains(search, case=False, na=False)]
-
-    linea_col = _first_col(df, ["Linea", "Línea", "Linea estratégica", "Linea estrategica"])
-    if linea_col is None:
-        linea_col = "Linea"
-        df[linea_col] = df.get("Linea", df.get("Proceso_padre", "Sin línea"))
-
-    df = df.copy()
-    df[linea_col] = df[linea_col].fillna("Sin línea")
-
-    if cmi_catalog is not None and not cmi_catalog.empty:
-        tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
-    else:
-        tipo_col = _first_col(df, ["Tipo de indicador", "Tipo", "tipo_indicador"])
-
-    process_col = _first_col(df, ["Proceso_padre", "Proceso", "Proceso Padre", "Proceso_padre"])
-    subproceso_col = _first_col(df, ["Subproceso_final", "Subproceso", "Subproceso_final"])
-    pct_col = _first_col(df, ["cumplimiento_pct", "Cumplimiento_pct"])
-
-    if pct_col is None:
-        pct_col = "Cumplimiento_pct"
-
-    lineas = sorted(df[linea_col].dropna().astype(str).unique().tolist())
-    if not lineas:
-        st.warning("No se encontraron líneas para mostrar.")
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in df.columns else None
+    )
+    if not pct_col:
         return
 
-    for linea in lineas:
-        with st.expander(f"{linea} — {len(df[df[linea_col] == linea])} indicadores", expanded=False):
-            group_df = df[df[linea_col] == linea].copy()
-            display_cols = [c for c in [process_col, subproceso_col, tipo_col, "Indicador", "Meta", "Ejecucion", pct_col, "Nivel de cumplimiento"] if c in group_df.columns]
-            display_df = group_df[display_cols].copy()
-            if pct_col in display_df.columns:
-                display_df[pct_col] = pd.to_numeric(display_df[pct_col], errors="coerce").round(1)
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+    df_alert = df.copy()
+    df_alert[pct_col] = pd.to_numeric(df_alert[pct_col], errors="coerce")
+    crit = df_alert[df_alert[pct_col] < 80].copy()
+    if crit.empty:
+        st.success("No hay alertas críticas en el corte actual.")
+        return
 
-            sel_indicador = st.selectbox(
-                "Seleccionar indicador para ver ficha",
-                [""] + group_df["Indicador"].astype(str).fillna(" ").tolist(),
-                key=f"tab_indicadores_sel_{linea}",
-            )
-            if sel_indicador:
-                row = group_df[group_df["Indicador"].astype(str) == sel_indicador].head(1)
-                if not row.empty and st.button("Ver ficha", key=f"tab_indicadores_button_{linea}"):
-                    render_modal_ficha(row.iloc[0])
+    processes_risk = (
+        crit.groupby("Proceso_padre", dropna=False)
+        .agg(avg_pct=(pct_col, "mean"), indicadores=("Indicador", "count"))
+        .reset_index()
+        .sort_values("avg_pct")
+        .head(3)
+    )
+    top_indicators = crit.sort_values(pct_col).head(3)
 
-    st.markdown("#### Total de indicadores por línea")
-    counts = df[linea_col].astype(str).value_counts().reset_index()
-    counts.columns = ["Linea", "Indicadores"]
-    st.bar_chart(counts.set_index("Linea"))
+    proc_items = "".join(
+        f"<div class='resumen-alert-item'><strong>{str(row['Proceso_padre'] or 'Sin proceso')}</strong> — {row['avg_pct']:.1f}% ({int(row['indicadores'])} ind.)</div>"
+        for _, row in processes_risk.iterrows()
+    )
+    indicator_items = "".join(
+        f"<div class='resumen-alert-item'><strong>{str(row.get('Indicador', 'Sin indicador'))}</strong> — {row[pct_col]:.1f}%</div>"
+        for _, row in top_indicators.iterrows()
+    )
+
+    st.markdown(
+        f"""
+        <div class='resumen-alert-grid'>
+            <div class='resumen-alert-card'>
+                <div class='resumen-alert-title'>Alertas críticas</div>
+                <div class='resumen-alert-stat'>{len(crit)} indicadores con cumplimiento inferior a 80%</div>
+                {indicator_items}
+            </div>
+            <div class='resumen-alert-card'>
+                <div class='resumen-alert-title'>Procesos en riesgo</div>
+                {proc_items}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_propuesta_resumen(
@@ -528,6 +471,39 @@ def _render_propuesta_resumen(
         st.info("No se generó una propuesta con los datos disponibles.")
         return
 
+    avg_pct = None
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in latest_df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in latest_df.columns else None
+    )
+    if pct_col:
+        avg_pct = pd.to_numeric(latest_df[pct_col], errors="coerce").mean()
+
+    riesgos = pd.DataFrame()
+    alertas = pd.DataFrame()
+    if pct_col:
+        valores = pd.to_numeric(latest_df[pct_col], errors="coerce")
+        riesgos = latest_df[valores < 80].copy()
+        alertas = latest_df[(valores >= 80) & (valores < 100)].copy()
+
+    total_riesgos = len(riesgos)
+    total_alertas = len(alertas)
+    total_activos = len(latest_df)
+    proceso_label = proceso_actual if proceso_actual != "Todos" else "todos los procesos"
+    subproceso_label = subproceso_actual if subproceso_actual != "Todos" else "todos los subprocesos"
+
+    st.markdown(
+        f"<div style='background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:18px;margin-bottom:18px;'>"
+        f"<div style='font-size:0.95rem;font-weight:700;color:#1e3a8a;margin-bottom:10px;'>Resumen ejecutivo de propuesta</div>"
+        f"<div style='font-size:0.92rem;color:#334155;line-height:1.6;'>"
+        f"Para el corte de <strong>{month_name} {year}</strong> y el filtro <strong>{proceso_label} / {subproceso_label}</strong>, "
+        f"se registran <strong>{total_activos}</strong> indicadores activos, con un cumplimiento promedio de "
+        f"<strong>{avg_pct:.1f}%</strong> y <strong>{total_riesgos}</strong> indicadores en riesgo. "
+        f"El foco inmediato es reducir brechas en los indicadores críticos y alinear las propuestas de mejora con el PDI y el SGA."
+        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
     row = propuesta.iloc[0].to_dict()
     cards = [
         ("Plan de mejoramiento", row.get("Plan de mejoramiento", "Sin datos"), "#fef3c7", "#92400e"),
@@ -539,17 +515,14 @@ def _render_propuesta_resumen(
     for col, (title, text, background, title_color) in zip(cols, cards):
         col.markdown(
             f"""
-            <div style='background:{background};border:1px solid {title_color};border-radius:14px;padding:14px;min-height:130px;'>
-                <div style='font-size:0.8rem;font-weight:700;color:{title_color};margin-bottom:10px;'>{title}</div>
-                <div style='font-size:0.85rem;color:#1f2937;line-height:1.4;min-height:92px;'>{text}</div>
+            <div style='background:{background};border:1px solid {title_color};border-radius:14px;padding:14px;min-height:140px;'>
+                <div style='font-size:0.85rem;font-weight:700;color:{title_color};margin-bottom:10px;'>{title}</div>
+                <div style='font-size:0.85rem;color:#1f2937;line-height:1.5;min-height:104px;'>{text}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in latest_df.columns else (
-        "cumplimiento_pct" if "cumplimiento_pct" in latest_df.columns else None
-    )
     if pct_col:
         riesgos = latest_df[pd.to_numeric(latest_df[pct_col], errors="coerce") < 80].copy()
         if not riesgos.empty:
@@ -565,137 +538,379 @@ def _render_propuesta_resumen(
             st.success("No hay indicadores críticos para el corte actual.")
 
 
-def _render_tab_procesos_unidades(
-    cmi_global: pd.DataFrame,
-    cmi_base_2024: pd.DataFrame,
-    global_year: int,
-    base_year: int,
-    month_name: str,
-) -> None:
-    st.markdown("### Procesos y Unidades")
-    st.caption("Comparativo de procesos y análisis de unidades organizacionales en el corte actual.")
-
-    if cmi_global.empty:
-        st.info("No hay datos para mostrar en Procesos y Unidades.")
+def _render_propuesta_summary(df: pd.DataFrame, proceso_actual: str, subproceso_actual: str) -> None:
+    if df.empty:
         return
 
-    pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_global.columns else (
-        "Cumplimiento_pct" if "Cumplimiento_pct" in cmi_global.columns else None
-    )
+    total_propuestas = len(df)
+    procesos = int(df["Proceso"].dropna().nunique()) if "Proceso" in df.columns else 0
+    subprocesos = int(df["Subproceso"].dropna().nunique()) if "Subproceso" in df.columns else 0
+    fuentes = df["Fuente"].fillna("Sin fuente").astype(str).value_counts()
 
-    _render_resumen_overview_cards(cmi_global, "Global", "Todos", global_year, month_name)
+    source_order = ["Retos", "Proyectos", "Plan de mejoramiento", "Calidad"]
+    stats = [
+        ("Total", total_propuestas, "#1e3a8a"),
+        ("Procesos", procesos, "#0f6d57"),
+        ("Subprocesos", subprocesos, "#855d0f"),
+        ("Retos", int(fuentes.get("Retos", 0)), "#1b5e20"),
+    ]
 
-    st.markdown("#### Tabla de Procesos Comparativa")
-    process_col_bar = (
-        "Proceso"
-        if "Proceso" in cmi_global.columns
-        else ("Subproceso_final" if "Subproceso_final" in cmi_global.columns else ("Subproceso" if "Subproceso" in cmi_global.columns else "Proceso"))
-    )
-    group_cols = [process_col_bar]
-    if "Tipo de proceso" in cmi_global.columns:
-        group_cols.append("Tipo de proceso")
+    for fuente in ["Proyectos", "Plan de mejoramiento", "Calidad"]:
+        stats.append((fuente, int(fuentes.get(fuente, 0)), "#0f3a6d" if fuente == "Proyectos" else "#e65100" if fuente == "Plan de mejoramiento" else "#4a148c"))
 
-    proc_curr = (
-        cmi_global.groupby(group_cols, dropna=False)
-        .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
-        .reset_index()
-    )
-
-    if not cmi_base_2024.empty:
-        _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_base_2024.columns else "Cumplimiento_pct"
-        proc_base = (
-            cmi_base_2024.groupby(group_cols, dropna=False)
-            .agg(base_2024=(_base_pct_col, "mean"))
-            .reset_index()
+    columns = st.columns(4)
+    for col, (label, value, color) in zip(columns, stats[:4]):
+        col.markdown(
+            f"""
+            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:14px;min-height:100px;box-shadow:0 5px 12px rgba(15,24,44,0.04);'>
+                <div style='font-size:0.75rem;font-weight:700;color:{color};margin-bottom:6px;'>{label}</div>
+                <div style='font-size:1.8rem;font-weight:800;color:#1f2937;'>{value}</div>
+                <div style='font-size:0.78rem;color:#52637b;margin-top:8px;'>{proceso_actual} / {subproceso_actual}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
-    else:
-        proc_comp = proc_curr.copy()
-        proc_comp["base_2024"] = pd.NA
 
-    proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
-    proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(12)
+    if len(stats) > 4:
+        columns = st.columns(4)
+        for col, (label, value, color) in zip(columns, stats[4:8]):
+            col.markdown(
+                f"""
+                <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:14px;min-height:100px;box-shadow:0 5px 12px rgba(15,24,44,0.04);'>
+                    <div style='font-size:0.75rem;font-weight:700;color:{color};margin-bottom:6px;'>{label}</div>
+                    <div style='font-size:1.8rem;font-weight:800;color:#1f2937;'>{value}</div>
+                    <div style='font-size:0.78rem;color:#52637b;margin-top:8px;'>Propuestas por fuente</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    if not proc_comp.empty:
-        proc_table = proc_comp.copy()
-        proc_table = proc_table.rename(
-            columns={
-                process_col_bar: "Proceso",
-                "actual": f"Cumplimiento {global_year}",
-                "base_2024": f"Cumplimiento {base_year}",
-                "delta_2024": "Delta",
-            }
+
+def _render_propuesta_priorities(df: pd.DataFrame, proceso_actual: str, subproceso_actual: str) -> None:
+    if df.empty:
+        return
+
+    fuentes = df["Fuente"].fillna("Sin fuente").astype(str).value_counts()
+    top_fuentes = fuentes.head(3)
+
+    st.markdown("##### Prioridades rápidas")
+    st.caption("Acciones más frecuentes y fuentes con mayor volumen de propuestas.")
+
+    cols = st.columns(min(3, len(top_fuentes)))
+    for col, (fuente, count) in zip(cols, top_fuentes.items()):
+        col.markdown(
+            f"""
+            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:14px;box-shadow:0 5px 12px rgba(15,24,44,0.04);'>
+                <div style='font-size:0.82rem;font-weight:700;color:#1e3a8a;margin-bottom:8px;'>{fuente}</div>
+                <div style='font-size:1.7rem;font-weight:800;color:#0f4b76;'>{count}</div>
+                <div style='font-size:0.78rem;color:#52637b;margin-top:8px;'>Propuestas</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        for col in [f"Cumplimiento {global_year}", f"Cumplimiento {base_year}", "Delta"]:
-            if col in proc_table.columns:
-                proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
 
-        st.dataframe(proc_table, use_container_width=True, hide_index=True)
-    else:
-        st.info("No hay procesos con datos para mostrar en la tabla comparativa.")
+    top_processes = (
+        df.groupby(["Fuente", "Proceso"], dropna=False)
+        .size()
+        .reset_index(name="count")
+        .sort_values(["count", "Fuente"], ascending=[False, True])
+        .head(3)
+    )
 
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.markdown("#### Ranking por Unidad Organizacional")
-        if "Unidad" in cmi_global.columns:
-            render_analisis_unidad(cmi_global, pct_col)
-        else:
-            st.info("No hay datos de Unidad organizacional disponibles en este corte.")
+    if not top_processes.empty:
+        st.markdown("**Top prioridades por fuente y proceso:**")
+        for _, row in top_processes.iterrows():
+            fuente = str(row.get("Fuente", "Sin fuente"))
+            proceso = str(row.get("Proceso", "Sin proceso"))
+            count = int(row.get("count", 0))
+            st.markdown(f"- **{fuente}** / {proceso}: {count} propuesta(s)")
 
-    with col2:
-        st.markdown("#### Heatmap — Cumplimiento por Unidad y Periodo")
-        if "Unidad" in cmi_global.columns and "Mes" in cmi_global.columns:
-            heat_df = cmi_global.copy()
-            heat_df["Mes_num"] = heat_df["Mes"].apply(_mes_to_num)
-            heat_df = heat_df[heat_df["Mes_num"].notna()].copy()
-            heat_df["Periodo"] = heat_df["Mes_num"].apply(lambda v: MESES_OPCIONES[int(v) - 1] if pd.notna(v) and 1 <= int(v) <= 12 else str(v))
-            if not heat_df.empty:
-                fig_heat = render_performance_heatmap(
-                    heat_df,
-                    x_col="Periodo",
-                    y_col="Unidad",
-                    value_col=pct_col,
-                    title="Cumplimiento por Unidad y Período",
-                    height=360,
-                )
-                st.plotly_chart(fig_heat, use_container_width=True)
-            else:
-                st.info("No hay datos de mes válidos para generar el heatmap.")
-        else:
-            st.info("No hay datos de unidad o periodo para generar el heatmap.")
 
-    if not proc_comp.empty:
-        st.markdown("#### Desempeño Comparativo — 2025 vs 2024")
-        fig_cmp = go.Figure()
-        fig_cmp.add_trace(
+def _render_propuesta_distribution(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+
+    fuente_counts = df["Fuente"].fillna("Sin fuente").astype(str).value_counts()
+    if not fuente_counts.empty:
+        fig = go.Figure(
             go.Bar(
-                name=f"Cumplimiento {global_year}",
-                x=proc_comp[process_col_bar],
-                y=proc_comp["actual"],
-                marker_color="#1E4C86",
+                x=fuente_counts.index,
+                y=fuente_counts.values,
+                marker_color=["#1b5e20", "#0d47a1", "#e65100", "#4a148c"][: len(fuente_counts)],
             )
         )
-        if proc_comp["base_2024"].notna().any():
-            fig_cmp.add_trace(
+        fig.update_layout(
+            title="Distribución de propuestas por fuente",
+            height=320,
+            margin=dict(t=40, b=40, l=20, r=20),
+            xaxis_title="Fuente",
+            yaxis_title="Cantidad",
+            template="simple_white",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    top_processes = df["Proceso"].fillna("Sin proceso").astype(str).value_counts().head(5)
+    if not top_processes.empty:
+        st.markdown("**Top procesos con más propuestas:**")
+        for proc, cnt in top_processes.items():
+            st.markdown(f"- {proc}: {cnt} propuesta(s)")
+
+
+def _render_propuesta_urgentes(latest_df: pd.DataFrame, propuesta_df: pd.DataFrame) -> None:
+    if latest_df.empty:
+        return
+
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in latest_df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in latest_df.columns else None
+    )
+    if not pct_col:
+        return
+
+    latest_df[pct_col] = pd.to_numeric(latest_df[pct_col], errors="coerce")
+    crit = latest_df[latest_df[pct_col] < 70].copy()
+    if crit.empty:
+        st.info("No hay acciones urgentes con cumplimiento inferior a 70%.")
+        return
+
+    st.markdown("##### Acciones urgentes")
+    st.caption("Indicadores con mayor riesgo de cumplimiento que requieren atención inmediata.")
+
+    top_crit = crit.sort_values(pct_col).head(3)
+    for _, row in top_crit.iterrows():
+        indicador = str(row.get("Indicador", "Sin indicador"))
+        proceso = str(row.get("Proceso_padre", "Sin proceso"))
+        valor = pd.to_numeric(row.get(pct_col), errors="coerce")
+        valor_text = f"{valor:.1f}%" if pd.notna(valor) else "Sin dato"
+        st.markdown(f"- **{indicador}** ({proceso}) — Cumplimiento: {valor_text}")
+
+    if not propuesta_df.empty:
+        propuesta_procesos = propuesta_df[propuesta_df["Proceso"].isin(crit["Proceso_padre"].astype(str).unique())]
+        if not propuesta_procesos.empty:
+            st.markdown("**Propuestas relacionadas a procesos críticos:**")
+            for proceso, group in propuesta_procesos.groupby("Proceso"):
+                st.markdown(f"- {proceso}: {len(group)} propuesta(s)")
+
+
+def _render_propuesta_riesgos_tab(
+    latest_df: pd.DataFrame,
+    propuesta_df: pd.DataFrame,
+    proceso_actual: str,
+    subproceso_actual: str,
+) -> None:
+    st.markdown("### Riesgos y alertas")
+    st.caption("Prioriza acciones en procesos críticos y relaciona propuestas con los indicadores más riesgosos.")
+
+    if latest_df.empty:
+        st.warning("No hay datos de indicadores para evaluar riesgos en el corte actual.")
+        return
+
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in latest_df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in latest_df.columns else None
+    )
+    if not pct_col:
+        st.info("No se dispone de una métrica de cumplimiento clara para el análisis de riesgos.")
+        return
+
+    latest_df = latest_df.copy()
+    latest_df[pct_col] = pd.to_numeric(latest_df[pct_col], errors="coerce")
+    process_col = "Proceso_padre" if "Proceso_padre" in latest_df.columns else (
+        "Proceso" if "Proceso" in latest_df.columns else ("Subproceso_final" if "Subproceso_final" in latest_df.columns else "Subproceso")
+    )
+
+    crit = latest_df[latest_df[pct_col] < 80].copy()
+    if crit.empty:
+        st.success("No se identificaron procesos en nivel de riesgo para el corte seleccionado.")
+        return
+
+    proc_riesgo = (
+        crit.groupby(process_col, dropna=False)
+        .agg(indicadores=("Indicador", "count"), promedio=(pct_col, "mean"))
+        .reset_index()
+        .sort_values(["indicadores", "promedio"], ascending=[False, True])
+    )
+
+    top_procs = proc_riesgo.head(4)
+    rows = []
+    for _, row in top_procs.iterrows():
+        proc_label = str(row.get(process_col, "Sin proceso"))
+        rows.append(
+            f"<div style='background:#fff7ed;border:1px solid #ffe4c7;border-radius:12px;padding:12px;margin-bottom:10px;'>"
+            f"<div style='font-size:0.92rem;font-weight:700;color:#b45309;'>{proc_label}</div>"
+            f"<div style='font-size:0.82rem;color:#4b5563;'>Indicadores críticos: {int(row['indicadores'])}</div>"
+            f"<div style='font-size:0.82rem;color:#4b5563;'>Cumplimiento promedio: {float(row['promedio']):.1f}%</div>"
+            f"</div>"
+        )
+
+    st.markdown(
+        "<div class='section-panel propuesta-section'>"
+        "<div style='margin-bottom:14px;'>"
+        "<div style='font-size:1rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Resumen de riesgos por proceso</div>"
+        "<div style='font-size:0.9rem;color:#52637b;'>Procesos con mayor volumen de indicadores en niveles de alerta o peligro.</div>"
+        "</div>"
+        "<div style='display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:12px;'>"
+        + "".join(rows)
+        + "</div>"
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+    if "Tipo de proceso" in crit.columns:
+        type_riesgo = (
+            crit.groupby("Tipo de proceso", dropna=False)
+            .agg(indicadores=("Indicador", "count"))
+            .reset_index()
+            .sort_values("indicadores", ascending=False)
+        )
+        if not type_riesgo.empty:
+            fig = go.Figure(
                 go.Bar(
-                    name=f"Cumplimiento {base_year}",
-                    x=proc_comp[process_col_bar],
-                    y=proc_comp["base_2024"],
-                    marker_color="#9AB7D5",
+                    x=type_riesgo["Tipo de proceso"],
+                    y=type_riesgo["indicadores"],
+                    marker_color="#d97706",
                 )
             )
-        fig_cmp.update_layout(
-            barmode="group",
-            height=340,
-            margin=dict(t=25, b=120),
-            xaxis_tickangle=-25,
-            xaxis_title="Proceso",
-            yaxis_title="Cumplimiento promedio (%)",
-            legend_title_text="Año",
-        )
-        st.plotly_chart(fig_cmp, use_container_width=True)
+            fig.update_layout(
+                title="Indicadores críticos por tipo de proceso",
+                height=320,
+                margin=dict(t=40, b=40, l=20, r=20),
+                xaxis_title="Tipo de proceso",
+                yaxis_title="Indicadores en riesgo",
+                template="simple_white",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("#### Indicadores críticos de mayor riesgo")
+    for _, row in crit.sort_values(pct_col).head(5).iterrows():
+        indicador = str(row.get("Indicador", "Sin indicador"))
+        proceso = str(row.get(process_col, "Sin proceso"))
+        valor = pd.to_numeric(row.get(pct_col), errors="coerce")
+        valor_text = f"{valor:.1f}%" if pd.notna(valor) else "Sin dato"
+        st.markdown(f"- **{indicador}** ({proceso}) — Cumplimiento: {valor_text}")
+
+    if not propuesta_df.empty and "Proceso" in propuesta_df.columns:
+        procesos_criticos = crit[process_col].astype(str).unique().tolist()
+        propuestas_rel = propuesta_df[propuesta_df["Proceso"].astype(str).isin(procesos_criticos)]
+        if not propuestas_rel.empty:
+            st.markdown("#### Propuestas asociadas a procesos críticos")
+            count_by_proc = (
+                propuestas_rel.groupby("Proceso", dropna=False)
+                .size()
+                .reset_index(name="count")
+                .sort_values("count", ascending=False)
+            )
+            for _, row in count_by_proc.iterrows():
+                proc_label = str(row.get("Proceso", "Sin proceso"))
+                st.markdown(f"- **{proc_label}**: {int(row['count'])} propuesta(s)")
+        else:
+            st.info("No se encontraron propuestas relacionadas con los procesos críticos del corte.")
     else:
-        st.info("No hay datos suficientes para generar el análisis comparativo de procesos.")
+        st.info("No hay datos de propuestas disponibles para cruzar con los riesgos identificados.")
+
+
+def _render_propuesta_plan_accion(
+    propuesta_df: pd.DataFrame,
+    proceso_actual: str,
+    subproceso_actual: str,
+) -> None:
+    st.markdown("### Plan de acción")
+    st.caption("Priorización de propuestas y pasos de seguimiento para el corte actual.")
+
+    if propuesta_df.empty:
+        st.info("No hay propuestas disponibles para construir un plan de acción.")
+        return
+
+    total_propuestas = len(propuesta_df)
+    total_procesos = propuesta_df["Proceso"].dropna().astype(str).nunique() if "Proceso" in propuesta_df.columns else 0
+    total_subprocesos = propuesta_df["Subproceso"].dropna().astype(str).nunique() if "Subproceso" in propuesta_df.columns else 0
+    fuentes = propuesta_df["Fuente"].fillna("Sin fuente").astype(str).value_counts()
+    proceso_counts = propuesta_df["Proceso"].fillna("Sin proceso").astype(str).value_counts().head(5)
+    subproceso_counts = propuesta_df["Subproceso"].fillna("Sin subproceso").astype(str).value_counts().head(5)
+
+    st.markdown(
+        f"<div style='display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:18px;'>"
+        f"<div style='background:#ffffff;border:1px solid #dbe5f2;border-radius:14px;padding:16px;'>"
+        f"<div style='font-size:0.78rem;font-weight:700;color:#0f4b76;margin-bottom:8px;'>Total de propuestas</div>"
+        f"<div style='font-size:1.8rem;font-weight:800;color:#1f2937;'>{total_propuestas}</div>"
+        f"</div>"
+        f"<div style='background:#ffffff;border:1px solid #dbe5f2;border-radius:14px;padding:16px;'>"
+        f"<div style='font-size:0.78rem;font-weight:700;color:#0f4b76;margin-bottom:8px;'>Procesos con propuestas</div>"
+        f"<div style='font-size:1.8rem;font-weight:800;color:#1f2937;'>{total_procesos}</div>"
+        f"</div>"
+        f"<div style='background:#ffffff;border:1px solid #dbe5f2;border-radius:14px;padding:16px;'>"
+        f"<div style='font-size:0.78rem;font-weight:700;color:#0f4b76;margin-bottom:8px;'>Subprocesos con propuestas</div>"
+        f"<div style='font-size:1.8rem;font-weight:800;color:#1f2937;'>{total_subprocesos}</div>"
+        f"</div>"
+        f"<div style='background:#ffffff;border:1px solid #dbe5f2;border-radius:14px;padding:16px;'>"
+        f"<div style='font-size:0.78rem;font-weight:700;color:#0f4b76;margin-bottom:8px;'>Fuentes de propuesta</div>"
+        f"<div style='font-size:1.8rem;font-weight:800;color:#1f2937;'>{len(fuentes)}</div>"
+        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    if proceso_actual != "Todos" or subproceso_actual != "Todos":
+        st.markdown(
+            f"<div style='background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:14px;margin-bottom:16px;'>"
+            f"<strong>Contexto del plan:</strong> {proceso_actual} / {subproceso_actual}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("#### Propuestas por fuente")
+    cols = st.columns(min(4, len(fuentes)))
+    for col, (fuente, cantidad) in zip(cols, fuentes.items()):
+        porcentaje = round(cantidad / max(total_propuestas, 1) * 100, 1)
+        col.markdown(
+            f"<div style='background:#ffffff;border:1px solid #dbe5f2;border-radius:14px;padding:14px;min-height:110px;'>"
+            f"<div style='font-size:0.78rem;font-weight:700;color:#0f4b76;margin-bottom:8px;'>{fuente}</div>"
+            f"<div style='font-size:1.5rem;font-weight:800;color:#1f2937;'>{cantidad}</div>"
+            f"<div style='font-size:0.75rem;color:#52637b;margin-top:6px;'>({porcentaje}%)</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("#### Procesos y subprocesos con más propuestas")
+    cols = st.columns(2)
+    with cols[0]:
+        st.markdown("**Procesos**")
+        for proceso, cantidad in proceso_counts.items():
+            st.markdown(f"- **{proceso}**: {cantidad}")
+    with cols[1]:
+        st.markdown("**Subprocesos**")
+        for subproceso, cantidad in subproceso_counts.items():
+            st.markdown(f"- **{subproceso}**: {cantidad}")
+
+    with st.expander("Ver la tabla de propuestas completas", expanded=False):
+        selected_columns = [
+            c
+            for c in ["Fuente", "Proceso", "Subproceso", "Indicador Propuesto", "Factor", "Característica"]
+            if c in propuesta_df.columns
+        ]
+        display_df = propuesta_df[selected_columns].copy()
+        st.dataframe(display_df.reset_index(drop=True), use_container_width=True, hide_index=True)
+
+    st.markdown("#### Acciones de mayor prioridad")
+    prioridad_df = propuesta_df.copy()
+    prioridad_df["Fuente"] = prioridad_df["Fuente"].fillna("Sin fuente").astype(str)
+    if "Factor" in prioridad_df.columns:
+        prioridad_df["Prioridad"] = prioridad_df["Factor"].astype(str).str.strip().replace("", "Normal")
+    else:
+        prioridad_df["Prioridad"] = "Normal"
+    for _, row in prioridad_df.head(5).iterrows():
+        indicador = str(row.get("Indicador Propuesto", "Sin indicador")).strip()
+        fuente = str(row.get("Fuente", "Sin fuente")).strip()
+        proceso = str(row.get("Proceso", "Sin proceso")).strip()
+        extra = []
+        if "Factor" in row and str(row.get("Factor", "")).strip():
+            extra.append(str(row.get("Factor")).strip())
+        if "Característica" in row and str(row.get("Característica", "")).strip():
+            extra.append(str(row.get("Característica")).strip())
+        extra_label = f" ({' | '.join(extra)})" if extra else ""
+        st.markdown(f"- **{indicador}** — {fuente} / {proceso}{extra_label}")
+
+    st.success(
+        "Este plan de acción está construido sobre propuestas activas. Revisa el detalle del tab Indicadores propuestos y aplica seguimiento en los procesos más críticos."
+    )
 
 
 def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, display_col: str) -> tuple[list, list]:
@@ -971,7 +1186,7 @@ def _prepare_tracking(
 
     if not map_df.empty and {"Subproceso", "Proceso"}.issubset(map_df.columns):
         sub_map = (
-            map_df[["Subproceso", "Proceso", "Unidad"]].dropna(subset=["Subproceso"]).drop_duplicates(subset=["Subproceso"]).copy()
+            map_df[["Subproceso", "Proceso"]].dropna().drop_duplicates(subset=["Subproceso"]).copy()
         )
         sub_map["sub_norm"] = sub_map["Subproceso"].astype(str).map(_norm_text)
 
@@ -979,7 +1194,7 @@ def _prepare_tracking(
         out["proc_norm"] = out["proc_input"].map(_norm_text)
 
         out = out.merge(
-            sub_map[["sub_norm", "Proceso", "Unidad"]].rename(columns={"Proceso": "Proceso_padre_sub", "Unidad": "Unidad_sub"}),
+            sub_map[["sub_norm", "Proceso"]].rename(columns={"Proceso": "Proceso_padre_sub"}),
             left_on="proc_norm",
             right_on="sub_norm",
             how="left",
@@ -991,12 +1206,10 @@ def _prepare_tracking(
         else:
             out["Subproceso_final"] = out["proc_input"]
 
-        out["Unidad"] = out["Unidad_sub"].fillna("Sin unidad")
-
         out = out.drop(
             columns=[
                 c
-                for c in ["proc_input", "proc_norm", "sub_norm", "Proceso_padre_sub", "Unidad_sub"]
+                for c in ["proc_input", "proc_norm", "sub_norm", "Proceso_padre_sub"]
                 if c in out.columns
             ]
         )
@@ -2348,14 +2561,8 @@ def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFram
 
 
 def render() -> None:
-    st.title("CMI por Procesos — Resumen")
-    st.markdown(
-        """
-        **Nuevas pestañas agregadas:** `Procesos y Unidades`, `Indicadores`, `Alertas`, `Propuesta`, `Análisis Avanzado`.
-        Usa los filtros globales de la parte superior para segmentar por Unidad, Proceso, Subproceso, Año, Mes, Frecuencia, Clasificación y Tipo de indicador.
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Resumen por procesos")
+    inject_cmi_premium_css()
 
     ds = DataService()
     tracking_df = ds.get_tracking_data()
@@ -2389,99 +2596,40 @@ def render() -> None:
     # Aplicar filtro global CMI por Procesos: solo indicadores con 'Subprocesos' == 1
     full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=default_month_num)
-    cmi_catalog = _load_indicadores_por_cmi()
     procesos_all = sorted(full_work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
 
-    unidad_col = _first_col(snapshot_df, ["Unidad"])
-    proceso_col = "Proceso_padre"
-    subproceso_col = "Subproceso_final"
-    frecuencia_col = _first_col(snapshot_df, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
-    clasificacion_col = _first_col(snapshot_df, ["Clasificación", "Clasificacion", "Categoria"])
-    tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
-
-    st.markdown("#### Filtros")
-    st.caption(
-        "Usa los filtros para cambiar el corte de evaluación. El Resumen consolida los indicadores activos de CMI por Procesos y mantiene la semántica oficial de niveles."
-    )
-
-    unidad_options = ["Todos"]
-    if unidad_col and unidad_col in snapshot_df.columns:
-        unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
-
-    c1, c2, c3 = st.columns([1.3, 1.3, 1.3])
-    with c1:
-        unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad")
-    with c2:
-        proceso_df = snapshot_df.copy()
-        if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
-            proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
-        proceso_options = ["Todos"] + sorted(
-            proceso_df[proceso_col].dropna().astype(str).unique().tolist()
+    with st.container():
+        st.markdown(
+            """
+            <div class='section-panel filter-panel'>
+                <div class='filter-panel-header'>
+                    <h4 style='margin:0;'>Filtros</h4>
+                    <p>Usa los filtros para cambiar el corte de evaluación. El Resumen consolida los indicadores activos de CMI por Procesos y mantiene la semántica oficial de niveles.</p>
+                </div>
+                <div class='filter-panel-content'>
+            """,
+            unsafe_allow_html=True,
         )
-        proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso")
-    with c3:
-        sub_df = snapshot_df.copy()
-        if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
-            sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
-        if proceso_sel != "Todos":
-            sub_df = sub_df[sub_df[proceso_col].astype(str) == proceso_sel]
-        subproceso_options = ["Todos"] + sorted(
-            sub_df[subproceso_col].dropna().astype(str).unique().tolist()
-        )
-        subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso")
-
-    c1, c2, c3 = st.columns([1, 1, 1])
-    with c1:
-        year_options = [str(y) for y in years] if years else [str(default_year)]
-        default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-        anio = st.segmented_control(
-            "Año",
-            options=year_options,
-            default=default_year_label,
-            key="filter_anio",
-        )
-        anio = int(anio) if anio is not None else None
-    with c2:
-        mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
-    with c3:
-        frecuencia_options = ["Todos"]
-        if frecuencia_col and frecuencia_col in snapshot_df.columns:
-            frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
-        elif not cmi_catalog.empty:
-            catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
-            if catalog_freq_col is not None:
-                frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
-        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia")
-
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        clasificacion_options = ["Todos"]
-        if clasificacion_col and clasificacion_col in snapshot_df.columns:
-            clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
-        clasificacion_sel = st.segmented_control(
-            "Clasificación",
-            options=clasificacion_options,
-            default="Todos",
-            key="filter_clasificacion",
-        )
-    with c2:
-        tipo_options = ["Todos"]
-        if tipo_indicador_col and tipo_indicador_col in snapshot_df.columns:
-            tipo_options += sorted(snapshot_df[tipo_indicador_col].dropna().astype(str).unique().tolist())
-        else:
-            catalog_tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
-            if not cmi_catalog.empty and catalog_tipo_col is not None:
-                tipo_options += sorted(
-                    cmi_catalog[catalog_tipo_col].dropna().astype(str).unique().tolist()
-                )
-        tipo_indicador_sel = st.segmented_control(
-            "Tipo de indicador",
-            options=tipo_options,
-            default="Todos",
-            key="filter_tipo_indicador",
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            default_year = 2025 if 2025 in years else (years[-1] if years else None)
+            default_year_idx = years.index(default_year) if default_year in years else 0
+            anio = st.selectbox("Año", options=years, index=default_year_idx if years else None)
+        with c2:
+            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month))
+        with c3:
+            proceso_placeholder = st.empty()
+        with c4:
+            subproceso_placeholder = st.empty()
+        st.markdown(
+            """
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
+    # Recalcular datos del corte según mes seleccionado para que Meta/Ejecución/Cumplimiento respondan al filtro
     selected_month_num = (
         MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     )
@@ -2499,21 +2647,30 @@ def render() -> None:
         mes_num = MESES_OPCIONES.index(mes) + 1
         base_filtered = base_filtered[base_filtered["Mes"].apply(_mes_to_num) == float(mes_num)]
 
-    filtered = base_filtered.copy()
-    if unidad_sel != "Todos" and unidad_col and unidad_col in filtered.columns:
-        filtered = filtered[filtered[unidad_col].astype(str) == unidad_sel]
-    if proceso_sel != "Todos":
-        filtered = filtered[filtered[proceso_col].astype(str) == proceso_sel]
-    if subproceso_sel != "Todos":
-        filtered = filtered[filtered[subproceso_col].astype(str) == subproceso_sel]
-    if frecuencia_sel != "Todos" and frecuencia_col and frecuencia_col in filtered.columns:
-        filtered = filtered[filtered[frecuencia_col].astype(str) == frecuencia_sel]
-    if clasificacion_sel != "Todos" and clasificacion_col and clasificacion_col in filtered.columns:
-        filtered = filtered[filtered[clasificacion_col].astype(str) == clasificacion_sel]
-    if tipo_indicador_sel != "Todos" and tipo_indicador_col and tipo_indicador_col in filtered.columns:
-        filtered = filtered[filtered[tipo_indicador_col].astype(str) == tipo_indicador_sel]
+    procesos_filtrados = sorted(
+        base_filtered["Proceso_padre"].dropna().astype(str).unique().tolist()
+    )
+    opciones_proceso = ["Todos"] + (procesos_filtrados if procesos_filtrados else procesos_all)
+    default_index = 1 if len(opciones_proceso) > 1 else 0
 
-    filtered = _ensure_nivel_cumplimiento(filtered)
+    proceso_sel = proceso_placeholder.selectbox(
+        "Proceso (Filtro Padre)", options=opciones_proceso, index=default_index
+    )
+
+    filtered = base_filtered.copy()
+    if proceso_sel != "Todos":
+        filtered = filtered[filtered["Proceso_padre"].astype(str) == proceso_sel]
+
+    subproceso_sel = "Todos"
+    if proceso_sel != "Todos":
+        subprocesos_filtrados = sorted(
+            filtered["Subproceso_final"].dropna().astype(str).unique().tolist()
+        )
+        if subprocesos_filtrados:
+            sub_options = ["Todos"] + subprocesos_filtrados
+            subproceso_sel = subproceso_placeholder.selectbox("Subproceso", options=sub_options, index=0)
+            if subproceso_sel != "Todos":
+                filtered = filtered[filtered["Subproceso_final"].astype(str) == subproceso_sel]
 
     if filtered.empty:
         st.info(
@@ -2539,17 +2696,15 @@ def render() -> None:
         ]
 
     st.caption(
-        f"Unidad: {unidad_sel} · Proceso: {selected_process_label} · Subproceso: {selected_subprocess_label} · Año: {anio} · Mes: {mes} · Frecuencia: {frecuencia_sel} · Clasificación: {clasificacion_sel} · Tipo: {tipo_indicador_sel}"
+        f"Filtro Padre activo: {selected_process_label} | Subproceso: {selected_subprocess_label} | Corte: {mes} {anio}"
     )
 
     tabs = st.tabs(
         [
             "📋 Resumen",
-            "🏢 Procesos y Unidades",
-            "📊 Indicadores",
-            "🚨 Alertas",
             "💡 Propuesta",
-            "📈 Análisis Avanzado",
+            "⚠️ Riesgos y alertas",
+            "💼 Plan de acción",
         ]
     )
 
@@ -2590,6 +2745,17 @@ def render() -> None:
             f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación: {global_year} vs {_base_caption}."
         )
 
+        _render_resumen_overview_cards(
+            latest,
+            proceso_sel,
+            subproceso_sel,
+            int(global_year),
+            _latest_month_name,
+        )
+        _render_resumen_alertas(latest)
+        st.info("Ve a la pestaña Propuesta para el análisis detallado de procesos, comparaciones históricas e insights de mejora.")
+
+    with tabs[1]:
         # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
         try:
             _cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
@@ -2637,529 +2803,328 @@ def render() -> None:
 
         cmi_global = _prepare_resumen_df(cmi_global)
         cmi_base_2024 = _prepare_resumen_df(cmi_base_2024)
+        propuesta_df, propuesta_error = _load_indicadores_propuestos(proceso_sel, subproceso_sel)
 
-        if cmi_global.empty:
-            st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
-        else:
-            _render_resumen_overview_cards(cmi_global, "Global", "Todos", int(global_year), _latest_month_name)
-            _render_cmi_por_cmi_summary_charts(cmi_catalog)
-            # ── Fichas KPI por Tipo de proceso (4 tipos globales) ─────────────
-            st.markdown("##### Monitoreo por Tipo de Proceso")
-
-            pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_global.columns else "Cumplimiento_pct"
-
-            type_curr = (
-                cmi_global.groupby("Tipo de proceso", dropna=False)
-                .agg(indicadores=("Indicador", "count"), actual=(pct_col, "mean"))
-                .reset_index()
-            )
-
-            # Delta respecto a 2024
-            if not cmi_base_2024.empty:
-                _pct_prev = "cumplimiento_pct" if "cumplimiento_pct" in cmi_base_2024.columns else "Cumplimiento_pct"
-                prev_type = (
-                    cmi_base_2024.groupby("Tipo de proceso", dropna=False)
-                    .agg(prev=(_pct_prev, "mean"))
-                    .reset_index()
-                )
-                type_curr = type_curr.merge(prev_type, on="Tipo de proceso", how="left")
-                type_curr["change"] = type_curr["actual"] - type_curr["prev"]
-            else:
-                type_curr["prev"] = pd.NA
-                type_curr["change"] = pd.NA
-
-            type_curr = type_curr[type_curr["Tipo de proceso"].notna()].copy()
-            ordered_tipos = [t for t in TIPOS_PROCESO if t in type_curr["Tipo de proceso"].astype(str).tolist()]
-            if ordered_tipos:
-                tipo_cols = st.columns(min(4, len(ordered_tipos)))
-                for idx, tipo in enumerate(ordered_tipos[:4]):
-                    row = type_curr[type_curr["Tipo de proceso"] == tipo].iloc[0]
-                    delta = pd.to_numeric(row.get("change"), errors="coerce")
-                    tipo_color = get_tipo_color(tipo, light=False)
-                    with tipo_cols[idx]:
-                        _render_process_card(
-                            name=tipo,
-                            indicadores=int(row.get("indicadores", 0)),
-                            cumplimiento=float(row.get("actual", 0.0) or 0.0),
-                            delta_vs_base=None if pd.isna(delta) else float(delta),
-                            base_year=_base_year,
-                            color=tipo_color,
-                        )
-
-            # ── Gráfico principal: cumplimiento promedio por proceso ─────────
-            st.markdown("##### Procesos con mayor cumplimiento")
-            selected_tipo_chart = st.segmented_control(
-                "Tipo de proceso (gráfica)",
-                options=["Todos"] + ordered_tipos,
-                default="Todos",
-                key="cmi_resumen_tipo_chart",
-            )
-            if selected_tipo_chart is None:
-                selected_tipo_chart = "Todos"
-
-            chart_curr = cmi_global.copy()
-            chart_base = cmi_base_2024.copy()
-            if selected_tipo_chart != "Todos":
-                chart_curr = chart_curr[chart_curr["Tipo de proceso"].astype(str) == selected_tipo_chart]
-                if not chart_base.empty:
-                    chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
-
-            process_col_bar = (
-                "Proceso"
-                if "Proceso" in chart_curr.columns
-                else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
-            )
-            group_cols = [process_col_bar]
-            if "Tipo de proceso" in chart_curr.columns:
-                group_cols.append("Tipo de proceso")
-
-            proc_curr = (
-                chart_curr.groupby(group_cols, dropna=False)
-                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
-                .reset_index()
-            )
-            proc_count = proc_curr[process_col_bar].nunique()
-            st.caption(
-                f"Agrupando por: {process_col_bar}. Procesos únicos con datos: {proc_count}."
-            )
-
-            if not chart_base.empty:
-                _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
-                proc_base = (
-                    chart_base.groupby(group_cols, dropna=False)
-                    .agg(base_2024=(_base_pct_col, "mean"))
-                    .reset_index()
-                )
-                proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
-            else:
-                proc_comp = proc_curr.copy()
-                proc_comp["base_2024"] = pd.NA
-
-            proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
-            proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
-
-            if not proc_comp.empty:
-                fig_bar = go.Figure()
-                fig_bar.add_trace(
-                    go.Bar(
-                        name=f"Cumplimiento {global_year}",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["actual"],
-                        marker_color="#1E4C86",
-                        yaxis="y1",
-                    )
-                )
-                if proc_comp["base_2024"].notna().any():
-                    fig_bar.add_trace(
-                        go.Bar(
-                            name=f"Cumplimiento {_base_year}",
-                            x=proc_comp[process_col_bar],
-                            y=proc_comp["base_2024"],
-                            marker_color="#9AB7D5",
-                            yaxis="y1",
-                        )
-                    )
-                fig_bar.add_trace(
-                    go.Scatter(
-                        name="Variación 2025 vs 2024",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["delta_2024"].round(1),
-                        mode="lines+markers+text",
-                        text=proc_comp["delta_2024"].round(1).astype(str) + "%",
-                        textposition="top center",
-                        marker=dict(color="#E4572E", size=8),
-                        line=dict(color="#E4572E", width=2, dash="dash"),
-                        yaxis="y2",
-                    )
-                )
-                fig_bar.update_layout(
-                    barmode="group",
-                    height=380,
-                    margin=dict(t=20, b=120),
-                    xaxis_tickangle=-25,
-                    xaxis_title="Proceso",
-                    yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
-                    yaxis2=dict(
-                        title="Variación (%)",
-                        overlaying="y",
-                        side="right",
-                        showgrid=False,
-                    ),
-                    legend_title_text="Comparación histórica",
-                )
-                st.plotly_chart(fig_bar, use_container_width=True, key="cmi_resumen_bar_chart")
-
-                table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
-                if "Tipo de proceso" in proc_comp.columns:
-                    table_cols.insert(0, "Tipo de proceso")
-
-                proc_table = proc_comp[table_cols].copy()
-                proc_table = proc_table.rename(
-                    columns={
-                        process_col_bar: "Proceso",
-                        "actual": f"Cumplimiento {global_year}",
-                        "base_2024": f"Cumplimiento {_base_year}",
-                        "delta_2024": "Delta"
-                    }
-                )
-                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
-                    if col in proc_table.columns:
-                        proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
-
-                if "Tipo de proceso" in proc_table.columns:
-                    proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
-
-                st.markdown("#### Tabla de procesos comparativa")
-                st.dataframe(proc_table, use_container_width=True, hide_index=True)
-            else:
-                st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
-
-            # ── Variación de procesos respecto a 2024 ────────────────────────
-            best_proc_rows, worst_proc_rows = [], []
-            _ins_curr = chart_curr.copy()
-            _ins_base = chart_base.copy()
-            if not _ins_base.empty:
-                best_proc_rows, worst_proc_rows = _process_variation_for_rpp(_ins_curr, _ins_base, process_col_bar)
-
-            _proc_counts = _process_counts_cmi(_ins_curr, "Tipo de proceso") if "Tipo de proceso" in _ins_curr.columns else pd.DataFrame()
-            _total_p = len(_ins_curr)
-            _health_p = 0
-            if not _proc_counts.empty:
-                _health_p = _proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
-            _health_pct = round(_health_p / max(_total_p, 1) * 100, 1)
-            _op_summary = (
-                f"{_health_pct}% de indicadores de proceso en niveles saludables"
-                + (f" | Mejora: {best_proc_rows[0]['name']}" if best_proc_rows else "")
-                + (f" | Riesgo: {worst_proc_rows[0]['name']}" if worst_proc_rows else "")
-            )
-            if _base_m is not None and 1 <= int(_base_m) <= 12:
-                _base_month_name = MESES_OPCIONES[int(_base_m) - 1]
-                _base_detail = f"Base comparativa usada: cierre {_base_year} ({_base_month_name})."
-            else:
-                _base_detail = f"Base comparativa usada: sin cierre disponible para {_base_year}."
-            _best_html = _build_ia_rows_rpp(best_proc_rows)
-            _worst_html = _build_ia_rows_rpp(worst_proc_rows)
-
-            st.markdown(
-                f"""
-                <div class='rpp-summary-card'>
-                    <h4 class='rpp-summary-title'>Insights del corte</h4>
-                    <p class='rpp-summary-text'>{_op_summary}</p>
-                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if not _best_html:
-                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
-            if not _worst_html:
-                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
-
-            st.markdown(
-                f"""
-                <div class='rpp-grid'>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_best_html}</tbody>
-                        </table>
-                    </div>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_worst_html}</tbody>
-                        </table>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        # ── Sección ampliada: KPIs, Alertas, Tabla, Fichas, Unidad ──────────
-        if not cmi_global.empty:
-            _pct_g = (
-                "cumplimiento_pct"
-                if "cumplimiento_pct" in cmi_global.columns
-                else "Cumplimiento_pct"
-            )
-
-            st.divider()
-            st.markdown("#### 📊 KPIs Ejecutivos del Corte")
-            render_executive_kpis(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 🚨 Alertas y Hallazgos")
-            render_alertas_criticas(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 📋 Tabla Analítica de Indicadores")
-            render_tabla_analitica(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 🗂️ Fichas de Indicadores")
-            render_fichas_indicadores(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 🏢 Análisis por Unidad Organizacional")
-            render_analisis_unidad(cmi_global, _pct_g)
-
-    with tabs[1]:
-        _render_tab_procesos_unidades(cmi_global, cmi_base_2024, int(global_year), _base_year, _latest_month_name)
-
-    with tabs[2]:
-        _render_tab_indicadores(filtered, cmi_catalog)
-
-    with tabs[3]:
-        render_tab_alertas(filtered)
-
-    with tabs[4]:
         st.markdown("### Propuesta de mejora")
         st.caption(
             "Gráficas, tablas e insights que complementan la sección Resumen CMI por Procesos."
         )
-        _render_propuesta_resumen(
-            latest,
-            proceso_sel,
-            subproceso_sel,
-            _latest_month_name,
-            int(global_year),
-        )
 
-        if not cmi_global.empty:
-            st.markdown("##### Procesos con mayor cumplimiento")
-            selected_tipo_chart = st.segmented_control(
-                "Tipo de proceso (gráfica)",
-                options=["Todos"] + ordered_tipos,
-                default="Todos",
-                key="cmi_propuesta_tipo_chart",
+        sub_tabs = st.tabs(["Propuesta rápida", "Indicadores propuestos", "Monitoreo y comparativa"])
+
+        with sub_tabs[0]:
+            st.markdown(
+                """
+                <div class='section-panel propuesta-section'>
+                    <div style='margin-bottom:16px;'>
+                        <div style='font-size:1rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Propuesta rápida</div>
+                        <div style='font-size:0.9rem;color:#52637b;'>Resumen ejecutivo de acciones recomendadas para el corte seleccionado.</div>
+                    </div>
+                """,
+                unsafe_allow_html=True,
             )
-            if selected_tipo_chart is None:
-                selected_tipo_chart = "Todos"
-
-            chart_curr = cmi_global.copy()
-            chart_base = cmi_base_2024.copy()
-            if selected_tipo_chart != "Todos":
-                chart_curr = chart_curr[chart_curr["Tipo de proceso"].astype(str) == selected_tipo_chart]
-                if not chart_base.empty:
-                    chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
-
-            process_col_bar = (
-                "Proceso"
-                if "Proceso" in chart_curr.columns
-                else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
+            _render_propuesta_resumen(
+                latest,
+                proceso_sel,
+                subproceso_sel,
+                _latest_month_name,
+                int(global_year),
             )
-            group_cols = [process_col_bar]
-            if "Tipo de proceso" in chart_curr.columns:
-                group_cols.append("Tipo de proceso")
+            if propuesta_error:
+                st.warning(propuesta_error)
+            else:
+                _render_propuesta_urgentes(latest, propuesta_df)
+            st.markdown("""</div>""", unsafe_allow_html=True)
 
-            proc_curr = (
-                chart_curr.groupby(group_cols, dropna=False)
-                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
-                .reset_index()
+        with sub_tabs[1]:
+            st.markdown(
+                """
+                <div class='section-panel propuesta-section'>
+                    <div style='margin-bottom:16px;'>
+                        <div style='font-size:1rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Indicadores propuestos</div>
+                        <div style='font-size:0.9rem;color:#52637b;'>Acciones, retos y mejoras sugeridas con base en el archivo Indicadores Propuestos.xlsx.</div>
+                    </div>
+                """,
+                unsafe_allow_html=True,
             )
-            proc_count = proc_curr[process_col_bar].nunique()
-            st.caption(
-                f"Agrupando por: {process_col_bar}. Procesos únicos con datos: {proc_count}."
-            )
+            if propuesta_error:
+                st.warning(propuesta_error)
+            elif propuesta_df.empty:
+                st.info("No hay indicadores propuestos para el filtro actual.")
+            else:
+                st.markdown(f"**Total propuestas encontradas:** {len(propuesta_df)}")
+                _render_propuesta_summary(propuesta_df, proceso_sel, subproceso_sel)
+                _render_propuesta_distribution(propuesta_df)
+                _render_propuesta_priorities(propuesta_df)
+                with st.expander("Ver todas las propuestas por proceso y subproceso", expanded=False):
+                    _render_tarjetas_propuestos(propuesta_df)
+            st.markdown("""</div>""", unsafe_allow_html=True)
 
-            if not chart_base.empty:
-                _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
-                proc_base = (
-                    chart_base.groupby(group_cols, dropna=False)
-                    .agg(base_2024=(_base_pct_col, "mean"))
+        with sub_tabs[2]:
+            if cmi_global.empty:
+                st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
+            else:
+                st.markdown(
+                    """
+                    <div class='section-panel propuesta-section'>
+                        <div style='margin-bottom:16px;'>
+                            <div style='font-size:1rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Monitoreo y comparativa</div>
+                            <div style='font-size:0.9rem;color:#52637b;'>Análisis de niveles de cumplimiento y variaciones históricas por tipo de proceso.</div>
+                        </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_global.columns else "Cumplimiento_pct"
+
+                type_curr = (
+                    cmi_global.groupby("Tipo de proceso", dropna=False)
+                    .agg(indicadores=("Indicador", "count"), actual=(pct_col, "mean"))
                     .reset_index()
                 )
-                proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
-            else:
-                proc_comp = proc_curr.copy()
-                proc_comp["base_2024"] = pd.NA
 
-            proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
-            proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
-
-            if not proc_comp.empty:
-                fig_bar = go.Figure()
-                fig_bar.add_trace(
-                    go.Bar(
-                        name=f"Cumplimiento {global_year}",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["actual"],
-                        marker_color="#1E4C86",
-                        yaxis="y1",
+                if not cmi_base_2024.empty:
+                    _pct_prev = "cumplimiento_pct" if "cumplimiento_pct" in cmi_base_2024.columns else "Cumplimiento_pct"
+                    prev_type = (
+                        cmi_base_2024.groupby("Tipo de proceso", dropna=False)
+                        .agg(prev=(_pct_prev, "mean"))
+                        .reset_index()
                     )
+                    type_curr = type_curr.merge(prev_type, on="Tipo de proceso", how="left")
+                    type_curr["change"] = type_curr["actual"] - type_curr["prev"]
+                else:
+                    type_curr["prev"] = pd.NA
+                    type_curr["change"] = pd.NA
+
+                type_curr = type_curr[type_curr["Tipo de proceso"].notna()].copy()
+                ordered_tipos = [t for t in TIPOS_PROCESO if t in type_curr["Tipo de proceso"].astype(str).tolist()]
+                if ordered_tipos:
+                    tipo_cols = st.columns(min(4, len(ordered_tipos)))
+                    for idx, tipo in enumerate(ordered_tipos[:4]):
+                        row = type_curr[type_curr["Tipo de proceso"] == tipo].iloc[0]
+                        delta = pd.to_numeric(row.get("change"), errors="coerce")
+                        tipo_color = get_tipo_color(tipo, light=False)
+                        with tipo_cols[idx]:
+                            _render_process_card(
+                                name=tipo,
+                                indicadores=int(row.get("indicadores", 0)),
+                                cumplimiento=float(row.get("actual", 0.0) or 0.0),
+                                delta_vs_base=None if pd.isna(delta) else float(delta),
+                                base_year=_base_year,
+                                color=tipo_color,
+                            )
+
+                st.markdown("##### Procesos con mayor cumplimiento")
+                selected_tipo_chart = st.segmented_control(
+                    "Tipo de proceso (gráfica)",
+                    options=["Todos"] + ordered_tipos,
+                    default="Todos",
+                    key="cmi_propuesta_tipo_chart",
                 )
-                if proc_comp["base_2024"].notna().any():
+                if selected_tipo_chart is None:
+                    selected_tipo_chart = "Todos"
+
+                chart_curr = cmi_global.copy()
+                chart_base = cmi_base_2024.copy()
+                if selected_tipo_chart != "Todos":
+                    chart_curr = chart_curr[chart_curr["Tipo de proceso"].astype(str) == selected_tipo_chart]
+                    if not chart_base.empty:
+                        chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
+
+                process_col_bar = (
+                    "Proceso"
+                    if "Proceso" in chart_curr.columns
+                    else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
+                )
+                group_cols = [process_col_bar]
+                if "Tipo de proceso" in chart_curr.columns:
+                    group_cols.append("Tipo de proceso")
+
+                proc_curr = (
+                    chart_curr.groupby(group_cols, dropna=False)
+                    .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+                    .reset_index()
+                )
+                proc_count = proc_curr[process_col_bar].nunique()
+                st.caption(
+                    f"Agrupando por: {process_col_bar}. Procesos únicos con datos: {proc_count}."
+                )
+
+                if not chart_base.empty:
+                    _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
+                    proc_base = (
+                        chart_base.groupby(group_cols, dropna=False)
+                        .agg(base_2024=(_base_pct_col, "mean"))
+                        .reset_index()
+                    )
+                    proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
+                else:
+                    proc_comp = proc_curr.copy()
+                    proc_comp["base_2024"] = pd.NA
+
+                proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
+                proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
+
+                if not proc_comp.empty:
+                    fig_bar = go.Figure()
                     fig_bar.add_trace(
                         go.Bar(
-                            name=f"Cumplimiento {_base_year}",
+                            name=f"Cumplimiento {global_year}",
                             x=proc_comp[process_col_bar],
-                            y=proc_comp["base_2024"],
-                            marker_color="#9AB7D5",
+                            y=proc_comp["actual"],
+                            marker_color="#1E4C86",
                             yaxis="y1",
                         )
                     )
-                fig_bar.add_trace(
-                    go.Scatter(
-                        name="Variación 2025 vs 2024",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["delta_2024"].round(1),
-                        mode="lines+markers+text",
-                        text=proc_comp["delta_2024"].round(1).astype(str) + "%",
-                        textposition="top center",
-                        marker=dict(color="#E4572E", size=8),
-                        line=dict(color="#E4572E", width=2, dash="dash"),
-                        yaxis="y2",
+                    if proc_comp["base_2024"].notna().any():
+                        fig_bar.add_trace(
+                            go.Bar(
+                                name=f"Cumplimiento {_base_year}",
+                                x=proc_comp[process_col_bar],
+                                y=proc_comp["base_2024"],
+                                marker_color="#9AB7D5",
+                                yaxis="y1",
+                            )
+                        )
+                    fig_bar.add_trace(
+                        go.Scatter(
+                            name="Variación 2025 vs 2024",
+                            x=proc_comp[process_col_bar],
+                            y=proc_comp["delta_2024"].round(1),
+                            mode="lines+markers+text",
+                            text=proc_comp["delta_2024"].round(1).astype(str) + "%",
+                            textposition="top center",
+                            marker=dict(color="#E4572E", size=8),
+                            line=dict(color="#E4572E", width=2, dash="dash"),
+                            yaxis="y2",
+                        )
                     )
+                    fig_bar.update_layout(
+                        barmode="group",
+                        height=380,
+                        margin=dict(t=20, b=120),
+                        xaxis_tickangle=-25,
+                        xaxis_title="Proceso",
+                        yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
+                        yaxis2=dict(
+                            title="Variación (%)",
+                            overlaying="y",
+                            side="right",
+                            showgrid=False,
+                        ),
+                        legend_title_text="Comparación histórica",
+                    )
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+                    table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
+                    if "Tipo de proceso" in proc_comp.columns:
+                        table_cols.insert(0, "Tipo de proceso")
+
+                    proc_table = proc_comp[table_cols].copy()
+                    proc_table = proc_table.rename(
+                        columns={
+                            process_col_bar: "Proceso",
+                            "actual": f"Cumplimiento {global_year}",
+                            "base_2024": f"Cumplimiento {_base_year}",
+                            "delta_2024": "Delta"
+                        }
+                    )
+                    for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
+                        if col in proc_table.columns:
+                            proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+                    if "Tipo de proceso" in proc_table.columns:
+                        proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
+
+                    st.markdown("#### Tabla de procesos comparativa")
+                    st.dataframe(proc_table, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
+
+                best_proc_rows, worst_proc_rows = [], []
+                _ins_curr = chart_curr.copy()
+                _ins_base = chart_base.copy()
+                if not _ins_base.empty:
+                    best_proc_rows, worst_proc_rows = _process_variation_for_rpp(_ins_curr, _ins_base, process_col_bar)
+
+                _proc_counts = _process_counts_cmi(_ins_curr, "Tipo de proceso") if "Tipo de proceso" in _ins_curr.columns else pd.DataFrame()
+                _total_p = len(_ins_curr)
+                _health_p = 0
+                if not _proc_counts.empty:
+                    _health_p = _proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
+                _health_pct = round(_health_p / max(_total_p, 1) * 100, 1)
+                _op_summary = (
+                    f"{_health_pct}% de indicadores de proceso en niveles saludables"
+                    + (f" | Mejora: {best_proc_rows[0]['name']}" if best_proc_rows else "")
+                    + (f" | Riesgo: {worst_proc_rows[0]['name']}" if worst_proc_rows else "")
                 )
-                fig_bar.update_layout(
-                    barmode="group",
-                    height=380,
-                    margin=dict(t=20, b=120),
-                    xaxis_tickangle=-25,
-                    xaxis_title="Proceso",
-                    yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
-                    yaxis2=dict(
-                        title="Variación (%)",
-                        overlaying="y",
-                        side="right",
-                        showgrid=False,
-                    ),
-                    legend_title_text="Comparación histórica",
-                )
-                st.plotly_chart(fig_bar, use_container_width=True, key="cmi_propuesta_bar_chart")
+                if _base_m is not None and 1 <= int(_base_m) <= 12:
+                    _base_month_name = MESES_OPCIONES[int(_base_m) - 1]
+                    _base_detail = f"Base comparativa usada: cierre {_base_year} ({_base_month_name})."
+                else:
+                    _base_detail = f"Base comparativa usada: sin cierre disponible para {_base_year}."
+                _best_html = _build_ia_rows_rpp(best_proc_rows)
+                _worst_html = _build_ia_rows_rpp(worst_proc_rows)
 
-                table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
-                if "Tipo de proceso" in proc_comp.columns:
-                    table_cols.insert(0, "Tipo de proceso")
-
-                proc_table = proc_comp[table_cols].copy()
-                proc_table = proc_table.rename(
-                    columns={
-                        process_col_bar: "Proceso",
-                        "actual": f"Cumplimiento {global_year}",
-                        "base_2024": f"Cumplimiento {_base_year}",
-                        "delta_2024": "Delta"
-                    }
-                )
-                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
-                    if col in proc_table.columns:
-                        proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
-
-                if "Tipo de proceso" in proc_table.columns:
-                    proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
-
-                st.markdown("#### Tabla de procesos comparativa")
-                st.dataframe(proc_table, use_container_width=True, hide_index=True)
-            else:
-                st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
-
-            best_proc_rows, worst_proc_rows = [], []
-            _ins_curr = chart_curr.copy()
-            _ins_base = chart_base.copy()
-            if not _ins_base.empty:
-                best_proc_rows, worst_proc_rows = _process_variation_for_rpp(_ins_curr, _ins_base, process_col_bar)
-
-            _proc_counts = _process_counts_cmi(_ins_curr, "Tipo de proceso") if "Tipo de proceso" in _ins_curr.columns else pd.DataFrame()
-            _total_p = len(_ins_curr)
-            _health_p = 0
-            if not _proc_counts.empty:
-                _health_p = _proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
-            _health_pct = round(_health_p / max(_total_p, 1) * 100, 1)
-            _op_summary = (
-                f"{_health_pct}% de indicadores de proceso en niveles saludables"
-                + (f" | Mejora: {best_proc_rows[0]['name']}" if best_proc_rows else "")
-                + (f" | Riesgo: {worst_proc_rows[0]['name']}" if worst_proc_rows else "")
-            )
-            if _base_m is not None and 1 <= int(_base_m) <= 12:
-                _base_month_name = MESES_OPCIONES[int(_base_m) - 1]
-                _base_detail = f"Base comparativa usada: cierre {_base_year} ({_base_month_name})."
-            else:
-                _base_detail = f"Base comparativa usada: sin cierre disponible para {_base_year}."
-            _best_html = _build_ia_rows_rpp(best_proc_rows)
-            _worst_html = _build_ia_rows_rpp(worst_proc_rows)
-
-            st.markdown(
-                f"""
-                <div class='rpp-summary-card'>
-                    <h4 class='rpp-summary-title'>Insights del corte</h4>
-                    <p class='rpp-summary-text'>{_op_summary}</p>
-                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if not _best_html:
-                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
-            if not _worst_html:
-                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
-
-            st.markdown(
-                f"""
-                <div class='rpp-grid'>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_best_html}</tbody>
-                        </table>
+                st.markdown(
+                    f"""
+                    <div class='rpp-summary-card'>
+                        <h4 class='rpp-summary-title'>Insights del corte</h4>
+                        <p class='rpp-summary-text'>{_op_summary}</p>
+                        <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
                     </div>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_worst_html}</tbody>
-                        </table>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-    with tabs[5]:
-        st.markdown("### 📈 Análisis Avanzado — Histórico de Indicadores")
-        st.caption(
-            "Evolución temporal de indicadores seleccionados. "
-            "Compara períodos y detecta tendencias (↑ creciente, ↓ decreciente, → estable)."
-        )
-        if not cmi_global.empty:
-            _pct_g2 = (
-                "cumplimiento_pct"
-                if "cumplimiento_pct" in cmi_global.columns
-                else "Cumplimiento_pct"
-            )
-            render_historico_tab(cmi_global, _pct_g2)
-        else:
-            st.info("No hay datos disponibles para el análisis histórico en este corte.")
+                if not _best_html:
+                    _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
+                if not _worst_html:
+                    _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
+
+                st.markdown(
+                    f"""
+                    <div class='rpp-grid'>
+                        <div class='rpp-panel'>
+                            <div class='rpp-panel-title'>Procesos con mayor mejora</div>
+                            <table class='rpp-table'>
+                                <thead>
+                                    <tr>
+                                        <th>Proceso</th>
+                                        <th>Variación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>{_best_html}</tbody>
+                            </table>
+                        </div>
+                        <div class='rpp-panel'>
+                            <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
+                            <table class='rpp-table'>
+                                <thead>
+                                    <tr>
+                                        <th>Proceso</th>
+                                        <th>Variación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>{_worst_html}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown("""</div>""", unsafe_allow_html=True)
+
+        with tabs[2]:
+            _render_propuesta_riesgos_tab(latest, propuesta_df, proceso_sel, subproceso_sel)
+
+        with tabs[3]:
+            _render_propuesta_plan_accion(propuesta_df, proceso_sel, subproceso_sel)
 
 def _load_indicadores_propuestos(
     proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
-):
-    import pandas as pd
-
+) -> tuple[pd.DataFrame, str | None]:
     EXCEL_PATH = (
         Path(__file__).parents[2]
         / "data"

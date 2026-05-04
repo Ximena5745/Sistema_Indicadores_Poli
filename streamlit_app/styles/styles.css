@@ -108,6 +108,73 @@
     padding: 10px 12px;
     margin-bottom: 6px;
 }
+
+.filter-panel {
+    background: #f8fafc;
+    border: 1px solid #d7e1eb;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 1rem;
+}
+.filter-panel-header h4 {
+    color: #0f3a6d;
+    margin-bottom: 0.35rem;
+}
+..filter-panel-header p {
+    margin: 0;
+    color: #52637b;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+.filter-panel {
+    background: #f8fafc;
+    border: 1px solid #d7e1eb;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 2px 14px rgba(16, 38, 75, 0.05);
+}
+.filter-panel-content {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.filter-panel-content [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child {
+    background-color: #ffffff !important;
+    border: 1px solid #d7e1eb !important;
+    border-radius: 12px !important;
+    padding: 0.35rem 0.75rem !important;
+}
+.filter-panel-content [data-testid="stSelectbox"] label {
+    color: #34435e !important;
+}
+.propuesta-section {
+    background: #ffffff;
+    border: 1px solid #dbe5f2;
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 5px 18px rgba(15,24,44,0.06);
+}
+.propuesta-section h4,
+.propuesta-section div[style*='font-size:1rem'] {
+    color: #173a63;
+}
+.propuesta-section .section-title {
+    margin: 0 0 10px 0;
+    font-weight: 700;
+}
+.propuesta-section .section-description {
+    color: #52637b;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+@media (max-width: 900px) {
+    .filter-panel-content {
+        grid-template-columns: 1fr;
+    }
+}
 .cmi-ficha-label {
     font-size: 0.73rem;
     font-weight: 700;
