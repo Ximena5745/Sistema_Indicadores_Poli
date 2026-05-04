@@ -19,6 +19,7 @@ REGLAS (PROJECT_RULES.md):
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import hashlib
 
 # ── Semaforización centralizada (PROJECT_RULES §3.3) ─────────────────────────
 # Única fuente: mismos valores que NIVELES_COLORS en resumen_por_proceso.py
@@ -428,7 +429,16 @@ def render_analisis_unidad(df: pd.DataFrame, pct_col: str | None = None) -> None
             plot_bgcolor="#FFFFFF",
             paper_bgcolor="#FFFFFF",
         )
-        st.plotly_chart(fig, use_container_width=True)
+
+        # Generar una key determinista para evitar StreamlitDuplicateElementId
+        try:
+            unidades_list = ranking["Unidad"].astype(str).tolist()
+            key_seed = "|".join(unidades_list) + f"|{pct_col or ''}|{len(unidades_list)}"
+            plot_key = "analisis_unidad_" + hashlib.md5(key_seed.encode("utf-8")).hexdigest()[:10]
+        except Exception:
+            plot_key = None
+
+        st.plotly_chart(fig, use_container_width=True, key=plot_key)
 
     with c2:
         tabla_unidad = ranking.rename(
