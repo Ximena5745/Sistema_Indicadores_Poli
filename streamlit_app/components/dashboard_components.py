@@ -21,6 +21,9 @@ import plotly.graph_objects as go
 import streamlit as st
 import hashlib
 
+# Contador por módulo para generar claves únicas por llamada durante un rerun
+_PLOT_KEY_COUNTER = 0
+
 # ── Semaforización centralizada (PROJECT_RULES §3.3) ─────────────────────────
 # Única fuente: mismos valores que NIVELES_COLORS en resumen_por_proceso.py
 NIVELES_COLORS = {
@@ -434,11 +437,22 @@ def render_analisis_unidad(df: pd.DataFrame, pct_col: str | None = None) -> None
         try:
             unidades_list = ranking["Unidad"].astype(str).tolist()
             key_seed = "|".join(unidades_list) + f"|{pct_col or ''}|{len(unidades_list)}"
-            plot_key = "analisis_unidad_" + hashlib.md5(key_seed.encode("utf-8")).hexdigest()[:10]
+            base_key = "analisis_unidad_" + hashlib.md5(key_seed.encode("utf-8")).hexdigest()[:10]
         except Exception:
-            plot_key = None
+            base_key = None
 
-        st.plotly_chart(fig, use_container_width=True, key=plot_key)
+        # Asegurar unicidad en la misma ejecución usando un contador incremental
+        try:
+            global _PLOT_KEY_COUNTER
+            _PLOT_KEY_COUNTER += 1
+            if base_key:
+                unique_key = f"{base_key}_{_PLOT_KEY_COUNTER}"
+            else:
+                unique_key = f"analisis_unidad_auto_{_PLOT_KEY_COUNTER}"
+        except Exception:
+            unique_key = None
+
+        st.plotly_chart(fig, use_container_width=True, key=unique_key)
 
     with c2:
         tabla_unidad = ranking.rename(
