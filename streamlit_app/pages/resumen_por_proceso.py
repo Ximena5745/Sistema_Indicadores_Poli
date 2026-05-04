@@ -18,6 +18,8 @@ from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
+from core.config import COLORES, COLOR_CATEGORIA, UMBRAL_PELIGRO, UMBRAL_ALERTA, UMBRAL_SOBRECUMPLIMIENTO
+from streamlit_app.utils.cmi_helpers import calcular_indicadores_activos, linea_color
 from streamlit_app.components.dashboard_components import (
     render_executive_kpis,
     render_alertas_criticas,
@@ -335,7 +337,7 @@ def _render_resumen_overview_cards(
     avg_cumpl = float(cumplimiento.mean()) if not cumplimiento.dropna().empty else 0.0
     total_process = int(df["Proceso_padre"].dropna().nunique()) if "Proceso_padre" in df.columns else 0
     total_subprocess = int(df["Subproceso_final"].dropna().nunique()) if "Subproceso_final" in df.columns else 0
-    total_indicadores = int(df["Indicador"].dropna().shape[0]) if "Indicador" in df.columns else 0
+    total_indicadores = calcular_indicadores_activos(df)
     riesgos = int((cumplimiento < 80).sum()) if not cumplimiento.empty else 0
     alertas = int(((cumplimiento >= 80) & (cumplimiento < 100)).sum()) if not cumplimiento.empty else 0
 
@@ -421,38 +423,44 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
                 cols[0].plotly_chart(fig, use_container_width=True)
 
     if type_col is not None:
-        series = df_cmi[type_col].fillna("Sin tipo").astype(str)
-        if series.empty:
-            st.warning(f"No hay datos en la columna {type_col} para tipo de indicador.")
-        else:
+        indicator_col = _first_col(df_cmi, ["Indicador", "Nombre", "Nombre indicador", "indicador"])
+        if indicator_col is not None and indicator_col in df_cmi.columns:
             counts = (
-                series
-                .value_counts()
-                .reset_index()
+                df_cmi[[type_col, indicator_col]]
+                .dropna(subset=[type_col, indicator_col])
+                .drop_duplicates()
+                .groupby(type_col)
+                .size()
+                .reset_index(name="Indicadores")
             )
+        else:
+            series = df_cmi[type_col].fillna("Sin tipo").astype(str)
+            counts = series.value_counts().reset_index()
             counts.columns = ["Tipo de indicador", "Indicadores"]
-            counts = counts.sort_values("Indicadores", ascending=False)
-            if counts.empty:
-                st.warning("No hay datos para tipo de indicador.")
-            else:
-                fig = px.bar(
-                    counts,
-                    x="Tipo de indicador",
-                    y="Indicadores",
-                    text="Indicadores",
-                    title="Indicadores por tipo de indicador",
-                    color="Indicadores",
-                    color_continuous_scale="Greens",
-                )
-                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
-                cols[1].plotly_chart(fig, use_container_width=True)
+
+        counts.columns = ["Tipo de indicador", "Indicadores"]
+        counts = counts.sort_values("Indicadores", ascending=False)
+        if counts.empty:
+            st.warning("No hay datos para tipo de indicador.")
+        else:
+            fig = px.bar(
+                counts,
+                x="Tipo de indicador",
+                y="Indicadores",
+                text="Indicadores",
+                title="Indicadores por tipo de indicador",
+                color="Indicadores",
+                color_continuous_scale="Greens",
+            )
+            fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
+            cols[1].plotly_chart(fig, use_container_width=True)
 
 
 def _render_tab_indicadores(
     df: pd.DataFrame,
     cmi_catalog: pd.DataFrame,
 ) -> None:
-    st.markdown("### Indicadores por Línea, Proceso y Subproceso")
+    st.markdown("### Indicadores")
     if df.empty:
         st.info("No hay indicadores activos para mostrar en esta vista.")
         return
@@ -469,100 +477,57 @@ def _render_tab_indicadores(
     df = df.copy()
     df[linea_col] = df[linea_col].fillna("Sin línea")
 
-    if cmi_catalog is not None and not cmi_catalog.empty:
-        tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
-    else:
-        tipo_col = _first_col(df, ["Tipo de indicador", "Tipo", "tipo_indicador"])
+    pct_col = _first_col(df, ["cumplimiento_pct", "Cumplimiento_pct", "Cumplimiento_norm"])
 
-    process_col = _first_col(df, ["Proceso_padre", "Proceso", "Proceso Padre", "Proceso_padre"])
-    subproceso_col = _first_col(df, ["Subproceso_final", "Subproceso", "Subproceso_final"])
-    pct_col = _first_col(df, ["cumplimiento_pct", "Cumplimiento_pct"])
+    _render_linea_summary_cards(df, linea_col, pct_col)
 
-    if pct_col is None:
-        pct_col = "Cumplimiento_pct"
-
-    lineas = sorted(df[linea_col].dropna().astype(str).unique().tolist())
-    if not lineas:
-        st.warning("No se encontraron líneas para mostrar.")
-        return
-
-    for linea in lineas:
-        with st.expander(f"{linea} — {len(df[df[linea_col] == linea])} indicadores", expanded=False):
-            group_df = df[df[linea_col] == linea].copy()
-            display_cols = [c for c in [process_col, subproceso_col, tipo_col, "Indicador", "Meta", "Ejecucion", pct_col, "Nivel de cumplimiento"] if c in group_df.columns]
-            display_df = group_df[display_cols].copy()
-            if pct_col in display_df.columns:
-                display_df[pct_col] = pd.to_numeric(display_df[pct_col], errors="coerce").round(1)
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-            sel_indicador = st.selectbox(
-                "Seleccionar indicador para ver ficha",
-                [""] + group_df["Indicador"].astype(str).fillna(" ").tolist(),
-                key=f"tab_indicadores_sel_{linea}",
-            )
-            if sel_indicador:
-                row = group_df[group_df["Indicador"].astype(str) == sel_indicador].head(1)
-                if not row.empty and st.button("Ver ficha", key=f"tab_indicadores_button_{linea}"):
-                    render_modal_ficha(row.iloc[0])
-
-    st.markdown("#### Total de indicadores por línea")
-    counts = df[linea_col].astype(str).value_counts().reset_index()
-    counts.columns = ["Linea", "Indicadores"]
-    st.bar_chart(counts.set_index("Linea"))
+    st.divider()
+    st.markdown("#### 📋 Tabla Analítica de Indicadores")
+    st.caption("La tabla incluye Línea estratégica como primera columna y permite filtrar por proceso, unidad y tipo.")
+    render_tabla_analitica(df, pct_col)
 
 
-def _render_propuesta_resumen(
-    latest_df: pd.DataFrame,
-    proceso_actual: str,
-    subproceso_actual: str,
-    month_name: str,
-    year: int,
+def _render_linea_summary_cards(
+    df: pd.DataFrame,
+    linea_col: str,
+    pct_col: str | None,
 ) -> None:
-    st.markdown("#### Propuesta de acción")
-    if latest_df.empty:
-        st.info("No hay datos de indicadores en el corte actual para generar una propuesta.")
+    if df.empty:
         return
 
-    propuesta = _build_propuestos(latest_df, proceso_actual)
-    if propuesta.empty:
-        st.info("No se generó una propuesta con los datos disponibles.")
-        return
+    pct_col = pct_col or "cumplimiento_pct"
+    if pct_col not in df.columns:
+        df[pct_col] = pd.NA
 
-    row = propuesta.iloc[0].to_dict()
-    cards = [
-        ("Plan de mejoramiento", row.get("Plan de mejoramiento", "Sin datos"), "#fef3c7", "#92400e"),
-        ("PDI 2026-2030", row.get("PDI 2026-2030", "Sin datos"), "#dbeafe", "#1e40af"),
-        ("SGA", row.get("SGA", "Sin datos"), "#ede9fe", "#4c1d95"),
-        ("Retos", row.get("Retos", "Sin datos"), "#ecfccb", "#365314"),
-    ]
-    cols = st.columns(4)
-    for col, (title, text, background, title_color) in zip(cols, cards):
-        col.markdown(
+    summary = (
+        df.groupby(linea_col, dropna=False)
+        .agg(
+            indicadores=("Indicador", lambda x: int(x.notna().sum())),
+            cumplimiento=(pct_col, lambda s: float(pd.to_numeric(s, errors="coerce").mean()) if pd.to_numeric(s, errors="coerce").notna().any() else 0.0),
+        )
+        .reset_index()
+    )
+    summary = summary.sort_values("cumplimiento", ascending=False)
+
+    cols = st.columns(min(3, len(summary)))
+    for column, (_, row) in zip(cols, summary.iterrows()):
+        linea = str(row[linea_col])
+        color = linea_color(linea)
+        cumplimiento = float(row["cumplimiento"] or 0.0)
+        indicadores = int(row["indicadores"] or 0)
+        column.markdown(
             f"""
-            <div style='background:{background};border:1px solid {title_color};border-radius:14px;padding:14px;min-height:130px;'>
-                <div style='font-size:0.8rem;font-weight:700;color:{title_color};margin-bottom:10px;'>{title}</div>
-                <div style='font-size:0.85rem;color:#1f2937;line-height:1.4;min-height:92px;'>{text}</div>
+            <div style='background:#ffffff;border:1px solid #E4E8F4;border-radius:14px;padding:16px;box-shadow:0 3px 10px rgba(15,23,42,0.06);'>
+                <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;'>
+                    <span style='font-size:0.93rem;font-weight:700;color:{color};'>{linea}</span>
+                    <span style='font-size:0.8rem;color:#5B6776;'>{indicadores} indicadores</span>
+                </div>
+                <div style='font-size:2rem;font-weight:800;color:{color};margin-bottom:4px;'>{cumplimiento:.1f}%</div>
+                <div style='font-size:0.82rem;color:#5B6776;'>Cumplimiento promedio</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-
-    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in latest_df.columns else (
-        "cumplimiento_pct" if "cumplimiento_pct" in latest_df.columns else None
-    )
-    if pct_col:
-        riesgos = latest_df[pd.to_numeric(latest_df[pct_col], errors="coerce") < 80].copy()
-        if not riesgos.empty:
-            top_riesgos = riesgos.sort_values(pct_col).head(3)
-            st.markdown("**Top 3 indicadores críticos**")
-            for _, r in top_riesgos.iterrows():
-                indicador = str(r.get("Indicador", "Sin nombre"))
-                proc = str(r.get("Proceso_padre", "Sin proceso"))
-                valor = pd.to_numeric(r.get(pct_col), errors="coerce")
-                valor_text = f"{valor:.1f}%" if pd.notna(valor) else "Sin dato"
-                st.markdown(f"- **{indicador}** ({proc}) — Cumplimiento: {valor_text}")
-        else:
-            st.success("No hay indicadores críticos para el corte actual.")
 
 
 def _render_tab_procesos_unidades(
@@ -623,12 +588,17 @@ def _render_tab_procesos_unidades(
                 process_col_bar: "Proceso",
                 "actual": f"Cumplimiento {global_year}",
                 "base_2024": f"Cumplimiento {base_year}",
-                "delta_2024": "Delta",
+                "delta_2024": "Variación (%)",
             }
         )
-        for col in [f"Cumplimiento {global_year}", f"Cumplimiento {base_year}", "Delta"]:
+        for col in [f"Cumplimiento {global_year}", f"Cumplimiento {base_year}", "Variación (%)"]:
             if col in proc_table.columns:
                 proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+        if "Variación (%)" in proc_table.columns:
+            proc_table["Tendencia"] = proc_table["Variación (%)"].apply(
+                lambda v: "Mejoró" if pd.notna(v) and v > 0 else ("Desmejoró" if pd.notna(v) and v < 0 else "Sin cambio")
+            )
 
         st.dataframe(proc_table, use_container_width=True, hide_index=True)
     else:
@@ -667,23 +637,23 @@ def _render_tab_procesos_unidades(
     if not proc_comp.empty:
         st.markdown("#### Desempeño Comparativo — 2025 vs 2024")
         fig_cmp = go.Figure()
-        fig_cmp.add_trace(
-            go.Bar(
-                name=f"Cumplimiento {global_year}",
-                x=proc_comp[process_col_bar],
-                y=proc_comp["actual"],
-                marker_color="#1E4C86",
-            )
-        )
         if proc_comp["base_2024"].notna().any():
             fig_cmp.add_trace(
                 go.Bar(
                     name=f"Cumplimiento {base_year}",
                     x=proc_comp[process_col_bar],
                     y=proc_comp["base_2024"],
-                    marker_color="#9AB7D5",
+                    marker_color=COLORES["secundario"],
                 )
             )
+        fig_cmp.add_trace(
+            go.Bar(
+                name=f"Cumplimiento {global_year}",
+                x=proc_comp[process_col_bar],
+                y=proc_comp["actual"],
+                marker_color=COLORES["primario"],
+            )
+        )
         fig_cmp.update_layout(
             barmode="group",
             height=340,
@@ -2309,49 +2279,11 @@ def _build_indicadores_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     ]
 
 
-def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFrame:
-    if df_latest.empty:
-        return pd.DataFrame(
-            [
-                {
-                    "Proceso": process_name,
-                    "Plan de mejoramiento": "Sin datos para priorizar acciones.",
-                    "PDI 2026-2030": "Definir metas e hitos por indicador.",
-                    "SGA": "Validar integración de evidencias y trazabilidad.",
-                    "Retos": "Completar reporte de indicadores faltantes.",
-                }
-            ]
-        )
-
-    work = df_latest.copy()
-    work["Cumplimiento_pct"] = pd.to_numeric(work["Cumplimiento_pct"], errors="coerce")
-    riesgos = work[work["Cumplimiento_pct"].notna() & (work["Cumplimiento_pct"] < 80)]
-    top_riesgos = riesgos.nsmallest(3, "Cumplimiento_pct") if not riesgos.empty else pd.DataFrame()
-
-    riesgo_names = ", ".join(
-        top_riesgos.get("Indicador", pd.Series(dtype=str)).astype(str).tolist()
-    )
-    if not riesgo_names:
-        riesgo_names = "Ninguno crítico en el corte"
-
-    return pd.DataFrame(
-        [
-            {
-                "Proceso": process_name,
-                "Plan de mejoramiento": f"Priorizar cierre de brechas en: {riesgo_names}.",
-                "PDI 2026-2030": "Alinear metas por resultados históricos y capacidad operativa.",
-                "SGA": "Fortalecer controles de calidad de dato y consistencia de soportes.",
-                "Retos": "Sostener cumplimiento mensual y reducir dispersión entre subprocesos.",
-            }
-        ]
-    )
-
-
 def render() -> None:
     st.title("CMI por Procesos — Resumen")
     st.markdown(
         """
-        **Nuevas pestañas agregadas:** `Procesos y Unidades`, `Indicadores`, `Alertas`, `Propuesta`, `Análisis Avanzado`.
+        **Nuevas pestañas agregadas:** `Procesos y Unidades`, `Indicadores`, `Alertas`, `Análisis Avanzado`.
         Usa los filtros globales de la parte superior para segmentar por Unidad, Proceso, Subproceso, Año, Mes, Frecuencia, Clasificación y Tipo de indicador.
         """,
         unsafe_allow_html=True,
@@ -2548,7 +2480,6 @@ def render() -> None:
             "🏢 Procesos y Unidades",
             "📊 Indicadores",
             "🚨 Alertas",
-            "💡 Propuesta",
             "📈 Análisis Avanzado",
         ]
     )
@@ -2740,25 +2671,25 @@ def render() -> None:
 
             if not proc_comp.empty:
                 fig_bar = go.Figure()
-                fig_bar.add_trace(
-                    go.Bar(
-                        name=f"Cumplimiento {global_year}",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["actual"],
-                        marker_color="#1E4C86",
-                        yaxis="y1",
-                    )
-                )
                 if proc_comp["base_2024"].notna().any():
                     fig_bar.add_trace(
                         go.Bar(
                             name=f"Cumplimiento {_base_year}",
                             x=proc_comp[process_col_bar],
                             y=proc_comp["base_2024"],
-                            marker_color="#9AB7D5",
+                            marker_color=COLORES["secundario"],
                             yaxis="y1",
                         )
                     )
+                fig_bar.add_trace(
+                    go.Bar(
+                        name=f"Cumplimiento {global_year}",
+                        x=proc_comp[process_col_bar],
+                        y=proc_comp["actual"],
+                        marker_color=COLORES["primario"],
+                        yaxis="y1",
+                    )
+                )
                 fig_bar.add_trace(
                     go.Scatter(
                         name="Variación 2025 vs 2024",
@@ -2767,8 +2698,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color="#E4572E", size=8),
-                        line=dict(color="#E4572E", width=2, dash="dash"),
+                        marker=dict(color=COLORES["alerta"], size=8),
+                        line=dict(color=COLORES["alerta"], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )
@@ -2799,12 +2730,17 @@ def render() -> None:
                         process_col_bar: "Proceso",
                         "actual": f"Cumplimiento {global_year}",
                         "base_2024": f"Cumplimiento {_base_year}",
-                        "delta_2024": "Delta"
+                        "delta_2024": "Variación (%)"
                     }
                 )
-                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
+                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Variación (%)"]:
                     if col in proc_table.columns:
                         proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
+
+                if "Variación (%)" in proc_table.columns:
+                    proc_table["Tendencia"] = proc_table["Variación (%)"].apply(
+                        lambda v: "Mejoró" if pd.notna(v) and v > 0 else ("Desmejoró" if pd.notna(v) and v < 0 else "Sin cambio")
+                    )
 
                 if "Tipo de proceso" in proc_table.columns:
                     proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
@@ -2901,249 +2837,22 @@ def render() -> None:
             render_executive_kpis(cmi_global, _pct_g)
 
             st.divider()
-            st.markdown("#### 🚨 Alertas y Hallazgos")
-            render_alertas_criticas(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 📋 Tabla Analítica de Indicadores")
-            render_tabla_analitica(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 🗂️ Fichas de Indicadores")
-            render_fichas_indicadores(cmi_global, _pct_g)
-
-            st.divider()
             st.markdown("#### 🏢 Análisis por Unidad Organizacional")
             render_analisis_unidad(cmi_global, _pct_g)
 
-    with tabs[1]:
-        _render_tab_procesos_unidades(cmi_global, cmi_base_2024, int(global_year), _base_year, _latest_month_name)
-
-    with tabs[2]:
-        _render_tab_indicadores(filtered, cmi_catalog)
-
-    with tabs[3]:
-        render_tab_alertas(filtered)
-
     with tabs[4]:
-        st.markdown("### Propuesta de mejora")
-        st.caption(
-            "Gráficas, tablas e insights que complementan la sección Resumen CMI por Procesos."
-        )
-        _render_propuesta_resumen(
-            latest,
-            proceso_sel,
-            subproceso_sel,
-            _latest_month_name,
-            int(global_year),
-        )
-
-        if not cmi_global.empty:
-            st.markdown("##### Procesos con mayor cumplimiento")
-            selected_tipo_chart = st.segmented_control(
-                "Tipo de proceso (gráfica)",
-                options=["Todos"] + ordered_tipos,
-                default="Todos",
-                key="cmi_propuesta_tipo_chart",
-            )
-            if selected_tipo_chart is None:
-                selected_tipo_chart = "Todos"
-
-            chart_curr = cmi_global.copy()
-            chart_base = cmi_base_2024.copy()
-            if selected_tipo_chart != "Todos":
-                chart_curr = chart_curr[chart_curr["Tipo de proceso"].astype(str) == selected_tipo_chart]
-                if not chart_base.empty:
-                    chart_base = chart_base[chart_base["Tipo de proceso"].astype(str) == selected_tipo_chart]
-
-            process_col_bar = (
-                "Proceso"
-                if "Proceso" in chart_curr.columns
-                else ("Subproceso_final" if "Subproceso_final" in chart_curr.columns else ("Subproceso" if "Subproceso" in chart_curr.columns else "Proceso"))
-            )
-            group_cols = [process_col_bar]
-            if "Tipo de proceso" in chart_curr.columns:
-                group_cols.append("Tipo de proceso")
-
-            proc_curr = (
-                chart_curr.groupby(group_cols, dropna=False)
-                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
-                .reset_index()
-            )
-            proc_count = proc_curr[process_col_bar].nunique()
-            st.caption(
-                f"Agrupando por: {process_col_bar}. Procesos únicos con datos: {proc_count}."
-            )
-
-            if not chart_base.empty:
-                _base_pct_col = "cumplimiento_pct" if "cumplimiento_pct" in chart_base.columns else "Cumplimiento_pct"
-                proc_base = (
-                    chart_base.groupby(group_cols, dropna=False)
-                    .agg(base_2024=(_base_pct_col, "mean"))
-                    .reset_index()
-                )
-                proc_comp = proc_curr.merge(proc_base, on=group_cols, how="left")
-            else:
-                proc_comp = proc_curr.copy()
-                proc_comp["base_2024"] = pd.NA
-
-            proc_comp["delta_2024"] = proc_comp["actual"] - pd.to_numeric(proc_comp["base_2024"], errors="coerce")
-            proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
-
-            if not proc_comp.empty:
-                fig_bar = go.Figure()
-                fig_bar.add_trace(
-                    go.Bar(
-                        name=f"Cumplimiento {global_year}",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["actual"],
-                        marker_color="#1E4C86",
-                        yaxis="y1",
-                    )
-                )
-                if proc_comp["base_2024"].notna().any():
-                    fig_bar.add_trace(
-                        go.Bar(
-                            name=f"Cumplimiento {_base_year}",
-                            x=proc_comp[process_col_bar],
-                            y=proc_comp["base_2024"],
-                            marker_color="#9AB7D5",
-                            yaxis="y1",
-                        )
-                    )
-                fig_bar.add_trace(
-                    go.Scatter(
-                        name="Variación 2025 vs 2024",
-                        x=proc_comp[process_col_bar],
-                        y=proc_comp["delta_2024"].round(1),
-                        mode="lines+markers+text",
-                        text=proc_comp["delta_2024"].round(1).astype(str) + "%",
-                        textposition="top center",
-                        marker=dict(color="#E4572E", size=8),
-                        line=dict(color="#E4572E", width=2, dash="dash"),
-                        yaxis="y2",
-                    )
-                )
-                fig_bar.update_layout(
-                    barmode="group",
-                    height=380,
-                    margin=dict(t=20, b=120),
-                    xaxis_tickangle=-25,
-                    xaxis_title="Proceso",
-                    yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
-                    yaxis2=dict(
-                        title="Variación (%)",
-                        overlaying="y",
-                        side="right",
-                        showgrid=False,
-                    ),
-                    legend_title_text="Comparación histórica",
-                )
-                st.plotly_chart(fig_bar, use_container_width=True, key="cmi_propuesta_bar_chart")
-
-                table_cols = [process_col_bar, "actual", "base_2024", "delta_2024"]
-                if "Tipo de proceso" in proc_comp.columns:
-                    table_cols.insert(0, "Tipo de proceso")
-
-                proc_table = proc_comp[table_cols].copy()
-                proc_table = proc_table.rename(
-                    columns={
-                        process_col_bar: "Proceso",
-                        "actual": f"Cumplimiento {global_year}",
-                        "base_2024": f"Cumplimiento {_base_year}",
-                        "delta_2024": "Delta"
-                    }
-                )
-                for col in [f"Cumplimiento {global_year}", f"Cumplimiento {_base_year}", "Delta"]:
-                    if col in proc_table.columns:
-                        proc_table[col] = pd.to_numeric(proc_table[col], errors="coerce").round(1)
-
-                if "Tipo de proceso" in proc_table.columns:
-                    proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
-
-                st.markdown("#### Tabla de procesos comparativa")
-                st.dataframe(proc_table, use_container_width=True, hide_index=True)
-            else:
-                st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
-
-            best_proc_rows, worst_proc_rows = [], []
-            _ins_curr = chart_curr.copy()
-            _ins_base = chart_base.copy()
-            if not _ins_base.empty:
-                best_proc_rows, worst_proc_rows = _process_variation_for_rpp(_ins_curr, _ins_base, process_col_bar)
-
-            _proc_counts = _process_counts_cmi(_ins_curr, "Tipo de proceso") if "Tipo de proceso" in _ins_curr.columns else pd.DataFrame()
-            _total_p = len(_ins_curr)
-            _health_p = 0
-            if not _proc_counts.empty:
-                _health_p = _proc_counts[["Sobrecumplimiento", "Cumplimiento"]].sum(axis=1).sum()
-            _health_pct = round(_health_p / max(_total_p, 1) * 100, 1)
-            _op_summary = (
-                f"{_health_pct}% de indicadores de proceso en niveles saludables"
-                + (f" | Mejora: {best_proc_rows[0]['name']}" if best_proc_rows else "")
-                + (f" | Riesgo: {worst_proc_rows[0]['name']}" if worst_proc_rows else "")
-            )
-            if _base_m is not None and 1 <= int(_base_m) <= 12:
-                _base_month_name = MESES_OPCIONES[int(_base_m) - 1]
-                _base_detail = f"Base comparativa usada: cierre {_base_year} ({_base_month_name})."
-            else:
-                _base_detail = f"Base comparativa usada: sin cierre disponible para {_base_year}."
-            _best_html = _build_ia_rows_rpp(best_proc_rows)
-            _worst_html = _build_ia_rows_rpp(worst_proc_rows)
-
-            st.markdown(
-                f"""
-                <div class='rpp-summary-card'>
-                    <h4 class='rpp-summary-title'>Insights del corte</h4>
-                    <p class='rpp-summary-text'>{_op_summary}</p>
-                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if not _best_html:
-                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
-            if not _worst_html:
-                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
-
-            st.markdown(
-                f"""
-                <div class='rpp-grid'>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_best_html}</tbody>
-                        </table>
-                    </div>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_worst_html}</tbody>
-                        </table>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    with tabs[5]:
         st.markdown("### 📈 Análisis Avanzado — Histórico de Indicadores")
         st.caption(
             "Evolución temporal de indicadores seleccionados. "
             "Compara períodos y detecta tendencias (↑ creciente, ↓ decreciente, → estable)."
+        )
+        st.markdown(
+            "#### Opciones de análisis avanzado con alto valor para CMI por Procesos"
+            "\n- Detección de anomalías en cumplimiento para identificar rupturas tempranas."
+            "\n- Pronóstico simple de cumplimiento para el próximo cierre."
+            "\n- Correlación entre tipo de indicador y variación de procesos."
+            "\n- Segmentación de procesos por desempeño y riesgo (clusterización)."
+            "\n- Alertas automáticas de desviación por línea estratégica."
         )
         if not cmi_global.empty:
             _pct_g2 = (
@@ -3154,188 +2863,4 @@ def render() -> None:
             render_historico_tab(cmi_global, _pct_g2)
         else:
             st.info("No hay datos disponibles para el análisis histórico en este corte.")
-
-def _load_indicadores_propuestos(
-    proceso_actual: str = "Todos", subproceso_actual: str = "Todos"
-):
-    import pandas as pd
-
-    EXCEL_PATH = (
-        Path(__file__).parents[2]
-        / "data"
-        / "raw"
-        / "Propuesta Indicadores"
-        / "Indicadores Propuestos.xlsx"
-    )
-    if not EXCEL_PATH.exists():
-        return pd.DataFrame(), f"No existe el archivo: {EXCEL_PATH}"
-    try:
-        # Retos
-        retos = pd.read_excel(EXCEL_PATH, sheet_name="Retos")
-        retos_filtrados = retos[retos["Aplica Desempeño"].str.upper() == "SI"][
-            ["Proceso", "Subproceso", "Indicador Propuesto"]
-        ]
-        retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
-        retos_filtrados["Indicador Propuesto"] = retos_filtrados["Indicador Propuesto"].astype(
-            str
-        )
-        factor_ret = _first_col(retos, ["Factor", "FACTOR"])
-        car_ret = _first_col(retos, ["Caracteristica", "Característica", "CARACTERÍSTICA"])
-        if factor_ret is not None:
-            retos_filtrados["Factor"] = retos.loc[retos_filtrados.index, factor_ret].astype(str)
-        else:
-            retos_filtrados["Factor"] = ""
-        if car_ret is not None:
-            retos_filtrados["Característica"] = retos.loc[
-                retos_filtrados.index, car_ret
-            ].astype(str)
-        else:
-            retos_filtrados["Característica"] = ""
-        retos_filtrados["Fuente"] = "Retos"
-
-        # Proyectos
-        proyectos = pd.read_excel(EXCEL_PATH, sheet_name="Proyectos")
-        proyectos_filtrados = proyectos[proyectos["Propuesta"].str.upper() == "SI"][
-            ["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]
-        ]
-        proyectos_filtrados = proyectos_filtrados.rename(
-            columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"}
-        )
-        proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
-        proyectos_filtrados["Indicador Propuesto"] = proyectos_filtrados[
-            "Indicador Propuesto"
-        ].astype(str)
-        proyectos_filtrados["Factor"] = ""
-        proyectos_filtrados["Característica"] = ""
-        proyectos_filtrados["Fuente"] = "Proyectos"
-
-        # Plan de mejoramiento
-        plan = pd.read_excel(EXCEL_PATH, sheet_name="Plan de mejoramiento", header=1)
-        plan_filtrados = plan[plan["Propuesta Indicador"].str.upper() == "SI"][
-            ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"]
-        ]
-        plan_filtrados = plan_filtrados.rename(
-            columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"}
-        )
-        plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
-        plan_filtrados["Indicador Propuesto"] = plan_filtrados["Indicador Propuesto"].astype(
-            str
-        )
-        factor_col = _first_col(plan, ["FACTOR", "Factor"])
-        car_col = _first_col(plan, ["CARACTERÍSTICA", "Característica", "CARACTERISTICA"])
-        plan_filtrados["Factor"] = (
-            plan.loc[plan_filtrados.index, factor_col].astype(str)
-            if factor_col is not None
-            else ""
-        )
-        plan_filtrados["Característica"] = (
-            plan.loc[plan_filtrados.index, car_col].astype(str) if car_col is not None else ""
-        )
-        plan_filtrados["Fuente"] = "Plan de mejoramiento"
-
-        # Calidad
-        calidad = pd.read_excel(EXCEL_PATH, sheet_name="Calidad")
-        calidad_filtrados = calidad[["Proceso", "Subroceso", "Propuesta SGC (Indicadores)"]]
-        calidad_filtrados = calidad_filtrados.rename(
-            columns={
-                "Subroceso": "Subproceso",
-                "Propuesta SGC (Indicadores)": "Indicador Propuesto",
-            }
-        )
-        calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
-        calidad_filtrados["Indicador Propuesto"] = calidad_filtrados[
-            "Indicador Propuesto"
-        ].astype(str)
-        calidad_filtrados["Factor"] = ""
-        calidad_filtrados["Característica"] = ""
-        calidad_filtrados["Fuente"] = "Calidad"
-
-        df_final = pd.concat(
-            [retos_filtrados, proyectos_filtrados, plan_filtrados, calidad_filtrados],
-            ignore_index=True,
-        )
-        df_final = df_final.drop_duplicates(
-            subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"]
-        )
-
-        if proceso_actual != "Todos" and "Proceso" in df_final.columns:
-            proceso_norm = _norm_text(proceso_actual)
-            df_final = df_final[df_final["Proceso"].astype(str).map(_norm_text) == proceso_norm]
-
-        if subproceso_actual != "Todos" and "Subproceso" in df_final.columns:
-            sub_norm = _norm_text(subproceso_actual)
-            df_final = df_final[df_final["Subproceso"].astype(str).map(_norm_text) == sub_norm]
-
-        return df_final, None
-    except Exception as e:
-        return pd.DataFrame(), f"Error leyendo indicadores propuestos: {e}"
-
-def _render_tarjetas_propuestos(df):
-    if df.empty:
-        st.info("No hay indicadores propuestos para mostrar.")
-        return
-    source_style = {
-        "Retos": {"bg": "#e8f5e9", "border": "#66bb6a", "title": "#1b5e20"},
-        "Proyectos": {"bg": "#e3f2fd", "border": "#42a5f5", "title": "#0d47a1"},
-        "Plan de mejoramiento": {"bg": "#fff3e0", "border": "#ffb74d", "title": "#e65100"},
-        "Calidad": {"bg": "#f3e5f5", "border": "#ba68c8", "title": "#4a148c"},
-    }
-    source_order = ["Retos", "Proyectos", "Plan de mejoramiento", "Calidad"]
-
-    procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist())
-    proc_tabs = st.tabs(procesos)
-
-    for tab, proceso in zip(proc_tabs, procesos):
-        with tab:
-            proc_df = df[df["Proceso"].astype(str) == proceso].copy()
-            subps = sorted(proc_df["Subproceso"].dropna().astype(str).unique().tolist())
-            if not subps:
-                st.info("Sin subprocesos con propuestas para este proceso.")
-                continue
-
-            sub_tabs = st.tabs(subps)
-            for sub_tab, sp in zip(sub_tabs, subps):
-                with sub_tab:
-                    sp_df_all = proc_df[proc_df["Subproceso"].astype(str) == sp].copy()
-                    col_blocks = st.columns(4)
-                    for i, fuente in enumerate(source_order):
-                        with col_blocks[i]:
-                            style = source_style[fuente]
-                            st.markdown(
-                                f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
-                                unsafe_allow_html=True,
-                            )
-                            src_df = sp_df_all[sp_df_all["Fuente"].astype(str) == fuente].copy()
-                            if src_df.empty:
-                                st.caption("Sin propuestas")
-                                continue
-
-                            for _, r in src_df.iterrows():
-                                ind = str(r.get("Indicador Propuesto", "")).strip()
-                                fac = str(r.get("Factor", "")).strip()
-                                car = str(r.get("Característica", "")).strip()
-                                extra = ""
-                                if fuente == "Plan de mejoramiento":
-                                    tags = []
-                                    if fac and fac.lower() != "nan":
-                                        tags.append(f"Factor: {fac}")
-                                    if car and car.lower() != "nan":
-                                        tags.append(f"Característica: {car}")
-                                    extra = (
-                                        "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>"
-                                        + " | ".join(tags)
-                                        + "</div>"
-                                        if tags
-                                        else ""
-                                    )
-                                st.markdown(
-                                    f"""
-                                    <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
-                                        <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
-                                        {extra}
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
 

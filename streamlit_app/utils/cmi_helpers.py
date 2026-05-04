@@ -51,6 +51,31 @@ def calcular_kpis(df):
     }
 
 
+def calcular_indicadores_activos(df: pd.DataFrame) -> int:
+    """Cuenta los indicadores activos usando la columna de cumplimiento o indicadores válidos."""
+    if df.empty:
+        return 0
+
+    # Si existe columna de estado activo explícito, respetarla.
+    active_flag_cols = ["Ind act", "Ind_act", "Activo", "activo", "estado_activo", "estado"]
+    for col in active_flag_cols:
+        if col in df.columns:
+            valores = df[col].astype(str).fillna("").str.strip().str.lower()
+            activos = valores.isin({"1", "si", "yes", "true", "activo"})
+            if activos.any():
+                return int(activos.sum())
+
+    # Priorizar conteo de indicadores con cumplimiento reportado.
+    for pct_col in ("cumplimiento_pct", "Cumplimiento_pct", "Cumplimiento_norm"):
+        if pct_col in df.columns:
+            return int(df[pct_col].notna().sum())
+
+    # Si no hay cumplimiento, contar nombres de indicadores válidos.
+    if "Indicador" in df.columns:
+        return int(df["Indicador"].notna().sum())
+
+    return len(df)
+
 
 def linea_color(linea: str) -> str:
     """Retorna el color oficial para una línea estratégica.

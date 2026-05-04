@@ -20,6 +20,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import hashlib
+from streamlit_app.utils.cmi_helpers import calcular_indicadores_activos
 
 # Contador por módulo para generar claves únicas por llamada durante un rerun
 _PLOT_KEY_COUNTER = 0
@@ -101,15 +102,16 @@ def render_executive_kpis(df: pd.DataFrame, pct_col: str | None = None) -> None:
         return
 
     vals = _normalize_pct(df[pct_col], pct_col)
-    total = max(len(vals.dropna()), 1)
+    total = max(calcular_indicadores_activos(df), 1)
+    active_with_pct = max(len(vals.dropna()), 1)
     en_meta = int((vals >= 100).sum())
     en_alerta = int(((vals >= 80) & (vals < 100)).sum())
     en_peligro = int((vals < 80).sum())
     prom = float(vals.mean()) if not vals.dropna().empty else 0.0
 
-    pct_meta = round(en_meta / total * 100, 1)
-    pct_alerta = round(en_alerta / total * 100, 1)
-    pct_peligro = round(en_peligro / total * 100, 1)
+    pct_meta = round(en_meta / active_with_pct * 100, 1)
+    pct_alerta = round(en_alerta / active_with_pct * 100, 1)
+    pct_peligro = round(en_peligro / active_with_pct * 100, 1)
     color_global = "#2E7D32" if prom >= 100 else ("#F9A825" if prom >= 80 else "#C62828")
 
     st.markdown(
@@ -248,6 +250,10 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
 
     # ── Construir tabla de visualización ─────────────────────────────────────
     col_priority = [
+        ("Linea", "Línea estratégica"),
+        ("Línea", "Línea estratégica"),
+        ("Linea estrategica", "Línea estratégica"),
+        ("Linea estratégica", "Línea estratégica"),
         ("Indicador", "Indicador"),
         ("Proceso_padre", "Proceso"),
         ("Proceso", "Proceso"),

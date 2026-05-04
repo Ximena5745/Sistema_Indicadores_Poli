@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
+from streamlit_app.components.dashboard_components import render_alertas_criticas
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
 def render_tab_alertas(df):
@@ -19,26 +20,13 @@ def render_tab_alertas(df):
     if df_alertas.empty:
         st.success("🎉 ¡Excelente! No hay alertas activas (Peligro o Alerta) en este periodo.")
         return
-        
-    # Tarjetas resumen de severidad
-    conteo = df_alertas["Nivel de cumplimiento"].value_counts().to_dict()
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(f"""
-        <div style="background-color: #FFCDD2; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin:0; color: #C62828;">{conteo.get('Peligro', 0)}</h3>
-            <span style="color: #C62828; font-weight: bold;">En Peligro Crítico (< 80%)</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"""
-        <div style="background-color: #FEF3D0; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin:0; color: #F9A825;">{conteo.get('Alerta', 0)}</h3>
-            <span style="color: #F9A825; font-weight: bold;">En Alerta (80% - 99%)</span>
-        </div>
-        """, unsafe_allow_html=True)
-        
+
+    pct_col = (
+        "cumplimiento_pct"
+        if "cumplimiento_pct" in df_alertas.columns
+        else ("Cumplimiento_pct" if "Cumplimiento_pct" in df_alertas.columns else None)
+    )
+    render_alertas_criticas(df_alertas, pct_col)
     st.markdown("---")
     
     # Filtros para la tabla de alertas
