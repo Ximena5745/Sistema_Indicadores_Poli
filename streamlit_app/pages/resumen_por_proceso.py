@@ -18,7 +18,7 @@ from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
-from core.config import COLORES
+from streamlit_app.styles.design_system import get_strategic_palette
 from streamlit_app.components.dashboard_components import (
     render_executive_kpis,
     render_alertas_criticas,
@@ -765,13 +765,7 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                     text="Indicadores",
                     title="Indicadores por periodicidad",
                     color="Periodicidad",
-                    color_discrete_sequence=[
-                        COLORES["primario"],
-                        COLORES["secundario"],
-                        COLORES["cumplimiento"],
-                        COLORES["alerta"],
-                        COLORES["peligro"],
-                    ],
+                    color_discrete_sequence=get_strategic_palette(),
                 )
                 fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, showlegend=False)
                 cols[0].plotly_chart(fig, use_container_width=True)
@@ -813,13 +807,7 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                 text="Indicadores",
                 title="Indicadores por tipo de indicador",
                 color="Tipo de indicador",
-                color_discrete_sequence=[
-                    COLORES["primario"],
-                    COLORES["secundario"],
-                    COLORES["cumplimiento"],
-                    COLORES["alerta"],
-                    COLORES["peligro"],
-                ],
+                color_discrete_sequence=get_strategic_palette(),
             )
             fig.update_layout(
                 margin=dict(t=35, b=80),
@@ -1047,13 +1035,14 @@ def _render_tab_procesos_unidades(
 
     if not proc_comp.empty:
         st.markdown("#### Desempeño Comparativo — 2025 vs 2024")
+        palette = get_strategic_palette()
         fig_cmp = go.Figure()
         fig_cmp.add_trace(
             go.Bar(
                 name=f"Cumplimiento {global_year}",
                 x=proc_comp[process_col_bar],
                 y=proc_comp["actual"],
-                marker_color=COLORES["primario"],
+                marker_color=palette[0],
             )
         )
         if proc_comp["base_2024"].notna().any():
@@ -1062,7 +1051,7 @@ def _render_tab_procesos_unidades(
                     name=f"Cumplimiento {base_year}",
                     x=proc_comp[process_col_bar],
                     y=proc_comp["base_2024"],
-                    marker_color=COLORES["secundario"],
+                    marker_color=palette[1],
                 )
             )
         fig_cmp.update_layout(
@@ -3128,13 +3117,14 @@ def render() -> None:
             proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
 
             if not proc_comp.empty:
+                palette = get_strategic_palette()
                 fig_bar = go.Figure()
                 fig_bar.add_trace(
                     go.Bar(
                         name=f"Cumplimiento {global_year}",
                         x=proc_comp[process_col_bar],
                         y=proc_comp["actual"],
-                        marker_color=COLORES["primario"],
+                        marker_color=palette[0],
                         yaxis="y1",
                     )
                 )
@@ -3144,7 +3134,7 @@ def render() -> None:
                             name=f"Cumplimiento {_base_year}",
                             x=proc_comp[process_col_bar],
                             y=proc_comp["base_2024"],
-                            marker_color=COLORES["secundario"],
+                            marker_color=palette[1],
                             yaxis="y1",
                         )
                     )
@@ -3156,8 +3146,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color=COLORES["peligro"], size=8),
-                        line=dict(color=COLORES["peligro"], width=2, dash="dash"),
+                        marker=dict(color=palette[2], size=8),
+                        line=dict(color=palette[2], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )
@@ -3411,13 +3401,14 @@ def render() -> None:
             proc_comp = proc_comp.sort_values(["Tipo de proceso", "actual"], ascending=[True, False]).head(10)
 
             if not proc_comp.empty:
+                palette = get_strategic_palette()
                 fig_bar = go.Figure()
                 fig_bar.add_trace(
                     go.Bar(
                         name=f"Cumplimiento {global_year}",
                         x=proc_comp[process_col_bar],
                         y=proc_comp["actual"],
-                        marker_color=COLORES["primario"],
+                        marker_color=palette[0],
                         yaxis="y1",
                     )
                 )
@@ -3427,7 +3418,7 @@ def render() -> None:
                             name=f"Cumplimiento {_base_year}",
                             x=proc_comp[process_col_bar],
                             y=proc_comp["base_2024"],
-                            marker_color=COLORES["secundario"],
+                            marker_color=palette[1],
                             yaxis="y1",
                         )
                     )
@@ -3439,8 +3430,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color=COLORES["peligro"], size=8),
-                        line=dict(color=COLORES["peligro"], width=2, dash="dash"),
+                        marker=dict(color=palette[2], size=8),
+                        line=dict(color=palette[2], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )

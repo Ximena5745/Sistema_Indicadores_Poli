@@ -89,6 +89,8 @@ ALT_VIVID_PALETTE = [
     "#6B8CFF",
 ]
 
+STRATEGIC_LINE_PALETTE = list(dict.fromkeys(LINE_COLOR.values()))
+
 
 def get_line_color(linea):
     """Retorna el color principal para una línea dada.
@@ -109,23 +111,28 @@ def get_vivid_palette():
     return ALT_VIVID_PALETTE
 
 
+def get_strategic_palette():
+    """Retorna una paleta basada en los colores oficiales de las líneas estratégicas."""
+    return STRATEGIC_LINE_PALETTE
+
+
 def get_palette_for_chart(kind="default", linea=None):
     """Selector simple de paleta según el tipo de gráfico y/o la línea.
 
     Reglas:
     - Si `linea` está presente y mapeada en `LINE_COLOR`, devuelve una paleta
-      centrada en ese color.
+      centrada en ese color y completada con la paleta estratégica.
     - Si `kind=="non_cumplimiento"` devuelve la `ALT_VIVID_PALETTE`.
-    - En caso contrario, devuelve una paleta por defecto basada en estados.
+    - En caso contrario, devuelve siempre la paleta estratégica alterna.
     """
-    if linea and linea.strip().upper() in LINE_COLOR:
-        base = LINE_COLOR[linea.strip().upper()]
-        return [base, COLORS["warning"], COLORS["danger"]]
-
     if kind == "non_cumplimiento":
         return get_vivid_palette()
 
-    return [COLORS["success"], COLORS["warning"], COLORS["danger"]]
+    if linea and linea.strip().upper() in LINE_COLOR:
+        base = LINE_COLOR[linea.strip().upper()]
+        return [base] + [c for c in get_strategic_palette() if c != base]
+
+    return get_strategic_palette()
 
 
 # =============================================================================
