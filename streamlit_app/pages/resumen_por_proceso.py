@@ -2386,9 +2386,14 @@ def render() -> None:
     )
     default_month_num = _default_month_num(tracking_df)
     default_month = MESES_OPCIONES[default_month_num - 1]
+    default_year = int(years[-1]) if years else None
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
     # Aplicar filtro global CMI por Procesos: solo indicadores con 'Subprocesos' == 1
-    full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
+    # Usar el último año disponible como valor por defecto para el cruce anual
+    if default_year is not None:
+        full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id", year=default_year)
+    else:
+        full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=default_month_num)
     cmi_catalog = _load_indicadores_por_cmi()
     procesos_all = sorted(full_work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
@@ -2488,8 +2493,11 @@ def render() -> None:
     )
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=selected_month_num)
     base_filtered = snapshot_df.copy()
-    # Asegurar que el corte también respete el filtro CMI por Procesos
-    base_filtered = filter_df_for_cmi_procesos(base_filtered, id_column="Id")
+    # Asegurar que el corte también respete el filtro CMI por Procesos (usar año seleccionado)
+    if anio is not None:
+        base_filtered = filter_df_for_cmi_procesos(base_filtered, id_column="Id", year=int(anio))
+    else:
+        base_filtered = filter_df_for_cmi_procesos(base_filtered, id_column="Id")
 
     if anio is not None and "Anio" in base_filtered.columns:
         base_filtered = base_filtered[
@@ -2573,7 +2581,7 @@ def render() -> None:
 
             cmi_global = tracking_df[tracking_df["Anio"] == int(global_year)].copy()
             cmi_global = _prepare_tracking(cmi_global, map_df, month_num=_latest_m)
-            cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id")
+            cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id", year=int(global_year))
 
             cmi_base_2024 = pd.DataFrame()
             if _base_year in years:
@@ -2581,7 +2589,7 @@ def render() -> None:
                 if _base_m is not None:
                     cmi_base_2024 = tracking_df[tracking_df["Anio"] == int(_base_year)].copy()
                     cmi_base_2024 = _prepare_tracking(cmi_base_2024, map_df, month_num=int(_base_m))
-                    cmi_base_2024 = filter_df_for_cmi_procesos(cmi_base_2024, id_column="Id")
+                    cmi_base_2024 = filter_df_for_cmi_procesos(cmi_base_2024, id_column="Id", year=int(_base_year))
 
         _latest_month_name = (
             MESES_OPCIONES[int(_latest_m) - 1] if _latest_m and 1 <= int(_latest_m) <= 12 else "Diciembre"

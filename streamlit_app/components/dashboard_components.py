@@ -90,6 +90,14 @@ def _normalize_pct(series: pd.Series, pct_col: str) -> pd.Series:
     return vals
 
 
+def _is_cmi_procesos(df: pd.DataFrame) -> bool:
+    """Detecta si el DataFrame corresponde a CMI por Procesos según columnas presentes."""
+    for col in ("Subproceso", "Subproceso_final", "Subprocesos", "Subproceso_norm"):
+        if col in df.columns:
+            return True
+    return False
+
+
 # ── Componentes públicos ───────────────────────────────────────────────────────
 
 def render_executive_kpis(df: pd.DataFrame, pct_col: str | None = None) -> None:
@@ -101,6 +109,21 @@ def render_executive_kpis(df: pd.DataFrame, pct_col: str | None = None) -> None:
         return
 
     vals = _normalize_pct(df[pct_col], pct_col)
+
+    # Si existe columna Id, contar indicadores únicos: tomar el último valor válido
+    # por Id y calcular métricas sobre esa serie para evitar duplicados por periodos.
+    if "Id" in df.columns:
+        df_ids = df[["Id", pct_col]].copy()
+        df_ids["Id_norm"] = df_ids["Id"].astype(str).str.strip()
+        df_ids[pct_col] = _normalize_pct(df_ids[pct_col], pct_col)
+        # obtener último valor no nulo por Id (orden no garantizado aquí; assume entrada ya filtrada por corte)
+        per_id = (
+            df_ids.dropna(subset=[pct_col]).groupby("Id_norm", dropna=False)[pct_col].last()
+        )
+        vals = per_id
+    else:
+        vals = vals
+
     total = max(len(vals.dropna()), 1)
     en_meta = int((vals >= 100).sum())
     en_alerta = int(((vals >= 80) & (vals < 100)).sum())
@@ -301,14 +324,22 @@ def render_fichas_indicadores(
     df_work = df.copy()
 
     if pct_col and pct_col in df_work.columns:
-        vals = _normalize_pct(df_work[pct_col], pct_col)
-        df_work["_pct_num"] = vals
-        df_work = df_work.sort_values("_pct_num", ascending=True)
+        df_work["_pct_num"] = _normalize_pct(df_work[pct_col], pct_col)
     else:
         df_work["_pct_num"] = pd.NA
 
+    # Para CMI por Procesos, mostrar fichas por Id único (último registro por Id)
+    if _is_cmi_procesos(df_work) and "Id" in df_work.columns:
+        df_work["Id_norm"] = df_work["Id"].astype(str).str.strip()
+        df_group = df_work.groupby("Id_norm", dropna=False).last().reset_index()
+        df_iter = df_group.sort_values("_pct_num", na_position="last")
+        total_count = len(df_group)
+    else:
+        df_iter = df_work.sort_values("_pct_num", na_position="last")
+        total_count = len(df_work)
+
     shown = 0
-    for _, row in df_work.iterrows():
+    for _, row in df_iter.iterrows():
         if shown >= max_fichas:
             break
 
@@ -368,9 +399,9 @@ def render_fichas_indicadores(
             )
         shown += 1
 
-    if len(df_work) > max_fichas:
+    if total_count > max_fichas:
         st.caption(
-            f"Mostrando {max_fichas} de {len(df_work)} indicadores. "
+            f"Mostrando {max_fichas} de {total_count} indicadores. "
             "Usa los filtros de la Tabla Analítica para acotar."
         )
 
@@ -391,16 +422,34 @@ def render_analisis_unidad(df: pd.DataFrame, pct_col: str | None = None) -> None
     df_work = df.copy()
     df_work["_pct_num"] = _normalize_pct(df_work[pct_col], pct_col)
 
-    ranking = (
-        df_work.groupby("Unidad", dropna=False)
-        .agg(
-            indicadores=("Indicador", "count"),
-            cumplimiento=("_pct_num", "mean"),
-            criticos=("_pct_num", lambda x: int((x < 80).sum())),
+    # Para CMI por Procesos, agrupar por Unidad usando conteo único de Id
+    if _is_cmi_procesos(df_work) and "Id" in df_work.columns:
+        df_work["Id_norm"] = df_work["Id"].astype(str).str.strip()
+        # tomar último registro por Id para obtener Unidad y pct representativos
+        per_id = df_work.groupby("Id_norm", dropna=False).last().reset_index()
+        if "Unidad" not in per_id.columns:
+            per_id["Unidad"] = "—"
+        ranking = (
+            per_id.groupby("Unidad", dropna=False)
+            .agg(
+                indicadores=("Id_norm", lambda s: int(s.dropna().nunique())),
+                cumplimiento=("_pct_num", "mean"),
+                criticos=("_pct_num", lambda x: int((x < 80).sum())),
+            )
+            .reset_index()
+            .sort_values("cumplimiento", ascending=False)
         )
-        .reset_index()
-        .sort_values("cumplimiento", ascending=False)
-    )
+    else:
+        ranking = (
+            df_work.groupby("Unidad", dropna=False)
+            .agg(
+                indicadores=("Indicador", "count"),
+                cumplimiento=("_pct_num", "mean"),
+                criticos=("_pct_num", lambda x: int((x < 80).sum())),
+            )
+            .reset_index()
+            .sort_values("cumplimiento", ascending=False)
+        )
     ranking["cumplimiento"] = ranking["cumplimiento"].round(1)
     ranking["Estado"] = ranking["cumplimiento"].apply(
         lambda v: "🟢 Saludable"
