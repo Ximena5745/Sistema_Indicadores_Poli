@@ -353,26 +353,136 @@ def _render_resumen_overview_cards(
 
     st.markdown(
         f"""
-        <div style='display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin:16px 0;'>
-            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
-                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Indicadores activos</div>
-                <div style='font-size:2rem;font-weight:800;color:#1e3a8a;'>{total_indicadores}</div>
-                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Proceso actual: {selected_process}</div>
+        <style>
+        .rp-card-grid {{
+            display:grid;
+            grid-template-columns:repeat(4,minmax(220px,1fr));
+            gap:18px;
+            margin:18px 0 24px;
+        }}
+        @media (max-width: 1080px) {{
+            .rp-card-grid {{ grid-template-columns:repeat(2,minmax(220px,1fr)); }}
+        }}
+        @media (max-width: 700px) {{
+            .rp-card-grid {{ grid-template-columns:1fr; }}
+        }}
+        .rp-card {{
+            position:relative;
+            overflow:hidden;
+            background:#ffffff;
+            border:1px solid rgba(226,232,240,0.9);
+            border-radius:24px;
+            box-shadow:0 18px 42px rgba(15,23,42,0.08);
+            transition:transform 0.2s ease, box-shadow 0.2s ease;
+        }}
+        .rp-card:hover {{
+            transform:translateY(-2px);
+            box-shadow:0 24px 58px rgba(15,23,42,0.12);
+        }}
+        .rp-card::before {{
+            content:'';
+            position:absolute;
+            inset:0 0 auto 0;
+            height:6px;
+            width:100%;
+            background:linear-gradient(90deg, #3b82f6, #60a5fa);
+        }}
+        .rp-card-type-2::before {{ background: linear-gradient(90deg, #16a34a, #5eead4); }}
+        .rp-card-type-3::before {{ background: linear-gradient(90deg, #f59e0b, #fde68a); }}
+        .rp-card-type-4::before {{ background: linear-gradient(90deg, #dc2626, #fca5a5); }}
+        .rp-card-content {{
+            padding:24px 22px 22px;
+        }}
+        .rp-card-title {{
+            margin:0 0 6px;
+            color:#475569;
+            font-size:0.78rem;
+            font-weight:700;
+            letter-spacing:0.12em;
+            text-transform:uppercase;
+        }}
+        .rp-card-value {{
+            margin:0;
+            color:#0f172a;
+            font-size:2.3rem;
+            font-weight:800;
+            line-height:1;
+        }}
+        .rp-card-subtitle {{
+            margin:10px 0 0;
+            color:#64748b;
+            font-size:0.9rem;
+            line-height:1.5;
+        }}
+        .rp-card-badge {{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            width:36px;
+            height:36px;
+            border-radius:14px;
+            font-size:1.05rem;
+            background:rgba(59,130,246,0.12);
+            color:#1d4ed8;
+        }}
+        .rp-card-badge.type-2 {{ background:rgba(22,163,74,0.12); color:#166534; }}
+        .rp-card-badge.type-3 {{ background:rgba(245,158,11,0.12); color:#b45309; }}
+        .rp-card-badge.type-4 {{ background:rgba(220,38,38,0.12); color:#991b1b; }}
+        .rp-card-meta {{
+            margin-top:14px;
+            color:#64748b;
+            font-size:0.88rem;
+            line-height:1.6;
+        }}
+        </style>
+        <div class='rp-card-grid'>
+            <div class='rp-card rp-card-type-1'>
+                <div class='rp-card-content'>
+                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                        <div>
+                            <h3 class='rp-card-title'>Indicadores activos</h3>
+                            <p class='rp-card-value'>{total_indicadores}</p>
+                        </div>
+                        <div class='rp-card-badge'>📌</div>
+                    </div>
+                    <div class='rp-card-meta'>Proceso actual: {selected_process} · {total_process} procesos · {total_subprocess} subprocesos</div>
+                </div>
             </div>
-            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
-                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Procesos / subprocesos</div>
-                <div style='font-size:2rem;font-weight:800;color:#1e3a8a;'>{total_process}</div>
-                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Subprocesos: {total_subprocess}</div>
+            <div class='rp-card rp-card-type-2'>
+                <div class='rp-card-content'>
+                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                        <div>
+                            <h3 class='rp-card-title'>Cumplimiento promedio</h3>
+                            <p class='rp-card-value'>{avg_cumpl:.1f}%</p>
+                        </div>
+                        <div class='rp-card-badge type-2'>✔️</div>
+                    </div>
+                    <div class='rp-card-meta'>Corte: {month_name} {global_year}</div>
+                </div>
             </div>
-            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
-                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Cumplimiento promedio</div>
-                <div style='font-size:2rem;font-weight:800;color:#047857;'>{avg_cumpl:.1f}%</div>
-                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Corte: {month_name} {global_year}</div>
+            <div class='rp-card rp-card-type-3'>
+                <div class='rp-card-content'>
+                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                        <div>
+                            <h3 class='rp-card-title'>En alerta (80–99%)</h3>
+                            <p class='rp-card-value'>{alertas}</p>
+                        </div>
+                        <div class='rp-card-badge type-3'>⚠️</div>
+                    </div>
+                    <div class='rp-card-meta'>Revisión activa de indicadores en zona de atención.</div>
+                </div>
             </div>
-            <div style='background:#ffffff;border:1px solid #d9e4f5;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,24,44,0.05);'>
-                <div style='font-size:0.78rem;font-weight:700;color:#173a63;margin-bottom:8px;'>Alertas y riesgos</div>
-                <div style='font-size:2rem;font-weight:800;color:#b45309;'>{alertas}</div>
-                <div style='font-size:0.78rem;color:#4b597d;margin-top:8px;'>Riesgos: {riesgos}</div>
+            <div class='rp-card rp-card-type-4'>
+                <div class='rp-card-content'>
+                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                        <div>
+                            <h3 class='rp-card-title'>En peligro crítico (&lt;80%)</h3>
+                            <p class='rp-card-value'>{riesgos}</p>
+                        </div>
+                        <div class='rp-card-badge type-4'>🛑</div>
+                    </div>
+                    <div class='rp-card-meta'>Indicadores que requieren atención urgente.</div>
+                </div>
             </div>
         </div>
         """,
