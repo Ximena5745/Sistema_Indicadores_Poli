@@ -381,7 +381,7 @@ def _load_indicadores_por_cmi() -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
+def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | None = None) -> None:
     if df_cmi.empty:
         st.info("No se encontró el archivo Indicadores por CMI con el detalle de periodicidad y tipo de indicador.")
         return
@@ -394,11 +394,20 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
         return
 
     cols = st.columns(2)
+    # Si se pasa active_ids, filtrar el catálogo para mostrar solo indicadores activos
+    df_used = df_cmi.copy()
+    if active_ids and "Id" in df_used.columns:
+        active_norm = set(str(x).strip() for x in active_ids)
+        df_used = df_used[df_used["Id"].astype(str).str.strip().isin(active_norm)].copy()
+
     if period_col is not None:
         series = df_cmi[period_col].fillna("Sin periodicidad").astype(str)
         if series.empty:
             st.warning(f"No hay datos en la columna {period_col} para periodicidad.")
         else:
+            # Usar df_used si existe (filtrado por activos), sino usar df_cmi
+            source = df_used if not df_used.empty else df_cmi
+            series = source[period_col].fillna("Sin periodicidad").astype(str)
             counts = (
                 series
                 .value_counts()
@@ -422,7 +431,8 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame) -> None:
                 cols[0].plotly_chart(fig, use_container_width=True)
 
     if type_col is not None:
-        series = df_cmi[type_col].fillna("Sin tipo").astype(str)
+        source = df_used if not df_used.empty else df_cmi
+        series = source[type_col].fillna("Sin tipo").astype(str)
         if series.empty:
             st.warning(f"No hay datos en la columna {type_col} para tipo de indicador.")
         else:
@@ -2651,7 +2661,8 @@ def render() -> None:
             st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
         else:
             _render_resumen_overview_cards(cmi_global, "Global", "Todos", int(global_year), _latest_month_name)
-            _render_cmi_por_cmi_summary_charts(cmi_catalog)
+            active_ids = set(cmi_global['Id'].dropna().astype(str).str.strip()) if 'Id' in cmi_global.columns else None
+            _render_cmi_por_cmi_summary_charts(cmi_catalog, active_ids=active_ids)
             # ── Fichas KPI por Tipo de proceso (4 tipos globales) ─────────────
             st.markdown("##### Monitoreo por Tipo de Proceso")
 
@@ -2659,7 +2670,7 @@ def render() -> None:
 
             type_curr = (
                 cmi_global.groupby("Tipo de proceso", dropna=False)
-                .agg(indicadores=("Indicador", "count"), actual=(pct_col, "mean"))
+                .agg(indicadores=("Id", lambda s: s.dropna().astype(str).str.strip().nunique()), actual=(pct_col, "mean"))
                 .reset_index()
             )
 
