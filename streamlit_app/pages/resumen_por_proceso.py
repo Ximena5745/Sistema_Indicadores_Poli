@@ -3132,14 +3132,16 @@ def render() -> None:
             st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
         else:
             pct_col = "cumplimiento_pct" if "cumplimiento_pct" in cmi_global.columns else "Cumplimiento_pct"
-            # @todo: Tab Resumen conserva análisis y KPI globales, mientras que el contenido de procesos se trasladó
-            if "Unidad" in cmi_global.columns:
-                st.markdown("#### Análisis por Unidad Organizacional")
-                render_analisis_unidad(cmi_global, pct_col)
+
+            _render_resumen_banner(cmi_global, cmi_base_2024, int(global_year), _latest_month_name, _base_year)
+            st.divider()
 
             _render_resumen_overview_cards(cmi_global, "Global", "Todos", int(global_year), _latest_month_name, cmi_base_2024, _base_year)
+            st.divider()
+
             active_ids = set(cmi_global['Id'].dropna().astype(str).str.strip()) if 'Id' in cmi_global.columns else None
             _render_cmi_por_cmi_summary_charts(cmi_catalog, active_ids=active_ids)
+            st.divider()
 
             chart_curr = cmi_global.copy()
             chart_base = cmi_base_2024.copy()
@@ -3292,9 +3294,6 @@ def render() -> None:
                 else "Cumplimiento_pct"
             )
 
-            st.divider()
-            _render_resumen_banner(cmi_global, cmi_base_2024, int(global_year), _latest_month_name, _base_year)
-
             # El análisis por unidad se muestra en el tab Procesos y Unidades.
 
     with tabs[1]:
@@ -3328,6 +3327,12 @@ def render() -> None:
         )
 
         if not cmi_global.empty:
+            ordered_tipos = []
+            if "Tipo de proceso" in cmi_global.columns:
+                ordered_tipos = [
+                    t for t in TIPOS_PROCESO if t in cmi_global["Tipo de proceso"].astype(str).tolist()
+                ]
+
             st.markdown("##### Procesos con mayor cumplimiento")
             selected_tipo_chart = st.segmented_control(
                 "Tipo de proceso (gráfica)",
