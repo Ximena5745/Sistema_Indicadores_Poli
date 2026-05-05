@@ -292,20 +292,30 @@ def render() -> None:
 
     st.markdown("#### Filtros globales")
     c1, c2, c3 = st.columns(3)
+    topbar_year = st.session_state.get("topbar_year")
+    topbar_month = st.session_state.get("topbar_month")
     with c1:
-        anio = st.selectbox(
-            "Año",
-            options=years,
-            index=default_year_idx if years else None,
-            key="filter_anio",
-        )
+        if topbar_year is not None:
+            anio = int(topbar_year)
+            st.markdown(f"**Año global:** {anio}")
+        else:
+            anio = st.selectbox(
+                "Año",
+                options=years,
+                index=default_year_idx if years else None,
+                key="filter_anio",
+            )
     with c2:
-        mes = st.selectbox(
-            "Mes",
-            options=MESES_OPCIONES,
-            index=MESES_OPCIONES.index(default_month),
-            key="filter_mes",
-        )
+        if topbar_month is not None:
+            mes = str(topbar_month)
+            st.markdown(f"**Mes global:** {mes}")
+        else:
+            mes = st.selectbox(
+                "Mes",
+                options=MESES_OPCIONES,
+                index=MESES_OPCIONES.index(default_month),
+                key="filter_mes",
+            )
     with c3:
         st.caption("Estos son los filtros oficiales de corte para el informe de CMI por Procesos.")
 

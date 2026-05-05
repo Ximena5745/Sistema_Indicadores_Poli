@@ -2919,18 +2919,28 @@ def render() -> None:
         subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso")
 
     c1, c2, c3 = st.columns([1, 1, 1])
+    topbar_year = st.session_state.get("topbar_year")
+    topbar_month = st.session_state.get("topbar_month")
     with c1:
-        year_options = [str(y) for y in years] if years else [str(default_year)]
-        default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-        anio = st.segmented_control(
-            "Año",
-            options=year_options,
-            default=default_year_label,
-            key="filter_anio",
-        )
-        anio = int(anio) if anio is not None else None
+        if topbar_year is not None:
+            anio = int(topbar_year)
+            st.markdown(f"**Año global:** {anio}")
+        else:
+            year_options = [str(y) for y in years] if years else [str(default_year)]
+            default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
+            anio = st.segmented_control(
+                "Año",
+                options=year_options,
+                default=default_year_label,
+                key="filter_anio",
+            )
+            anio = int(anio) if anio is not None else None
     with c2:
-        mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
+        if topbar_month is not None:
+            mes = str(topbar_month)
+            st.markdown(f"**Mes global:** {mes}")
+        else:
+            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
     with c3:
         frecuencia_options = ["Todos"]
         if frecuencia_col and frecuencia_col in snapshot_df.columns:
