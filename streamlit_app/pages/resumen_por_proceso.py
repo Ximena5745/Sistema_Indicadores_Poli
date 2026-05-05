@@ -18,6 +18,7 @@ from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_cmi_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
+from core.config import COLORES
 from streamlit_app.components.dashboard_components import (
     render_executive_kpis,
     render_alertas_criticas,
@@ -307,8 +308,54 @@ def _render_resumen_procesos_style() -> None:
             color: #697b90;
             font-style: italic;
         }
+        .rpp-keycards {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin: 18px 0 18px;
+        }
+        .rpp-keycard {
+            background: #ffffff;
+            border: 1px solid #e1e8f5;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            padding: 20px 22px;
+        }
+        .rpp-keycard-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(26, 58, 92, 0.08);
+            color: #1a3a5c;
+            font-size: 1.2rem;
+            margin-bottom: 14px;
+        }
+        .rpp-keycard-title {
+            margin: 0 0 6px 0;
+            font-size: 0.96rem;
+            font-weight: 700;
+            color: #1a3a5c;
+        }
+        .rpp-keycard-subtitle {
+            margin: 0 0 12px 0;
+            color: #475569;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .rpp-keycard-value {
+            margin: 0;
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: #1a3a5c;
+        }
         @media (max-width: 920px) {
             .rpp-grid {
+                grid-template-columns: 1fr;
+            }
+            .rpp-keycards {
                 grid-template-columns: 1fr;
             }
         }
@@ -718,7 +765,13 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                     text="Indicadores",
                     title="Indicadores por periodicidad",
                     color="Periodicidad",
-                    color_discrete_sequence=px.colors.qualitative.Pastel,
+                    color_discrete_sequence=[
+                        COLORES["primary"],
+                        COLORES["secundario"],
+                        COLORES["success"],
+                        COLORES["warning"],
+                        COLORES["danger"],
+                    ],
                 )
                 fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, showlegend=False)
                 cols[0].plotly_chart(fig, use_container_width=True)
@@ -760,7 +813,13 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                 text="Indicadores",
                 title="Indicadores por tipo de indicador",
                 color="Tipo de indicador",
-                color_discrete_sequence=px.colors.qualitative.Vivid,
+                color_discrete_sequence=[
+                    COLORES["primary"],
+                    COLORES["secundario"],
+                    COLORES["success"],
+                    COLORES["warning"],
+                    COLORES["danger"],
+                ],
             )
             fig.update_layout(
                 margin=dict(t=35, b=80),
@@ -994,7 +1053,7 @@ def _render_tab_procesos_unidades(
                 name=f"Cumplimiento {global_year}",
                 x=proc_comp[process_col_bar],
                 y=proc_comp["actual"],
-                marker_color="#1E4C86",
+                marker_color=COLORES["primario"],
             )
         )
         if proc_comp["base_2024"].notna().any():
@@ -1003,7 +1062,7 @@ def _render_tab_procesos_unidades(
                     name=f"Cumplimiento {base_year}",
                     x=proc_comp[process_col_bar],
                     y=proc_comp["base_2024"],
-                    marker_color="#9AB7D5",
+                    marker_color=COLORES["secundario"],
                 )
             )
         fig_cmp.update_layout(
@@ -3075,7 +3134,7 @@ def render() -> None:
                         name=f"Cumplimiento {global_year}",
                         x=proc_comp[process_col_bar],
                         y=proc_comp["actual"],
-                        marker_color="#1E4C86",
+                        marker_color=COLORES["primario"],
                         yaxis="y1",
                     )
                 )
@@ -3085,7 +3144,7 @@ def render() -> None:
                             name=f"Cumplimiento {_base_year}",
                             x=proc_comp[process_col_bar],
                             y=proc_comp["base_2024"],
-                            marker_color="#9AB7D5",
+                            marker_color=COLORES["secundario"],
                             yaxis="y1",
                         )
                     )
@@ -3097,8 +3156,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color="#E4572E", size=8),
-                        line=dict(color="#E4572E", width=2, dash="dash"),
+                        marker=dict(color=COLORES["danger"], size=8),
+                        line=dict(color=COLORES["danger"], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )
@@ -3170,6 +3229,92 @@ def render() -> None:
             _best_html = _build_ia_rows_rpp(best_proc_rows)
             _worst_html = _build_ia_rows_rpp(worst_proc_rows)
 
+            env_filter = (
+                cmi_global["Proceso"].astype(str).str.contains(
+                    "Ambiental|Gestión Ambiental|Medio Ambiente|Sostenibilidad|Sustentabilidad",
+                    case=False,
+                    na=False,
+                )
+                if "Proceso" in cmi_global.columns
+                else pd.Series([False] * len(cmi_global))
+            )
+            env_df = cmi_global[env_filter].copy()
+            env_pct = pd.to_numeric(env_df[pct_col], errors="coerce") if pct_col in env_df.columns else pd.Series(dtype="float64")
+            if not env_pct.dropna().empty:
+                env_count = int(env_pct.size)
+                env_value = env_pct.mean()
+                env_text = (
+                    f"Los {env_count} indicadores de Gestión Ambiental reportan {env_value:.1f}% de cumplimiento en el periodo actual."
+                )
+            else:
+                env_text = "No se identificó una brecha ambiental crítica clara en los indicadores activos."
+
+            mejora_name = best_proc_rows[0]["name"] if best_proc_rows else "Sin datos"
+            mejora_delta = float(best_proc_rows[0].get("change", 0.0) or 0.0) if best_proc_rows else 0.0
+            riesgo_name = worst_proc_rows[0]["name"] if worst_proc_rows else "Sin datos"
+            riesgo_delta = float(worst_proc_rows[0].get("change", 0.0) or 0.0) if worst_proc_rows else 0.0
+            mejora_text = (
+                f"{mejora_name} registra la mayor variación positiva: {mejora_delta:+.1f}% vs {_base_year}."
+            )
+            riesgo_text = (
+                f"{riesgo_name} presenta la mayor caída: {riesgo_delta:+.1f}% vs {_base_year}."
+            )
+
+            st.markdown(
+                f"""
+                <div class='rpp-keycards'>
+                    <div class='rpp-keycard'>
+                        <div class='rpp-keycard-icon'>🏆</div>
+                        <div class='rpp-keycard-title'>Proceso con mayor mejora</div>
+                        <div class='rpp-keycard-subtitle'>{mejora_text}</div>
+                    </div>
+                    <div class='rpp-keycard'>
+                        <div class='rpp-keycard-icon'>⚡</div>
+                        <div class='rpp-keycard-title'>Mayor riesgo identificado</div>
+                        <div class='rpp-keycard-subtitle'>{riesgo_text}</div>
+                    </div>
+                    <div class='rpp-keycard'>
+                        <div class='rpp-keycard-icon'>🌱</div>
+                        <div class='rpp-keycard-title'>Brecha ambiental crítica</div>
+                        <div class='rpp-keycard-subtitle'>{env_text}</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown(
+                f"""
+                <div class='rpp-grid'>
+                    <div class='rpp-panel'>
+                        <div class='rpp-panel-title'>Procesos con Mayor Mejora</div>
+                        <table class='rpp-table'>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
+                            <tbody>{_best_html}</tbody>
+                        </table>
+                    </div>
+                    <div class='rpp-panel'>
+                        <div class='rpp-panel-title'>Procesos en Mayor Riesgo</div>
+                        <table class='rpp-table'>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Variación</th>
+                                </tr>
+                            </thead>
+                            <tbody>{_worst_html}</tbody>
+                        </table>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         # ── Sección ampliada: KPIs, Alertas, Tabla, Fichas, Unidad ──────────
         if not cmi_global.empty:
             _pct_g = (
@@ -3181,9 +3326,7 @@ def render() -> None:
             st.divider()
             _render_resumen_banner(cmi_global, cmi_base_2024, int(global_year), _latest_month_name, _base_year)
 
-            st.divider()
-            st.markdown("#### 🏢 Análisis por Unidad Organizacional")
-            render_analisis_unidad(cmi_global, _pct_g)
+            # El análisis por unidad se muestra en el tab Procesos y Unidades.
 
     with tabs[1]:
         _render_tab_procesos_unidades(cmi_global, cmi_base_2024, int(global_year), _base_year, _latest_month_name)
@@ -3274,7 +3417,7 @@ def render() -> None:
                         name=f"Cumplimiento {global_year}",
                         x=proc_comp[process_col_bar],
                         y=proc_comp["actual"],
-                        marker_color="#1E4C86",
+                        marker_color=COLORES["primario"],
                         yaxis="y1",
                     )
                 )
@@ -3284,7 +3427,7 @@ def render() -> None:
                             name=f"Cumplimiento {_base_year}",
                             x=proc_comp[process_col_bar],
                             y=proc_comp["base_2024"],
-                            marker_color="#9AB7D5",
+                            marker_color=COLORES["secundario"],
                             yaxis="y1",
                         )
                     )
@@ -3296,8 +3439,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color="#E4572E", size=8),
-                        line=dict(color="#E4572E", width=2, dash="dash"),
+                        marker=dict(color=COLORES["danger"], size=8),
+                        line=dict(color=COLORES["danger"], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )
