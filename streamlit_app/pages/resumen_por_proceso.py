@@ -766,11 +766,11 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                     title="Indicadores por periodicidad",
                     color="Periodicidad",
                     color_discrete_sequence=[
-                        COLORES["primary"],
+                        COLORES["primario"],
                         COLORES["secundario"],
-                        COLORES["success"],
-                        COLORES["warning"],
-                        COLORES["danger"],
+                        COLORES["cumplimiento"],
+                        COLORES["alerta"],
+                        COLORES["peligro"],
                     ],
                 )
                 fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, showlegend=False)
@@ -814,11 +814,11 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                 title="Indicadores por tipo de indicador",
                 color="Tipo de indicador",
                 color_discrete_sequence=[
-                    COLORES["primary"],
+                    COLORES["primario"],
                     COLORES["secundario"],
-                    COLORES["success"],
-                    COLORES["warning"],
-                    COLORES["danger"],
+                    COLORES["cumplimiento"],
+                    COLORES["alerta"],
+                    COLORES["peligro"],
                 ],
             )
             fig.update_layout(
@@ -3156,8 +3156,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color=COLORES["danger"], size=8),
-                        line=dict(color=COLORES["danger"], width=2, dash="dash"),
+                        marker=dict(color=COLORES["peligro"], size=8),
+                        line=dict(color=COLORES["peligro"], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )
@@ -3439,8 +3439,8 @@ def render() -> None:
                         mode="lines+markers+text",
                         text=proc_comp["delta_2024"].round(1).astype(str) + "%",
                         textposition="top center",
-                        marker=dict(color=COLORES["danger"], size=8),
-                        line=dict(color=COLORES["danger"], width=2, dash="dash"),
+                        marker=dict(color=COLORES["peligro"], size=8),
+                        line=dict(color=COLORES["peligro"], width=2, dash="dash"),
                         yaxis="y2",
                     )
                 )
