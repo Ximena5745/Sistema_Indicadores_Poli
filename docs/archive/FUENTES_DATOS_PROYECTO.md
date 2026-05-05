@@ -52,6 +52,12 @@ Este documento centraliza las fuentes de datos usadas por el proyecto, su rol fu
 - Consolidado Cierres se mantiene para procesos de consolidación.
 - Dataset_Unificado.xlsx se considera referencia histórica/no oficial y no debe usarse como fuente primaria en la app.
 
+**Actualización oficial (CMI por Procesos):**
+- Para la vista "CMI por Procesos" la selección de indicadores se fundamenta en `Subprocesos == 1` del catálogo `Indicadores por CMI.xlsx`.
+- El campo `Ind act` queda deprecado y no debe usarse para calcular el número de indicadores activos.
+- Los indicadores activos deben validarse por año mediante el cruce del `Id` con los archivos consolidados de Kawak disponibles en `data/raw/Fuentes Consolidadas/` (por ejemplo `Consolidado_API_Kawak.xlsx` y `Indicadores Kawak.xlsx`); sólo los Ids presentes en el consolidado del año deben contarse como activos.
+- Se recomienda actualizar `config/data_contracts.yaml` y los loaders correspondientes para reflejar esta regla y documentar el proceso de cruce y normalización de `Id`.
+
 ## 6. Trazabilidad recomendada
 
 Para mantener consistencia cuando cambie una fuente:

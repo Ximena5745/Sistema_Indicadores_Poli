@@ -329,7 +329,21 @@ indicadores_cmi:
           requerida: false
       validaciones:
         - "Id debe existir en Catalogo Indicadores"
-        - "Sin duplicados en Id"
+          - "Sin duplicados en Id"
+          - "Regla oficial CMI por Procesos: Si `Subproceso == 1`, el indicador puede ser candidato a CMI por Procesos; la determinación de 'activo' por año requiere cruce del `Id` con los consolidados Kawak (kawak_consolidado / kawak_catalogo) para el año correspondiente. El campo `Ind act` está deprecado y no debe usarse como criterio de inclusión."
+
+  # Metadata del contrato
+  contract_metadata:
+    contract_name: "data_contracts"
+    version: "1.1.0"
+    last_updated: "2026-05-05"
+    changelog:
+      - version: "1.1.0"
+        date: "2026-05-05"
+        author: "script:copilot-patch"
+        changes:
+          - "Deprecado campo 'Ind act' como criterio para CMI por Procesos."
+          - "Regla formal: usar 'Subproceso == 1' y cruce por año con consolidados Kawak para validar activos."
 
 # ============================================================================
 # REGLAS GLOBALES DE CALIDAD
