@@ -383,11 +383,16 @@ def _render_resumen_overview_cards(
     )
     cumplimiento = pd.to_numeric(df[pct_col], errors="coerce") if pct_col else pd.Series(dtype="float64")
     if "Id" in df.columns and pct_col is not None:
-        df_ids = df[["Id", pct_col]].copy()
+        cols = ["Id", pct_col]
+        for extra in ["Fecha", "Periodo", "Mes", "Anio", "Año"]:
+            if extra in df.columns and extra not in cols:
+                cols.append(extra)
+
+        df_ids = df[cols].copy()
         df_ids["Id_norm"] = df_ids["Id"].astype(str).str.strip()
         df_ids[pct_col] = pd.to_numeric(df_ids[pct_col], errors="coerce")
         df_ids = df_ids.dropna(subset=[pct_col])
-        df_ids = df_ids.sort_index()
+        df_ids = _latest_per_indicator(df_ids)
         df_ids = df_ids.drop_duplicates(subset=["Id_norm"], keep="last")
         cumplimiento = df_ids[pct_col]
     avg_cumpl = float(cumplimiento.mean()) if not cumplimiento.dropna().empty else 0.0
@@ -1288,8 +1293,11 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
     # Caso 1: Cumplimiento_norm (ya normalizado en DECIMAL [0-1.3], convertir a PORCENTAJE)
     if "Cumplimiento_norm" in df.columns:
         vals = pd.to_numeric(df["Cumplimiento_norm"], errors="coerce")
-        # Cumplimiento_norm viene en decimal (0-1.3), multiplicar por 100 para porcentaje
-        return vals * 100
+        valid = vals.dropna()
+        if not valid.empty:
+            # Cumplimiento_norm viene en decimal (0-1.3), multiplicar por 100 para porcentaje
+            return vals * 100
+        # Si no hay valores válidos, continuar al siguiente caso.
 
     # Caso 2: Cumplimiento (puede ser decimal o porcentaje)
     if "Cumplimiento" in df.columns:
@@ -1298,7 +1306,10 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
             """Normaliza un valor individual."""
             return normalizar_valor_a_porcentaje(val)
 
-        return df["Cumplimiento"].apply(_norm_cumpl)
+        cumpl_vals = df["Cumplimiento"].apply(_norm_cumpl)
+        if not cumpl_vals.dropna().empty:
+            return cumpl_vals
+        # Si la columna existe pero no tiene valores válidos, caer al cálculo por Meta/Ejecucion.
 
     # Caso 3: Meta/Ejecucion (calcular ratio)
     if {"Meta", "Ejecucion"}.issubset(df.columns):
@@ -1431,15 +1442,30 @@ def _latest_per_indicator(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
-    sort_cols = [c for c in ["Anio", "Año", "Mes", "Fecha", "Periodo"] if c in df.columns]
-    out = df.sort_values(sort_cols) if sort_cols else df.copy()
+    out = df.copy()
+    year_col = "Anio" if "Anio" in out.columns else ("Año" if "Año" in out.columns else None)
+    if year_col is not None:
+        out["__sort_year"] = pd.to_numeric(out[year_col], errors="coerce")
+
+    if "Fecha" in out.columns:
+        out["__sort_fecha"] = pd.to_datetime(out["Fecha"], errors="coerce")
+        sort_cols = ["__sort_year", "__sort_fecha"] if year_col is not None else ["__sort_fecha"]
+    elif "Periodo" in out.columns:
+        sort_cols = ["__sort_year", "Periodo"] if year_col is not None else ["Periodo"]
+    elif "Mes" in out.columns:
+        out["__sort_mes"] = out["Mes"].apply(_mes_to_num)
+        sort_cols = ["__sort_year", "__sort_mes"] if year_col is not None else ["__sort_mes"]
+    else:
+        sort_cols = ["__sort_year"] if year_col is not None else []
+
+    out = out.sort_values([c for c in sort_cols if c in out.columns]) if sort_cols else out.copy()
 
     if "Id" in out.columns:
         out = out.drop_duplicates(subset=["Id"], keep="last")
     elif "Indicador" in out.columns:
         out = out.drop_duplicates(subset=["Indicador"], keep="last")
 
-    return out.reset_index(drop=True)
+    return out.drop(columns=[c for c in ["__sort_year", "__sort_fecha", "__sort_mes"] if c in out.columns]).reset_index(drop=True)
 
 
 def _prepare_tracking(
