@@ -1,0 +1,281 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CMI por Procesos - Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600&display=swap');
+    :root {
+      --bg: #f4f7fb;
+      --ink: #1a2b44;
+      --muted: #5b6b82;
+      --card: #ffffff;
+      --accent: #1e4c86;
+      --accent-soft: #e7effa;
+      --sobrecumplimiento: #6699FF;
+      --cumplimiento: #2E7D32;
+      --alerta: #F9A825;
+      --peligro: #C62828;
+      --sin-dato: #6E7781;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Work Sans', 'Segoe UI', Tahoma, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top left, #eef3fb 0%, #f7f9fc 55%, #eef2f7 100%);
+    }
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .title-block h1 {
+      font-family: 'Space Grotesk', 'Segoe UI', Tahoma, sans-serif;
+      font-size: 2rem;
+      margin: 0 0 6px 0;
+    }
+    .title-block p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: #ffffff;
+      border: 1px solid #e0e6f0;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 18px 0 22px;
+    }
+    .tab {
+      padding: 8px 12px;
+      background: #ffffff;
+      border: 1px solid #dae4f1;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      color: #34506f;
+      text-decoration: none;
+    }
+    .section {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 8px 22px rgba(27, 34, 51, 0.08);
+      margin-bottom: 18px;
+    }
+    .section h2 {
+      font-family: 'Space Grotesk', 'Segoe UI', Tahoma, sans-serif;
+      font-size: 1.1rem;
+      margin: 0 0 12px 0;
+    }
+    .kpi-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .kpi-card {
+      background: #fdfefe;
+      border: 1px solid #e1e9f4;
+      border-radius: 14px;
+      padding: 14px 16px;
+      border-top: 4px solid var(--accent);
+    }
+    .kpi-card.warning { border-top-color: var(--alerta); }
+    .kpi-card.danger { border-top-color: var(--peligro); }
+    .kpi-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .kpi-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .grid-2 {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #edf2f8;
+    }
+    th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6a7283;
+    }
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+    .footnote {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="title-block">
+        <h1>CMI por Procesos - Vista de Dashboard</h1>
+        <p>Salida automatica con datos reales del proyecto. Corte: Diciembre 2025.</p>
+      </div>
+      <div class="filters">
+        <div class="pill">Anio: 2025</div>
+        <div class="pill">Mes: Diciembre</div>
+        <div class="pill">Fuente: Resultados Consolidados.xlsx</div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <a class="tab" href="#resumen">Resumen</a>
+      <a class="tab" href="#procesos">Procesos y Unidades</a>
+      <a class="tab" href="#indicadores">Indicadores</a>
+      <a class="tab" href="#alertas">Alertas</a>
+      <a class="tab" href="#propuesta">Propuesta</a>
+      <a class="tab" href="#analisis">Analisis avanzado</a>
+    </nav>
+
+    <section id="resumen" class="section">
+      <h2>Resumen ejecutivo</h2>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Indicadores activos</div>
+          <div class="kpi-value">240</div>
+          <div class="kpi-sub">Corte Diciembre 2025</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Cumplimiento promedio</div>
+          <div class="kpi-value">107.8%</div>
+          <div class="kpi-sub">Promedio del corte</div>
+        </div>
+        <div class="kpi-card warning">
+          <div class="kpi-label">Alertas</div>
+          <div class="kpi-value">21</div>
+          <div class="kpi-sub">80%-99%</div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="kpi-label">Riesgos</div>
+          <div class="kpi-value">11</div>
+          <div class="kpi-sub">< 80%</div>
+        </div>
+      </div>
+      <div class="footnote">CMI por procesos aplica filtro Subprocesos == 1 e Ind act == 1 (Indicadores por CMI.xlsx).</div>
+    </section>
+
+    <section id="procesos" class="section">
+      <h2>Procesos y Unidades</h2>
+      <div class="grid-2">
+        <div>
+          <div class="badge">Monitoreo por tipo de proceso</div>
+          <table><thead><tr><th>Tipo de proceso</th><th>indicadores</th><th>cumplimiento</th></tr></thead><tbody><tr><td>ESTRATÉGICO</td><td>37</td><td>112.8%</td></tr><tr><td>MISIONAL</td><td>97</td><td>112.3%</td></tr><tr><td></td><td>6</td><td>105.8%</td></tr><tr><td>EVALUACIÓN Y MEJORA</td><td>21</td><td>105.7%</td></tr><tr><td>APOYO</td><td>79</td><td>100.8%</td></tr></tbody></table>
+        </div>
+        <div>
+          <div class="badge">Procesos con mejor cumplimiento</div>
+          <table><thead><tr><th>Proceso</th><th>indicadores</th><th>cumplimiento</th></tr></thead><tbody><tr><td>AUDITORÍA INTERNA </td><td>2</td><td>127.5%</td></tr><tr><td>VISIBILIDAD NACIONAL E INTERNACIONAL</td><td>6</td><td>125.2%</td></tr><tr><td>BIENESTAR INSTITUCIONAL </td><td>6</td><td>121.7%</td></tr><tr><td>RECURSOS ACADÉMICOS Y DE INVESTIGACIÓN</td><td>18</td><td>120.4%</td></tr><tr><td>Gestión de Unidades Académicas</td><td>1</td><td>117.5%</td></tr><tr><td>COMUNICACIÓN Y POSICIONAMIENTO ESTRATÉGICO</td><td>11</td><td>115.3%</td></tr><tr><td>DIRECCIONAMIENTO ESTRATÉGICO</td><td>12</td><td>114.5%</td></tr><tr><td>GESTIÓN FINANCIERA</td><td>18</td><td>112.3%</td></tr><tr><td>GESTIÓN DE PORTAFOLIO INSTITUCIONAL</td><td>8</td><td>112.1%</td></tr><tr><td>EXTENSIÓN</td><td>16</td><td>111.1%</td></tr><tr><td>INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS</td><td>5</td><td>110.3%</td></tr><tr><td>SERVICIO Y PERMANENCIA</td><td>13</td><td>110.1%</td></tr></tbody></table>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <div class="badge">Variacion vs 2024</div>
+        <table><thead><tr><th>Proceso</th><th>Cumplimiento 2025</th><th>Cumplimiento 2024</th><th>Delta</th></tr></thead><tbody><tr><td>AUTOEVALUACIÓN Y AUTOREGULACIÓN</td><td>109.5%</td><td>62.6%</td><td>46.9%</td></tr><tr><td>Gestión de Unidades Académicas</td><td>117.5%</td><td>100.9%</td><td>16.6%</td></tr><tr><td>GESTIÓN DE PORTAFOLIO INSTITUCIONAL</td><td>108.2%</td><td>96.0%</td><td>12.2%</td></tr><tr><td>VISIBILIDAD NACIONAL E INTERNACIONAL</td><td>125.1%</td><td>112.9%</td><td>12.2%</td></tr><tr><td>COMUNICACIÓN Y POSICIONAMIENTO ESTRATÉGICO</td><td>117.8%</td><td>106.3%</td><td>11.5%</td></tr><tr><td>INVESTIGACIÓN, INNOVACIÓN Y CREACIÓN </td><td>112.9%</td><td>103.5%</td><td>9.4%</td></tr><tr><td>MERCADEO, ADMISIONES  Y MATRÍCULA</td><td>108.1%</td><td>99.7%</td><td>8.4%</td></tr><tr><td>DIRECCIONAMIENTO ESTRATÉGICO</td><td>110.5%</td><td>102.3%</td><td>8.3%</td></tr><tr><td>RECURSOS ACADÉMICOS Y DE INVESTIGACIÓN</td><td>118.7%</td><td>114.1%</td><td>4.6%</td></tr><tr><td>AUDITORÍA INTERNA </td><td>114.2%</td><td>110.0%</td><td>4.2%</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section id="indicadores" class="section">
+      <h2>Indicadores del corte</h2>
+      <table><thead><tr><th>Indicador</th><th>Proceso</th><th>Subproceso</th><th>Unidad</th><th>Meta</th><th>Ejecucion</th><th>Cumplimiento_pct</th></tr></thead><tbody><tr><td>Evaluación de desempeño a proveedores críticos</td><td>GESTIÓN DE ABASTECIMIENTO</td><td>GESTIÓN DE ABASTECIMIENTO</td><td>Vicerrectoría financiera y administrativa</td><td>85</td><td>85.6</td><td>100.7%</td></tr><tr><td>Oportunidad de Respuesta Solicitudes de Compra No Licitadas</td><td>GESTIÓN DE ABASTECIMIENTO</td><td>GESTIÓN DE ABASTECIMIENTO</td><td>Vicerrectoría financiera y administrativa</td><td>90</td><td>90.83</td><td>100.9%</td></tr><tr><td>Tiempo respuesta selección y contratación de colaboradores de planta</td><td>GESTIÓN Y DESARROLLO DEL TALENTO HUMANO</td><td>GESTIÓN Y DESARROLLO DEL TALENTO HUMANO</td><td>Gerencia de talento humano y comunicaciones</td><td>20</td><td>20</td><td>100.0%</td></tr><tr><td>Efectividad en las contrataciones</td><td>GESTIÓN Y DESARROLLO DEL TALENTO HUMANO</td><td>GESTIÓN Y DESARROLLO DEL TALENTO HUMANO</td><td>Gerencia de talento humano y comunicaciones</td><td>80</td><td>90.32</td><td>112.9%</td></tr><tr><td>Disponibilidad de servicios tecnológicos</td><td>GESTIÓN DE LA TECNOLOGÍA E INNOVACIÓN DIGITAL</td><td>GESTIÓN DE LA TECNOLOGÍA E INNOVACIÓN DIGITAL</td><td>Vicerrectoría del estudiante</td><td>97</td><td>96.78</td><td>99.8%</td></tr><tr><td>Funcionamiento del COPASST</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Plan de Emergencias</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Reporte e investigación</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Autoevaluación</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>80</td><td>100</td><td>125.0%</td></tr><tr><td>Ejecución del plan de trabajo</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Ejecución plan de capacitación</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Ejecución de Simulacros</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Participación en capacitaciones SST</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Evaluación condiciones de salud (examen médico)</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>98</td><td>100</td><td>102.0%</td></tr><tr><td>Cobertura Elementos de Protección Personal</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Inspecciones de seguridad</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Cumplimiento de requisitos legales SST</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>100</td><td>100</td><td>100.0%</td></tr><tr><td>Tasa de accidentalidad</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>2.14</td><td>0.21</td><td>130.0%</td></tr><tr><td>Mortalidad de los accidentes laborales</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>0</td><td>0</td><td>—</td></tr><tr><td>Nivel de Satisfacción Servicios Prestados</td><td>GESTIÓN DE ABASTECIMIENTO</td><td>GESTIÓN DE ABASTECIMIENTO</td><td>Vicerrectoría financiera y administrativa</td><td>80</td><td>94.55</td><td>118.2%</td></tr><tr><td>Nivel de Satisfacción Servicios Prestados</td><td>AUDITORÍA INTERNA </td><td>AUDITORÍA INTERNA</td><td>Gerencia de Planeación y Gestión</td><td>80</td><td>100</td><td>125.0%</td></tr><tr><td>Ejecución presupuestal de la nómina acumulada</td><td>GESTIÓN Y DESARROLLO DEL TALENTO HUMANO</td><td>GESTIÓN Y DESARROLLO DEL TALENTO HUMANO</td><td>Gerencia de talento humano y comunicaciones</td><td>102</td><td>105</td><td>97.2%</td></tr><tr><td>Eficacia en la solicitud documental- por periodo</td><td>PLANIFICACIÓN  Y MEJORA DEL SISTEMA INTEGRADO</td><td>Gestión de calidad</td><td>Gerencia de Planeación y Gestión</td><td>90</td><td>82.81</td><td>92.0%</td></tr><tr><td>Indice de Frecuencia de accidentalidad</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>0.2</td><td>0.01</td><td>130.0%</td></tr><tr><td>Indice de severidad</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO</td><td>Gerencia de talento humano y comunicaciones</td><td>1.9</td><td>0.04</td><td>130.0%</td></tr></tbody></table>
+      <div class="footnote">Muestra de 25 indicadores del corte para lectura rapida.</div>
+    </section>
+
+    <section id="alertas" class="section">
+      <h2>Alertas y riesgos</h2>
+      <table><thead><tr><th>Indicador</th><th>Proceso</th><th>Subproceso</th><th>Unidad</th><th>Cumplimiento_pct</th></tr></thead><tbody><tr><td>Disminución de la Generación de Residuos per Cápita</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>0.0%</td></tr><tr><td>Disminución del Consumo de Energía Eléctrica per Cápita</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>0.0%</td></tr><tr><td>Disminución del Consumo de Agua per Cápita</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>0.0%</td></tr><tr><td>Disminución de la Generación de Residuos Peligrosos per Cápita</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>0.0%</td></tr><tr><td>Generación de Residuos Peligrosos Mensual</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>22.6%</td></tr><tr><td>Generación de Residuos Peligrosos per Cápita Semestral</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>29.4%</td></tr><tr><td>Productos de investigación</td><td>INVESTIGACIÓN, INNOVACIÓN Y CREACIÓN </td><td>Investigación, desarrollo tecnológico, innovación y creación</td><td>Vicerrectoría académica</td><td>48.8%</td></tr><tr><td>Respuesta ante nuevas necesidades de control</td><td>GESTIÓN DE RIESGOS</td><td>GESTIÓN DE RIESGOS</td><td>Gerencia de Planeación y Gestión</td><td>65.7%</td></tr><tr><td>Cumplimiento de la Protección del Medio Ambiente</td><td>GESTIÓN AMBIENTAL</td><td>GESTIÓN AMBIENTAL</td><td>Gerencia de Planeación y Gestión</td><td>75.6%</td></tr><tr><td>Impacto de actividades de Responsabilidad y proyección</td><td>EXTENSIÓN</td><td>Gestión de la Responsabilidad Social</td><td>Vicerrectoría del estudiante</td><td>78.1%</td></tr></tbody></table>
+    </section>
+
+    <section id="propuesta" class="section">
+      <h2>Propuesta de mejora</h2>
+      <div class="grid-2">
+        <div class="kpi-card">
+          <div class="kpi-label">Plan de mejoramiento</div>
+          <div class="kpi-sub">Priorizar cierre de brechas en: Disminución de la Generación de Residuos per Cápita, Disminución del Consumo de Energía Eléctrica per Cápita, Disminución del Consumo de Agua per Cápita.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">PDI 2026-2030</div>
+          <div class="kpi-sub">Alinear metas por resultados historicos y capacidad operativa.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">SGA</div>
+          <div class="kpi-sub">Fortalecer controles de calidad de dato y consistencia de soportes.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Retos</div>
+          <div class="kpi-sub">Sostener cumplimiento mensual y reducir dispersion entre subprocesos.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="analisis" class="section">
+      <h2>Analisis avanzado</h2>
+      <div class="grid-2">
+        <div>
+          <div class="badge">Top procesos (cumplimiento)</div>
+          <table><thead><tr><th>Proceso</th><th>indicadores</th><th>cumplimiento</th></tr></thead><tbody><tr><td>AUDITORÍA INTERNA </td><td>2</td><td>127.5%</td></tr><tr><td>VISIBILIDAD NACIONAL E INTERNACIONAL</td><td>6</td><td>125.2%</td></tr><tr><td>BIENESTAR INSTITUCIONAL </td><td>6</td><td>121.7%</td></tr><tr><td>RECURSOS ACADÉMICOS Y DE INVESTIGACIÓN</td><td>18</td><td>120.4%</td></tr><tr><td>Gestión de Unidades Académicas</td><td>1</td><td>117.5%</td></tr><tr><td>COMUNICACIÓN Y POSICIONAMIENTO ESTRATÉGICO</td><td>11</td><td>115.3%</td></tr><tr><td>DIRECCIONAMIENTO ESTRATÉGICO</td><td>12</td><td>114.5%</td></tr><tr><td>GESTIÓN FINANCIERA</td><td>18</td><td>112.3%</td></tr><tr><td>GESTIÓN DE PORTAFOLIO INSTITUCIONAL</td><td>8</td><td>112.1%</td></tr><tr><td>EXTENSIÓN</td><td>16</td><td>111.1%</td></tr><tr><td>INFRAESTRUCTURA Y SERVICIOS ADMINISTRATIVOS</td><td>5</td><td>110.3%</td></tr><tr><td>SERVICIO Y PERMANENCIA</td><td>13</td><td>110.1%</td></tr></tbody></table>
+        </div>
+        <div>
+          <div class="badge">Top riesgos (indicadores)</div>
+          <table><thead><tr><th>Indicador</th><th>Cumplimiento_pct</th></tr></thead><tbody><tr><td>Disminución de la Generación de Residuos per Cápita</td><td>0.0%</td></tr><tr><td>Disminución del Consumo de Energía Eléctrica per Cápita</td><td>0.0%</td></tr><tr><td>Disminución del Consumo de Agua per Cápita</td><td>0.0%</td></tr><tr><td>Disminución de la Generación de Residuos Peligrosos per Cápita</td><td>0.0%</td></tr><tr><td>Generación de Residuos Peligrosos Mensual</td><td>22.6%</td></tr><tr><td>Generación de Residuos Peligrosos per Cápita Semestral</td><td>29.4%</td></tr><tr><td>Productos de investigación</td><td>48.8%</td></tr><tr><td>Respuesta ante nuevas necesidades de control</td><td>65.7%</td></tr></tbody></table>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

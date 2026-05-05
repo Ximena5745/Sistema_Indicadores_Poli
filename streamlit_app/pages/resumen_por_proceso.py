@@ -27,6 +27,7 @@ from streamlit_app.components.dashboard_components import (
     render_historico_tab,
 )
 from streamlit_app.components.cmi_tabs.tab_alertas import render_tab_alertas
+from streamlit_app.components.cmi_tabs import render_modal_ficha
 from streamlit_app.components.heatmap_chart import render_performance_heatmap
 
 MESES_OPCIONES = [
