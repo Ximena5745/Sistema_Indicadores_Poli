@@ -172,7 +172,9 @@ def render_executive_kpis(df: pd.DataFrame, pct_col: str | None = None) -> None:
         df_ids = df_ids.reindex(sort_key.index)
         df_ids["_sort_key"] = sort_key
         df_ids = df_ids.sort_values("_sort_key")
-        per_id = df_ids.dropna(subset=[pct_col]).groupby("Id_norm", dropna=False)[pct_col].last()
+        per_id = df_ids.groupby("Id_norm", dropna=False)[pct_col].agg(
+            lambda x: x.dropna().iloc[-1] if x.dropna().any() else pd.NA
+        )
         vals = per_id
     else:
         vals = vals
@@ -239,7 +241,18 @@ def render_alertas_criticas(
         st.success("🎉 No hay indicadores en estado crítico para este corte.")
         return
 
-    criticos = criticos.sort_values("_pct_num", ascending=True)
+    if "Id" in criticos.columns:
+        criticos["Id_norm"] = criticos["Id"].astype(str).str.strip()
+        sort_key = _build_sort_key(criticos)
+        criticos = criticos.reindex(sort_key.index)
+        criticos["_sort_key"] = sort_key
+        criticos = (
+            criticos.sort_values("_sort_key")
+            .drop_duplicates(subset=["Id_norm"], keep="last")
+            .sort_values("_pct_num", ascending=True)
+        )
+    else:
+        criticos = criticos.sort_values("_pct_num", ascending=True)
     total_criticos = len(criticos)
 
     st.markdown(
@@ -384,7 +397,28 @@ def render_fichas_indicadores(
     # Para CMI por Procesos, mostrar fichas por Id único (último registro por Id)
     if _is_cmi_procesos(df_work) and "Id" in df_work.columns:
         df_work["Id_norm"] = df_work["Id"].astype(str).str.strip()
-        df_group = df_work.groupby("Id_norm", dropna=False).last().reset_index()
+        sort_key = _build_sort_key(df_work)
+        df_work = df_work.reindex(sort_key.index)
+        df_work["_sort_key"] = sort_key
+        df_group = (
+            df_work.sort_values("_sort_key")
+            .groupby("Id_norm", dropna=False)
+            .agg(
+                {
+                    "Indicador": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Proceso": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Proceso_padre": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Tipo de proceso": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Unidad": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Meta": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Ejecucion": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "_pct_num": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Frecuencia": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                    "Subproceso_final": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+                }
+            )
+            .reset_index()
+        )
         df_iter = df_group.sort_values("_pct_num", na_position="last")
         total_count = len(df_group)
     else:

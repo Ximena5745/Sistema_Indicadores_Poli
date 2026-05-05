@@ -333,10 +333,21 @@ def _render_resumen_overview_cards(
         "cumplimiento_pct" if "cumplimiento_pct" in df.columns else None
     )
     cumplimiento = pd.to_numeric(df[pct_col], errors="coerce") if pct_col else pd.Series(dtype="float64")
+    if "Id" in df.columns and pct_col is not None:
+        df_ids = df[["Id", pct_col]].copy()
+        df_ids["Id_norm"] = df_ids["Id"].astype(str).str.strip()
+        df_ids[pct_col] = pd.to_numeric(df_ids[pct_col], errors="coerce")
+        df_ids = df_ids.dropna(subset=[pct_col])
+        df_ids = df_ids.sort_index()
+        df_ids = df_ids.drop_duplicates(subset=["Id_norm"], keep="last")
+        cumplimiento = df_ids[pct_col]
     avg_cumpl = float(cumplimiento.mean()) if not cumplimiento.dropna().empty else 0.0
     total_process = int(df["Proceso_padre"].dropna().nunique()) if "Proceso_padre" in df.columns else 0
     total_subprocess = int(df["Subproceso_final"].dropna().nunique()) if "Subproceso_final" in df.columns else 0
-    total_indicadores = int(df["Indicador"].dropna().shape[0]) if "Indicador" in df.columns else 0
+    if "Id" in df.columns:
+        total_indicadores = int(df["Id"].dropna().astype(str).str.strip().nunique())
+    else:
+        total_indicadores = int(df["Indicador"].dropna().astype(str).str.strip().nunique()) if "Indicador" in df.columns else 0
     riesgos = int((cumplimiento < 80).sum()) if not cumplimiento.empty else 0
     alertas = int(((cumplimiento >= 80) & (cumplimiento < 100)).sum()) if not cumplimiento.empty else 0
 
@@ -608,7 +619,7 @@ def _render_tab_procesos_unidades(
 
     proc_curr = (
         cmi_global.groupby(group_cols, dropna=False)
-        .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+        .agg(actual=(pct_col, "mean"), indicadores=("Id", lambda s: s.dropna().astype(str).str.strip().nunique()))
         .reset_index()
     )
 
@@ -721,7 +732,7 @@ def _process_variation_for_rpp(base_df: pd.DataFrame, prev_df: pd.DataFrame, dis
 
     curr_proc = (
         base_df.groupby(display_col, dropna=False)
-        .agg(indicadores=("Indicador", "count"), actual=(curr_pct_col, "mean"))
+        .agg(indicadores=("Id", lambda s: s.dropna().astype(str).str.strip().nunique()), actual=(curr_pct_col, "mean"))
         .reset_index()
     )
     prev_proc = (
@@ -2735,7 +2746,7 @@ def render() -> None:
 
             proc_curr = (
                 chart_curr.groupby(group_cols, dropna=False)
-                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+                .agg(actual=(pct_col, "mean"), indicadores=("Id", lambda s: s.dropna().astype(str).str.strip().nunique()))
                 .reset_index()
             )
             proc_count = proc_curr[process_col_bar].nunique()
@@ -2987,7 +2998,7 @@ def render() -> None:
 
             proc_curr = (
                 chart_curr.groupby(group_cols, dropna=False)
-                .agg(actual=(pct_col, "mean"), indicadores=("Indicador", "count"))
+                .agg(actual=(pct_col, "mean"), indicadores=("Id", lambda s: s.dropna().astype(str).str.strip().nunique()))
                 .reset_index()
             )
             proc_count = proc_curr[process_col_bar].nunique()

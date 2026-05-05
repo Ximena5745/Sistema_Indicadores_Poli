@@ -249,10 +249,10 @@ def _build_ia_indicators(df: pd.DataFrame) -> tuple[int, int, int, pd.DataFrame,
 
 def _prepare_filters(tracking_df: pd.DataFrame, map_df: pd.DataFrame, anio: int, month_num: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
-    full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
+    full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id", year=int(anio))
 
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=month_num)
-    snapshot_df = filter_df_for_cmi_procesos(snapshot_df, id_column="Id")
+    snapshot_df = filter_df_for_cmi_procesos(snapshot_df, id_column="Id", year=int(anio))
     if "Anio" in snapshot_df.columns:
         snapshot_df = snapshot_df[pd.to_numeric(snapshot_df["Anio"], errors="coerce") == int(anio)]
 
