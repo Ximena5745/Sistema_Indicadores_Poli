@@ -2887,9 +2887,9 @@ def render() -> None:
     clasificacion_col = _first_col(snapshot_df, ["Clasificación", "Clasificacion", "Categoria"])
     tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
 
-    st.markdown("#### Filtros")
+    st.markdown("#### Filtros globales")
     st.caption(
-        "Usa los filtros para cambiar el corte de evaluación. El Resumen consolida los indicadores activos de CMI por Procesos y mantiene la semántica oficial de niveles."
+        "Estos controles son los filtros oficiales de CMI por Procesos para todas las pestañas de la sección. No hay filtros de año adicionales dentro de las pestañas; el Año seleccionado aquí es el único valor usado."
     )
 
     unidad_options = ["Todos"]
@@ -3046,14 +3046,14 @@ def render() -> None:
     with tabs[0]:
         _render_resumen_procesos_style()
         st.markdown("### CMI por Procesos — Vista Global")
-        st.caption("Fuente: Consolidado Cierres · Resultados Consolidados.xlsx — Filtrado por año, sin filtros de proceso/subproceso")
+        st.caption(
+            "Fuente: Consolidado Cierres · Resultados Consolidados.xlsx — Filtrado por el año global seleccionado, sin filtros de proceso/subproceso"
+        )
 
-        # Selector de año para la vista global (independiente de los filtros superiores)
-        _g_year_col, _ = st.columns([2, 5])
-        with _g_year_col:
-            global_year = st.selectbox(
-                "Año", options=years, index=len(years) - 1 if years else 0, key="cmi_global_year"
-            )
+        # Usar el filtro global de año de la sección CMI por Procesos
+        global_year = anio if anio is not None else default_year
+        if global_year is None and years:
+            global_year = years[-1]
 
         # Cargar datos desde el Consolidado Semestral para el año seleccionado
         with st.spinner("Cargando resumen global de CMI por Procesos..."):

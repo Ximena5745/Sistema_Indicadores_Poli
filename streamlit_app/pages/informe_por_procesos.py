@@ -290,20 +290,35 @@ def render() -> None:
     default_month_num = _get_prev_month_for_year(tracking_df, default_year) or 12
     default_month = MESES_OPCIONES[default_month_num - 1]
 
-    st.markdown("#### Filtros")
+    st.markdown("#### Filtros globales")
     c1, c2, c3 = st.columns(3)
     with c1:
-        anio = st.selectbox("Año", options=years, index=default_year_idx if years else None)
+        anio = st.selectbox(
+            "Año",
+            options=years,
+            index=default_year_idx if years else None,
+            key="filter_anio",
+        )
     with c2:
-        mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month))
+        mes = st.selectbox(
+            "Mes",
+            options=MESES_OPCIONES,
+            index=MESES_OPCIONES.index(default_month),
+            key="filter_mes",
+        )
     with c3:
-        st.caption("Corte: selecciona año y mes para actualizar el informe.")
+        st.caption("Estos son los filtros oficiales de corte para el informe de CMI por Procesos.")
 
     selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
 
     procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
-    proceso_sel = st.selectbox("Proceso (Filtro Padre)", options=["Todos"] + procesos, index=0)
+    proceso_sel = st.selectbox(
+        "Proceso (Filtro Padre)",
+        options=["Todos"] + procesos,
+        index=0,
+        key="filter_proceso",
+    )
 
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":
@@ -313,7 +328,12 @@ def render() -> None:
     if proceso_sel != "Todos":
         subprocesos = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist())
         if subprocesos:
-            subproceso_sel = st.selectbox("Subproceso", options=["Todos"] + subprocesos, index=0)
+            subproceso_sel = st.selectbox(
+                "Subproceso",
+                options=["Todos"] + subprocesos,
+                index=0,
+                key="filter_subproceso",
+            )
             if subproceso_sel != "Todos":
                 filtered = filtered[filtered["Subproceso_final"].astype(str) == subproceso_sel]
 
