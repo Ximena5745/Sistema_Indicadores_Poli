@@ -98,6 +98,56 @@ def _is_cmi_procesos(df: pd.DataFrame) -> bool:
     return False
 
 
+def _build_sort_key(df: pd.DataFrame) -> pd.Series:
+    """Construye una llave numérica para ordenar registros por fecha/periodo.
+
+    Prioriza columnas: 'Anio'/'Año' + 'Mes_num' o 'Mes' (convertido), o 'Fecha'.
+    Retorna una Serie de enteros que representa año*100 + mes, o incremento si no hay fecha.
+    """
+    # Año
+    year_col = None
+    for c in ("Anio", "Año", "Anio_num", "Year"):
+        if c in df.columns:
+            year_col = c
+            break
+    # Mes num
+    mes_col = None
+    for c in ("Mes_num", "Mes", "Periodo"):
+        if c in df.columns:
+            mes_col = c
+            break
+    # Fecha
+    fecha_col = "Fecha" if "Fecha" in df.columns else None
+
+    if fecha_col:
+        try:
+            fecha = pd.to_datetime(df[fecha_col], errors="coerce")
+            key = fecha.dt.year.fillna(0).astype(int) * 100 + fecha.dt.month.fillna(0).astype(int)
+            return key.fillna(0).astype(int)
+        except Exception:
+            pass
+
+    if year_col:
+        years = pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
+        if mes_col:
+            # intentar convertir Mes a número si es texto
+            mes_vals = df[mes_col]
+            mes_num = pd.to_numeric(mes_vals, errors="coerce")
+            if mes_num.isna().all():
+                # mapear nombres de meses
+                mes_map = {m.upper(): i + 1 for i, m in enumerate(MESES_OPCIONES)}
+                mes_num = mes_vals.astype(str).str.strip().str.upper().map(mes_map).fillna(0).astype(int)
+            else:
+                mes_num = mes_num.fillna(0).astype(int)
+            key = years * 100 + mes_num
+            return key.fillna(0).astype(int)
+        else:
+            return years * 100
+
+    # fallback: usar índice para orden estable
+    return pd.Series(range(len(df)), index=df.index)
+
+
 # ── Componentes públicos ───────────────────────────────────────────────────────
 
 def render_executive_kpis(df: pd.DataFrame, pct_col: str | None = None) -> None:
@@ -116,10 +166,13 @@ def render_executive_kpis(df: pd.DataFrame, pct_col: str | None = None) -> None:
         df_ids = df[["Id", pct_col]].copy()
         df_ids["Id_norm"] = df_ids["Id"].astype(str).str.strip()
         df_ids[pct_col] = _normalize_pct(df_ids[pct_col], pct_col)
-        # obtener último valor no nulo por Id (orden no garantizado aquí; assume entrada ya filtrada por corte)
-        per_id = (
-            df_ids.dropna(subset=[pct_col]).groupby("Id_norm", dropna=False)[pct_col].last()
-        )
+        # ordenar por fecha/periodo antes de tomar el último registro por Id
+        sort_key = _build_sort_key(df)
+        # alinear índice
+        df_ids = df_ids.reindex(sort_key.index)
+        df_ids["_sort_key"] = sort_key
+        df_ids = df_ids.sort_values("_sort_key")
+        per_id = df_ids.dropna(subset=[pct_col]).groupby("Id_norm", dropna=False)[pct_col].last()
         vals = per_id
     else:
         vals = vals
@@ -426,7 +479,31 @@ def render_analisis_unidad(df: pd.DataFrame, pct_col: str | None = None) -> None
     if _is_cmi_procesos(df_work) and "Id" in df_work.columns:
         df_work["Id_norm"] = df_work["Id"].astype(str).str.strip()
         # tomar último registro por Id para obtener Unidad y pct representativos
-        per_id = df_work.groupby("Id_norm", dropna=False).last().reset_index()
+        sort_key = _build_sort_key(df_work)
+        df_work = df_work.reindex(sort_key.index)
+        df_work["_sort_key"] = sort_key
+        # Para cada Id tomar el último valor no nulo por columna (más robusto que .last())
+        cols_to_preserve = [
+            "Indicador",
+            "Proceso",
+            "Proceso_padre",
+            "Unidad",
+            "Meta",
+            "Ejecucion",
+            "_pct_num",
+            "Tipo de proceso",
+            "Frecuencia",
+            "Subproceso_final",
+        ]
+        present_cols = [c for c in cols_to_preserve if c in df_work.columns]
+        def _last_valid(s):
+            s2 = s.dropna()
+            return s2.iloc[-1] if not s2.empty else pd.NA
+
+        grouped = df_work.sort_values("_sort_key").groupby("Id_norm", dropna=False)
+        agg_dict = {c: (_last_valid) for c in present_cols}
+        per_id = grouped.agg(agg_dict).reset_index()
+        # garantizar columnas mínimas
         if "Unidad" not in per_id.columns:
             per_id["Unidad"] = "—"
         ranking = (
