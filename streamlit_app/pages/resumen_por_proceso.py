@@ -356,12 +356,12 @@ def _render_resumen_overview_cards(
         <style>
         .rp-card-grid {{
             display:grid;
-            grid-template-columns:repeat(4,minmax(220px,1fr));
+            grid-template-columns:repeat(4,minmax(240px,1fr));
             gap:18px;
             margin:18px 0 24px;
         }}
         @media (max-width: 1080px) {{
-            .rp-card-grid {{ grid-template-columns:repeat(2,minmax(220px,1fr)); }}
+            .rp-card-grid {{ grid-template-columns:repeat(2,minmax(240px,1fr)); }}
         }}
         @media (max-width: 700px) {{
             .rp-card-grid {{ grid-template-columns:1fr; }}
@@ -372,116 +372,124 @@ def _render_resumen_overview_cards(
             background:#ffffff;
             border:1px solid rgba(226,232,240,0.9);
             border-radius:24px;
-            box-shadow:0 18px 42px rgba(15,23,42,0.08);
+            box-shadow:0 16px 36px rgba(15,23,42,0.08);
             transition:transform 0.2s ease, box-shadow 0.2s ease;
         }}
         .rp-card:hover {{
             transform:translateY(-2px);
-            box-shadow:0 24px 58px rgba(15,23,42,0.12);
+            box-shadow:0 22px 44px rgba(15,23,42,0.14);
         }}
         .rp-card::before {{
             content:'';
             position:absolute;
-            inset:0 0 auto 0;
+            top:0;
+            left:0;
+            width:90px;
             height:6px;
-            width:100%;
+            border-radius:0 0 6px 0;
             background:linear-gradient(90deg, #3b82f6, #60a5fa);
         }}
         .rp-card-type-2::before {{ background: linear-gradient(90deg, #16a34a, #5eead4); }}
         .rp-card-type-3::before {{ background: linear-gradient(90deg, #f59e0b, #fde68a); }}
         .rp-card-type-4::before {{ background: linear-gradient(90deg, #dc2626, #fca5a5); }}
         .rp-card-content {{
-            padding:24px 22px 22px;
+            padding:24px 24px 20px;
+        }}
+        .rp-card-header {{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+            margin-bottom:10px;
         }}
         .rp-card-title {{
-            margin:0 0 6px;
-            color:#475569;
-            font-size:0.78rem;
-            font-weight:700;
+            margin:0;
+            color:#102a43;
+            font-size:0.95rem;
+            font-weight:800;
             letter-spacing:0.12em;
             text-transform:uppercase;
+            line-height:1.2;
         }}
         .rp-card-value {{
-            margin:0;
+            margin:6px 0 0;
             color:#0f172a;
-            font-size:2.3rem;
+            font-size:2.8rem;
             font-weight:800;
             line-height:1;
         }}
-        .rp-card-subtitle {{
-            margin:10px 0 0;
-            color:#64748b;
-            font-size:0.9rem;
-            line-height:1.5;
-        }}
+        .rp-card-value.accent-2 {{ color:#047857; }}
+        .rp-card-value.accent-3 {{ color:#b45309; }}
+        .rp-card-value.accent-4 {{ color:#b91c1c; }}
         .rp-card-badge {{
             display:inline-flex;
             align-items:center;
             justify-content:center;
-            width:36px;
-            height:36px;
-            border-radius:14px;
-            font-size:1.05rem;
+            width:40px;
+            height:40px;
+            border-radius:16px;
+            font-size:1.1rem;
             background:rgba(59,130,246,0.12);
             color:#1d4ed8;
+            box-shadow:0 5px 14px rgba(15,23,42,0.08);
         }}
-        .rp-card-badge.type-2 {{ background:rgba(22,163,74,0.12); color:#166534; }}
-        .rp-card-badge.type-3 {{ background:rgba(245,158,11,0.12); color:#b45309; }}
-        .rp-card-badge.type-4 {{ background:rgba(220,38,38,0.12); color:#991b1b; }}
+        .rp-card-badge.type-2 {{ background:rgba(16,185,129,0.15); color:#047857; }}
+        .rp-card-badge.type-3 {{ background:rgba(251,191,36,0.17); color:#b45309; }}
+        .rp-card-badge.type-4 {{ background:rgba(239,68,68,0.15); color:#991b1b; }}
         .rp-card-meta {{
-            margin-top:14px;
-            color:#64748b;
-            font-size:0.88rem;
+            margin:0;
+            color:#475569;
+            font-size:0.95rem;
             line-height:1.6;
         }}
         </style>
         <div class='rp-card-grid'>
             <div class='rp-card rp-card-type-1'>
                 <div class='rp-card-content'>
-                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                    <div class='rp-card-header'>
                         <div>
-                            <h3 class='rp-card-title'>Indicadores activos</h3>
+                            <p class='rp-card-title'>Indicadores activos</p>
                             <p class='rp-card-value'>{total_indicadores}</p>
                         </div>
                         <div class='rp-card-badge'>📌</div>
                     </div>
-                    <div class='rp-card-meta'>Proceso actual: {selected_process} · {total_process} procesos · {total_subprocess} subprocesos</div>
+                    <p class='rp-card-meta'>Proceso actual: {selected_process} · {total_process} procesos · {total_subprocess} subprocesos</p>
                 </div>
             </div>
             <div class='rp-card rp-card-type-2'>
                 <div class='rp-card-content'>
-                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                    <div class='rp-card-header'>
                         <div>
-                            <h3 class='rp-card-title'>Cumplimiento promedio</h3>
-                            <p class='rp-card-value'>{avg_cumpl:.1f}%</p>
+                            <p class='rp-card-title'>Cumplimiento promedio</p>
+                            <p class='rp-card-value accent-2'>{avg_cumpl:.1f}%</p>
                         </div>
                         <div class='rp-card-badge type-2'>✔️</div>
                     </div>
-                    <div class='rp-card-meta'>Corte: {month_name} {global_year}</div>
+                    <p class='rp-card-meta'>Corte: {month_name} {global_year}</p>
                 </div>
             </div>
             <div class='rp-card rp-card-type-3'>
                 <div class='rp-card-content'>
-                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                    <div class='rp-card-header'>
                         <div>
-                            <h3 class='rp-card-title'>En alerta (80–99%)</h3>
-                            <p class='rp-card-value'>{alertas}</p>
+                            <p class='rp-card-title'>En alerta (80–99%)</p>
+                            <p class='rp-card-value accent-3'>{alertas}</p>
                         </div>
                         <div class='rp-card-badge type-3'>⚠️</div>
                     </div>
-                    <div class='rp-card-meta'>Revisión activa de indicadores en zona de atención.</div>
+                    <p class='rp-card-meta'>Revisión activa de indicadores en zona de atención.</p>
                 </div>
             </div>
             <div class='rp-card rp-card-type-4'>
                 <div class='rp-card-content'>
-                    <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;'>
+                    <div class='rp-card-header'>
                         <div>
-                            <h3 class='rp-card-title'>En peligro crítico (&lt;80%)</h3>
-                            <p class='rp-card-value'>{riesgos}</p>
+                            <p class='rp-card-title'>En peligro crítico (&lt;80%)</p>
+                            <p class='rp-card-value accent-4'>{riesgos}</p>
                         </div>
                         <div class='rp-card-badge type-4'>🛑</div>
                     </div>
-                    <div class='rp-card-meta'>Indicadores que requieren atención urgente.</div>
+                    <p class='rp-card-meta'>Indicadores que requieren atención urgente.</p>
                 </div>
             </div>
         </div>
