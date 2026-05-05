@@ -249,7 +249,7 @@ def _build_ia_indicators(df: pd.DataFrame) -> tuple[int, int, int, pd.DataFrame,
 
 def _prepare_filters(tracking_df: pd.DataFrame, map_df: pd.DataFrame, anio: int, month_num: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
-    full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id", year=int(anio))
+    full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
 
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=month_num)
     snapshot_df = filter_df_for_cmi_procesos(snapshot_df, id_column="Id", year=int(anio))
@@ -322,8 +322,6 @@ def render() -> None:
 
     latest = _latest_per_indicator(filtered) if not filtered.empty else filtered.copy()
     historic_base = full_work_df.copy()
-    if not historic_base.empty and "Anio" in historic_base.columns:
-        historic_base = historic_base[pd.to_numeric(historic_base["Anio"], errors="coerce") == int(anio)]
     if proceso_sel != "Todos":
         historic_base = historic_base[historic_base["Proceso_padre"].astype(str) == proceso_sel]
     if subproceso_sel != "Todos":
