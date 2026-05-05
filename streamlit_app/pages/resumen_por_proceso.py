@@ -324,6 +324,8 @@ def _render_resumen_overview_cards(
     selected_subprocess: str,
     global_year: int,
     month_name: str,
+    base_df: pd.DataFrame | None = None,
+    base_year: int | None = None,
 ) -> None:
     if df.empty:
         st.info("No hay datos disponibles para el resumen general del corte actual.")
@@ -351,17 +353,64 @@ def _render_resumen_overview_cards(
     riesgos = int((cumplimiento < 80).sum()) if not cumplimiento.empty else 0
     alertas = int(((cumplimiento >= 80) & (cumplimiento < 100)).sum()) if not cumplimiento.empty else 0
 
+    def _delta_card(current: float, base: float | None) -> tuple[str, str, str]:
+        if base is None or pd.isna(base):
+            return "Sin dato", "#6E7781", "—"
+        diff = current - float(base)
+        sign = "+" if diff >= 0 else ""
+        color = "#16A34A" if diff >= 0 else "#D32F2F"
+        return f"{sign}{diff:.0f}", color, f"{sign}{diff:.0f} vs {base_year}"
+
+    def _count_unique(df_src: pd.DataFrame, col: str) -> int:
+        return int(df_src[col].dropna().astype(str).str.strip().nunique()) if col in df_src.columns else 0
+
+    base_total_indicadores = _count_unique(base_df, "Id") if base_df is not None else None
+    base_total_process = _count_unique(base_df, "Proceso_padre") if base_df is not None else None
+    base_total_subprocess = _count_unique(base_df, "Subproceso_final") if base_df is not None else None
+
+    base_cumplimiento = None
+    base_riesgos = None
+    base_alertas = None
+    if base_df is not None and pct_col in base_df.columns:
+        base_vals = pd.to_numeric(base_df[pct_col], errors="coerce")
+        if "Id" in base_df.columns:
+            base_ids = base_df[["Id", pct_col]].copy()
+            base_ids["Id_norm"] = base_ids["Id"].astype(str).str.strip()
+            base_ids[pct_col] = pd.to_numeric(base_ids[pct_col], errors="coerce")
+            base_ids = base_ids.dropna(subset=[pct_col])
+            base_ids = base_ids.sort_index()
+            base_ids = base_ids.drop_duplicates(subset=["Id_norm"], keep="last")
+            base_vals = base_ids[pct_col]
+        base_cumplimiento = float(base_vals.mean()) if not base_vals.dropna().empty else None
+        base_riesgos = int((base_vals < 80).sum()) if not base_vals.empty else None
+        base_alertas = int(((base_vals >= 80) & (base_vals < 100)).sum()) if not base_vals.empty else None
+
+    ind_delta, ind_color, ind_label = _delta_card(total_indicadores, base_total_indicadores)
+    proc_delta, proc_color, proc_label = _delta_card(total_process, base_total_process)
+    cumpl_delta, cumpl_color, cumpl_label = _delta_card(avg_cumpl, base_cumplimiento)
+    alerta_delta, alerta_color, alerta_label = _delta_card(alertas, base_alertas)
+    riesgo_delta, riesgo_color, riesgo_label = _delta_card(riesgos, base_riesgos)
+
+    def _delta_class(delta: str) -> str:
+        return "up" if delta.startswith("+") or delta == "0" else "down"
+
+    ind_cls = _delta_class(ind_delta)
+    proc_cls = _delta_class(proc_delta)
+    cumpl_cls = _delta_class(cumpl_delta)
+    alerta_cls = _delta_class(alerta_delta)
+    riesgo_cls = _delta_class(riesgo_delta)
+
     st.markdown(
         f"""
         <style>
         .rp-card-grid {{
             display:grid;
-            grid-template-columns:repeat(4,minmax(240px,1fr));
+            grid-template-columns:repeat(4,minmax(220px,1fr));
             gap:18px;
             margin:18px 0 24px;
         }}
         @media (max-width: 1080px) {{
-            .rp-card-grid {{ grid-template-columns:repeat(2,minmax(240px,1fr)); }}
+            .rp-card-grid {{ grid-template-columns:repeat(2,minmax(220px,1fr)); }}
         }}
         @media (max-width: 700px) {{
             .rp-card-grid {{ grid-template-columns:1fr; }}
@@ -442,6 +491,18 @@ def _render_resumen_overview_cards(
             font-size:0.95rem;
             line-height:1.6;
         }}
+        .rp-card-delta {{
+            margin-top:10px;
+            font-size:0.85rem;
+            font-weight:700;
+        }}
+        .rp-card-delta.up {{ color:#16A34A; }}
+        .rp-card-delta.down {{ color:#D32F2F; }}
+        .rp-card-spark {{
+            margin-top:12px;
+            display:flex;
+            justify-content:flex-end;
+        }}
         </style>
         <div class='rp-card-grid'>
             <div class='rp-card rp-card-type-1'>
@@ -454,6 +515,8 @@ def _render_resumen_overview_cards(
                         <div class='rp-card-badge'>📌</div>
                     </div>
                     <p class='rp-card-meta'>Proceso actual: {selected_process} · {total_process} procesos · {total_subprocess} subprocesos</p>
+                    <p class='rp-card-delta {ind_cls}'>{ind_label}</p>
+                    <div class='rp-card-spark'>{_sparkline_svg('#3b82f6', ind_delta.startswith('+') or ind_delta == '0')}</div>
                 </div>
             </div>
             <div class='rp-card rp-card-type-2'>
@@ -466,6 +529,8 @@ def _render_resumen_overview_cards(
                         <div class='rp-card-badge type-2'>✔️</div>
                     </div>
                     <p class='rp-card-meta'>Corte: {month_name} {global_year}</p>
+                    <p class='rp-card-delta {cumpl_cls}'>{cumpl_label}</p>
+                    <div class='rp-card-spark'>{_sparkline_svg('#16a34a', cumpl_delta.startswith('+') or cumpl_delta == '0')}</div>
                 </div>
             </div>
             <div class='rp-card rp-card-type-3'>
@@ -478,6 +543,8 @@ def _render_resumen_overview_cards(
                         <div class='rp-card-badge type-3'>⚠️</div>
                     </div>
                     <p class='rp-card-meta'>Revisión activa de indicadores en zona de atención.</p>
+                    <p class='rp-card-delta {alerta_cls}'>{alerta_label}</p>
+                    <div class='rp-card-spark'>{_sparkline_svg('#f59e0b', alerta_delta.startswith('+') or alerta_delta == '0')}</div>
                 </div>
             </div>
             <div class='rp-card rp-card-type-4'>
@@ -490,7 +557,97 @@ def _render_resumen_overview_cards(
                         <div class='rp-card-badge type-4'>🛑</div>
                     </div>
                     <p class='rp-card-meta'>Indicadores que requieren atención urgente.</p>
+                    <p class='rp-card-delta {riesgo_cls}'>{riesgo_label}</p>
+                    <div class='rp-card-spark'>{_sparkline_svg('#dc2626', riesgo_delta.startswith('+') or riesgo_delta == '0')}</div>
                 </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_resumen_banner(
+    df: pd.DataFrame,
+    base_df: pd.DataFrame | None,
+    global_year: int,
+    month_name: str,
+    base_year: int | None,
+) -> None:
+    if df.empty:
+        return
+
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in df.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in df.columns else None
+    )
+    latest = _latest_per_indicator(df) if pct_col else df.copy()
+
+    total_indicadores = int(latest["Id"].dropna().astype(str).str.strip().nunique()) if "Id" in latest.columns else int(
+        latest["Indicador"].dropna().astype(str).str.strip().nunique() if "Indicador" in latest.columns else 0
+    )
+    total_process = int(latest["Proceso_padre"].dropna().nunique()) if "Proceso_padre" in latest.columns else 0
+    total_subprocess = int(latest["Subproceso_final"].dropna().nunique()) if "Subproceso_final" in latest.columns else 0
+
+    avg_cumpl = 0.0
+    riesgos = 0
+    alertas = 0
+    healthy_pct = 0.0
+    if pct_col and pct_col in latest.columns:
+        values = pd.to_numeric(latest[pct_col], errors="coerce").dropna()
+        avg_cumpl = float(values.mean()) if not values.empty else 0.0
+        riesgos = int((values < 80).sum())
+        alertas = int(((values >= 80) & (values < 100)).sum())
+        healthy_pct = round((values >= 100).sum() / max(len(values), 1) * 100, 1)
+
+    st.markdown(
+        f"""
+        <style>
+        .rpp-banner-card {{
+            width:100%;
+            background:#173a63;
+            color:#ffffff;
+            border-radius:24px;
+            padding:24px 26px;
+            box-shadow:0 20px 40px rgba(15,23,42,0.18);
+            margin:24px 0 20px;
+        }}
+        .rpp-banner-title {{
+            margin:0;
+            font-size:1.3rem;
+            font-weight:800;
+            line-height:1.1;
+        }}
+        .rpp-banner-text {{
+            margin:14px 0 0;
+            color:#dbeafe;
+            font-size:0.96rem;
+            line-height:1.7;
+            max-width:950px;
+        }}
+        .rpp-banner-chips {{
+            display:flex;
+            flex-wrap:wrap;
+            gap:10px;
+            margin-top:18px;
+        }}
+        .rpp-banner-chip {{
+            background:rgba(255,255,255,0.11);
+            border:1px solid rgba(255,255,255,0.18);
+            border-radius:999px;
+            color:#ffffff;
+            padding:10px 14px;
+            font-size:0.88rem;
+            font-weight:700;
+        }}
+        </style>
+        <div class='rpp-banner-card'>
+            <p class='rpp-banner-title'>{healthy_pct}% de los indicadores opera en niveles saludables — {month_name} {global_year}</p>
+            <p class='rpp-banner-text'>El Politécnico cierra el corte de {month_name} {global_year} con un cumplimiento promedio de {avg_cumpl:.1f}%, manteniendo una base de referencia en {base_year or 'sin cierre anterior'}. Se identifican {riesgos} indicadores en peligro crítico y {alertas} en alerta.</p>
+            <div class='rpp-banner-chips'>
+                <span class='rpp-banner-chip'>{total_indicadores} Indicadores activos</span>
+                <span class='rpp-banner-chip'>{total_process} Procesos</span>
+                <span class='rpp-banner-chip'>{total_subprocess} Subprocesos</span>
+                <span class='rpp-banner-chip'>Base: Cierre {base_year if base_year is not None else 'N/A'}</span>
             </div>
         </div>
         """,
@@ -530,18 +687,25 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
         df_used = df_used[df_used["Id"].astype(str).str.strip().isin(active_norm)].copy()
 
     if period_col is not None:
-        series = df_cmi[period_col].fillna("Sin periodicidad").astype(str)
-        if series.empty:
+        period_df = df_cmi[[period_col] + (["Id"] if "Id" in df_cmi.columns else [])].copy()
+        if period_df.empty:
             st.warning(f"No hay datos en la columna {period_col} para periodicidad.")
         else:
-            # Usar df_used si existe (filtrado por activos), sino usar df_cmi
-            source = df_used if not df_used.empty else df_cmi
-            series = source[period_col].fillna("Sin periodicidad").astype(str)
-            counts = (
-                series
-                .value_counts()
-                .reset_index()
-            )
+            source = df_used if not df_used.empty else period_df
+            source[period_col] = source[period_col].fillna("Sin periodicidad").astype(str).str.strip()
+            if "Id" in source.columns:
+                counts = (
+                    source.groupby(period_col, dropna=False)["Id"]
+                    .nunique()
+                    .reset_index(name="Indicadores")
+                )
+            else:
+                counts = (
+                    source[period_col]
+                    .value_counts()
+                    .reset_index()
+                    .rename(columns={"index": "Periodicidad", period_col: "Indicadores"})
+                )
             counts.columns = ["Periodicidad", "Indicadores"]
             counts = counts.sort_values("Indicadores", ascending=False)
             if counts.empty:
@@ -553,41 +717,59 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                     y="Indicadores",
                     text="Indicadores",
                     title="Indicadores por periodicidad",
-                    color="Indicadores",
-                    color_continuous_scale="Blues",
+                    color="Periodicidad",
+                    color_discrete_sequence=px.colors.qualitative.Pastel,
                 )
-                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
+                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, showlegend=False)
                 cols[0].plotly_chart(fig, use_container_width=True)
 
     if type_col is not None:
         source = df_used if not df_used.empty else df_cmi
-        series = source[type_col].fillna("Sin tipo").astype(str)
-        if series.empty:
-            st.warning(f"No hay datos en la columna {type_col} para tipo de indicador.")
+        type_df = source[[type_col] + (["Id"] if "Id" in source.columns else [])].copy()
+        type_df[type_col] = (
+            type_df[type_col]
+            .fillna("Sin tipo")
+            .astype(str)
+            .str.strip()
+            .str.replace(r"\s*\(.*\)$", "", regex=True)
+            .replace({"Resultado ": "Resultado", "Impacto ": "Impacto"})
+        )
+        if "Id" in type_df.columns:
+            counts = (
+                type_df.groupby(type_col, dropna=False)["Id"]
+                .nunique()
+                .reset_index(name="Indicadores")
+            )
         else:
             counts = (
-                series
+                type_df[type_col]
                 .value_counts()
                 .reset_index()
+                .rename(columns={"index": "Tipo de indicador", type_col: "Indicadores"})
             )
-            counts.columns = ["Tipo de indicador", "Indicadores"]
-            counts = counts.sort_values("Indicadores", ascending=False)
-            if counts.empty:
-                st.warning("No hay datos para tipo de indicador.")
-            else:
-                fig = px.bar(
-                    counts,
-                    x="Tipo de indicador",
-                    y="Indicadores",
-                    text="Indicadores",
-                    title="Indicadores por tipo de indicador",
-                    color="Indicadores",
-                    color_continuous_scale="Greens",
-                )
-                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, coloraxis_showscale=False)
-                cols[1].plotly_chart(fig, use_container_width=True)
-
-
+        counts.columns = ["Tipo de indicador", "Indicadores"]
+        counts = counts.sort_values("Indicadores", ascending=True)
+        if counts.empty:
+            st.warning("No hay datos para tipo de indicador.")
+        else:
+            fig = px.bar(
+                counts,
+                x="Indicadores",
+                y="Tipo de indicador",
+                orientation="h",
+                text="Indicadores",
+                title="Indicadores por tipo de indicador",
+                color="Tipo de indicador",
+                color_discrete_sequence=px.colors.qualitative.Vivid,
+            )
+            fig.update_layout(
+                margin=dict(t=35, b=80),
+                yaxis={'categoryorder': 'total ascending'},
+                xaxis_title="Indicadores",
+                yaxis_title="Tipo de indicador",
+                showlegend=False,
+            )
+            cols[1].plotly_chart(fig, use_container_width=True)
 def _render_tab_indicadores(
     df: pd.DataFrame,
     cmi_catalog: pd.DataFrame,
@@ -723,7 +905,7 @@ def _render_tab_procesos_unidades(
         "Cumplimiento_pct" if "Cumplimiento_pct" in cmi_global.columns else None
     )
 
-    _render_resumen_overview_cards(cmi_global, "Global", "Todos", global_year, month_name)
+    _render_resumen_overview_cards(cmi_global, "Global", "Todos", global_year, month_name, cmi_base_2024, base_year)
 
     st.markdown("#### Tabla de Procesos Comparativa")
     process_col_bar = (
@@ -2696,7 +2878,6 @@ def render() -> None:
             "🏢 Procesos y Unidades",
             "📊 Indicadores",
             "🚨 Alertas",
-            "💡 Propuesta",
             "📈 Análisis Avanzado",
         ]
     )
@@ -2789,7 +2970,7 @@ def render() -> None:
         if cmi_global.empty:
             st.warning("No hay indicadores de CMI por Procesos para el año seleccionado.")
         else:
-            _render_resumen_overview_cards(cmi_global, "Global", "Todos", int(global_year), _latest_month_name)
+            _render_resumen_overview_cards(cmi_global, "Global", "Todos", int(global_year), _latest_month_name, cmi_base_2024, _base_year)
             active_ids = set(cmi_global['Id'].dropna().astype(str).str.strip()) if 'Id' in cmi_global.columns else None
             _render_cmi_por_cmi_summary_charts(cmi_catalog, active_ids=active_ids)
             # ── Fichas KPI por Tipo de proceso (4 tipos globales) ─────────────
@@ -2989,54 +3170,6 @@ def render() -> None:
             _best_html = _build_ia_rows_rpp(best_proc_rows)
             _worst_html = _build_ia_rows_rpp(worst_proc_rows)
 
-            st.markdown(
-                f"""
-                <div class='rpp-summary-card'>
-                    <h4 class='rpp-summary-title'>Insights del corte</h4>
-                    <p class='rpp-summary-text'>{_op_summary}</p>
-                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if not _best_html:
-                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
-            if not _worst_html:
-                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
-
-            st.markdown(
-                f"""
-                <div class='rpp-grid'>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_best_html}</tbody>
-                        </table>
-                    </div>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_worst_html}</tbody>
-                        </table>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
         # ── Sección ampliada: KPIs, Alertas, Tabla, Fichas, Unidad ──────────
         if not cmi_global.empty:
             _pct_g = (
@@ -3046,20 +3179,7 @@ def render() -> None:
             )
 
             st.divider()
-            st.markdown("#### 📊 KPIs Ejecutivos del Corte")
-            render_executive_kpis(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 🚨 Alertas y Hallazgos")
-            render_alertas_criticas(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 📋 Tabla Analítica de Indicadores")
-            render_tabla_analitica(cmi_global, _pct_g)
-
-            st.divider()
-            st.markdown("#### 🗂️ Fichas de Indicadores")
-            render_fichas_indicadores(cmi_global, _pct_g)
+            _render_resumen_banner(cmi_global, cmi_base_2024, int(global_year), _latest_month_name, _base_year)
 
             st.divider()
             st.markdown("#### 🏢 Análisis por Unidad Organizacional")
@@ -3070,8 +3190,16 @@ def render() -> None:
 
     with tabs[2]:
         _render_tab_indicadores(filtered, cmi_catalog)
+        if not cmi_global.empty:
+            st.divider()
+            st.markdown("#### 📋 Tabla Analítica de Indicadores")
+            render_tabla_analitica(filtered)
 
     with tabs[3]:
+        if not cmi_global.empty:
+            st.divider()
+            st.markdown("#### 🚨 Alertas y Hallazgos")
+            render_alertas_criticas(cmi_global)
         render_tab_alertas(filtered)
 
     with tabs[4]:
@@ -3240,55 +3368,7 @@ def render() -> None:
             _best_html = _build_ia_rows_rpp(best_proc_rows)
             _worst_html = _build_ia_rows_rpp(worst_proc_rows)
 
-            st.markdown(
-                f"""
-                <div class='rpp-summary-card'>
-                    <h4 class='rpp-summary-title'>Insights del corte</h4>
-                    <p class='rpp-summary-text'>{_op_summary}</p>
-                    <p class='rpp-summary-text' style='margin-top:4px;color:#4f6783;'>{_base_detail}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if not _best_html:
-                _best_html = "<tr><td colspan='2' class='rpp-empty'>Sin mejoras comparables para este corte.</td></tr>"
-            if not _worst_html:
-                _worst_html = "<tr><td colspan='2' class='rpp-empty'>Sin riesgos comparables para este corte.</td></tr>"
-
-            st.markdown(
-                f"""
-                <div class='rpp-grid'>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos con mayor mejora</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_best_html}</tbody>
-                        </table>
-                    </div>
-                    <div class='rpp-panel'>
-                        <div class='rpp-panel-title'>Procesos en mayor riesgo</div>
-                        <table class='rpp-table'>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>{_worst_html}</tbody>
-                        </table>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    with tabs[5]:
+    with tabs[4]:
         st.markdown("### 📈 Análisis Avanzado — Histórico de Indicadores")
         st.caption(
             "Evolución temporal de indicadores seleccionados. "
