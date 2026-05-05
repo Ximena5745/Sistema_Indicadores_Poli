@@ -381,7 +381,7 @@ def render_fichas_indicadores(
     pct_col: str | None = None,
     max_fichas: int = 20,
 ) -> None:
-    """Fichas expandibles por indicador: meta, ejecución, cumplimiento, tendencia."""
+    """Fichas de indicadores por tarjeta con resumen de meta, ejecución y cumplimiento."""
     if df.empty:
         st.info("No hay indicadores para mostrar en este corte.")
         return
@@ -425,22 +425,123 @@ def render_fichas_indicadores(
         df_iter = df_work.sort_values("_pct_num", na_position="last")
         total_count = len(df_work)
 
+    st.markdown(
+        """
+        <style>
+        .cmi-ficha-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 900px) {
+            .cmi-ficha-grid { grid-template-columns: 1fr; }
+        }
+        .cmi-ficha-card {
+            background: #ffffff;
+            border: 1px solid #E6ECF5;
+            border-radius: 18px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .cmi-ficha-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 32px rgba(15, 23, 42, 0.14);
+        }
+        .cmi-ficha-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px 10px;
+            align-items: flex-start;
+        }
+        .cmi-ficha-card-title {
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1.2;
+            color: #102A43;
+            margin: 0 0 6px 0;
+        }
+        .cmi-ficha-card-subtitle {
+            font-size: 0.78rem;
+            line-height: 1.5;
+            color: #475569;
+        }
+        .cmi-ficha-status {
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            background: rgba(28, 72, 146, 0.08);
+            color: #1D4ED8;
+            white-space: nowrap;
+        }
+        .cmi-ficha-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            padding: 0 20px 18px;
+        }
+        .cmi-ficha-stat {
+            background: #F8FAFF;
+            border-radius: 14px;
+            border: 1px solid #E2E8F0;
+            padding: 14px 12px;
+        }
+        .cmi-ficha-stat-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748B;
+            margin-bottom: 6px;
+        }
+        .cmi-ficha-stat-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #102A43;
+            line-height: 1.1;
+        }
+        .cmi-ficha-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 0 20px 18px;
+        }
+        .cmi-ficha-footer-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.76rem;
+            color: #475569;
+        }
+        .cmi-ficha-footer-label {
+            font-weight: 700;
+            color: #334155;
+        }
+        .cmi-ficha-footer-value {
+            font-size: 0.92rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    cards: list[str] = []
     shown = 0
     for _, row in df_iter.iterrows():
         if shown >= max_fichas:
             break
 
         nombre = str(row.get("Indicador", f"Indicador {shown + 1}"))
+        row_id = str(row.get("Id_norm", row.get("Id", ""))).strip()
         pct_raw = row.get("_pct_num", None)
         pct_val_f: float | None = float(pct_raw) if pd.notna(pct_raw) else None
         nivel = _nivel_from_pct(pct_val_f)
         color = NIVELES_COLORS.get(nivel, "#9E9E9E")
-        icono = (
-            "🔴" if nivel == "peligro"
-            else "🟡" if nivel == "alerta"
-            else "🟢" if nivel in ("cumplimiento", "sobrecumplimiento")
-            else "⬜"
-        )
         pct_label = f"{pct_val_f:.1f}%" if pct_val_f is not None else "Sin dato"
         proceso = str(row.get("Proceso", row.get("Proceso_padre", "—")))
         tipo = str(row.get("Tipo de proceso", "—"))
@@ -448,43 +549,49 @@ def render_fichas_indicadores(
         meta_val = row.get("Meta", "—")
         ejec_val = row.get("Ejecucion", "—")
         freq = str(row.get("Frecuencia", row.get("Periodicidad", "—")))
+        status_text = nivel.title() if nivel != "sin dato" else "Sin dato"
 
-        with st.expander(f"{icono} {nombre} — {pct_label}", expanded=False):
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.markdown(
-                    f"""<div class="cmi-ficha-meta">
-                        <div class="cmi-ficha-label">Meta</div>
-                        <div class="cmi-ficha-value">{meta_val}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-            with c2:
-                st.markdown(
-                    f"""<div class="cmi-ficha-meta">
-                        <div class="cmi-ficha-label">Ejecución</div>
-                        <div class="cmi-ficha-value">{ejec_val}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-            with c3:
-                st.markdown(
-                    f"""<div class="cmi-ficha-meta">
-                        <div class="cmi-ficha-label">Cumplimiento</div>
-                        <div class="cmi-ficha-value" style="color:{color};">{pct_label}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-            st.markdown(
-                f"""<div class="cmi-ficha-detail">
-                    📁 <strong>Proceso:</strong> {proceso} &nbsp;|&nbsp;
-                    🏷️ <strong>Tipo:</strong> {tipo} &nbsp;|&nbsp;
-                    🏢 <strong>Unidad:</strong> {unidad} &nbsp;|&nbsp;
-                    📅 <strong>Frecuencia:</strong> {freq}
-                </div>""",
-                unsafe_allow_html=True,
-            )
+        cards.append(
+            f"""
+            <div class="cmi-ficha-card">
+                <div class="cmi-ficha-card-header">
+                    <div>
+                        <div class="cmi-ficha-card-title">{nombre}</div>
+                        <div class="cmi-ficha-card-subtitle">{proceso} · {tipo} · {unidad}</div>
+                    </div>
+                    <div class="cmi-ficha-status">{status_text}</div>
+                </div>
+                <div class="cmi-ficha-stats">
+                    <div class="cmi-ficha-stat">
+                        <div class="cmi-ficha-stat-label">Meta</div>
+                        <div class="cmi-ficha-stat-value">{meta_val}</div>
+                    </div>
+                    <div class="cmi-ficha-stat">
+                        <div class="cmi-ficha-stat-label">Ejecución</div>
+                        <div class="cmi-ficha-stat-value">{ejec_val}</div>
+                    </div>
+                    <div class="cmi-ficha-stat">
+                        <div class="cmi-ficha-stat-label">Cumplimiento</div>
+                        <div class="cmi-ficha-stat-value" style="color:{color};">{pct_label}</div>
+                    </div>
+                </div>
+                <div class="cmi-ficha-footer">
+                    <div class="cmi-ficha-footer-item">
+                        <span class="cmi-ficha-footer-label">Frecuencia</span>
+                        <span class="cmi-ficha-footer-value">{freq}</span>
+                    </div>
+                    <div class="cmi-ficha-footer-item">
+                        <span class="cmi-ficha-footer-label">ID</span>
+                        <span class="cmi-ficha-footer-value">{row_id or '—'}</span>
+                    </div>
+                </div>
+            </div>
+            """
+        )
         shown += 1
+
+    html = "<div class='cmi-ficha-grid'>" + "".join(cards) + "</div>"
+    st.markdown(html, unsafe_allow_html=True)
 
     if total_count > max_fichas:
         st.caption(
