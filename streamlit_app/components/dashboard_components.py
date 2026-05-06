@@ -477,23 +477,23 @@ def render_fichas_indicadores(
         sort_key = _build_sort_key(df_work)
         df_work = df_work.reindex(sort_key.index)
         df_work["_sort_key"] = sort_key
+        agg_map = {
+            "Indicador": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Proceso": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Proceso_padre": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Tipo de proceso": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Unidad": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Meta": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Ejecucion": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "_pct_num": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Frecuencia": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+            "Subproceso_final": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
+        }
+        agg_map = {col: fn for col, fn in agg_map.items() if col in df_work.columns}
         df_group = (
             df_work.sort_values("_sort_key")
             .groupby("Id_norm", dropna=False)
-            .agg(
-                {
-                    "Indicador": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Proceso": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Proceso_padre": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Tipo de proceso": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Unidad": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Meta": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Ejecucion": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "_pct_num": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Frecuencia": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                    "Subproceso_final": lambda s: s.dropna().iloc[-1] if not s.dropna().empty else pd.NA,
-                }
-            )
+            .agg(agg_map)
             .reset_index()
         )
         df_iter = df_group.sort_values("_pct_num", na_position="last")

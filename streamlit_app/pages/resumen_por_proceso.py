@@ -2849,6 +2849,8 @@ def _render_indicadores_subproceso_cards(
                         use_container_width=True,
                     ):
                         st.session_state[selected_key] = indicador
+                        from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
+                        render_modal_ficha(row)
 
             nav1, nav2, nav3 = st.columns([1, 2, 1])
             with nav1:
