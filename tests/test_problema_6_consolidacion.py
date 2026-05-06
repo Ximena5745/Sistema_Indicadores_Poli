@@ -162,6 +162,33 @@ class TestProblema6ConsistenciaEntreFunciones:
         if not cna.empty:
             assert pd.api.types.is_numeric_dtype(cna["cumplimiento_pct"])
 
+    def test_load_cierres_recalcula_cumplimiento_faltante(self, tmp_path, monkeypatch):
+        """load_cierres debe reconstruir cumplimiento cuando el Excel no lo trae."""
+        import services.strategic_indicators as si
+
+        excel_path = tmp_path / "Resultados Consolidados.xlsx"
+        df_source = pd.DataFrame(
+            {
+                "Id": [1],
+                "Indicador": ["Test"],
+                "Fecha": [pd.Timestamp("2025-12-31")],
+                "Meta": [100],
+                "Ejecucion": [90],
+                "Sentido": ["Positivo"],
+                "Tipo_Registro": ["Regular"],
+                "Cumplimiento": [None],
+            }
+        )
+        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+            df_source.to_excel(writer, sheet_name="Cierre historico", index=False)
+
+        monkeypatch.setattr(si, "OUT_XLSX", excel_path)
+        si.load_cierres.clear()
+        result = si.load_cierres()
+
+        assert not result.empty
+        assert result.loc[0, "cumplimiento_pct"] == 90.0
+
     def test_nivel_valores_validos(self):
         """Nivel de cumplimiento debe tener valores válidos en ambas."""
         pdi = preparar_pdi_con_cierre(2026, 3)

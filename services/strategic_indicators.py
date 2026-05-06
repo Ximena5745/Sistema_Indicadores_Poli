@@ -13,7 +13,7 @@ from core.config import (
     UMBRAL_SOBRECUMPLIMIENTO,
 )
 from core import calculos as _calculos
-from core.semantica import categorizar_cumplimiento
+from core.semantica import categorizar_cumplimiento, recalcular_cumplimiento_faltante
 
 # Caché manual simple (no depende de Streamlit)
 _CACHE_MANUAL = {}
@@ -382,6 +382,24 @@ def load_cierres() -> pd.DataFrame:
     out["cumplimiento_real"] = (
         pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
     )
+
+    # Fallback oficial: si el Excel no trae cumplimiento precomputado, reconstruirlo
+    # desde Meta/Ejecucion usando la lógica centralizada de core.semantica.
+    calcular_mask = (
+        out["cumplimiento_dec"].isna()
+        & out["Meta"].notna()
+        & out["Ejecucion"].notna()
+    )
+    if calcular_mask.any():
+        out.loc[calcular_mask, "cumplimiento_dec"] = out.loc[calcular_mask].apply(
+            lambda row: recalcular_cumplimiento_faltante(
+                row["Meta"],
+                row["Ejecucion"],
+                row.get("Sentido", "Positivo"),
+                row.get("Id"),
+            ),
+            axis=1,
+        )
 
     out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
 

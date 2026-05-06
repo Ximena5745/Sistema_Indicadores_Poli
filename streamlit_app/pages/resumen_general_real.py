@@ -152,6 +152,39 @@ def _load_consolidado_cierres() -> pd.DataFrame:
     if "Cumplimiento" in df.columns and "cumplimiento_pct" not in df.columns:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
 
+    if "cumplimiento_pct" not in df.columns and {"Meta", "Ejecucion"}.issubset(df.columns):
+        from core.semantica import recalcular_cumplimiento_faltante
+
+        df["cumplimiento_pct"] = df.apply(
+            lambda row: 100 * recalcular_cumplimiento_faltante(
+                row["Meta"],
+                row["Ejecucion"],
+                row.get("Sentido", "Positivo"),
+                row.get("Id"),
+            )
+            if pd.notna(row["Meta"]) and pd.notna(row["Ejecucion"])
+            else pd.NA,
+            axis=1,
+        )
+    elif "cumplimiento_pct" in df.columns and {"Meta", "Ejecucion"}.issubset(df.columns):
+        from core.semantica import recalcular_cumplimiento_faltante
+
+        mask_missing = (
+            df["cumplimiento_pct"].isna()
+            & df["Meta"].notna()
+            & df["Ejecucion"].notna()
+        )
+        if mask_missing.any():
+            df.loc[mask_missing, "cumplimiento_pct"] = df.loc[mask_missing].apply(
+                lambda row: 100 * recalcular_cumplimiento_faltante(
+                    row["Meta"],
+                    row["Ejecucion"],
+                    row.get("Sentido", "Positivo"),
+                    row.get("Id"),
+                ),
+                axis=1,
+            )
+
     df = _ensure_nivel_cumplimiento(df)
     return df
 
