@@ -763,17 +763,38 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
             if counts.empty:
                 st.warning("No hay datos para periodicidad.")
             else:
-                fig = px.bar(
+                fig = px.pie(
                     counts,
-                    x="Periodicidad",
-                    y="Indicadores",
-                    text="Indicadores",
+                    names="Periodicidad",
+                    values="Indicadores",
                     title="Indicadores por periodicidad",
                     color="Periodicidad",
                     color_discrete_sequence=get_strategic_palette(),
                 )
-                fig.update_layout(margin=dict(t=35, b=100), xaxis_tickangle=-30, showlegend=False)
+                fig.update_traces(
+                    textposition="inside",
+                    texttemplate="%{label}<br>%{value} (%{percent:.1%})",
+                    textfont=dict(size=14),
+                    hovertemplate="%{label}: %{value} indicadores (%{percent:.1%})<extra></extra>",
+                )
+                fig.update_layout(margin=dict(t=35, b=35), showlegend=True)
                 cols[0].plotly_chart(fig, use_container_width=True)
+
+                top_period = counts.iloc[0]
+                total_ind = int(counts["Indicadores"].sum())
+                top_name = str(top_period["Periodicidad"])
+                top_count = int(top_period["Indicadores"])
+                top_pct = top_count / total_ind * 100 if total_ind else 0.0
+                cols[0].markdown(
+                    f"""
+                    <div style='border:1px solid #dbe4f5; border-radius:16px; padding:16px; background:#fcfcff; box-shadow:0 8px 20px rgba(15,23,42,0.05);'>
+                        <p style='margin:0 0 8px; font-weight:700; color:#1f2937;'>Análisis de periodicidad</p>
+                        <p style='margin:0 0 6px; color:#334155;'>La periodicidad dominante es <strong>{top_name}</strong> con <strong>{top_count}</strong> indicadores ({top_pct:.1f}%).</p>
+                        <p style='margin:0; color:#475569;'>Este gráfico muestra la distribución de indicadores activos por periodicidad, ayudando a identificar los ciclos de medición más comunes en el CMI.</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
     if type_col is not None:
         source = df_used if not df_used.empty else df_cmi
@@ -3097,9 +3118,6 @@ def render() -> None:
     with tabs[0]:
         _render_resumen_procesos_style()
         st.markdown("### CMI por Procesos — Vista Global")
-        st.caption(
-            "Fuente: Consolidado Cierres · Resultados Consolidados.xlsx — Filtrado por el año global seleccionado, sin filtros de proceso/subproceso"
-        )
 
         # Usar el filtro global de año de la sección CMI por Procesos
         global_year = anio if anio is not None else default_year
@@ -3132,9 +3150,6 @@ def render() -> None:
             MESES_OPCIONES[int(_latest_m) - 1] if _latest_m and 1 <= int(_latest_m) <= 12 else "Diciembre"
         )
         _base_caption = f"Último mes {_base_year}" if _base_m is not None else f"Sin datos {_base_year}"
-        st.caption(
-            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación: {global_year} vs {_base_caption}."
-        )
 
         # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
         try:
@@ -3341,6 +3356,13 @@ def render() -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
+        st.caption(
+            "Fuente: Consolidado Cierres · Resultados Consolidados.xlsx — Filtrado por el año global seleccionado, sin filtros de proceso/subproceso"
+        )
+        st.caption(
+            f"Corte activo en Resumen: {_latest_month_name} {global_year}. Comparación: {global_year} vs {_base_caption}."
+        )
 
         # ── Sección ampliada: KPIs, Alertas, Tabla, Fichas, Unidad ──────────
         if not cmi_global.empty:
