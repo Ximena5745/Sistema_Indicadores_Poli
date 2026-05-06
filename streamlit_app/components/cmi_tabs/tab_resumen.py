@@ -10,9 +10,15 @@ from streamlit_app.utils.cmi_helpers import calcular_kpis
 from services.strategic_indicators import NIVEL_COLOR_EXT
 try:
     from core.config import COLORES, COLOR_CATEGORIA
-    # Asegurar que existe la clave primary
+    # Asegurar que existen las claves usadas en este módulo
     if "primary" not in COLORES:
         COLORES["primary"] = COLORES.get("primario", "#1A3A5C")
+    if "success" not in COLORES:
+        COLORES["success"] = COLORES.get("cumplimiento", "#43A047")
+    if "warning" not in COLORES:
+        COLORES["warning"] = COLORES.get("alerta", "#FBAF17")
+    if "danger" not in COLORES:
+        COLORES["danger"] = COLORES.get("peligro", "#D32F2F")
 except ImportError:
     COLORES = {
         "primary": "#1A3A5C", 

@@ -36,6 +36,53 @@ body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Titulares del dashboard: formato uniforme en todas las páginas */
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3,
+[data-testid="stAppViewContainer"] h4,
+[data-testid="stAppViewContainer"] h5 {
+    color: #102A52;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+}
+
+[data-testid="stAppViewContainer"] h1 {
+    font-size: 2.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3,
+[data-testid="stAppViewContainer"] h4,
+[data-testid="stAppViewContainer"] h5 {
+    padding-left: 0.9rem;
+    border-left: 4px solid var(--primary);
+    background: rgba(2, 42, 87, 0.04);
+    border-radius: 0 0.75rem 0.75rem 0;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+}
+
+[data-testid="stAppViewContainer"] h2 {
+    font-size: 1.6rem;
+}
+
+[data-testid="stAppViewContainer"] h3 {
+    font-size: 1.3rem;
+}
+
+[data-testid="stAppViewContainer"] h4 {
+    font-size: 1.1rem;
+}
+
+[data-testid="stAppViewContainer"] h5 {
+    font-size: 1rem;
+}
+
 /* Variables de paleta del proyecto */
 :root {
     --primary: #022457; /* color principal solicitado */

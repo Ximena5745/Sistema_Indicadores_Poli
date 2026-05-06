@@ -119,6 +119,18 @@ def _process_counts_cmi(df: pd.DataFrame, process_col: str) -> pd.DataFrame:
     return pivot.reset_index()
 
 
+def _section_title(title: str, level: int = 3, accent: str = "#1b3f72") -> None:
+    sizes = {3: "1.25rem", 4: "1.05rem", 5: "0.95rem"}
+    font_size = sizes.get(level, "1rem")
+    st.markdown(
+        f"<div style='display:flex;align-items:center;gap:10px;margin:1.5rem 0 0.75rem 0;'>"
+        f"<div style='width:4px;height:26px;border-radius:999px;background:{accent};flex-shrink:0;'></div>"
+        f"<div style='font-size:{font_size};font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:0.04em;'>{title}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _ensure_tipo_proceso_cmi(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or "Tipo de proceso" in df.columns:
         return df
@@ -2893,17 +2905,6 @@ def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFram
 
 def render() -> None:
     st.title("CMI por Procesos — Resumen")
-
-    def _section_title(title: str, level: int = 3, accent: str = "#1b3f72") -> None:
-        sizes = {3: "1.25rem", 4: "1.05rem", 5: "0.95rem"}
-        font_size = sizes.get(level, "1rem")
-        st.markdown(
-            f"<div style='display:flex;align-items:center;gap:10px;margin:1.5rem 0 0.75rem 0;'>"
-            f"<div style='width:4px;height:26px;border-radius:999px;background:{accent};flex-shrink:0;'></div>"
-            f"<div style='font-size:{font_size};font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:0.04em;'>{title}</div>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
 
     ds = DataService()
     tracking_df = ds.get_tracking_data()
