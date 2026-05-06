@@ -52,20 +52,32 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
         df["Subproceso_norm"] = df["Subproceso"].astype(str).apply(_normalize_text)
         df["Proceso_norm"] = df["Proceso"].astype(str).apply(_normalize_text)
 
-        # Merge by normalized subprocess name to get parent process fields
-        merge_cols = ["Subproceso_norm", "Proceso", "Unidad", "Tipo de proceso"]
-        df = df.merge(
-            df_procesos[merge_cols].drop_duplicates("Subproceso_norm"),
-            on="Subproceso_norm",
-            how="left",
-            suffixes=("", "_excel")
+        # Merge by normalized subprocess name to get parent process fields.
+        # Rename reference columns to avoid suffix conflicts when the dataset already has the same names.
+        ref_cols = (
+            df_procesos[["Subproceso_norm", "Proceso", "Unidad", "Tipo de proceso"]]
+            .drop_duplicates("Subproceso_norm")
+            .rename(
+                columns={
+                    "Proceso": "Proceso_ref",
+                    "Unidad": "Unidad_ref",
+                    "Tipo de proceso": "Tipo de proceso_ref",
+                }
+            )
         )
+        df = df.merge(ref_cols, on="Subproceso_norm", how="left")
 
         # Use Excel data if available, otherwise keep existing
-        df["Unidad"] = df["Unidad"].fillna("")
-        df["Unidad"] = df["Unidad"].fillna(df["Unidad_excel"])
-        df["Tipo de proceso"] = df["Tipo de proceso"].fillna("")
-        df["Tipo de proceso"] = df["Tipo de proceso"].fillna(df["Tipo de proceso_excel"])
+        df["Unidad"] = df.get("Unidad", "").fillna("")
+        df["Unidad"] = df["Unidad"].mask(
+            df["Unidad"].astype(str).str.strip() == "",
+            df.get("Unidad_ref", ""),
+        )
+        df["Tipo de proceso"] = df.get("Tipo de proceso", "").fillna("")
+        df["Tipo de proceso"] = df["Tipo de proceso"].mask(
+            df["Tipo de proceso"].astype(str).str.strip() == "",
+            df.get("Tipo de proceso_ref", ""),
+        )
 
         # Fallback: if Subproceso didn't match, try matching Proceso text as subproceso value
         unidad_map_by_sub = df_procesos.set_index("Subproceso_norm")["Unidad"].to_dict()
