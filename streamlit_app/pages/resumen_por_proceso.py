@@ -1088,15 +1088,6 @@ def _render_tab_procesos_unidades(
     if not proc_comp.empty:
         palette = get_strategic_palette()
         fig_bar = go.Figure()
-        fig_bar.add_trace(
-            go.Bar(
-                name=f"Cumplimiento {global_year}",
-                x=proc_comp[process_col_bar],
-                y=proc_comp["actual"],
-                marker_color=palette[0],
-                yaxis="y1",
-            )
-        )
         if proc_comp["base_prev_year"].notna().any():
             fig_bar.add_trace(
                 go.Bar(
@@ -1104,20 +1095,34 @@ def _render_tab_procesos_unidades(
                     x=proc_comp[process_col_bar],
                     y=proc_comp["base_prev_year"],
                     marker_color=palette[1],
+                    text=proc_comp["base_prev_year"].round(1).astype(str) + "%",
+                    textposition="auto",
                     yaxis="y1",
                 )
             )
+        fig_bar.add_trace(
+            go.Bar(
+                name=f"Cumplimiento {global_year}",
+                x=proc_comp[process_col_bar],
+                y=proc_comp["actual"],
+                marker_color=palette[0],
+                text=proc_comp["actual"].round(1).astype(str) + "%",
+                textposition="auto",
+                yaxis="y1",
+            )
+        )
         fig_bar.add_trace(
             go.Scatter(
                 name=f"Variación {global_year} vs {base_year}",
                 x=proc_comp[process_col_bar],
                 y=proc_comp["delta_prev_year"].round(1),
-                mode="lines+markers+text",
+                mode="text",
                 text=proc_comp["delta_prev_year"].round(1).astype(str) + "%",
                 textposition="top center",
-                marker=dict(color=palette[2], size=8),
-                line=dict(color=palette[2], width=2, dash="dash"),
+                textfont=dict(color=palette[2], size=12),
+                hoverinfo="text",
                 yaxis="y2",
+                showlegend=False,
             )
         )
         fig_bar.update_layout(
@@ -1128,10 +1133,11 @@ def _render_tab_procesos_unidades(
             xaxis_title="Proceso",
             yaxis=dict(title="Cumplimiento promedio (%)", side="left", showgrid=False),
             yaxis2=dict(
-                title="Variación (%)",
+                title="",
                 overlaying="y",
                 side="right",
                 showgrid=False,
+                showticklabels=False,
             ),
             legend_title_text="Comparación histórica",
         )
