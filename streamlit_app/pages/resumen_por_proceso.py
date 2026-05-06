@@ -2893,13 +2893,6 @@ def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFram
 
 def render() -> None:
     st.title("CMI por Procesos — Resumen")
-    st.markdown(
-        """
-        **Nuevas pestañas agregadas:** `Procesos y Unidades`, `Indicadores`, `Alertas`, `Propuesta`, `Análisis Avanzado`.
-        Usa los filtros globales de la parte superior para segmentar por Unidad, Proceso, Subproceso, Año, Mes, Frecuencia, Clasificación y Tipo de indicador.
-        """,
-        unsafe_allow_html=True,
-    )
 
     ds = DataService()
     tracking_df = ds.get_tracking_data()
@@ -2949,9 +2942,6 @@ def render() -> None:
     tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
 
     st.markdown("#### Filtros globales")
-    st.caption(
-        "Estos controles son los filtros oficiales de CMI por Procesos para todas las pestañas de la sección. No hay filtros de año adicionales dentro de las pestañas; el Año seleccionado aquí es el único valor usado."
-    )
 
     unidad_options = ["Todos"]
     if unidad_col and unidad_col in snapshot_df.columns:
