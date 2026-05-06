@@ -2961,8 +2961,8 @@ def render() -> None:
     .filter-bar {
         background: linear-gradient(90deg, #f8f9fa 0%, #f0f2f5 100%);
         border-left: 4px solid #022457;
-        padding: 12px 14px;
-        margin: 0 0 20px 0;
+        padding: 8px 12px;
+        margin: 0 0 8px 0;
         border-radius: 6px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
@@ -2973,20 +2973,24 @@ def render() -> None:
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
+    /* Reducir espaciado de columnas */
+    [data-testid="column"] {
+        padding: 0 4px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
     
     st.markdown('<div class="filter-bar"><span class="filter-label-main"><i class="fas fa-sliders-h" style="margin-right:6px;color:#022457;"></i>FILTROS</span></div>', unsafe_allow_html=True)
     
-    # PRIMERA FILA DE FILTROS
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # PRIMERA FILA DE FILTROS: Año, Mes, Clasificación, Tipo de indicador, Frecuencia
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     # Año
     with col1:
         topbar_year = st.session_state.get("topbar_year")
         if topbar_year is not None:
             anio = int(topbar_year)
-            st.metric("Año", anio)
+            st.write(f"**Año: {anio}**")
         else:
             year_options = [str(y) for y in years] if years else [str(default_year)]
             default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
@@ -2995,6 +2999,7 @@ def render() -> None:
                 options=year_options,
                 index=year_options.index(default_year_label) if default_year_label in year_options else 0,
                 key="filter_anio",
+                label_visibility="collapsed",
             )
             anio = int(anio) if anio is not None else None
     
@@ -3003,56 +3008,26 @@ def render() -> None:
         topbar_month = st.session_state.get("topbar_month")
         if topbar_month is not None:
             mes = str(topbar_month)
-            st.metric("Mes", mes)
+            st.write(f"**Mes: {mes}**")
         else:
-            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
-    
-    # Unidad
-    with col3:
-        unidad_options = ["Todos"]
-        if unidad_col and unidad_col in snapshot_df.columns:
-            unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
-        unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad")
-    
-    # Proceso
-    with col4:
-        proceso_df = snapshot_df.copy()
-        if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
-            proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
-        proceso_options = ["Todos"] + sorted(
-            proceso_df[proceso_col].dropna().astype(str).unique().tolist()
-        )
-        proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso")
-    
-    # Subproceso
-    with col5:
-        sub_df = snapshot_df.copy()
-        if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
-            sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
-        if proceso_sel != "Todos":
-            sub_df = sub_df[sub_df[proceso_col].astype(str) == proceso_sel]
-        subproceso_options = ["Todos"] + sorted(
-            sub_df[subproceso_col].dropna().astype(str).unique().tolist()
-        )
-        subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso")
-    
-    # SEGUNDA FILA DE FILTROS
-    col6, col7, col8 = st.columns(3)
+            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes", label_visibility="collapsed")
     
     # Clasificación
-    with col6:
+    with col3:
         clasificacion_options = ["Todos"]
         if clasificacion_col and clasificacion_col in snapshot_df.columns:
             clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
+        st.write("**Clasificación**")
         clasificacion_sel = st.selectbox(
             "Clasificación",
             options=clasificacion_options,
             index=0,
             key="filter_clasificacion",
+            label_visibility="collapsed",
         )
     
     # Tipo de indicador
-    with col7:
+    with col4:
         tipo_options = ["Todos"]
         if tipo_indicador_col and tipo_indicador_col in snapshot_df.columns:
             tipo_options += sorted(snapshot_df[tipo_indicador_col].dropna().astype(str).unique().tolist())
@@ -3062,15 +3037,17 @@ def render() -> None:
                 tipo_options += sorted(
                     cmi_catalog[catalog_tipo_col].dropna().astype(str).unique().tolist()
                 )
+        st.write("**Tipo de indicador**")
         tipo_indicador_sel = st.selectbox(
             "Tipo de indicador",
             options=tipo_options,
             index=0,
             key="filter_tipo_indicador",
+            label_visibility="collapsed",
         )
     
     # Frecuencia
-    with col8:
+    with col5:
         frecuencia_options = ["Todos"]
         if frecuencia_col and frecuencia_col in snapshot_df.columns:
             frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
@@ -3078,7 +3055,43 @@ def render() -> None:
             catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
             if catalog_freq_col is not None:
                 frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
-        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia")
+        st.write("**Frecuencia**")
+        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia", label_visibility="collapsed")
+    
+    # SEGUNDA FILA DE FILTROS: Unidad, Proceso, Subproceso
+    col6, col7, col8 = st.columns(3, gap="small")
+    
+    # Unidad
+    with col6:
+        unidad_options = ["Todos"]
+        if unidad_col and unidad_col in snapshot_df.columns:
+            unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
+        st.write("**Unidad**")
+        unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad", label_visibility="collapsed")
+    
+    # Proceso
+    with col7:
+        proceso_df = snapshot_df.copy()
+        if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
+            proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
+        proceso_options = ["Todos"] + sorted(
+            proceso_df[proceso_col].dropna().astype(str).unique().tolist()
+        )
+        st.write("**Proceso**")
+        proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso", label_visibility="collapsed")
+    
+    # Subproceso
+    with col8:
+        sub_df = snapshot_df.copy()
+        if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
+            sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
+        if proceso_sel != "Todos":
+            sub_df = sub_df[sub_df[proceso_col].astype(str) == proceso_sel]
+        subproceso_options = ["Todos"] + sorted(
+            sub_df[subproceso_col].dropna().astype(str).unique().tolist()
+        )
+        st.write("**Subproceso**")
+        subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso", label_visibility="collapsed")
 
     # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (
