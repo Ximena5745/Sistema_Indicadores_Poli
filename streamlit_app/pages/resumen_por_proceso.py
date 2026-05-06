@@ -789,8 +789,7 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                     f"""
                     <div style='border:1px solid #dbe4f5; border-radius:16px; padding:16px; background:#fcfcff; box-shadow:0 8px 20px rgba(15,23,42,0.05);'>
                         <p style='margin:0 0 8px; font-weight:700; color:#1f2937;'>Análisis de periodicidad</p>
-                        <p style='margin:0 0 6px; color:#334155;'>La periodicidad dominante es <strong>{top_name}</strong> con <strong>{top_count}</strong> indicadores ({top_pct:.1f}%).</p>
-                        <p style='margin:0; color:#475569;'>Este gráfico muestra la distribución de indicadores activos por periodicidad, ayudando a identificar los ciclos de medición más comunes en el CMI.</p>
+                        <p style='margin:0; color:#334155;'>La periodicidad dominante es <strong>{top_name}</strong> con <strong>{top_count}</strong> indicadores ({top_pct:.1f}%).</p>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -2958,6 +2957,30 @@ def render() -> None:
     if unidad_col and unidad_col in snapshot_df.columns:
         unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
 
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        topbar_year = st.session_state.get("topbar_year")
+        if topbar_year is not None:
+            anio = int(topbar_year)
+            st.markdown(f"**Año:** {anio}")
+        else:
+            year_options = [str(y) for y in years] if years else [str(default_year)]
+            default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
+            anio = st.segmented_control(
+                "Año",
+                options=year_options,
+                default=default_year_label,
+                key="filter_anio",
+            )
+            anio = int(anio) if anio is not None else None
+    with c2:
+        topbar_month = st.session_state.get("topbar_month")
+        if topbar_month is not None:
+            mes = str(topbar_month)
+            st.markdown(f"**Mes:** {mes}")
+        else:
+            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
+
     c1, c2, c3 = st.columns([1.3, 1.3, 1.3])
     with c1:
         unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad")
@@ -2981,39 +3004,6 @@ def render() -> None:
         subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso")
 
     c1, c2, c3 = st.columns([1, 1, 1])
-    topbar_year = st.session_state.get("topbar_year")
-    topbar_month = st.session_state.get("topbar_month")
-    with c1:
-        if topbar_year is not None:
-            anio = int(topbar_year)
-            st.markdown(f"**Año global:** {anio}")
-        else:
-            year_options = [str(y) for y in years] if years else [str(default_year)]
-            default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-            anio = st.segmented_control(
-                "Año",
-                options=year_options,
-                default=default_year_label,
-                key="filter_anio",
-            )
-            anio = int(anio) if anio is not None else None
-    with c2:
-        if topbar_month is not None:
-            mes = str(topbar_month)
-            st.markdown(f"**Mes global:** {mes}")
-        else:
-            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes")
-    with c3:
-        frecuencia_options = ["Todos"]
-        if frecuencia_col and frecuencia_col in snapshot_df.columns:
-            frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
-        elif not cmi_catalog.empty:
-            catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
-            if catalog_freq_col is not None:
-                frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
-        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia")
-
-    c1, c2 = st.columns([1, 1])
     with c1:
         clasificacion_options = ["Todos"]
         if clasificacion_col and clasificacion_col in snapshot_df.columns:
@@ -3040,6 +3030,15 @@ def render() -> None:
             default="Todos",
             key="filter_tipo_indicador",
         )
+    with c3:
+        frecuencia_options = ["Todos"]
+        if frecuencia_col and frecuencia_col in snapshot_df.columns:
+            frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
+        elif not cmi_catalog.empty:
+            catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
+            if catalog_freq_col is not None:
+                frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
+        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia")
 
     # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (
