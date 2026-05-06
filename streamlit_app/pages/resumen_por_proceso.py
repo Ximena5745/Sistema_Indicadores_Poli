@@ -846,7 +846,7 @@ def _render_tab_indicadores(
     df: pd.DataFrame,
     cmi_catalog: pd.DataFrame,
 ) -> None:
-    st.markdown("### Indicadores por Línea, Proceso y Subproceso")
+    _section_title("Indicadores por Línea, Proceso y Subproceso", level=3)
     if df.empty:
         st.info("No hay indicadores activos para mostrar en esta vista.")
         return
@@ -899,7 +899,7 @@ def _render_tab_indicadores(
                 if not row.empty and st.button("Ver ficha", key=f"tab_indicadores_button_{linea}"):
                     render_modal_ficha(row.iloc[0])
 
-    st.markdown("#### Total de indicadores por línea")
+    _section_title("Total de indicadores por línea", level=4)
     counts = df[linea_col].astype(str).value_counts().reset_index()
     counts.columns = ["Linea", "Indicadores"]
     st.bar_chart(counts.set_index("Linea"))
@@ -912,7 +912,7 @@ def _render_propuesta_resumen(
     month_name: str,
     year: int,
 ) -> None:
-    st.markdown("#### Propuesta de acción")
+    _section_title("Propuesta de acción", level=4)
     if latest_df.empty:
         st.info("No hay datos de indicadores en el corte actual para generar una propuesta.")
         return
@@ -966,7 +966,7 @@ def _render_tab_procesos_unidades(
     base_year: int,
     month_name: str,
 ) -> None:
-    st.markdown("### Procesos y Unidades")
+    _section_title("Procesos y Unidades", level=3)
     st.caption("Comparativo de procesos y análisis de unidades organizacionales en el corte actual.")
 
     if cmi_global.empty:
@@ -978,12 +978,12 @@ def _render_tab_procesos_unidades(
     )
 
     if "Unidad" in cmi_global.columns:
-        st.markdown("#### Análisis por Unidad Organizacional")
+        _section_title("Análisis por Unidad Organizacional", level=4)
         render_analisis_unidad(cmi_global, pct_col)
     else:
         st.info("No hay datos de Unidad organizacional disponibles en este corte.")
 
-    st.markdown("##### Monitoreo por Tipo de Proceso")
+    _section_title("Monitoreo por Tipo de Proceso", level=5)
 
     type_curr = (
         cmi_global.groupby("Tipo de proceso", dropna=False)
@@ -1022,7 +1022,7 @@ def _render_tab_procesos_unidades(
                     color=tipo_color,
                 )
 
-    st.markdown("##### Procesos con mayor cumplimiento")
+    _section_title("Procesos con mayor cumplimiento", level=5)
     selected_tipo_chart = st.segmented_control(
         "Tipo de proceso (gráfica)",
         options=["Todos"] + ordered_tipos,
@@ -1145,12 +1145,12 @@ def _render_tab_procesos_unidades(
         if "Tipo de proceso" in proc_table.columns:
             proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
 
-        st.markdown("#### Tabla de procesos comparativa")
+        _section_title("Tabla de procesos comparativa", level=4)
         st.dataframe(proc_table, use_container_width=True, hide_index=True)
     else:
         st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
 
-    st.markdown("#### Heatmap — Cumplimiento por Unidad y Periodo")
+    _section_title("Heatmap — Cumplimiento por Unidad y Periodo", level=4)
     if "Unidad" in cmi_global.columns and "Mes" in cmi_global.columns:
         heat_df = cmi_global.copy()
         heat_df["Mes_num"] = heat_df["Mes"].apply(_mes_to_num)
@@ -2793,7 +2793,7 @@ def _render_indicadores_subproceso_cards(
 
                 analisis_raw = _buscar_analisis_indicador(selected_indicator, analisis_map)
                 analisis_hist = _buscar_analisis_periodos(selected_indicator, analisis_periodos)
-                st.markdown("##### Análisis del indicador")
+                _section_title("Análisis del indicador", level=5)
                 texto_estandar = _generar_analisis_estandar(yearly_df, analisis_hist)
                 if analisis_raw and analisis_raw not in analisis_hist:
                     texto_estandar = (
@@ -2894,6 +2894,17 @@ def _build_propuestos(df_latest: pd.DataFrame, process_name: str) -> pd.DataFram
 def render() -> None:
     st.title("CMI por Procesos — Resumen")
 
+    def _section_title(title: str, level: int = 3, accent: str = "#1b3f72") -> None:
+        sizes = {3: "1.25rem", 4: "1.05rem", 5: "0.95rem"}
+        font_size = sizes.get(level, "1rem")
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:10px;margin:1.5rem 0 0.75rem 0;'>"
+            f"<div style='width:4px;height:26px;border-radius:999px;background:{accent};flex-shrink:0;'></div>"
+            f"<div style='font-size:{font_size};font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:0.04em;'>{title}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
     ds = DataService()
     tracking_df = ds.get_tracking_data()
     map_df = ds.get_process_map()
@@ -2941,7 +2952,7 @@ def render() -> None:
     clasificacion_col = _first_col(snapshot_df, ["Clasificación", "Clasificacion", "Categoria"])
     tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
 
-    st.markdown("#### Filtros globales")
+    _section_title("Filtros globales", level=4)
 
     unidad_options = ["Todos"]
     if unidad_col and unidad_col in snapshot_df.columns:
@@ -3106,7 +3117,7 @@ def render() -> None:
 
     with tabs[0]:
         _render_resumen_procesos_style()
-        st.markdown("### CMI por Procesos — Vista Global")
+        _section_title("CMI por Procesos — Vista Global", level=3)
 
         # Usar el filtro global de año de la sección CMI por Procesos
         global_year = anio if anio is not None else default_year
@@ -3370,18 +3381,18 @@ def render() -> None:
         _render_tab_indicadores(filtered, cmi_catalog)
         if not cmi_global.empty:
             st.divider()
-            st.markdown("#### 📋 Tabla Analítica de Indicadores")
+            _section_title("📋 Tabla Analítica de Indicadores", level=4)
             render_tabla_analitica(filtered)
 
     with tabs[3]:
         if not cmi_global.empty:
             st.divider()
-            st.markdown("#### 🚨 Alertas y Hallazgos")
+            _section_title("🚨 Alertas y Hallazgos", level=4)
             render_alertas_criticas(cmi_global)
         render_tab_alertas(filtered)
 
     with tabs[4]:
-        st.markdown("### Propuesta de mejora")
+        _section_title("Propuesta de mejora", level=3)
         st.caption(
             "Gráficas, tablas e insights que complementan la sección Resumen CMI por Procesos."
         )
@@ -3400,7 +3411,7 @@ def render() -> None:
                     t for t in TIPOS_PROCESO if t in cmi_global["Tipo de proceso"].astype(str).tolist()
                 ]
 
-            st.markdown("##### Procesos con mayor cumplimiento")
+            _section_title("Procesos con mayor cumplimiento", level=5)
             selected_tipo_chart = st.segmented_control(
                 "Tipo de proceso (gráfica)",
                 options=["Todos"] + ordered_tipos,
@@ -3523,7 +3534,7 @@ def render() -> None:
                 if "Tipo de proceso" in proc_table.columns:
                     proc_table = proc_table.sort_values(["Tipo de proceso", f"Cumplimiento {global_year}"], ascending=[True, False])
 
-                st.markdown("#### Tabla de procesos comparativa")
+                _section_title("Tabla de procesos comparativa", level=4)
                 st.dataframe(proc_table, use_container_width=True, hide_index=True)
             else:
                 st.info("No hay procesos con cumplimiento para el filtro de tipo seleccionado.")
@@ -3554,7 +3565,7 @@ def render() -> None:
             _worst_html = _build_ia_rows_rpp(worst_proc_rows)
 
     with tabs[4]:
-        st.markdown("### 📈 Análisis Avanzado — Histórico de Indicadores")
+        _section_title("📈 Análisis Avanzado — Histórico de Indicadores", level=3)
         st.caption(
             "Evolución temporal de indicadores seleccionados. "
             "Compara períodos y detecta tendencias (↑ creciente, ↓ decreciente, → estable)."
