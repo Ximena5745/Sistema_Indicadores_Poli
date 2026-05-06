@@ -47,6 +47,13 @@ def _find_cumplimiento_col(df: pd.DataFrame) -> Optional[str]:
     return None
 
 
+def _find_ejecucion_col(df: pd.DataFrame) -> Optional[str]:
+    for candidate in ["Ejecucion", "Ejecución", "Ejecucion_s", "Ejecucion s", "Ejecución s"]:
+        if candidate in df.columns:
+            return candidate
+    return None
+
+
 def _sanitize_ai_response(text: str) -> str:
     if text is None:
         return ""
@@ -63,28 +70,44 @@ def _tendencia_desde_hist(hist: pd.DataFrame) -> tuple:
     """Devuelve (label, icono) calculando delta entre último y penúltimo periodo."""
     if hist.empty:
         return "Sin datos", "→"
+    ejec_col = _find_ejecucion_col(hist)
+    if ejec_col:
+        vals = pd.to_numeric(hist[ejec_col], errors="coerce").dropna()
+        if len(vals) >= 2:
+            delta = float(vals.iloc[-1]) - float(vals.iloc[-2])
+            if delta > 2:
+                return "Al alza", "↑"
+            if delta < -2:
+                return "A la baja", "↓"
+            return "Estable", "→"
     cump_col = _find_cumplimiento_col(hist)
-    if not cump_col:
-        return "Sin datos", "→"
-    vals = pd.to_numeric(hist[cump_col], errors="coerce").dropna()
-    if len(vals) < 2:
-        return "Estable", "→"
-    delta = float(vals.iloc[-1]) - float(vals.iloc[-2])
-    if delta > 2:
-        return "Al alza", "↑"
-    if delta < -2:
-        return "A la baja", "↓"
-    return "Estable", "→"
+    if cump_col:
+        vals = pd.to_numeric(hist[cump_col], errors="coerce").dropna()
+        if len(vals) >= 2:
+            delta = float(vals.iloc[-1]) - float(vals.iloc[-2])
+            if delta > 2:
+                return "Al alza", "↑"
+            if delta < -2:
+                return "A la baja", "↓"
+            return "Estable", "→"
+    return "Sin datos", "→"
 
 
 def _donut_fig(cump: float, nivel: str) -> go.Figure:
     color = COLOR_CATEGORIA.get(nivel, COLORES.get("sin_dato", "#BDBDBD"))
     capped = min(cump, 130.0)
+    if capped >= 100.0:
+        values = [130.0]
+        colors = [color]
+    else:
+        values = [capped, max(0.0, 130.0 - capped)]
+        colors = [color, "#E5E7EB"]
+
     fig = go.Figure(
         go.Pie(
-            values=[capped, max(0.0, 130.0 - capped)],
+            values=values,
             hole=0.72,
-            marker=dict(colors=[color, "#E5E7EB"]),
+            marker=dict(colors=colors),
             textinfo="none",
             hoverinfo="none",
             sort=False,
@@ -136,6 +159,8 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
                 opacity=0.65,
                 yaxis="y1",
                 offsetgroup="meta",
+                text=mv.round(1).astype(str),
+                textposition="outside",
             ))
             has_primary = True
 
@@ -149,6 +174,8 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
                 opacity=0.85,
                 yaxis="y1",
                 offsetgroup="ejec",
+                text=ev.round(1).astype(str),
+                textposition="outside",
             ))
             has_primary = True
 
@@ -159,10 +186,12 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
         cump_vals = pd.to_numeric(h[cump_col], errors="coerce")
         if cump_vals.notna().sum() >= 1:
             fig.add_trace(go.Scatter(
-                x=h["Periodo"], y=cump_vals, mode="lines+markers",
+                x=h["Periodo"], y=cump_vals, mode="lines+markers+text",
                 name="% Cumplimiento",
                 line=dict(color="#0EA5E9", width=2),
                 marker=dict(size=7, color="#0EA5E9"),
+                text=cump_vals.round(1).astype(str) + "%",
+                textposition="top center",
                 yaxis="y2",
             ))
             # Anotación de variación en el último punto conocido
@@ -487,7 +516,7 @@ def render_modal_ficha(ind_data: pd.Series):
         if ai_resp:
             clean_ai = _sanitize_ai_response(ai_resp)
             st.markdown(
-                f"<div style='font-size:0.82rem;color:#334155;line-height:1.65;max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-word'>{clean_ai}</div>",
+                f"<div style='font-size:0.82rem;color:#334155;line-height:1.65;max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;background:#fff;padding:12px;border-radius:12px;border:1px solid #E2E8F0'>{clean_ai}</div>",
                 unsafe_allow_html=True,
             )
         else:

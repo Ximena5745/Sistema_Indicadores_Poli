@@ -857,7 +857,6 @@ def _render_tab_indicadores(
     df: pd.DataFrame,
     cmi_catalog: pd.DataFrame,
 ) -> None:
-    _section_title("Indicadores", level=3)
     if df.empty:
         st.info("No hay indicadores activos para mostrar en esta vista.")
         return
@@ -875,27 +874,82 @@ def _render_tab_indicadores(
     if pct_col is None:
         pct_col = "Cumplimiento_pct"
 
+    meta_col = _first_col(df, ["Meta", "Meta último periodo", "Meta ultimo periodo"]) or "Meta"
+    ejec_col = _first_col(df, ["Ejecución", "Ejecucion"]) or "Ejecucion"
+
     df = df.copy()
-    display_cols = [c for c in [tipo_col, "Indicador", "Meta", "Ejecucion", pct_col, "Nivel de cumplimiento"] if c in df.columns]
+    display_cols = [
+        c for c in [
+            tipo_col,
+            "Indicador",
+            meta_col,
+            ejec_col,
+            pct_col,
+            "Nivel de cumplimiento",
+            "Meta_Signo",
+            "Meta s",
+            "MetaS",
+            "Decimales_Meta",
+            "Decimales",
+            "DecimalesEje",
+            "DecEjec",
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+        ]
+        if c and c in df.columns
+    ]
     if not display_cols:
         st.warning("No hay columnas disponibles para mostrar en los indicadores.")
         return
 
     display_df = df[display_cols].copy()
+    display_df = formatear_meta_ejecucion_df(
+        display_df,
+        meta_col=meta_col,
+        ejec_col=ejec_col,
+    )
     if pct_col in display_df.columns:
         display_df[pct_col] = pd.to_numeric(display_df[pct_col], errors="coerce").round(1)
 
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    rename_map = {}
+    if tipo_col:
+        rename_map[tipo_col] = "Tipo"
+    if pct_col:
+        rename_map[pct_col] = "Cumplimiento %"
+    if rename_map:
+        display_df = display_df.rename(columns=rename_map)
 
-    sel_indicador = st.selectbox(
-        "Seleccionar indicador para ver ficha",
-        [""] + df["Indicador"].astype(str).fillna(" ").tolist(),
-        key="tab_indicadores_sel",
-    )
-    if sel_indicador:
-        row = df[df["Indicador"].astype(str) == sel_indicador].head(1)
-        if not row.empty and st.button("Ver ficha", key="tab_indicadores_button"):
-            render_modal_ficha(row.iloc[0])
+    cleanup_cols = [
+        "Meta_Signo",
+        "Meta s",
+        "MetaS",
+        "Decimales_Meta",
+        "Decimales",
+        "DecimalesEje",
+        "DecEjec",
+        "Ejecucion_Signo",
+        "Ejecución s",
+        "Ejecucion s",
+        "EjecS",
+    ]
+    display_df = display_df.drop(columns=[c for c in cleanup_cols if c in display_df.columns])
+
+    sel_indicador, ver_ficha_col = st.columns([3, 1])
+    with sel_indicador:
+        selected = st.selectbox(
+            "Seleccionar indicador para ver ficha",
+            [""] + df["Indicador"].astype(str).fillna(" ").tolist(),
+            key="tab_indicadores_sel",
+        )
+    with ver_ficha_col:
+        if selected and st.button("Ver ficha", key="tab_indicadores_button"):
+            row = df[df["Indicador"].astype(str) == selected].head(1)
+            if not row.empty:
+                render_modal_ficha(row.iloc[0])
+
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
 def _render_propuesta_resumen(

@@ -20,6 +20,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import hashlib
+import unicodedata
+from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
 
 # Contador por módulo para generar claves únicas por llamada durante un rerun
@@ -51,6 +53,26 @@ def _resolve_pct_col(df: pd.DataFrame) -> str | None:
     for col in ("cumplimiento_pct", "Cumplimiento_pct", "Cumplimiento_norm"):
         if col in df.columns:
             return col
+    return None
+
+
+def _norm_text(value: str) -> str:
+    text = str(value or "").strip().upper()
+    text = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in text if not unicodedata.combining(ch))
+
+
+def _first_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    cols_norm = {_norm_text(c): c for c in df.columns}
+    for cand in candidates:
+        key = _norm_text(cand)
+        if key in cols_norm:
+            return cols_norm[key]
+    for cand in candidates:
+        key = _norm_text(cand)
+        for norm_col, real_col in cols_norm.items():
+            if key in norm_col:
+                return real_col
     return None
 
 
@@ -352,6 +374,45 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
             seen_dest.add(dest)
 
     tabla = filtered[list(rename_map.keys())].rename(columns=rename_map).copy()
+    meta_col = _first_col(filtered, ["Meta", "Meta último periodo", "Meta ultimo periodo"]) or "Meta"
+    ejec_col = _first_col(filtered, ["Ejecución", "Ejecucion"]) or "Ejecucion"
+    sign_cols = [
+        c for c in [
+            "Meta_Signo",
+            "Meta s",
+            "MetaS",
+            "Decimales_Meta",
+            "Decimales",
+            "DecimalesEje",
+            "DecEjec",
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+        ]
+        if c in filtered.columns
+    ]
+    if sign_cols:
+        tabla = pd.concat([tabla, filtered[sign_cols].reset_index(drop=True)], axis=1)
+    tabla = formatear_meta_ejecucion_df(
+        tabla,
+        meta_col=meta_col,
+        ejec_col=ejec_col,
+    )
+    cleanup_cols = [
+        "Meta_Signo",
+        "Meta s",
+        "MetaS",
+        "Decimales_Meta",
+        "Decimales",
+        "DecimalesEje",
+        "DecEjec",
+        "Ejecucion_Signo",
+        "Ejecución s",
+        "Ejecucion s",
+        "EjecS",
+    ]
+    tabla = tabla.drop(columns=[c for c in cleanup_cols if c in tabla.columns])
 
     if pct_col and pct_col in filtered.columns:
         vals = _normalize_pct(filtered[pct_col], pct_col)
@@ -365,18 +426,22 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
     if "Indicador" in tabla.columns:
         tabla["Ver ficha"] = "Ver ficha"
 
-    st.dataframe(tabla, use_container_width=True, hide_index=True)
-
+    sel_indicador, ver_button = st.columns([3, 1])
+    selected = ""
     if "Indicador" in filtered.columns:
-        sel_indicador = st.selectbox(
-            "Seleccionar indicador para ver ficha",
-            [""] + filtered["Indicador"].astype(str).fillna(" ").tolist(),
-            key="tabla_analitica_sel_indicador",
-        )
-        if sel_indicador and st.button("Ver ficha", key="tabla_analitica_button"):
-            row = filtered[filtered["Indicador"].astype(str) == sel_indicador].head(1)
-            if not row.empty:
-                render_modal_ficha(row.iloc[0])
+        with sel_indicador:
+            selected = st.selectbox(
+                "Seleccionar indicador para ver ficha",
+                [""] + filtered["Indicador"].astype(str).fillna(" ").tolist(),
+                key="tabla_analitica_sel_indicador",
+            )
+        with ver_button:
+            if selected and st.button("Ver ficha", key="tabla_analitica_button"):
+                row = filtered[filtered["Indicador"].astype(str) == selected].head(1)
+                if not row.empty:
+                    render_modal_ficha(row.iloc[0])
+
+    st.dataframe(tabla, use_container_width=True, hide_index=True)
 
     csv = tabla.to_csv(index=False).encode("utf-8")
     st.download_button(
