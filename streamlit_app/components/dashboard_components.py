@@ -541,6 +541,14 @@ def render_fichas_indicadores(
             color: #0F172A;
             margin: 0 0 6px 0;
         }
+        .cmi-ficha-card-id {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+            color: #1D4ED8;
+            text-transform: uppercase;
+        }
         .cmi-ficha-card-subtitle {
             font-size: 0.79rem;
             line-height: 1.5;
@@ -608,14 +616,14 @@ def render_fichas_indicadores(
         unsafe_allow_html=True,
     )
 
-    cards: list[str] = []
+    card_rows: list[tuple[str, pd.Series]] = []
     shown = 0
     for _, row in df_iter.iterrows():
         if shown >= max_fichas:
             break
 
         nombre = str(row.get("Indicador", f"Indicador {shown + 1}"))
-        row_id = str(row.get("Id_norm", row.get("Id", ""))).strip()
+        row_id = str(row.get("Id_norm", row.get("Id", ""))).strip() or "—"
         pct_raw = row.get("_pct_num", None)
         pct_val_f: float | None = float(pct_raw) if pd.notna(pct_raw) else None
         nivel = _nivel_from_pct(pct_val_f)
@@ -629,11 +637,11 @@ def render_fichas_indicadores(
         freq = str(row.get("Frecuencia", row.get("Periodicidad", "—")))
         status_text = nivel.title() if nivel != "sin dato" else "Sin dato"
 
-        cards.append(
-            f"""
+        card_html = f"""
             <div class="cmi-ficha-card">
                 <div class="cmi-ficha-card-header">
                     <div>
+                        <div class="cmi-ficha-card-id">ID {row_id}</div>
                         <div class="cmi-ficha-card-title">{nombre}</div>
                         <div class="cmi-ficha-card-subtitle">{proceso} · {tipo} · {unidad}</div>
                     </div>
@@ -660,16 +668,21 @@ def render_fichas_indicadores(
                     </div>
                     <div class="cmi-ficha-footer-item">
                         <span class="cmi-ficha-footer-label">ID</span>
-                        <span class="cmi-ficha-footer-value">{row_id or '—'}</span>
+                        <span class="cmi-ficha-footer-value">{row_id}</span>
                     </div>
                 </div>
             </div>
             """
-        )
+        card_rows.append((card_html, row))
         shown += 1
 
-    html = "<div class='cmi-ficha-grid'>" + "".join(cards) + "</div>"
-    st.markdown(html, unsafe_allow_html=True)
+    for i in range(0, len(card_rows), 2):
+        cols = st.columns(2)
+        for col, (card_html, row) in zip(cols, card_rows[i : i + 2]):
+            col.markdown(card_html, unsafe_allow_html=True)
+            btn_key = f"cmi_ficha_detail_{row.get('Id', '')}_{i}"
+            if col.button("Ver detalle", key=btn_key, use_container_width=True):
+                render_modal_ficha(row)
 
     if total_count > max_fichas:
         st.caption(
