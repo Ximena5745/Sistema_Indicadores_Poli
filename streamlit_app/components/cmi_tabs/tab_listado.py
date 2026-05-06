@@ -284,6 +284,9 @@ def render_tab_listado(df: pd.DataFrame):
     start_idx = (page - 1) * rpp
     end_idx = min(start_idx + rpp, total)
 
+    # ── Controles de paginación superior ────────────────────────────────────
+    pm.render_controls(total, page, total_pages, start_idx, end_idx, position="top")
+
     # ── Barra superior: conteo + export ──────────────────────────────────────
     bar1, _, bar3 = st.columns([3, 2, 1.4])
     with bar1:

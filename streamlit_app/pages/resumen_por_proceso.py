@@ -28,7 +28,7 @@ from streamlit_app.components.dashboard_components import (
     render_historico_tab,
 )
 from streamlit_app.components.cmi_tabs.tab_alertas import render_tab_alertas
-from streamlit_app.components.cmi_tabs import render_modal_ficha
+from streamlit_app.components.cmi_tabs import render_modal_ficha, render_tab_listado
 
 MESES_OPCIONES = [
     "Enero",
@@ -853,6 +853,129 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                 showlegend=False,
             )
             cols[1].plotly_chart(fig, use_container_width=True)
+def _compute_indicador_summary(df: pd.DataFrame, pct_col: str | None) -> dict[str, int]:
+    if df.empty:
+        return {
+            "total": 0,
+            "metricas": 0,
+            "sobrecumplimiento": 0,
+            "cumplimiento": 0,
+            "alerta": 0,
+            "peligro": 0,
+        }
+
+    indicador_col = _first_col(df, ["Indicador", "nombre", "Nombre Indicador", "Indicador Nombre"]) or "Indicador"
+    work = df.copy()
+    if "Id" in work.columns:
+        work["Id_norm"] = work["Id"].astype(str).str.strip()
+        sort_key = _build_sort_key(work)
+        work = work.reindex(sort_key.index)
+        work["_sort_key"] = sort_key
+        work = work.sort_values("_sort_key")
+        work = work.drop_duplicates(subset=["Id_norm"], keep="last")
+    elif indicador_col in work.columns:
+        sort_key = _build_sort_key(work)
+        work = work.reindex(sort_key.index)
+        work["_sort_key"] = sort_key
+        work = work.sort_values("_sort_key")
+        work = work.drop_duplicates(subset=[indicador_col], keep="last")
+
+    total = len(df)
+    metricas = work[indicador_col].nunique() if indicador_col in work.columns else total
+    counts = {"sobrecumplimiento": 0, "cumplimiento": 0, "alerta": 0, "peligro": 0}
+    if pct_col and pct_col in work.columns:
+        pct_vals = pd.to_numeric(work[pct_col], errors="coerce")
+        counts["sobrecumplimiento"] = int((pct_vals >= 105).sum())
+        counts["cumplimiento"] = int(((pct_vals >= 100) & (pct_vals < 105)).sum())
+        counts["alerta"] = int(((pct_vals >= 80) & (pct_vals < 100)).sum())
+        counts["peligro"] = int((pct_vals < 80).sum())
+    return {
+        "total": total,
+        "metricas": metricas,
+        **counts,
+    }
+
+
+def _render_indicadores_summary_cards(summary: dict[str, int]) -> None:
+    st.markdown(
+        f"""
+        <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.2rem;'>
+            <div style='padding:16px;border-radius:16px;background:#ffffff;border:1px solid #E2E8F0;'>
+                <div style='font-size:0.75rem;color:#475569;font-weight:700;'>Total de registros</div>
+                <div style='font-size:1.8rem;font-weight:800;margin-top:10px;color:#0F172A;'>{summary["total"]}</div>
+            </div>
+            <div style='padding:16px;border-radius:16px;background:#ffffff;border:1px solid #E2E8F0;'>
+                <div style='font-size:0.75rem;color:#475569;font-weight:700;'>Métricas</div>
+                <div style='font-size:1.8rem;font-weight:800;margin-top:10px;color:#0F172A;'>{summary["metricas"]}</div>
+            </div>
+            <div style='padding:16px;border-radius:16px;background:#F0FDF4;border:1px solid #D1FAE5;'>
+                <div style='font-size:0.75rem;color:#166534;font-weight:700;'>Sobrecumplimiento</div>
+                <div style='font-size:1.8rem;font-weight:800;margin-top:10px;color:#166534;'>{summary["sobrecumplimiento"]}</div>
+            </div>
+            <div style='padding:16px;border-radius:16px;background:#ECFDF5;border:1px solid #D1FAE5;'>
+                <div style='font-size:0.75rem;color:#14532D;font-weight:700;'>Cumplimiento</div>
+                <div style='font-size:1.8rem;font-weight:800;margin-top:10px;color:#14532D;'>{summary["cumplimiento"]}</div>
+            </div>
+            <div style='padding:16px;border-radius:16px;background:#FEF9C3;border:1px solid #FDE68A;'>
+                <div style='font-size:0.75rem;color:#854D0E;font-weight:700;'>Alerta</div>
+                <div style='font-size:1.8rem;font-weight:800;margin-top:10px;color:#854D0E;'>{summary["alerta"]}</div>
+            </div>
+            <div style='padding:16px;border-radius:16px;background:#FEF2F2;border:1px solid #FECACA;'>
+                <div style='font-size:0.75rem;color:#991B1B;font-weight:700;'>Peligro</div>
+                <div style='font-size:1.8rem;font-weight:800;margin-top:10px;color:#991B1B;'>{summary["peligro"]}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _build_variation_tables(df: pd.DataFrame, ejec_col: str | None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if df.empty or ejec_col is None or ejec_col not in df.columns:
+        return pd.DataFrame(), pd.DataFrame()
+
+    indicador_col = _first_col(df, ["Indicador", "nombre", "Nombre Indicador", "Indicador Nombre"]) or "Indicador"
+    period_col = _first_col(df, ["Periodo", "Mes", "Mes_num", "Año", "Anio", "Fecha"])
+    work = df.copy()
+    work["ejec_val"] = pd.to_numeric(work[ejec_col], errors="coerce")
+    if "Id" in work.columns:
+        work["Id_norm"] = work["Id"].astype(str).str.strip()
+        group_key = "Id_norm"
+    else:
+        group_key = indicador_col
+
+    rows = []
+    for _, group in work.groupby(group_key, dropna=False):
+        if group.shape[0] < 2:
+            continue
+        sort_key = _build_sort_key(group)
+        group = group.reindex(sort_key.index)
+        group["_sort_key"] = sort_key
+        group = group.sort_values("_sort_key")
+        last = group.iloc[-1]
+        prev = group.iloc[-2]
+        if pd.isna(last["ejec_val"]) or pd.isna(prev["ejec_val"]):
+            continue
+        rows.append(
+            {
+                "Indicador": last.get(indicador_col, "—"),
+                "Última Ejecución": last["ejec_val"],
+                "Delta Ejecución": last["ejec_val"] - prev["ejec_val"],
+                "Periodo": last.get(period_col, "—") if period_col else "—",
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(), pd.DataFrame()
+
+    variation = pd.DataFrame(rows)
+    variation["Última Ejecución"] = variation["Última Ejecución"].round(2)
+    variation["Delta Ejecución"] = variation["Delta Ejecución"].round(2)
+    positive = variation.sort_values("Delta Ejecución", ascending=False).head(8)
+    negative = variation.sort_values("Delta Ejecución", ascending=True).head(8)
+    return positive, negative
+
+
 def _render_tab_indicadores(
     df: pd.DataFrame,
     cmi_catalog: pd.DataFrame,
@@ -860,10 +983,6 @@ def _render_tab_indicadores(
     if df.empty:
         st.info("No hay indicadores activos para mostrar en esta vista.")
         return
-
-    search = st.text_input("Buscar indicador", key="tab_indicadores_search")
-    if search:
-        df = df[df["Indicador"].astype(str).str.contains(search, case=False, na=False)]
 
     if cmi_catalog is not None and not cmi_catalog.empty:
         tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
@@ -877,79 +996,32 @@ def _render_tab_indicadores(
     meta_col = _first_col(df, ["Meta", "Meta último periodo", "Meta ultimo periodo"]) or "Meta"
     ejec_col = _first_col(df, ["Ejecución", "Ejecucion"]) or "Ejecucion"
 
-    df = df.copy()
-    display_cols = [
-        c for c in [
-            tipo_col,
-            "Indicador",
-            meta_col,
-            ejec_col,
-            pct_col,
-            "Nivel de cumplimiento",
-            "Meta_Signo",
-            "Meta s",
-            "MetaS",
-            "Decimales_Meta",
-            "Decimales",
-            "DecimalesEje",
-            "DecEjec",
-            "Ejecucion_Signo",
-            "Ejecución s",
-            "Ejecucion s",
-            "EjecS",
-        ]
-        if c and c in df.columns
-    ]
-    if not display_cols:
-        st.warning("No hay columnas disponibles para mostrar en los indicadores.")
-        return
+    if "Ejecución" in df.columns and "Ejecucion" not in df.columns:
+        df = df.copy()
+        df["Ejecucion"] = df["Ejecución"]
 
-    display_df = df[display_cols].copy()
-    display_df = formatear_meta_ejecucion_df(
-        display_df,
-        meta_col=meta_col,
-        ejec_col=ejec_col,
-    )
-    if pct_col in display_df.columns:
-        display_df[pct_col] = pd.to_numeric(display_df[pct_col], errors="coerce").round(1)
+    summary = _compute_indicador_summary(df, pct_col)
+    _render_indicadores_summary_cards(summary)
+    positive, negative = _build_variation_tables(df, ejec_col)
+    if not positive.empty or not negative.empty:
+        st.markdown("<div style='margin-bottom:1rem;font-size:0.98rem;color:#334155;font-weight:700;'>Indicadores con mayor variación en Ejecución</div>", unsafe_allow_html=True)
+        cols = st.columns(2)
+        with cols[0]:
+            st.markdown("<div style='font-size:0.9rem;font-weight:700;margin-bottom:0.35rem;'>Mayor variación positiva</div>", unsafe_allow_html=True)
+            if not positive.empty:
+                st.dataframe(positive, use_container_width=True)
+            else:
+                st.info("No hay indicadores con variación positiva calculable.")
+        with cols[1]:
+            st.markdown("<div style='font-size:0.9rem;font-weight:700;margin-bottom:0.35rem;'>Mayor variación negativa</div>", unsafe_allow_html=True)
+            if not negative.empty:
+                st.dataframe(negative, use_container_width=True)
+            else:
+                st.info("No hay indicadores con variación negativa calculable.")
 
-    rename_map = {}
-    if tipo_col:
-        rename_map[tipo_col] = "Tipo"
-    if pct_col:
-        rename_map[pct_col] = "Cumplimiento %"
-    if rename_map:
-        display_df = display_df.rename(columns=rename_map)
-
-    cleanup_cols = [
-        "Meta_Signo",
-        "Meta s",
-        "MetaS",
-        "Decimales_Meta",
-        "Decimales",
-        "DecimalesEje",
-        "DecEjec",
-        "Ejecucion_Signo",
-        "Ejecución s",
-        "Ejecucion s",
-        "EjecS",
-    ]
-    display_df = display_df.drop(columns=[c for c in cleanup_cols if c in display_df.columns])
-
-    sel_indicador, ver_ficha_col = st.columns([3, 1])
-    with sel_indicador:
-        selected = st.selectbox(
-            "Seleccionar indicador para ver ficha",
-            [""] + df["Indicador"].astype(str).fillna(" ").tolist(),
-            key="tab_indicadores_sel",
-        )
-    with ver_ficha_col:
-        if selected and st.button("Ver ficha", key="tab_indicadores_button"):
-            row = df[df["Indicador"].astype(str) == selected].head(1)
-            if not row.empty:
-                render_modal_ficha(row.iloc[0])
-
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    st.divider()
+    st.markdown("#### Listado completo de indicadores")
+    render_tab_listado(df)
 
 
 def _render_propuesta_resumen(
