@@ -58,3 +58,15 @@ def test_analizar_ficha_cmi_tiene_fallback_heuristico(monkeypatch):
     assert isinstance(text, str)
     assert "Diagnóstico" in text
     assert "Recomendación" in text
+
+
+def test_sanitize_ai_response_elimina_caracteres_extraños():
+    from streamlit_app.components.cmi_tabs import modal_ficha
+
+    raw = "Diagnóstico:\\n**Problema** encontrado.\\n- Acción 1\\n- Acción 2"
+    cleaned = modal_ficha._sanitize_ai_response(raw)
+
+    assert "Diagnóstico:" in cleaned
+    assert "\\n" not in cleaned
+    assert "**" not in cleaned
+    assert "Acción 1" in cleaned

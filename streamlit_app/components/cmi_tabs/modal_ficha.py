@@ -10,12 +10,20 @@ Estructura:
   5. Botón Exportar PDF (reportlab)
 """
 
+import html
+import re
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from typing import Optional
 from core.config import COLOR_CATEGORIA, COLOR_CATEGORIA_CLARO, COLORES
 from services.strategic_indicators import load_cierres
+from streamlit_app.utils.formatting import (
+    ejecucion_his_signo,
+    formatear_meta_ejecucion_df,
+    meta_his_signo,
+)
 
 try:
     from streamlit_app.utils.cmi_helpers import linea_color as _linea_color
@@ -37,6 +45,18 @@ def _find_cumplimiento_col(df: pd.DataFrame) -> Optional[str]:
         if candidate in df.columns:
             return candidate
     return None
+
+
+def _sanitize_ai_response(text: str) -> str:
+    if text is None:
+        return ""
+    cleaned = str(text)
+    cleaned = cleaned.replace('\\r', '').replace('\\t', ' ')
+    cleaned = cleaned.replace('\\n', '\n')
+    cleaned = cleaned.replace('**', '')
+    cleaned = cleaned.replace('\\', '')
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    return html.escape(cleaned).strip()
 
 
 def _tendencia_desde_hist(hist: pd.DataFrame) -> tuple:
@@ -106,19 +126,6 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
 
     has_primary = False
 
-    # ── Ejecución (barras) ───────────────────────────────────────────────────
-    if "Ejecucion" in h.columns:
-        ev = pd.to_numeric(h["Ejecucion"], errors="coerce")
-        if ev.notna().sum() >= 1:
-            fig.add_trace(go.Bar(
-                x=h["Periodo"], y=ev, name="Ejecución",
-                marker_color=COLORES.get("primario", "#1A3A5C"),
-                opacity=0.85,
-                yaxis="y1",
-                offsetgroup="ejec",
-            ))
-            has_primary = True
-
     # ── Meta (barras) ───────────────────────────────────────────────────────
     if "Meta" in h.columns:
         mv = pd.to_numeric(h["Meta"], errors="coerce")
@@ -129,6 +136,19 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
                 opacity=0.65,
                 yaxis="y1",
                 offsetgroup="meta",
+            ))
+            has_primary = True
+
+    # ── Ejecución (barras) ───────────────────────────────────────────────────
+    if "Ejecucion" in h.columns:
+        ev = pd.to_numeric(h["Ejecucion"], errors="coerce")
+        if ev.notna().sum() >= 1:
+            fig.add_trace(go.Bar(
+                x=h["Periodo"], y=ev, name="Ejecución",
+                marker_color=COLORES.get("primario", "#1A3A5C"),
+                opacity=0.85,
+                yaxis="y1",
+                offsetgroup="ejec",
             ))
             has_primary = True
 
@@ -266,6 +286,13 @@ def render_modal_ficha(ind_data: pd.Series):
     cump     = float(cump_raw) if pd.notna(cump_raw) else 0.0
     nivel    = str(ind_data.get("Nivel de cumplimiento", "Sin dato"))
 
+    formatted_meta = meta_his_signo(ind_data.to_dict()) if not ind_data.empty else "—"
+    formatted_ejec = ejecucion_his_signo(ind_data.to_dict()) if not ind_data.empty else "—"
+    if not formatted_meta:
+        formatted_meta = str(meta_val) if pd.notna(meta_val) and str(meta_val) not in ("nan", "None", "") else "—"
+    if not formatted_ejec:
+        formatted_ejec = str(ejec_val) if pd.notna(ejec_val) and str(ejec_val) not in ("nan", "None", "") else "—"
+
     responsable  = str(ind_data.get("responsable", ind_data.get("Responsable del calculo",
                                     ind_data.get("Responsable", "No definido"))))
     fuente       = "Kawak"
@@ -350,13 +377,11 @@ def render_modal_ficha(ind_data: pd.Series):
             use_container_width=True,
             config={"displayModeBar": False},
         )
-        meta_fmt = str(meta_val) if pd.notna(meta_val) and str(meta_val) not in ("nan", "None", "") else "—"
-        ejec_fmt = str(ejec_val) if pd.notna(ejec_val) and str(ejec_val) not in ("nan", "None", "") else "—"
         st.markdown(
             f"""<div style="text-align:center;margin-top:-8px">
-                <p style="font-size:0.78rem;color:#64748B;margin:0">Meta: {meta_fmt}</p>
+                <p style="font-size:0.78rem;color:#64748B;margin:0">Meta: {formatted_meta}</p>
                 <p style="font-size:0.85rem;font-weight:700;color:{nivel_color};
-                    margin:3px 0 0 0">{ejec_fmt} Actual</p>
+                    margin:3px 0 0 0">{formatted_ejec} Actual</p>
             </div>""",
             unsafe_allow_html=True,
         )
@@ -369,6 +394,7 @@ def render_modal_ficha(ind_data: pd.Series):
     # ── SECCIÓN 2: EVOLUCIÓN HISTÓRICA ───────────────────────────────────────
     st.markdown(
         "<p style='font-size:0.85rem;font-weight:700;color:#0F172A;"
+
         "margin-bottom:6px'>~ Evolución Histórica</p>",
         unsafe_allow_html=True,
     )
@@ -412,17 +438,32 @@ def render_modal_ficha(ind_data: pd.Series):
                 h["Periodo"] = (
                     h["Anio"].astype(str) + "-" + h["Mes"].astype(str).str.zfill(2)
                 )
-            seg_cols = [c for c in ["Periodo", "Meta", "Ejecucion", "cumplimiento_pct"]
-                        if c in h.columns]
+            seg_cols = [c for c in [
+                "Periodo", "Meta", "Ejecucion", "cumplimiento_pct",
+                "Meta_Signo", "Meta s", "MetaS",
+                "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+                "Decimales_Meta", "Decimales", "DecimalesEje", "DecEjec"
+            ] if c in h.columns]
             seg = (
                 h[seg_cols]
-                .rename(columns={"cumplimiento_pct": "% Cumpl."})
                 .sort_values("Periodo")
                 .tail(10)
                 .reset_index(drop=True)
             )
+            seg = formatear_meta_ejecucion_df(seg, meta_col="Meta", ejec_col="Ejecucion")
+            drop_cols = [c for c in [
+                "Meta_Signo", "Meta s", "MetaS",
+                "Ejecucion_Signo", "Ejecución s", "Ejecucion s", "EjecS",
+                "Decimales_Meta", "Decimales", "DecimalesEje", "DecEjec"
+            ] if c in seg.columns]
+            seg = seg.drop(columns=drop_cols)
+            seg = seg.rename(columns={"cumplimiento_pct": "% Cumpl."})
             if "% Cumpl." in seg.columns:
-                seg["% Cumpl."] = pd.to_numeric(seg["% Cumpl."], errors="coerce").round(1)
+                seg["% Cumpl."] = pd.to_numeric(seg["% Cumpl."], errors="coerce").round(1).map(
+                    lambda x: f"{x:.1f}%" if pd.notna(x) else "—"
+                )
+            display_cols = [c for c in ["Periodo", "Meta", "Ejecucion", "% Cumpl."] if c in seg.columns]
+            seg = seg[display_cols]
             st.dataframe(seg, hide_index=True, use_container_width=True, height=210)
         else:
             st.markdown(
@@ -444,9 +485,9 @@ def render_modal_ficha(ind_data: pd.Series):
                 meta_val, ejec_val, nivel, cump,
             )
         if ai_resp:
+            clean_ai = _sanitize_ai_response(ai_resp)
             st.markdown(
-                f"<div style='font-size:0.82rem;color:#334155;line-height:1.65;"
-                f"max-height:220px;overflow-y:auto'>{ai_resp}</div>",
+                f"<div style='font-size:0.82rem;color:#334155;line-height:1.65;max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-word'>{clean_ai}</div>",
                 unsafe_allow_html=True,
             )
         else:
