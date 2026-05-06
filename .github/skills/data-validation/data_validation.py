@@ -68,12 +68,21 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
         df = df.merge(ref_cols, on="Subproceso_norm", how="left")
 
         # Use Excel data if available, otherwise keep existing
-        df["Unidad"] = df.get("Unidad", "").fillna("")
+        if "Unidad" in df.columns:
+            unidad_series = df["Unidad"].astype(object)
+        else:
+            unidad_series = pd.Series([""] * len(df), index=df.index)
+        df["Unidad"] = unidad_series.fillna("")
         df["Unidad"] = df["Unidad"].mask(
             df["Unidad"].astype(str).str.strip() == "",
             df.get("Unidad_ref", ""),
         )
-        df["Tipo de proceso"] = df.get("Tipo de proceso", "").fillna("")
+
+        if "Tipo de proceso" in df.columns:
+            tipo_series = df["Tipo de proceso"].astype(object)
+        else:
+            tipo_series = pd.Series([""] * len(df), index=df.index)
+        df["Tipo de proceso"] = tipo_series.fillna("")
         df["Tipo de proceso"] = df["Tipo de proceso"].mask(
             df["Tipo de proceso"].astype(str).str.strip() == "",
             df.get("Tipo de proceso_ref", ""),
