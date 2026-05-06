@@ -2994,12 +2994,12 @@ def render() -> None:
         else:
             year_options = [str(y) for y in years] if years else [str(default_year)]
             default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-            anio = st.selectbox(
+            st.write("**Año**")
+            anio = st.pills(
                 "Año",
                 options=year_options,
-                index=year_options.index(default_year_label) if default_year_label in year_options else 0,
+                default=default_year_label if default_year_label in year_options else year_options[0],
                 key="filter_anio",
-                label_visibility="collapsed",
             )
             anio = int(anio) if anio is not None else None
     
@@ -3010,7 +3010,8 @@ def render() -> None:
             mes = str(topbar_month)
             st.write(f"**Mes: {mes}**")
         else:
-            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes", label_visibility="collapsed")
+            st.write("**Mes**")
+            mes = st.pills("Mes", options=MESES_OPCIONES, default=default_month, key="filter_mes")
     
     # Clasificación
     with col3:
@@ -3018,12 +3019,11 @@ def render() -> None:
         if clasificacion_col and clasificacion_col in snapshot_df.columns:
             clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
         st.write("**Clasificación**")
-        clasificacion_sel = st.selectbox(
+        clasificacion_sel = st.pills(
             "Clasificación",
             options=clasificacion_options,
-            index=0,
+            default="Todos",
             key="filter_clasificacion",
-            label_visibility="collapsed",
         )
     
     # Tipo de indicador
@@ -3037,13 +3037,12 @@ def render() -> None:
                 tipo_options += sorted(
                     cmi_catalog[catalog_tipo_col].dropna().astype(str).unique().tolist()
                 )
-        st.write("**Tipo de indicador**")
-        tipo_indicador_sel = st.selectbox(
+        st.write("**Tipo indicador**")
+        tipo_indicador_sel = st.pills(
             "Tipo de indicador",
             options=tipo_options,
-            index=0,
+            default="Todos",
             key="filter_tipo_indicador",
-            label_visibility="collapsed",
         )
     
     # Frecuencia
@@ -3056,7 +3055,7 @@ def render() -> None:
             if catalog_freq_col is not None:
                 frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
         st.write("**Frecuencia**")
-        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia", label_visibility="collapsed")
+        frecuencia_sel = st.pills("Frecuencia", options=frecuencia_options, default="Todos", key="filter_frecuencia")
     
     # SEGUNDA FILA DE FILTROS: Unidad, Proceso, Subproceso
     col6, col7, col8 = st.columns(3, gap="small")
