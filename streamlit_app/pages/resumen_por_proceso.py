@@ -2959,93 +2959,78 @@ def render() -> None:
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     """, unsafe_allow_html=True)
     
-    st.markdown("### <i class='fas fa-filter'></i> Filtros", unsafe_allow_html=True, help="Utiliza estos filtros para refinar los indicadores y métricas")
-    
-    # Inyectar CSS personalizado para los filtros
+    # Inyectar CSS personalizado para los filtros compactos
     st.markdown("""
     <style>
     .filter-container {
         background: linear-gradient(135deg, #f8f9fa 0%, #f0f2f5 100%);
         border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
         border-left: 4px solid var(--primary);
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-    .filter-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-    .filter-group {
-        background: white;
-        padding: 10px 12px;
-        border-radius: 8px;
-        border: 1px solid #e0e3e8;
-        transition: all 0.2s ease;
-    }
-    .filter-group:hover {
-        border-color: #4c72b0;
-        box-shadow: 0 2px 6px rgba(76, 114, 176, 0.1);
-    }
     .filter-label {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
         color: #666;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
         display: block;
-    }
-    .filter-icon {
-        margin-right: 6px;
-        color: #022457;
     }
     </style>
     """, unsafe_allow_html=True)
     
+    st.markdown("### <i class='fas fa-filter'></i> Filtros", unsafe_allow_html=True)
+    
     with st.container():
         st.markdown('<div class="filter-container">', unsafe_allow_html=True)
         
-        # FILA 1: Temporales (Año, Mes)
-        c1, c2 = st.columns([1, 1])
-        with c1:
+        # FILA 1: Año, Mes, Unidad, Proceso, Subproceso (5 columnas)
+        c_year, c_month, c_unit, c_proc, c_subproc = st.columns([0.9, 0.9, 1.1, 1.1, 1.1])
+        
+        # Año
+        with c_year:
+            st.markdown('<small class="filter-label"><i class="fas fa-calendar-alt" style="margin-right:5px;color:#022457;"></i>Año</small>', unsafe_allow_html=True)
             topbar_year = st.session_state.get("topbar_year")
             if topbar_year is not None:
                 anio = int(topbar_year)
-                st.markdown(f'<div class="filter-group"><span class="filter-label"><i class="fas fa-calendar-alt" style="margin-right:6px;color:#022457;"></i>Año</span><strong style="font-size:14px">{anio}</strong></div>', unsafe_allow_html=True)
+                st.write(f"**{anio}**")
             else:
                 year_options = [str(y) for y in years] if years else [str(default_year)]
                 default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-                anio = st.segmented_control(
+                anio = st.selectbox(
                     "Año",
                     options=year_options,
-                    default=default_year_label,
+                    index=year_options.index(default_year_label) if default_year_label in year_options else 0,
                     key="filter_anio",
+                    label_visibility="collapsed",
                 )
                 anio = int(anio) if anio is not None else None
-        with c2:
+        
+        # Mes
+        with c_month:
+            st.markdown('<small class="filter-label"><i class="fas fa-calendar" style="margin-right:5px;color:#022457;"></i>Mes</small>', unsafe_allow_html=True)
             topbar_month = st.session_state.get("topbar_month")
             if topbar_month is not None:
                 mes = str(topbar_month)
-                st.markdown(f'<div class="filter-group"><span class="filter-label"><i class="fas fa-calendar" style="margin-right:6px;color:#022457;"></i>Mes</span><strong style="font-size:14px">{mes}</strong></div>', unsafe_allow_html=True)
+                st.write(f"**{mes}**")
             else:
                 mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes", label_visibility="collapsed")
         
-        st.divider()
-        
-        # FILA 2: Jerarquía de procesos (Unidad, Proceso, Subproceso)
+        # Unidad
         unidad_options = ["Todos"]
         if unidad_col and unidad_col in snapshot_df.columns:
             unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
         
-        c1, c2, c3 = st.columns([1.1, 1.1, 1.1])
-        with c1:
-            st.markdown('<small style="font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;"><i class="fas fa-building" style="margin-right:6px;color:#022457;"></i>Unidad</small>', unsafe_allow_html=True)
+        with c_unit:
+            st.markdown('<small class="filter-label"><i class="fas fa-building" style="margin-right:5px;color:#022457;"></i>Unidad</small>', unsafe_allow_html=True)
             unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad", label_visibility="collapsed")
-        with c2:
-            st.markdown('<small style="font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;"><i class="fas fa-cogs" style="margin-right:6px;color:#022457;"></i>Proceso</small>', unsafe_allow_html=True)
+        
+        # Proceso
+        with c_proc:
+            st.markdown('<small class="filter-label"><i class="fas fa-cogs" style="margin-right:5px;color:#022457;"></i>Proceso</small>', unsafe_allow_html=True)
             proceso_df = snapshot_df.copy()
             if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
                 proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
@@ -3053,8 +3038,10 @@ def render() -> None:
                 proceso_df[proceso_col].dropna().astype(str).unique().tolist()
             )
             proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso", label_visibility="collapsed")
-        with c3:
-            st.markdown('<small style="font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;"><i class="fas fa-sitemap" style="margin-right:6px;color:#022457;"></i>Subproceso</small>', unsafe_allow_html=True)
+        
+        # Subproceso
+        with c_subproc:
+            st.markdown('<small class="filter-label"><i class="fas fa-sitemap" style="margin-right:5px;color:#022457;"></i>Subproceso</small>', unsafe_allow_html=True)
             sub_df = snapshot_df.copy()
             if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
                 sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
@@ -3065,12 +3052,12 @@ def render() -> None:
             )
             subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso", label_visibility="collapsed")
         
-        st.divider()
+        # FILA 2: Clasificación, Tipo de indicador, Frecuencia (3 columnas)
+        c_class, c_type, c_freq = st.columns([1.1, 1.1, 1.1])
         
-        # FILA 3: Clasificación e indicadores (Clasificación, Tipo, Frecuencia)
-        c1, c2, c3 = st.columns([1.1, 1.1, 1.1])
-        with c1:
-            st.markdown('<small style="font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;"><i class="fas fa-layer-group" style="margin-right:6px;color:#022457;"></i>Clasificación</small>', unsafe_allow_html=True)
+        # Clasificación
+        with c_class:
+            st.markdown('<small class="filter-label"><i class="fas fa-layer-group" style="margin-right:5px;color:#022457;"></i>Clasificación</small>', unsafe_allow_html=True)
             clasificacion_options = ["Todos"]
             if clasificacion_col and clasificacion_col in snapshot_df.columns:
                 clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
@@ -3080,8 +3067,10 @@ def render() -> None:
                 default="Todos",
                 key="filter_clasificacion",
             )
-        with c2:
-            st.markdown('<small style="font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;"><i class="fas fa-chart-bar" style="margin-right:6px;color:#022457;"></i>Tipo Indicador</small>', unsafe_allow_html=True)
+        
+        # Tipo de indicador
+        with c_type:
+            st.markdown('<small class="filter-label"><i class="fas fa-chart-bar" style="margin-right:5px;color:#022457;"></i>Tipo Indicador</small>', unsafe_allow_html=True)
             tipo_options = ["Todos"]
             if tipo_indicador_col and tipo_indicador_col in snapshot_df.columns:
                 tipo_options += sorted(snapshot_df[tipo_indicador_col].dropna().astype(str).unique().tolist())
@@ -3097,8 +3086,10 @@ def render() -> None:
                 default="Todos",
                 key="filter_tipo_indicador",
             )
-        with c3:
-            st.markdown('<small style="font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;"><i class="fas fa-clock" style="margin-right:6px;color:#022457;"></i>Frecuencia</small>', unsafe_allow_html=True)
+        
+        # Frecuencia
+        with c_freq:
+            st.markdown('<small class="filter-label"><i class="fas fa-clock" style="margin-right:5px;color:#022457;"></i>Frecuencia</small>', unsafe_allow_html=True)
             frecuencia_options = ["Todos"]
             if frecuencia_col and frecuencia_col in snapshot_df.columns:
                 frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
