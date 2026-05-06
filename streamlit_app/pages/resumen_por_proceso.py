@@ -1288,7 +1288,7 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
     Problema #8 FIX: Usa normalizar_valor_a_porcentaje() de core/semantica.
     Elimina hardcoding de heurística "si max_abs <= 2".
     """
-    from core.semantica import normalizar_valor_a_porcentaje
+    from core.semantica import normalizar_valor_a_porcentaje, recalcular_cumplimiento_faltante
 
     # Caso 1: Cumplimiento_norm (ya normalizado en DECIMAL [0-1.3], convertir a PORCENTAJE)
     if "Cumplimiento_norm" in df.columns:
@@ -1311,12 +1311,27 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
             return cumpl_vals
         # Si la columna existe pero no tiene valores válidos, caer al cálculo por Meta/Ejecucion.
 
-    # Caso 3: Meta/Ejecucion (calcular ratio)
+    # Caso 3: Meta/Ejecucion (calcular ratio con sentido oficial)
     if {"Meta", "Ejecucion"}.issubset(df.columns):
-        meta = pd.to_numeric(df["Meta"].apply(_to_float), errors="coerce")
-        ejec = pd.to_numeric(df["Ejecucion"].apply(_to_float), errors="coerce")
-        ratio = (ejec / meta.replace({0: pd.NA})) * 100
-        return pd.to_numeric(ratio, errors="coerce")
+        sentido_series = df["Sentido"] if "Sentido" in df.columns else pd.Series("Positivo", index=df.index)
+        ids = df["Id"] if "Id" in df.columns else pd.Series([None] * len(df), index=df.index)
+
+        cumpl_vals = []
+        for meta_val, ejec_val, sentido_val, id_val in zip(
+            df["Meta"].apply(_to_float),
+            df["Ejecucion"].apply(_to_float),
+            sentido_series,
+            ids,
+        ):
+            cumpl = recalcular_cumplimiento_faltante(
+                meta_val,
+                ejec_val,
+                sentido_val or "Positivo",
+                id_val,
+            )
+            cumpl_vals.append(cumpl)
+
+        return pd.to_numeric(pd.Series(cumpl_vals, index=df.index), errors="coerce") * 100
 
     # Caso 4: No hay datos disponibles
     return pd.Series(index=df.index, dtype="float64")
