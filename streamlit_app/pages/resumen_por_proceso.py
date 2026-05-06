@@ -2973,58 +2973,6 @@ def render() -> None:
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-    
-    /* Estilos para selectbox de Streamlit */
-    div[data-testid="stSelectbox"] {
-        margin-bottom: 8px !important;
-    }
-    
-    div[data-testid="stSelectbox"] label {
-        color: #022457 !important;
-        font-weight: 600 !important;
-        font-size: 12px !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.4px !important;
-    }
-    
-    div[data-testid="stSelectbox"] [data-baseweb="select"] {
-        background-color: #ffffff !important;
-        border: 1.5px solid #022457 !important;
-        border-radius: 6px !important;
-        box-shadow: 0 2px 4px rgba(2, 36, 87, 0.08) !important;
-    }
-    
-    div[data-testid="stSelectbox"] [data-baseweb="select"]:hover {
-        border-color: #015fa5 !important;
-        box-shadow: 0 4px 8px rgba(2, 36, 87, 0.12) !important;
-    }
-    
-    div[data-testid="stSelectbox"] [data-baseweb="select"]:focus-within {
-        border-color: #015fa5 !important;
-        box-shadow: 0 0 0 3px rgba(2, 36, 87, 0.1) !important;
-    }
-    
-    /* Estilos para opciones del dropdown */
-    div[data-baseweb="popover"] ul {
-        background-color: #ffffff !important;
-    }
-    
-    div[data-baseweb="popover"] li {
-        color: #333333 !important;
-        padding: 8px 12px !important;
-    }
-    
-    div[data-baseweb="popover"] li:hover {
-        background-color: #e8eef7 !important;
-        color: #022457 !important;
-    }
-    
-    /* Estilos para el texto seleccionado */
-    div[data-testid="stSelectbox"] input {
-        color: #022457 !important;
-        font-weight: 500 !important;
-        font-size: 13px !important;
-    }
     </style>
     """, unsafe_allow_html=True)
     
