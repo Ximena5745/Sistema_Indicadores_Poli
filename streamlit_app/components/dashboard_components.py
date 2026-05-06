@@ -20,6 +20,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import hashlib
+from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
 
 # Contador por módulo para generar claves únicas por llamada durante un rerun
 _PLOT_KEY_COUNTER = 0
@@ -318,9 +319,6 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
     proc_col = next((c for c in ("Proceso", "Proceso_padre") if c in df.columns), None)
     if proc_col:
         filtro_defs["Proceso"] = proc_col
-    if "Unidad" in df.columns:
-        filtro_defs["Unidad"] = "Unidad"
-
     filtered = df.copy()
     if filtro_defs:
         fcols = st.columns(min(len(filtro_defs), 3))
@@ -342,7 +340,6 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
         ("Proceso_padre", "Proceso"),
         ("Proceso", "Proceso"),
         ("Tipo de proceso", "Tipo"),
-        ("Unidad", "Unidad"),
         ("Meta", "Meta"),
         ("Ejecucion", "Ejecución"),
         ("Mes", "Mes"),
@@ -365,7 +362,21 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
             else ("🟡 Alerta" if v >= 80 else ("🔴 Crítico" if pd.notna(v) else "⬜ Sin dato"))
         )
 
+    if "Indicador" in tabla.columns:
+        tabla["Ver ficha"] = "Ver ficha"
+
     st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+    if "Indicador" in filtered.columns:
+        sel_indicador = st.selectbox(
+            "Seleccionar indicador para ver ficha",
+            [""] + filtered["Indicador"].astype(str).fillna(" ").tolist(),
+            key="tabla_analitica_sel_indicador",
+        )
+        if sel_indicador and st.button("Ver ficha", key="tabla_analitica_button"):
+            row = filtered[filtered["Indicador"].astype(str) == sel_indicador].head(1)
+            if not row.empty:
+                render_modal_ficha(row.iloc[0])
 
     csv = tabla.to_csv(index=False).encode("utf-8")
     st.download_button(
