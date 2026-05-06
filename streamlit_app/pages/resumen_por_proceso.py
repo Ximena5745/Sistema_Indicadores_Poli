@@ -1481,6 +1481,41 @@ def _first_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     return None
 
 
+def _build_sort_key(df: pd.DataFrame) -> pd.Series:
+    """Construye una clave de ordenamiento basada en fecha, año/mes o índice."""
+    # Año
+    year_col = None
+    for c in ("Anio", "Año", "Anio_num", "Year"):
+        if c in df.columns:
+            year_col = c
+            break
+
+    # Mes
+    mes_col = None
+    for c in ("Mes_num", "Mes", "Periodo"):
+        if c in df.columns:
+            mes_col = c
+            break
+
+    if year_col:
+        years = pd.to_numeric(df[year_col], errors="coerce").fillna(0).astype(int)
+        if mes_col:
+            mes_vals = df[mes_col]
+            mes_num = pd.to_numeric(mes_vals, errors="coerce")
+            if mes_num.isna().all():
+                mes_num = mes_vals.astype(str).str.strip().str.upper().map(MES_MAP).fillna(0).astype(int)
+            else:
+                mes_num = mes_num.fillna(0).astype(int)
+            return years * 100 + mes_num
+        return years * 100
+
+    if "Fecha" in df.columns:
+        fecha = pd.to_datetime(df["Fecha"], errors="coerce")
+        return fecha.dt.year.fillna(0).astype(int) * 100 + fecha.dt.month.fillna(0).astype(int)
+
+    return pd.Series(range(len(df)), index=df.index)
+
+
 def _period_col_for_month(df: pd.DataFrame, month_num: int | None) -> str | None:
     if month_num is None:
         return None
