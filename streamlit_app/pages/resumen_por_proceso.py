@@ -2982,8 +2982,8 @@ def render() -> None:
     
     st.markdown('<div class="filter-bar"><span class="filter-label-main"><i class="fas fa-sliders-h" style="margin-right:6px;color:#022457;"></i>FILTROS</span></div>', unsafe_allow_html=True)
     
-    # PRIMERA FILA DE FILTROS: Año, Mes, Clasificación, Tipo de indicador, Frecuencia
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
+    # PRIMERA FILA DE FILTROS: Año, Mes, Clasificación, Frecuencia
+    col1, col2, col3, col4 = st.columns(4, gap="small")
     
     # Año
     with col1:
@@ -3011,7 +3011,7 @@ def render() -> None:
             st.write(f"**Mes: {mes}**")
         else:
             st.write("**Mes**")
-            mes = st.pills("Mes", options=MESES_OPCIONES, default=default_month, key="filter_mes")
+            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes", label_visibility="collapsed")
     
     # Clasificación
     with col3:
@@ -3026,27 +3026,8 @@ def render() -> None:
             key="filter_clasificacion",
         )
     
-    # Tipo de indicador
-    with col4:
-        tipo_options = ["Todos"]
-        if tipo_indicador_col and tipo_indicador_col in snapshot_df.columns:
-            tipo_options += sorted(snapshot_df[tipo_indicador_col].dropna().astype(str).unique().tolist())
-        else:
-            catalog_tipo_col = _first_col(cmi_catalog, ["Tipo de indicador", "Tipo", "tipo_indicador"])
-            if not cmi_catalog.empty and catalog_tipo_col is not None:
-                tipo_options += sorted(
-                    cmi_catalog[catalog_tipo_col].dropna().astype(str).unique().tolist()
-                )
-        st.write("**Tipo indicador**")
-        tipo_indicador_sel = st.pills(
-            "Tipo de indicador",
-            options=tipo_options,
-            default="Todos",
-            key="filter_tipo_indicador",
-        )
-    
     # Frecuencia
-    with col5:
+    with col4:
         frecuencia_options = ["Todos"]
         if frecuencia_col and frecuencia_col in snapshot_df.columns:
             frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
@@ -3055,7 +3036,7 @@ def render() -> None:
             if catalog_freq_col is not None:
                 frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
         st.write("**Frecuencia**")
-        frecuencia_sel = st.pills("Frecuencia", options=frecuencia_options, default="Todos", key="filter_frecuencia")
+        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia", label_visibility="collapsed")
     
     # SEGUNDA FILA DE FILTROS: Unidad, Proceso, Subproceso
     col6, col7, col8 = st.columns(3, gap="small")
@@ -3124,8 +3105,6 @@ def render() -> None:
         filtered = filtered[filtered[frecuencia_col].astype(str) == frecuencia_sel]
     if clasificacion_sel != "Todos" and clasificacion_col and clasificacion_col in filtered.columns:
         filtered = filtered[filtered[clasificacion_col].astype(str) == clasificacion_sel]
-    if tipo_indicador_sel != "Todos" and tipo_indicador_col and tipo_indicador_col in filtered.columns:
-        filtered = filtered[filtered[tipo_indicador_col].astype(str) == tipo_indicador_sel]
 
     filtered = _ensure_nivel_cumplimiento(filtered)
 
@@ -3153,7 +3132,7 @@ def render() -> None:
         ]
 
     st.caption(
-        f"Unidad: {unidad_sel} · Proceso: {selected_process_label} · Subproceso: {selected_subprocess_label} · Año: {anio} · Mes: {mes} · Frecuencia: {frecuencia_sel} · Clasificación: {clasificacion_sel} · Tipo: {tipo_indicador_sel}"
+        f"Unidad: {unidad_sel} · Proceso: {selected_process_label} · Subproceso: {selected_subprocess_label} · Año: {anio} · Mes: {mes} · Frecuencia: {frecuencia_sel} · Clasificación: {clasificacion_sel}"
     )
 
     tabs = st.tabs(
