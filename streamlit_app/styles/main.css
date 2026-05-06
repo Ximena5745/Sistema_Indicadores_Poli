@@ -92,6 +92,60 @@ body {
     --muted-on-dark: rgba(230,240,255,0.6);
 }
 
+/* ===== ESTILOS MEJORADOS PARA FILTROS ===== */
+
+/* Selectbox mejorado */
+[data-testid="stAppViewContainer"] select,
+[data-testid="stAppViewContainer"] .stSelectbox,
+div[data-testid="stSelectbox"] select {
+    border: 1px solid #d4dce5 !important;
+    border-radius: 8px !important;
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    transition: all 0.2s ease !important;
+    background-color: #ffffff !important;
+}
+
+div[data-testid="stSelectbox"] select:hover {
+    border-color: #4c72b0 !important;
+    box-shadow: 0 2px 6px rgba(76, 114, 176, 0.1) !important;
+}
+
+div[data-testid="stSelectbox"] select:focus {
+    border-color: #022457 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(2, 36, 87, 0.08) !important;
+}
+
+/* Segmented control mejorado */
+div[data-testid="stSegmentedControl"] > div {
+    border-radius: 8px !important;
+}
+
+div[data-testid="stSegmentedControl"] button {
+    border-radius: 6px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    transition: all 0.2s ease !important;
+    text-transform: capitalize !important;
+}
+
+div[data-testid="stSegmentedControl"] button:not([aria-pressed="true"]) {
+    background-color: #f0f2f5 !important;
+    color: #666 !important;
+}
+
+div[data-testid="stSegmentedControl"] button:not([aria-pressed="true"]):hover {
+    background-color: #e8ecf1 !important;
+}
+
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+    background-color: #022457 !important;
+    color: white !important;
+    box-shadow: 0 2px 6px rgba(2, 36, 87, 0.2) !important;
+}
+
 /* ===== SIDEBAR v2 (estilo imagen 2) ===== */
 [data-testid="stSidebar"], section[data-testid="stSidebar"], aside[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #050e1f 0%, #081a33 100%) !important;
