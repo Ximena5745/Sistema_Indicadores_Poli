@@ -172,16 +172,19 @@ def main():
         # Filtrar por estado
         col_filtro1, col_filtro2 = st.columns(2)
         with col_filtro1:
-            filtro_estado = st.multiselect(
+            filtro_estado = st.selectbox(
                 "Filtrar por estado",
-                options=["✅ Exitoso", "❌ Fallido"],
-                default=["✅ Exitoso", "❌ Fallido"]
+                options=["Todos", "✅ Exitoso", "❌ Fallido"],
+                index=0
             )
         
         # Filtrar dataframe
-        filtro_map = {"✅ Exitoso": True, "❌ Fallido": False}
-        filtro_booleano = [filtro_map[f] for f in filtro_estado]
-        detalle_filtrado = detalle_df[detalle_df["exitosa"].isin(filtro_booleano)]
+        if filtro_estado == "Todos":
+            detalle_filtrado = detalle_df.copy()
+        else:
+            filtro_map = {"✅ Exitoso": True, "❌ Fallido": False}
+            valor_filtro = filtro_map.get(filtro_estado, True)
+            detalle_filtrado = detalle_df[detalle_df["exitosa"] == valor_filtro]
         
         # Mostrar tabla
         if not detalle_filtrado.empty:
@@ -217,15 +220,19 @@ def main():
             # Filtrar por tipo
             col_filtro3, col_filtro4 = st.columns(2)
             with col_filtro3:
-                filtro_tipo = st.multiselect(
+                tipo_opciones = ["Todos"] + sorted(validaciones_df["estado"].unique().tolist())
+                filtro_tipo = st.selectbox(
                     "Tipo de validación",
-                    options=validaciones_df["estado"].unique().tolist(),
-                    default=validaciones_df["estado"].unique().tolist()
+                    options=tipo_opciones,
+                    index=0
                 )
             
-            validaciones_filtradas = validaciones_df[
-                validaciones_df["estado"].isin(filtro_tipo)
-            ]
+            if filtro_tipo == "Todos":
+                validaciones_filtradas = validaciones_df.copy()
+            else:
+                validaciones_filtradas = validaciones_df[
+                    validaciones_df["estado"] == filtro_tipo
+                ]
             
             # Agrupar por estado
             conteo_estado = validaciones_df["estado"].value_counts()

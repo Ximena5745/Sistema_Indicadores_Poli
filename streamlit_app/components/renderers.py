@@ -142,10 +142,10 @@ def actions_table(df_actions):
         st.dataframe(df_show, use_container_width=True)
 
     # Bulk actions: seleccionar filas por índice
-    ids = df_show.index.astype(str).tolist()
-    selected = st.multiselect("Seleccionar acciones (para bulk)", ids, key="bulk_actions_select")
-    if selected:
-        sel_idx = [int(i) for i in selected]
+    ids = ["Ninguno"] + df_show.index.astype(str).tolist()
+    selected = st.selectbox("Seleccionar acción para bulk", ids, index=0, key="bulk_actions_select")
+    if selected != "Ninguno":
+        sel_idx = [int(selected)]
         col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("Marcar seleccionadas como Cerradas"):

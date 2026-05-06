@@ -325,15 +325,16 @@ def render_tabla_analitica(df: pd.DataFrame, pct_col: str | None = None) -> None
     if filtro_defs:
         fcols = st.columns(min(len(filtro_defs), 3))
         for idx, (label, col_actual) in enumerate(filtro_defs.items()):
-            opts = sorted(filtered[col_actual].dropna().astype(str).unique().tolist())
+            opts = ["Todos"] + sorted(filtered[col_actual].dropna().astype(str).unique().tolist())
             with fcols[idx % len(fcols)]:
-                sel = st.multiselect(
+                sel = st.selectbox(
                     f"Filtrar por {label}",
                     options=opts,
+                    index=0,
                     key=f"cmi_tabla_filter_{label}",
                 )
-                if sel:
-                    filtered = filtered[filtered[col_actual].astype(str).isin(sel)]
+                if sel != "Todos":
+                    filtered = filtered[filtered[col_actual].astype(str) == sel]
 
     # ── Construir tabla de visualización ─────────────────────────────────────
     col_priority = [
@@ -757,15 +758,17 @@ def render_historico_tab(df: pd.DataFrame, pct_col: str | None = None) -> None:
         st.info("No se encontraron indicadores en los datos.")
         return
 
-    sel_ind = st.multiselect(
-        "Selecciona indicadores para comparar (máx. 8)",
+    sel_ind = st.selectbox(
+        "Selecciona un indicador para visualizar su evolución",
         options=indicadores,
-        max_selections=8,
-        key="cmi_historico_multiselect",
+        index=0,
+        key="cmi_historico_selectbox",
     )
     if not sel_ind:
-        st.caption("Selecciona al menos un indicador para visualizar su evolución.")
+        st.caption("No hay indicadores disponibles para visualizar.")
         return
+    
+    sel_ind = [sel_ind]  # Convertir a lista para compatibilidad con resto del código
 
     period_col = next(
         (c for c in ("Mes", "Periodo", "Fecha", "Anio") if c in df.columns), None
