@@ -46,11 +46,13 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
             st.warning(f"Missing columns in reference file: {missing_cols}")
             return df
 
-        # Normalize subprocess names for merge
-        df_procesos["Subproceso_norm"] = df_procesos["Subproceso"].astype(str).str.strip()
-        df["Subproceso_norm"] = df["Subproceso"].astype(str).str.strip()
+        # Normalize text for merge using accent-insensitive comparison
+        df_procesos["Subproceso_norm"] = df_procesos["Subproceso"].astype(str).apply(_normalize_text)
+        df_procesos["Proceso_norm"] = df_procesos["Proceso"].astype(str).apply(_normalize_text)
+        df["Subproceso_norm"] = df["Subproceso"].astype(str).apply(_normalize_text)
+        df["Proceso_norm"] = df["Proceso"].astype(str).apply(_normalize_text)
 
-        # Merge by subprocess to get parent process
+        # Merge by normalized subprocess name to get parent process fields
         merge_cols = ["Subproceso_norm", "Proceso", "Unidad", "Tipo de proceso"]
         df = df.merge(
             df_procesos[merge_cols].drop_duplicates("Subproceso_norm"),
@@ -60,12 +62,23 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
         )
 
         # Use Excel data if available, otherwise keep existing
-        df["Proceso"] = df["Proceso_excel"].fillna(df["Proceso"])
         df["Unidad"] = df["Unidad"].fillna("")
+        df["Unidad"] = df["Unidad"].fillna(df["Unidad_excel"])
         df["Tipo de proceso"] = df["Tipo de proceso"].fillna("")
+        df["Tipo de proceso"] = df["Tipo de proceso"].fillna(df["Tipo de proceso_excel"])
+
+        # Fallback: if Subproceso didn't match, try matching Proceso text as subproceso value
+        unidad_map_by_sub = df_procesos.set_index("Subproceso_norm")["Unidad"].to_dict()
+        unidad_map_by_proc = df_procesos.set_index("Proceso_norm")["Unidad"].to_dict()
+        df["Unidad"] = df["Unidad"].fillna(df["Proceso_norm"].map(unidad_map_by_sub))
+        df["Unidad"] = df["Unidad"].fillna(df["Proceso_norm"].map(unidad_map_by_proc))
+
+        # Fallback: if Proceso text itself is a subproceso alias, fill Tipo de proceso too
+        tipo_map_by_sub = df_procesos.set_index("Subproceso_norm")["Tipo de proceso"].to_dict()
+        df["Tipo de proceso"] = df["Tipo de proceso"].fillna(df["Proceso_norm"].map(tipo_map_by_sub))
 
         # Clean up temporary columns
-        df = df.drop(columns=["Subproceso_norm", "Proceso_excel"], errors="ignore")
+        df = df.drop(columns=["Subproceso_norm", "Proceso_norm", "Proceso_excel", "Unidad_excel", "Tipo de proceso_excel"], errors="ignore")
 
         
 

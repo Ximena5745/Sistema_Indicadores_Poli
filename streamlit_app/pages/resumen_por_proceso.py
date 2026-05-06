@@ -1547,7 +1547,7 @@ def _prepare_tracking(
         else:
             out["Subproceso_final"] = out["proc_input"]
 
-        out["Unidad"] = out["Unidad_sub"].fillna("Sin unidad")
+        out["Unidad"] = out["Unidad_sub"].fillna("")
 
         out = out.drop(
             columns=[
