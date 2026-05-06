@@ -853,17 +853,9 @@ def _render_cmi_por_cmi_summary_charts(df_cmi: pd.DataFrame, active_ids: set | N
                 showlegend=False,
             )
             cols[1].plotly_chart(fig, use_container_width=True)
-def _compute_indicador_summary(df: pd.DataFrame, pct_col: str | None) -> dict[str, int]:
+def _dedup_indicadores_df(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
-        return {
-            "total": 0,
-            "metricas": 0,
-            "sobrecumplimiento": 0,
-            "cumplimiento": 0,
-            "alerta": 0,
-            "peligro": 0,
-        }
-
+        return df
     indicador_col = _first_col(df, ["Indicador", "nombre", "Nombre Indicador", "Indicador Nombre"]) or "Indicador"
     work = df.copy()
     if "Id" in work.columns:
@@ -879,12 +871,31 @@ def _compute_indicador_summary(df: pd.DataFrame, pct_col: str | None) -> dict[st
         work["_sort_key"] = sort_key
         work = work.sort_values("_sort_key")
         work = work.drop_duplicates(subset=[indicador_col], keep="last")
+    return work
 
-    total = len(df)
-    metricas = work[indicador_col].nunique() if indicador_col in work.columns else total
+
+def _compute_indicador_summary(df: pd.DataFrame, pct_col: str | None) -> dict[str, int]:
+    if df.empty:
+        return {
+            "total": 0,
+            "metricas": 0,
+            "sobrecumplimiento": 0,
+            "cumplimiento": 0,
+            "alerta": 0,
+            "peligro": 0,
+        }
+
+    indicador_col = _first_col(df, ["Indicador", "nombre", "Nombre Indicador", "Indicador Nombre"]) or "Indicador"
+    unique_df = _dedup_indicadores_df(df)
+    total = len(unique_df)
+    if "Id" in unique_df.columns:
+        metricas = int(unique_df["Id"].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+    else:
+        metricas = int(unique_df[indicador_col].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+
     counts = {"sobrecumplimiento": 0, "cumplimiento": 0, "alerta": 0, "peligro": 0}
-    if pct_col and pct_col in work.columns:
-        pct_vals = pd.to_numeric(work[pct_col], errors="coerce")
+    if pct_col and pct_col in unique_df.columns:
+        pct_vals = pd.to_numeric(unique_df[pct_col], errors="coerce")
         counts["sobrecumplimiento"] = int((pct_vals >= 105).sum())
         counts["cumplimiento"] = int(((pct_vals >= 100) & (pct_vals < 105)).sum())
         counts["alerta"] = int(((pct_vals >= 80) & (pct_vals < 100)).sum())
@@ -1000,9 +1011,12 @@ def _render_tab_indicadores(
         df = df.copy()
         df["Ejecucion"] = df["Ejecución"]
 
+    original_df = df.copy()
+    df = _dedup_indicadores_df(df)
+
     summary = _compute_indicador_summary(df, pct_col)
     _render_indicadores_summary_cards(summary)
-    positive, negative = _build_variation_tables(df, ejec_col)
+    positive, negative = _build_variation_tables(original_df, ejec_col)
     if not positive.empty or not negative.empty:
         st.markdown("<div style='margin-bottom:1rem;font-size:0.98rem;color:#334155;font-weight:700;'>Indicadores con mayor variación en Ejecución</div>", unsafe_allow_html=True)
         cols = st.columns(2)
@@ -1020,8 +1034,10 @@ def _render_tab_indicadores(
                 st.info("No hay indicadores con variación negativa calculable.")
 
     st.divider()
-    st.markdown("#### Listado completo de indicadores")
     render_tab_listado(df)
+    st.divider()
+    st.markdown("<div style='font-size:0.98rem;font-weight:700;color:#334155;margin-bottom:0.7rem;'>Fichas de indicadores</div>", unsafe_allow_html=True)
+    render_fichas_indicadores(df, pct_col)
 
 
 def _render_propuesta_resumen(
@@ -3542,10 +3558,6 @@ def render() -> None:
 
     with tabs[2]:
         _render_tab_indicadores(filtered, cmi_catalog)
-        if not cmi_global.empty:
-            st.divider()
-            _section_title("📋 Tabla Analítica de Indicadores", level=4)
-            render_tabla_analitica(filtered)
 
     with tabs[3]:
         if not cmi_global.empty:

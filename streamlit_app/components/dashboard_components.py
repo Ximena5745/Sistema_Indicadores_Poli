@@ -515,58 +515,59 @@ def render_fichas_indicadores(
             .cmi-ficha-grid { grid-template-columns: 1fr; }
         }
         .cmi-ficha-card {
-            background: #ffffff;
-            border: 1px solid #E6ECF5;
-            border-radius: 18px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid rgba(59, 130, 246, 0.18);
+            border-radius: 22px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
             overflow: hidden;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         .cmi-ficha-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 32px rgba(15, 23, 42, 0.14);
+            transform: translateY(-3px);
+            box-shadow: 0 22px 45px rgba(15, 23, 42, 0.14);
         }
         .cmi-ficha-card-header {
             display: flex;
             justify-content: space-between;
             gap: 12px;
-            padding: 18px 20px 10px;
+            padding: 20px 22px 14px;
             align-items: flex-start;
+            background: linear-gradient(135deg, rgba(216, 180, 254, 0.22), rgba(56, 189, 248, 0.15));
         }
         .cmi-ficha-card-title {
-            font-size: 1rem;
-            font-weight: 800;
+            font-size: 1.02rem;
+            font-weight: 900;
             line-height: 1.2;
-            color: #102A43;
+            color: #0F172A;
             margin: 0 0 6px 0;
         }
         .cmi-ficha-card-subtitle {
-            font-size: 0.78rem;
+            font-size: 0.79rem;
             line-height: 1.5;
-            color: #475569;
+            color: #334155;
         }
         .cmi-ficha-status {
-            padding: 6px 12px;
+            padding: 7px 14px;
             border-radius: 999px;
-            font-size: 0.76rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            background: rgba(28, 72, 146, 0.08);
-            color: #1D4ED8;
+            background: rgba(14, 165, 233, 0.18);
+            color: #0E7490;
             white-space: nowrap;
         }
         .cmi-ficha-stats {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            padding: 0 20px 18px;
+            gap: 14px;
+            padding: 0 22px 18px;
         }
         .cmi-ficha-stat {
-            background: #F8FAFF;
-            border-radius: 14px;
-            border: 1px solid #E2E8F0;
-            padding: 14px 12px;
+            background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(59, 130, 246, 0.16);
+            padding: 16px 14px;
         }
         .cmi-ficha-stat-label {
             font-size: 0.72rem;
