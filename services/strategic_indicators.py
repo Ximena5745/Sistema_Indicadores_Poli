@@ -376,21 +376,14 @@ def load_cierres() -> pd.DataFrame:
 
     # Leer cumplimiento pre-calculado del Excel
     c_cumpl = _find_col(df, ["Cumplimiento", "cumplimiento_dec"])
-    c_cumpl_pct = _find_col(df, ["cumplimiento_pct", "Cumplimiento_pct"])
     c_cumpl_real = _find_col(df, ["CumplReal", "cumplimiento_real"])
 
-    if c_cumpl_pct and not c_cumpl:
-        out["cumplimiento_pct"] = pd.to_numeric(df[c_cumpl_pct], errors="coerce")
-        out["cumplimiento_dec"] = (
-            pd.to_numeric(out["cumplimiento_pct"], errors="coerce") / 100
-        )
-    else:
-        out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
-        out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
-
+    out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
     out["cumplimiento_real"] = (
         pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
     )
+
+    out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
 
     # Detectar si es métrica para establecer "Nivel de cumplimiento"
     es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
