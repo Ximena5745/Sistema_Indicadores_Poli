@@ -381,7 +381,7 @@ def _render_rpp_global_styles() -> None:
     st.markdown(
         """
         <style>
-        .rpp-filter-panel {
+        .dashboard-filter-panel, .rpp-filter-panel {
             background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
             border: 1px solid rgba(34, 94, 184, 0.14);
             border-radius: 18px;
@@ -389,7 +389,7 @@ def _render_rpp_global_styles() -> None:
             margin-bottom: 18px;
             box-shadow: 0 14px 28px rgba(15, 35, 74, 0.08);
         }
-        .rpp-filter-header {
+        .dashboard-filter-title, .rpp-filter-header {
             margin-bottom: 14px;
             font-size: 0.92rem;
             color: #102a43;
@@ -397,9 +397,11 @@ def _render_rpp_global_styles() -> None:
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
+        .dashboard-filter-panel .stSelectbox, .dashboard-filter-panel .stPills,
         .rpp-filter-panel .stSelectbox, .rpp-filter-panel .stPills {
             min-height: 44px;
         }
+        .dashboard-filter-panel .css-1n76uvr, .dashboard-filter-panel .css-1siy2j7,
         .rpp-filter-panel .css-1n76uvr, .rpp-filter-panel .css-1siy2j7 {
             margin-bottom: 0 !important;
         }

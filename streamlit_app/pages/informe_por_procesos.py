@@ -43,7 +43,7 @@ def _render_informe_por_procesos_styles() -> None:
     st.markdown(
         """
         <style>
-        .informe-filter-panel {
+        .dashboard-filter-panel, .informe-filter-panel {
             background: #F8FAFC;
             border: 1px solid #CBD5E1;
             border-left: 4px solid #1D4ED8;
@@ -52,7 +52,7 @@ def _render_informe_por_procesos_styles() -> None:
             margin-bottom: 20px;
             box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
         }
-        .informe-filter-title {
+        .dashboard-filter-title, .informe-filter-title {
             font-size: 0.85rem;
             font-weight: 700;
             color: #1E3A8A;
@@ -60,7 +60,7 @@ def _render_informe_por_procesos_styles() -> None:
             letter-spacing: 0.1em;
             text-transform: uppercase;
         }
-        .informe-filter-label {
+        .dashboard-filter-label, .informe-filter-label {
             font-size: 0.72rem;
             font-weight: 700;
             color: #475569;
@@ -68,6 +68,7 @@ def _render_informe_por_procesos_styles() -> None:
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+        .dashboard-filter-panel .stSelectbox > div,
         .informe-filter-panel .stSelectbox > div {
             background: #ffffff !important;
             border: 1px solid #CBD5E1 !important;
@@ -75,16 +76,12 @@ def _render_informe_por_procesos_styles() -> None:
             min-height: 42px !important;
             padding: 0.12rem 0.35rem !important;
         }
+        .dashboard-filter-panel .stSelectbox label,
         .informe-filter-panel .stSelectbox label {
             display: none !important;
         }
-        .informe-filter-panel .stSelectbox .css-1n76uvr,
-        .informe-filter-panel .stSelectbox .css-1siy2j7 {
-            margin-bottom: 0 !important;
-        }
-        .informe-filter-panel .stSelectbox label {
-            display: none !important;
-        }
+        .dashboard-filter-panel .stSelectbox .css-1n76uvr,
+        .dashboard-filter-panel .stSelectbox .css-1siy2j7,
         .informe-filter-panel .stSelectbox .css-1n76uvr,
         .informe-filter-panel .stSelectbox .css-1siy2j7 {
             margin-bottom: 0 !important;
