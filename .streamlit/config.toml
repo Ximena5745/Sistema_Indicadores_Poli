@@ -4,7 +4,7 @@ gatherUsageStats = false
 [theme]
 # ── Paleta institucional · Sistema de Indicadores · Politécnico Grancolombiano ──
 base = "light"
-primaryColor = "#022457"
+primaryColor = "#0E7490"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f7f9fe"
 textColor = "#0f2137"

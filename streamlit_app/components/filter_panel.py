@@ -35,18 +35,24 @@ _FILTER_CSS = """<style>
 }
 
 /* ── Selectbox — borde y fondo ──────────────────────────────────── */
-/* Streamlit 1.30-1.56: el visual input es el primer div hijo de baseweb select */
+/* Máxima cobertura: className="stSelectbox" confirmado en JS bundle de Streamlit 1.56 */
+/* Selector 1: via clase stSelectbox (especificidad 0,2,1 > Emotion 0,1,1) */
+.stSelectbox [data-baseweb="select"] > div,
+div.stSelectbox [data-baseweb="select"] > div,
+/* Selector 2: via data-testid */
+div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
+/* Selector 3: genérico como fallback */
 [data-baseweb="select"] > div,
-[data-baseweb="select"] > div:first-child,
-div[data-testid="stSelectbox"] > div > div[data-baseweb="select"] > div {
+[data-baseweb="select"] > div:first-child {
     border: 1.5px solid #67E8F9 !important;
     border-radius: 10px !important;
     background: #FFFFFF !important;
     min-height: 40px !important;
     transition: border-color 0.18s, box-shadow 0.18s !important;
 }
-[data-baseweb="select"] > div:focus-within,
-[data-baseweb="select"] > div:first-child:focus-within {
+.stSelectbox [data-baseweb="select"] > div:focus-within,
+div[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
+[data-baseweb="select"] > div:focus-within {
     border-color: #0E7490 !important;
     box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.18) !important;
 }
