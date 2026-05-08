@@ -18,7 +18,6 @@ from streamlit_app.pages.resumen_por_proceso import (
     _prepare_tracking,
     _render_auditoria_tab,
     _render_calidad_kpis_cards,
-    _render_indicadores_subproceso_cards,
     _render_indicadores_subproceso_enhanced,
     _to_float,
 )
