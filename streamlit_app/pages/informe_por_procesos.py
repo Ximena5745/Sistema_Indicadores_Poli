@@ -19,6 +19,7 @@ from streamlit_app.pages.resumen_por_proceso import (
     _render_auditoria_tab,
     _render_calidad_kpis_cards,
     _render_indicadores_subproceso_cards,
+    _render_indicadores_subproceso_enhanced,
     _to_float,
 )
 from services.cmi_filters import filter_df_for_procesos
@@ -394,7 +395,7 @@ def render() -> None:
         if filtered.empty:
             st.info("No hay datos disponibles.")
         else:
-            _render_indicadores_subproceso_cards(filtered, historic_base, int(anio), selected_month_num, map_df, proceso_sel)
+            _render_indicadores_subproceso_enhanced(filtered, historic_base, int(anio), selected_month_num, map_df, proceso_sel)
 
     with tabs[1]:
         st.markdown("### Evolución")

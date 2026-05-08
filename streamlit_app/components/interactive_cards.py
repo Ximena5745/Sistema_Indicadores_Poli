@@ -1,509 +1,443 @@
 """
-Interactive Cards Component
-Tarjetas interactivas con efectos hover, tendencias y acciones
+streamlit_app/components/interactive_cards.py
+Fichas de indicadores mejoradas con análisis IA para Informe por Procesos.
+
+Proporciona:
+- _generate_trend_analysis(): Análisis histórico con IA
+- render_indicator_card_enhanced(): Tarjeta HTML mejorada
 """
 
+import re
+
+import pandas as pd
 import streamlit as st
-import plotly.graph_objects as go
+from typing import Optional
 
-try:
-    from ..styles.design_system import (
-        COLORS,
-        GRADIENTS,
-        SHADOWS,
-        ICONS,
-        get_color_for_cumplimiento,
-        get_icon_for_estado,
-    )
-    from ..styles.design_system import get_line_color, get_palette_for_chart
-    from ..utils.formatting import ejecucion_his_signo, meta_his_signo
-except ImportError:
-    import sys
-    from pathlib import Path
+# Colores para estados
+NIVELES_COLORS = {
+    "sobrecumplimiento": "#2563EB",
+    "cumplimiento": "#047857",
+    "alerta": "#F59E0B",
+    "peligro": "#DC2626",
+    "sin dato": "#6E7781",
+}
 
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from styles.design_system import (
-        COLORS,
-        GRADIENTS,
-        SHADOWS,
-        ICONS,
-        get_color_for_cumplimiento,
-        get_icon_for_estado,
-    )
-    from styles.design_system import get_line_color, get_palette_for_chart
-    from utils.formatting import ejecucion_his_signo, meta_his_signo
+COLOR_CATEGORIA = {
+    "SobreCumplimiento": "#2563EB",
+    "Cumplimiento": "#047857",
+    "Alerta": "#F59E0B",
+    "Peligro": "#DC2626",
+    "Sin dato": "#6E7781",
+}
 
 
-def render_metric_card(
-    title,
-    value,
-    subtitle=None,
-    trend=None,
-    trend_value=None,
-    icon="📊",
-    color=None,
-    linea=None,
-    sparkline_data=None,
-    on_click=None,
-    size="normal",
-):
-    """
-    Renderiza una tarjeta de métrica interactiva con efectos hover.
-
-    Args:
-        title: str - Título de la métrica
-        value: str - Valor principal
-        subtitle: str - Subtítulo opcional
-        trend: str - 'up', 'down', 'flat' o None
-        trend_value: str - Valor de tendencia (ej: "+5%")
-        icon: str - Emoji o icono
-        color: str - Color de acento (hex)
-        sparkline_data: list - Datos para sparkline opcional
-        on_click: callable - Función al hacer click
-        size: str - 'small', 'normal', 'large'
-    """
-    if color is None:
-        # Priorizar color de línea si se proporciona
-        if linea:
-            color = get_line_color(linea)
-        else:
-            color = COLORS["primary"]
-
-    # Determinar icono y color de tendencia
-    trend_config = {
-        "up": ("↑", COLORS["success"]),
-        "down": ("↓", COLORS["danger"]),
-        "flat": ("→", COLORS["gray_500"]),
-        None: ("", COLORS["gray_500"]),
-    }
-    trend_icon, trend_color = trend_config.get(trend, trend_config[None])
-
-    # Tamaños
-    sizes = {
-        "small": {"padding": "1rem", "title_size": "0.75rem", "value_size": "1.5rem"},
-        "normal": {"padding": "1.5rem", "title_size": "0.85rem", "value_size": "2rem"},
-        "large": {"padding": "2rem", "title_size": "1rem", "value_size": "2.5rem"},
-    }
-    size_config = sizes.get(size, sizes["normal"])
-
-    # Generar sparkline si hay datos
-    sparkline_html = ""
-    if sparkline_data and len(sparkline_data) > 1:
-        # Crear mini gráfico SVG
-        min_val = min(sparkline_data)
-        max_val = max(sparkline_data)
-        range_val = max_val - min_val if max_val != min_val else 1
-
-        points = []
-        width = 100
-        height = 30
-        for i, val in enumerate(sparkline_data):
-            x = (i / (len(sparkline_data) - 1)) * width
-            y = height - ((val - min_val) / range_val) * height
-            points.append(f"{x},{y}")
-
-        path = " ".join(points)
-        trend_line_color = (
-            COLORS["success"] if sparkline_data[-1] >= sparkline_data[0] else COLORS["danger"]
-        )
-
-        sparkline_html = f"""
-        <svg width="{width}" height="{height}" style="margin-top: 0.75rem;">
-            <polyline
-                fill="none"
-                stroke="{trend_line_color}"
-                stroke-width="2"
-                points="{path}"
-            />
-            <circle cx="{points[-1].split(',')[0]}" cy="{points[-1].split(',')[1]}" r="3" fill="{trend_line_color}"/>
-        </svg>
-        """
-
-    # HTML de la tarjeta
-    card_html = f"""
-    <div style="
-        background: white;
-        border-radius: 16px;
-        padding: {size_config['padding']};
-        box-shadow: {SHADOWS['md']};
-        border-left: 4px solid {color};
-        transition: all 0.3s ease;
-        cursor: {'pointer' if on_click else 'default'};
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-    " 
-    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='{SHADOWS['xl']}';"
-    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='{SHADOWS['md']}';"
-    {'onclick="handleCardClick()"' if on_click else ''}
-    >
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-            <div style="
-                width: 40px;
-                height: 40px;
-                background: {color}15;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.25rem;
-            ">
-                {icon}
-            </div>
-            
-            {f'<div style="display: flex; align-items: center; gap: 0.25rem; color: {trend_color}; font-weight: 600; font-size: 0.85rem;"><span>{trend_icon}</span><span>{trend_value}</span></div>' if trend else ''}
-        </div>
-        
-        <div style="
-            font-size: {size_config['title_size']};
-            color: {COLORS['text_secondary']};
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        ">
-            {title}
-        </div>
-        
-        <div style="
-            font-size: {size_config['value_size']};
-            font-weight: 700;
-            color: {COLORS['text_primary']};
-            line-height: 1.2;
-        ">
-            {value}
-        </div>
-        
-        {f'<div style="font-size: 0.85rem; color: {COLORS["text_secondary"]}; margin-top: 0.25rem;">{subtitle}</div>' if subtitle else ''}
-        
-        {sparkline_html}
-        
-    </div>
-    """
-
-    # Limpiar líneas en blanco para evitar que Markdown rompa el HTML
-    card_html = "\n".join([line for line in card_html.split("\n") if line.strip()])
-    st.markdown(card_html, unsafe_allow_html=True)
-
-    # Manejar click con session_state
-    if on_click:
-        if st.button(f"Click {title}", key=f"card_btn_{title}", style="visibility: hidden;"):
-            on_click()
+def _to_float(value: object) -> float | None:
+    """Convierte valor a float."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).replace(",", "").replace("%", "").strip())
+    except (ValueError, AttributeError):
+        return None
 
 
-def render_indicator_status_card(indicator_data, show_sparkline=True):
-    """
-    Tarjeta específica para mostrar el estado de un indicador.
-
-    Args:
-        indicator_data: dict - Datos del indicador
-        show_sparkline: bool - Mostrar sparkline de tendencia
-    """
-    nombre = indicator_data.get("nombre", "Indicador")
-    cumplimiento = indicator_data.get("cumplimiento", 0)
-    meta = indicator_data.get("meta", 0)
-    ejecucion = indicator_data.get("ejecucion", 0)
-    estado = indicator_data.get("estado", "Sin dato")
-    tendencia = indicator_data.get("tendencia", [])
-    meta_fmt = meta_his_signo(
-        {
-            "Meta": meta,
-            "Meta_Signo": indicator_data.get("meta_signo", ""),
-            "Decimales": indicator_data.get("decimales", 0),
-            "Decimales_Meta": indicator_data.get(
-                "decimales_meta", indicator_data.get("decimales", 0)
-            ),
-            "DecimalesEje": indicator_data.get("decimales_ejec", 0),
-        }
-    )
-    ejec_fmt = ejecucion_his_signo(
-        {
-            "Ejecucion": ejecucion,
-            "Ejecucion_Signo": indicator_data.get("ejec_signo", ""),
-            "Decimales": indicator_data.get("decimales", 0),
-            "DecimalesEje": indicator_data.get("decimales_ejec", 0),
-        }
-    )
-
-    # Determinar color e icono según estado
-    # Si el indicador tiene una 'linea' asociada, priorizamos el color de línea
-    linea = indicator_data.get("linea")
-    if linea:
-        color = get_line_color(linea)
+def _categoria_por_pct(pct: float | None) -> str:
+    """Determina categoría por porcentaje."""
+    if pct is None or pd.isna(pct):
+        return "sin dato"
+    if pct >= 105:
+        return "sobrecumplimiento"
+    elif pct >= 100:
+        return "cumplimiento"
+    elif pct >= 80:
+        return "alerta"
     else:
-        color = get_color_for_cumplimiento(cumplimiento)
-    icon = get_icon_for_estado(estado)
-
-    # Calcular brecha
-    brecha = ejecucion - meta
-    brecha_pct = (brecha / meta * 100) if meta > 0 else 0
-
-    html_content = f"""
-    <div style="
-        background: white;
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: {SHADOWS['md']};
-        border-left: 4px solid {color};
-        transition: all 0.3s ease;
-        cursor: pointer;
-        margin-bottom: 1rem;
-    "
-    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='{SHADOWS['xl']}';"
-    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='{SHADOWS['md']}';"
-    >
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-            <div>
-                <div style="font-size: 0.8rem; color: {COLORS['text_secondary']}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">
-                    {indicator_data.get('codigo', 'IND-001')}
-                </div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']}; line-height: 1.3;">
-                    {nombre}
-                </div>
-            </div>
-            
-            <div style="
-                background: {color}15;
-                color: {color};
-                padding: 0.4rem 0.8rem;
-                border-radius: 20px;
-                font-size: 0.8rem;
-                font-weight: 600;
-                display: flex;
-                align-items: center;
-                gap: 0.4rem;
-            ">
-                <span>{icon}</span>
-                <span>{estado}</span>
-            </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
-            <div>
-                <div style="font-size: 0.75rem; color: {COLORS['text_secondary']}; margin-bottom: 0.25rem;">Meta</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']};">{meta_fmt}</div>
-            </div>
-            
-            <div>
-                <div style="font-size: 0.75rem; color: {COLORS['text_secondary']}; margin-bottom: 0.25rem;">Ejecución</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_primary']};">{ejec_fmt}</div>
-            </div>
-            
-            <div>
-                <div style="font-size: 0.75rem; color: {COLORS['text_secondary']}; margin-bottom: 0.25rem;">Cumplimiento</div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: {color};">{cumplimiento:.1f}%</div>
-            </div>
-        </div>
-        
-        <div style="margin-top: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <span style="font-size: 0.8rem; color: {COLORS['text_secondary']};">Progreso hacia meta</span>
-                <span style="font-size: 0.8rem; font-weight: 600; color: {color};">{min(cumplimiento, 100):.0f}%</span>
-            </div>
-            
-            <div style="
-                width: 100%;
-                height: 8px;
-                background: {COLORS['gray_200']};
-                border-radius: 4px;
-                overflow: hidden;
-            ">
-                <div style="
-                    width: {min(cumplimiento, 100)}%;
-                    height: 100%;
-                    background: {color};
-                    border-radius: 4px;
-                    transition: width 0.5s ease;
-                "></div>
-            </div>
-        </div>
-    </div>
-    """
-    html_clean = "\n".join([line for line in html_content.split("\n") if line.strip()])
-    st.markdown(html_clean, unsafe_allow_html=True)
+        return "peligro"
 
 
-def render_action_card(action_data):
-    """
-    Tarjeta para mostrar acciones de mejora u OM.
+def _status_color_for_pct(pct: float | None) -> str:
+    """Color para el porcentaje."""
+    if pct is None or pd.isna(pct):
+        return "#6E7781"
+    if pct >= 105:
+        return "#2563EB"
+    if pct >= 100:
+        return "#047857"
+    if pct >= 80:
+        return "#F59E0B"
+    return "#DC2626"
 
-    Args:
-        action_data: dict - Datos de la acción
-    """
-    codigo = action_data.get("codigo", "OM-001")
-    descripcion = action_data.get("descripcion", "Sin descripción")
-    responsable = action_data.get("responsable", "Sin asignar")
-    fecha_limite = action_data.get("fecha_limite", "Sin fecha")
-    estado = action_data.get("estado", "Pendiente")
-    progreso = action_data.get("progreso", 0)
 
-    # Color según estado
-    estado_colors = {
-        "Completada": COLORS["success"],
-        "En progreso": COLORS["info"],
-        "Pendiente": COLORS["warning"],
-        "Vencida": COLORS["danger"],
-        "Cancelada": COLORS["gray_500"],
+def _render_progress_bar_html(ejec: object, meta: object, pct: float | None) -> str:
+    """Renderiza barra de progreso HTML."""
+    ejec_val = _to_float(ejec)
+    meta_val = _to_float(meta)
+    if ejec_val is None or meta_val is None or meta_val == 0:
+        return "<div style='margin-top:12px;color:#475569;font-size:0.82rem;'>No hay datos completos para mostrar la barra de progreso.</div>"
+
+    ratio = max(0.0, min(1.0, ejec_val / meta_val))
+    fill_pct = ratio * 100
+    color = _status_color_for_pct(pct)
+    label = f"{ejec_val:.1f} / {meta_val:.1f}"
+    return (
+        f"<div style='margin-top:12px;'>"
+        f"<div style='display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:6px;'>"
+        f"<span>Ejecución vs Meta</span><span>{label}</span>"
+        f"</div>"
+        f"<div style='width:100%;height:10px;border-radius:999px;background:#E5ECF8;overflow:hidden;'>"
+        f"<div style='width:{fill_pct:.1f}%;height:100%;background:{color};box-shadow:0 3px 8px rgba(15,23,42,0.12);border-radius:999px;'></div>"
+        f"</div>"
+        f"</div>"
+    )
+
+
+def _fmt_short_value(value: object) -> str:
+    """Formatea valor corto."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return "—"
+    val_str = str(value).strip()
+    if val_str.lower() in ("nan", "none", ""):
+        return "—"
+    try:
+        num = float(val_str.replace(",", ""))
+        if abs(num) >= 1000:
+            return f"{num/1000:.1f}K"
+        return f"{num:.1f}"
+    except (ValueError, AttributeError):
+        return val_str[:12]
+
+
+def _mes_to_num(mes: object) -> float | pd.NA:
+    """Convierte mes a número."""
+    if mes is None or (isinstance(mes, float) and pd.isna(mes)):
+        return pd.NA
+    MES_MAP = {
+        "enero": 1, "febrero": 2, "marzo": 3, "abril": 4,
+        "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
+        "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
     }
-    color = estado_colors.get(estado, COLORS["warning"])
+    mes_str = str(mes).lower().strip()
+    return MES_MAP.get(mes_str, pd.NA)
 
-    html_content = f"""
-    <div style="
-        background: white;
-        border-radius: 12px;
-        padding: 1.25rem;
-        box-shadow: {SHADOWS['sm']};
-        border: 1px solid {COLORS['gray_200']};
-        margin-bottom: 0.75rem;
-        transition: all 0.2s ease;
-    "
-    onmouseover="this.style.boxShadow='{SHADOWS['md']}'; this.style.borderColor='{COLORS['gray_300']}';"
-    onmouseout="this.style.boxShadow='{SHADOWS['sm']}'; this.style.borderColor='{COLORS['gray_200']}';"
-    >
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-            <div style="font-size: 0.85rem; font-weight: 600; color: {COLORS['primary']};">{codigo}</div>
-            <div style="
-                background: {color}15;
-                color: {color};
-                padding: 0.25rem 0.6rem;
-                border-radius: 12px;
-                font-size: 0.75rem;
-                font-weight: 600;
-            ">{estado}</div>
-        </div>
-        
-        <div style="font-size: 0.95rem; color: {COLORS['text_primary']}; margin-bottom: 0.75rem; line-height: 1.4;">
-            {descripcion}
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: {COLORS['text_secondary']}; margin-bottom: 0.75rem;">
-            <span>👤 {responsable}</span>
-            <span>📅 {fecha_limite}</span>
-        </div>
-        
-        <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                <span style="font-size: 0.75rem; color: {COLORS['text_secondary']};">Progreso</span>
-                <span style="font-size: 0.75rem; font-weight: 600; color: {color};">{progreso}%</span>
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _get_ai_analysis(
+    nombre: str,
+    linea: str,
+    objetivo: str,
+    meta: object,
+    ejec: object,
+    nivel: str,
+    cump: float,
+) -> str:
+    """Obtiene análisis IA para el indicador."""
+    try:
+        from services.ai_analysis import analizar_ficha_cmi
+        return analizar_ficha_cmi(
+            nombre,
+            linea or "",
+            objetivo or "",
+            str(meta) if meta is not None else "—",
+            str(ejec) if ejec is not None else "—",
+            nivel,
+            str(cump) if cump is not None else "0",
+        )
+    except Exception as e:
+        return f"Análisis IA no disponible: {str(e)[:50]}"
+
+
+def _generate_trend_analysis(
+    historic_df: pd.DataFrame,
+    indicator_name: str,
+    subproceso: str | None = None,
+) -> tuple[str, float | None, float | None]:
+    """
+    Genera análisis histórico para un indicador.
+    
+    Returns:
+        (analisis_text, promedio_historico, tendencia_value)
+    """
+    if historic_df.empty or "Indicador" not in historic_df.columns:
+        return "Sin histórico disponible para generar análisis.", None, None
+
+    # Filtrar por indicador
+    work = historic_df[historic_df["Indicador"].astype(str) == str(indicator_name)].copy()
+    
+    if subproceso and "Subproceso_final" in work.columns:
+        work = work[work["Subproceso_final"].astype(str) == str(subproceso)]
+
+    if work.empty:
+        return "Sin histórico disponible para este indicador.", None, None
+
+    # Ordenar por año/mes
+    if "Anio" in work.columns:
+        work["_sort_anio"] = pd.to_numeric(work["Anio"], errors="coerce")
+    
+    if "Mes" in work.columns:
+        work["_sort_mes"] = work["Mes"].apply(_mes_to_num)
+        sort_cols = ["_sort_anio", "_sort_mes"]
+    elif "Anio" in work.columns:
+        sort_cols = ["_sort_anio"]
+    else:
+        sort_cols = []
+    
+    if sort_cols:
+        work = work.sort_values(sort_cols)
+
+    # Obtener tantos datos como sea posible (según frecuencia)
+    cump_col = "Cumplimiento_pct" if "Cumplimiento_pct" in work.columns else "Cumplimiento"
+    
+    if cump_col not in work.columns:
+        return "Sin datos de cumplimiento disponibles.", None, None
+
+    cumpl_values = pd.to_numeric(work[cump_col], errors="coerce").dropna()
+    
+    if cumpl_values.empty:
+        return "Sin datos de cumplimiento disponibles.", None, None
+
+    # Calcular promedio histórico
+    promedio = cumpl_values.mean()
+    
+    # Calcular tendencia (últimos 3 valores)
+    tendencia_val = None
+    if len(cumpl_values) >= 3:
+        ultimos_3 = cumpl_values.tail(3)
+        if ultimos_3.iloc[-1] > ultimos_3.iloc[-2] > ultimos_3.iloc[-3]:
+            tendencia_val = 1.0  # ↑ Alza
+        elif ultimos_3.iloc[-1] < ultimos_3.iloc[-2] < ultimos_3.iloc[-3]:
+            tendencia_val = -1.0  # ↓ Baja
+        else:
+            tendencia_val = 0.0  # → Estable
+    elif len(cumpl_values) >= 2:
+        if cumpl_values.iloc[-1] > cumpl_values.iloc[-2]:
+            tendencia_val = 1.0
+        elif cumpl_values.iloc[-1] < cumpl_values.iloc[-2]:
+            tendencia_val = -1.0
+        else:
+            tendencia_val = 0.0
+    else:
+        tendencia_val = 0.0
+
+    # Obtener datos actuales para IA
+    last_row = work.iloc[-1] if not work.empty else None
+    current_meta = last_row.get("Meta") if last_row is not None else None
+    current_ejec = last_row.get("Ejecucion") if last_row is not None else None
+    current_cump = _to_float(last_row.get(cump_col)) if last_row is not None else None
+    current_nivel = _categoria_por_pct(current_cump) if current_cump else "sin dato"
+
+    # Llamar IA
+    ai_analysis = _get_ai_analysis(
+        nombre=indicator_name,
+        linea="",
+        objetivo="",
+        meta=current_meta,
+        ejec=current_ejec,
+        nivel=current_nivel,
+        cump=current_cump or 0.0,
+    )
+
+    # Agregar contexto histórico
+    tendencia_icon = "↑" if tendencia_val == 1.0 else ("↓" if tendencia_val == -1.0 else "→")
+    tendencia_label = "Al alza" if tendencia_val == 1.0 else ("A la baja" if tendencia_val == -1.0 else "Estable")
+    
+    contexto = f"\n\nContexto historico: promedio {promedio:.1f}%, tendencia {tendencia_icon} ({tendencia_label})"
+    
+    analisis_final = ai_analysis + contexto if ai_analysis else f"Sin analisis disponible. {contexto}"
+    
+    return analisis_final, promedio, tendencia_val
+
+
+def render_indicator_card_enhanced(
+    row: pd.Series,
+    analisis_ia: str,
+    index: int = 0,
+) -> str:
+    """
+    Renderiza una tarjeta de indicador mejorada.
+    
+    Args:
+        row: Fila con datos del indicador
+        analisis_ia: Texto de análisis IA
+        index: Índice para key única
+    
+    Returns:
+        HTML string de la tarjeta
+    """
+    # Extraer campos
+    indicador = str(row.get("Indicador", "")).strip() or "Indicador sin nombre"
+    row_id = str(row.get("Id", "")).strip() or "—"
+    proceso = str(row.get("Proceso_padre", row.get("Proceso", "—"))).strip()
+    unidad = str(row.get("Unidad", "—")).strip()
+    
+    meta = _fmt_short_value(row.get("Meta"))
+    ejec = _fmt_short_value(row.get("Ejecucion"))
+    freq = str(row.get("Frecuencia", row.get("Periodicidad", "—"))).strip()
+    clasificacion = str(row.get("Clasificacion", "—")).strip()
+    
+    # Cumplimiento
+    cumpl_raw = row.get("Cumplimiento_pct")
+    cumpl = _to_float(cumpl_raw)
+    categoria = _categoria_por_pct(cumpl)
+    color = NIVELES_COLORS.get(categoria.lower(), "#6E7781")
+    cumpl_label = f"{cumpl:.1f}%" if cumpl is not None else "Sin dato"
+    
+    # Progress bar
+    progress_html = _render_progress_bar_html(row.get("Ejecucion"), row.get("Meta"), cumpl)
+    
+    # Truncar análisis IA
+    analisis_display = analisis_ia[:300] + "..." if len(analisis_ia) > 300 else analisis_ia
+    analisis_display = analisis_display.replace("\n", "<br>")
+
+    card_html = f"""
+    <div class='informe-card'>
+        <div class='informe-card-header'>
+            <div>
+                <div class='informe-card-id'>ID: {row_id}</div>
+                <div class='informe-card-title'>{indicador}</div>
+                <div class='informe-card-meta'>
+                    {proceso} {f"• {unidad}" if unidad and unidad != "—" else ""}
+                </div>
             </div>
-            
-            <div style="
-                width: 100%;
-                height: 6px;
-                background: {COLORS['gray_200']};
-                border-radius: 3px;
-                overflow: hidden;
-            ">
-                <div style="
-                    width: {progreso}%;
-                    height: 100%;
-                    background: {color};
-                    border-radius: 3px;
-                    transition: width 0.3s ease;
-                "></div>
+            <div style='text-align:right;'>
+                <div class='informe-card-kpi' style='color:{color};'>{cumpl_label}</div>
+                <div class='informe-card-badge' style='background:rgba(0,0,0,0.05);color:{color};margin-top:8px;'>{categoria.upper()}</div>
             </div>
+        </div>
+        {progress_html}
+        <div class='informe-card-fields'>
+            <div class='informe-card-field'>
+                <span class='informe-card-field-label'>Meta</span>
+                <span class='informe-card-field-value'>{meta}</span>
+            </div>
+            <div class='informe-card-field'>
+                <span class='informe-card-field-label'>Frecuencia</span>
+                <span class='informe-card-field-value'>{freq}</span>
+            </div>
+            <div class='informe-card-field'>
+                <span class='informe-card-field-label'>Clasificación</span>
+                <span class='informe-card-field-value'>{clasificacion}</span>
+            </div>
+        </div>
+        <div class='informe-card-analysis'>
+            <div class='informe-card-analysis-label'>🧠 Análisis IA</div>
+            <div class='informe-card-analysis-text'>{analisis_display}</div>
         </div>
     </div>
     """
-    html_clean = "\n".join([line for line in html_content.split("\n") if line.strip()])
-    st.markdown(html_clean, unsafe_allow_html=True)
+    return card_html
 
 
-def render_kpi_row(metrics, columns=4):
-    """
-    Renderiza una fila de KPIs con diseño consistente.
+# CSS styles para las tarjetas
+INFORME_CARD_CSS = """
+<style>
+.informe-card {
+    background: #ffffff;
+    border: 1px solid rgba(37, 99, 235, 0.16);
+    border-radius: 18px;
+    box-shadow: 0 20px 40px rgba(15, 30, 80, 0.08);
+    padding: 18px;
+    margin-bottom: 16px;
+}
+.informe-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+.informe-card-id {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    color: #1D4ED8;
+    text-transform: uppercase;
+}
+.informe-card-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #102a43;
+    line-height: 1.2;
+    margin-bottom: 6px;
+}
+.informe-card-meta {
+    font-size: 0.82rem;
+    color: #64748B;
+    line-height: 1.4;
+}
+.informe-card-kpi {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.informe-card-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.informe-card-fields {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #E2E8F0;
+}
+.informe-card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.informe-card-field-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748B;
+}
+.informe-card-field-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+}
+.informe-card-analysis {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #E2E8F0;
+}
+.informe-card-analysis-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 6px;
+}
+.informe-card-analysis-text {
+    font-size: 0.8rem;
+    color: #475569;
+    line-height: 1.5;
+    max-height: 4.2em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+"""
 
-    Args:
-        metrics: list - Lista de dicts con datos de métricas
-        columns: int - Número de columnas
-    """
-    cols = st.columns(columns)
 
-    for idx, metric in enumerate(metrics):
-        if idx >= columns:
-            break
-
-        with cols[idx % columns]:
-            render_metric_card(
-                title=metric.get("title", "Métrica"),
-                value=metric.get("value", "-"),
-                subtitle=metric.get("subtitle"),
-                trend=metric.get("trend"),
-                trend_value=metric.get("trend_value"),
-                icon=metric.get("icon", "📊"),
-                color=metric.get("color", COLORS["primary"]),
-                sparkline_data=metric.get("sparkline_data"),
-                size=metric.get("size", "normal"),
-            )
-
-
-def render_expandable_card(title, content_html, icon="📋", default_expanded=False):
-    """
-    Tarjeta expandible para mostrar información adicional.
-
-    Args:
-        title: str - Título de la sección
-        content_html: str - Contenido HTML a mostrar
-        icon: str - Icono de la sección
-        default_expanded: bool - Estado inicial
-    """
-    expanded_class = "expanded" if default_expanded else ""
-    display_style = "block" if default_expanded else "none"
-
-    html_content = f"""
-    <div style="
-        background: white;
-        border-radius: 12px;
-        box-shadow: {SHADOWS['sm']};
-        margin-bottom: 1rem;
-        overflow: hidden;
-    ">
-        <div style="
-            padding: 1rem 1.25rem;
-            background: {COLORS['gray_50']};
-            border-bottom: 1px solid {COLORS['gray_200']};
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        "
-        onclick="toggleExpand(this)"
-        >
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <span style="font-size: 1.25rem;">{icon}</span>
-                <span style="font-weight: 600; color: {COLORS['text_primary']};">{title}</span>
-            </div>
-            <span style="color: {COLORS['text_secondary']}; font-size: 1.25rem; transition: transform 0.2s;">▼</span>
+def render_metric_card(title: str, value: str, subtitle: str = "", icon: str = "", color: str = "#1A3A5C") -> str:
+    """Renderiza una tarjeta de métrica simple (para KPIs)."""
+    icon_html = f"{icon} " if icon else ""
+    return f"""
+    <div style='background:#fff;border:1px solid {color}22;border-radius:14px;padding:16px;box-shadow:0 4px 12px rgba(15,23,42,0.06);'>
+        <div style='font-size:0.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;'>
+            {icon_html}{title}
         </div>
-        
-        <div style="padding: 1.25rem; display: {display_style};">
-            {content_html}
-        </div>
+        <div style='font-size:1.6rem;font-weight:800;color:{color};line-height:1.1;'>{value}</div>
+        <div style='font-size:0.78rem;color:#475569;margin-top:4px;'>{subtitle}</div>
     </div>
-    <script>
-    function toggleExpand(header) {{
-        const content = header.nextElementSibling;
-        const arrow = header.querySelector('span:last-child');
-        
-        if (content.style.display === 'none') {{
-            content.style.display = 'block';
-            arrow.style.transform = 'rotate(180deg)';
-        }} else {{
-            content.style.display = 'none';
-            arrow.style.transform = 'rotate(0deg)';
-        }}
-    }}
-    </script>
     """
-    html_clean = "\n".join([line for line in html_content.split("\n") if line.strip()])
-    st.markdown(html_clean, unsafe_allow_html=True)
-
-
-# Exportar funciones
-__all__ = [
-    "render_metric_card",
-    "render_indicator_status_card",
-    "render_action_card",
-    "render_kpi_row",
-    "render_expandable_card",
-]

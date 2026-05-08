@@ -3135,6 +3135,205 @@ def _render_indicadores_subproceso_cards(
                 st.write(texto_estandar)
 
 
+def _render_indicadores_subproceso_enhanced(
+    filtered: pd.DataFrame,
+    historic_df: pd.DataFrame,
+    anio: int | None,
+    month_num: int | None,
+    map_df: pd.DataFrame,
+    proceso_sel: str,
+) -> None:
+    """Versión mejorada de tarjetas de indicadores con análisis IA."""
+    from streamlit_app.components.interactive_cards import (
+        _generate_trend_analysis,
+        render_indicator_card_enhanced,
+        INFORME_CARD_CSS,
+    )
+
+    if filtered.empty:
+        st.info("Sin indicadores para el filtro actual.")
+        return
+
+    st.markdown(INFORME_CARD_CSS, unsafe_allow_html=True)
+
+    analisis_map = _load_analisis_indicadores()
+    analisis_periodos = _load_analisis_periodos()
+
+    subprocesos_datos = (
+        sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist())
+        if "Subproceso_final" in filtered.columns
+        else []
+    )
+    subprocesos = subprocesos_datos.copy()
+
+    if (
+        proceso_sel != "Todos"
+        and not map_df.empty
+        and {"Proceso", "Subproceso"}.issubset(map_df.columns)
+    ):
+        proceso_norm = _norm_text(proceso_sel)
+        map_work = map_df.copy()
+        map_work["_proc_norm"] = map_work["Proceso"].astype(str).map(_norm_text)
+        map_work["_sub_val"] = map_work["Subproceso"].astype(str).str.strip()
+        oficiales = sorted(
+            map_work[map_work["_proc_norm"] == proceso_norm]["_sub_val"].dropna().unique().tolist()
+        )
+
+        if oficiales:
+            datos_map = {_norm_text(s): s for s in subprocesos_datos}
+            subprocesos = [
+                datos_map[_norm_text(s)] for s in oficiales if _norm_text(s) in datos_map
+            ]
+    if not subprocesos:
+        st.info("No hay subprocesos para mostrar en este filtro.")
+        return
+
+    sub_tabs = st.tabs([f"{sp}" for sp in subprocesos])
+    for tab, sub in zip(sub_tabs, subprocesos):
+        with tab:
+            sub_df = filtered[filtered["Subproceso_final"].astype(str) == str(sub)].copy()
+            sub_df = _latest_per_indicator(sub_df)
+            if sub_df.empty:
+                st.info("Sin indicadores para este subproceso.")
+                continue
+
+            sub_df = sub_df.sort_values("Indicador") if "Indicador" in sub_df.columns else sub_df
+            indicadores_total = len(sub_df)
+            items_per_page = 15
+            total_pages = max(1, (indicadores_total + items_per_page - 1) // items_per_page)
+
+            page_key = f"ind_page_enh_{_norm_text(sub)}"
+            selected_key = f"ind_selected_enh_{_norm_text(sub)}"
+            if page_key not in st.session_state:
+                st.session_state[page_key] = 0
+
+            st.session_state[page_key] = min(max(st.session_state[page_key], 0), total_pages - 1)
+            page = st.session_state[page_key]
+
+            start = page * items_per_page
+            end = start + items_per_page
+            page_df = sub_df.iloc[start:end].copy()
+
+            st.caption(
+                f"Mostrando indicadores {start + 1} a {min(end, indicadores_total)} de {indicadores_total}."
+            )
+
+            cols = st.columns(3)
+            for idx, (_, row) in enumerate(page_df.iterrows()):
+                indicador = str(row.get("Indicador", "")).strip() or "Indicador sin nombre"
+
+                analisis_ia, _, _ = _generate_trend_analysis(
+                    historic_df, indicador, str(sub)
+                )
+
+                card_html = render_indicator_card_enhanced(row, analisis_ia, idx)
+                with cols[idx % 3]:
+                    st.markdown(card_html, unsafe_allow_html=True)
+
+                    if st.button(
+                        "Ver detalle",
+                        key=f"btn_det_enh_{_norm_text(sub)}_{_norm_text(indicador)}_{idx}",
+                        use_container_width=True,
+                    ):
+                        st.session_state[selected_key] = indicador
+                        from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
+                        render_modal_ficha(row)
+
+            nav1, nav2, nav3 = st.columns([1, 2, 1])
+            with nav1:
+                if st.button(
+                    "< Anterior",
+                    key=f"btn_prev_enh_{_norm_text(sub)}",
+                    disabled=page == 0,
+                    use_container_width=True,
+                ):
+                    st.session_state[page_key] = page - 1
+                    st.rerun()
+            with nav2:
+                st.markdown(
+                    f"<div style='text-align:center;padding-top:6px;'>Pagina <b>{page + 1}</b> de <b>{total_pages}</b></div>",
+                    unsafe_allow_html=True,
+                )
+            with nav3:
+                if st.button(
+                    "Siguiente >",
+                    key=f"btn_next_enh_{_norm_text(sub)}",
+                    disabled=page >= total_pages - 1,
+                    use_container_width=True,
+                ):
+                    st.session_state[page_key] = page + 1
+                    st.rerun()
+
+            selected_indicator = st.session_state.get(selected_key)
+            if selected_indicator:
+                st.markdown(f"#### Detalle del indicador: {selected_indicator}")
+                yearly_df = _build_indicator_yearly(
+                    selected_indicator, historic_df, subproceso=sub, month_num=month_num
+                )
+                if yearly_df.empty:
+                    st.info("No hay historico para el indicador seleccionado.")
+                else:
+                    chart_df = yearly_df.copy()
+                    if "Anio" in chart_df.columns:
+                        chart_df["Anio"] = (
+                            pd.to_numeric(chart_df["Anio"], errors="coerce")
+                            .astype("Int64")
+                            .astype(str)
+                        )
+                    if "Anio" in chart_df.columns:
+                        fig = make_subplots(specs=[[{"secondary_y": True}]])
+                        if "Meta" in chart_df.columns:
+                            fig.add_trace(
+                                go.Bar(
+                                    name="Meta",
+                                    x=chart_df["Anio"],
+                                    y=pd.to_numeric(chart_df["Meta"], errors="coerce"),
+                                ),
+                                secondary_y=False,
+                            )
+                        if "Ejecucion" in chart_df.columns:
+                            fig.add_trace(
+                                go.Bar(
+                                    name="Ejecucion",
+                                    x=chart_df["Anio"],
+                                    y=pd.to_numeric(chart_df["Ejecucion"], errors="coerce"),
+                                ),
+                                secondary_y=False,
+                            )
+                        if "Cumplimiento_pct" in chart_df.columns:
+                            fig.add_trace(
+                                go.Scatter(
+                                    name="Cumplimiento (%)",
+                                    x=chart_df["Anio"],
+                                    y=pd.to_numeric(chart_df["Cumplimiento_pct"], errors="coerce"),
+                                    mode="lines+markers",
+                                ),
+                                secondary_y=True,
+                            )
+                        fig.update_layout(
+                            barmode="group",
+                            title="Comparativo anual (Meta/Ejecucion + Cumplimiento)",
+                            legend_title_text="Metrica",
+                        )
+                        fig.update_yaxes(title_text="Meta/Ejecucion", secondary_y=False)
+                        fig.update_yaxes(title_text="Cumplimiento (%)", secondary_y=True)
+                        st.plotly_chart(fig, use_container_width=True)
+
+                    table = chart_df[
+                        [c for c in ["Anio", "Meta", "Ejecucion", "Cumplimiento_pct"] if c in chart_df.columns]
+                    ].copy()
+                    if "Cumplimiento_pct" in table.columns:
+                        table["Cumplimiento_pct"] = pd.to_numeric(
+                            table["Cumplimiento_pct"], errors="coerce"
+                        ).round(1)
+                    st.dataframe(table, use_container_width=True, hide_index=True)
+
+                analisis_hist = _buscar_analisis_periodos(selected_indicator, analisis_periodos)
+                _section_title("Analisis del indicador", level=5)
+                texto_estandar = _generar_analisis_estandar(yearly_df, analisis_hist)
+                st.write(texto_estandar)
+
+
 def _build_indicadores_table(df_latest: pd.DataFrame) -> pd.DataFrame:
     base_cols = [
         c
