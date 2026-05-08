@@ -13,151 +13,134 @@ import streamlit as st
 # ──────────────────────────────────────────────────────────────────────────────
 
 _FILTER_CSS = """<style>
-/* ══════════════════════════════════════════════════════════════════
-   SISTEMA UNIFICADO DE FILTROS — Streamlit 1.36-1.56+
-   Selectores verificados contra el DOM real de Streamlit 1.56.0
-   ══════════════════════════════════════════════════════════════════ */
-
-/* ── Labels nativos: stWidgetLabel ─────────────────────────────── */
-[data-testid="stWidgetLabel"] p,
-[data-testid="stWidgetLabel"] label,
-[data-testid="stWidgetLabel"] > div > p,
-.stSelectbox label,
-.stTextInput label,
-.stMultiSelect label {
+/* ── Labels ─────────────────────────────────────────────────────── */
+html body [data-testid="stWidgetLabel"] p,
+html body [data-testid="stWidgetLabel"] label,
+html body [data-testid="stWidgetLabel"] > div > p,
+html body .stSelectbox label,
+html body .stMultiSelect label {
     font-size: 0.72rem !important;
     font-weight: 700 !important;
     color: #0E7490 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.07em !important;
-    margin-bottom: 2px !important;
+    margin-bottom: 3px !important;
     line-height: 1.3 !important;
 }
 
-/* ── Selectbox — borde y fondo ──────────────────────────────────── */
-/* Máxima cobertura: className="stSelectbox" confirmado en JS bundle de Streamlit 1.56 */
-/* Selector 1: via clase stSelectbox (especificidad 0,2,1 > Emotion 0,1,1) */
-.stSelectbox [data-baseweb="select"] > div,
-div.stSelectbox [data-baseweb="select"] > div,
-/* Selector 2: via data-testid */
-div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
-/* Selector 3: genérico como fallback */
-[data-baseweb="select"] > div,
-[data-baseweb="select"] > div:first-child {
-    border: 1.5px solid #67E8F9 !important;
-    border-radius: 10px !important;
-    background: #FFFFFF !important;
-    min-height: 40px !important;
-    transition: border-color 0.18s, box-shadow 0.18s !important;
-}
-.stSelectbox [data-baseweb="select"] > div:focus-within,
-div[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
-[data-baseweb="select"] > div:focus-within {
+/* ── Selectbox: borde teal ──────────────────────────────────────── */
+html body [data-baseweb="select"] > div {
+    border-width: 1.5px !important;
+    border-style: solid !important;
     border-color: #0E7490 !important;
-    box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.18) !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF !important;
+    min-height: 38px !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+html body [data-baseweb="select"] > div:focus-within {
+    border-color: #0E7490 !important;
+    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.18) !important;
 }
 
-/* Texto del valor seleccionado */
-[data-baseweb="select"] span,
-[data-baseweb="select"] [data-testid="stSelectboxContainer"] span {
+/* ── Texto dentro del selectbox ─────────────────────────────────── */
+html body [data-baseweb="select"] span {
     font-size: 0.88rem !important;
-    color: #1E293B !important;
-}
-
-/* ── Text input ─────────────────────────────────────────────────── */
-.stTextInput input,
-[data-testid="stTextInput"] input {
-    border: 1.5px solid #67E8F9 !important;
-    border-radius: 10px !important;
-    background: #FFFFFF !important;
-    min-height: 40px !important;
-    font-size: 0.88rem !important;
-    padding: 0 10px !important;
-    transition: border-color 0.18s, box-shadow 0.18s !important;
-}
-.stTextInput input:focus,
-[data-testid="stTextInput"] input:focus {
-    border-color: #0E7490 !important;
-    box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.18) !important;
-    outline: none !important;
+    color: #0F2137 !important;
 }
 
 /* ── Multiselect ────────────────────────────────────────────────── */
-[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
-    border: 1.5px solid #67E8F9 !important;
-    border-radius: 10px !important;
+html body [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+    border-width: 1.5px !important;
+    border-style: solid !important;
+    border-color: #0E7490 !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF !important;
+}
+
+/* ── Text input ─────────────────────────────────────────────────── */
+html body [data-testid="stTextInput"] input,
+html body .stTextInput input {
+    border: 1.5px solid #0E7490 !important;
+    border-radius: 8px !important;
     background: #FFFFFF !important;
-    min-height: 40px !important;
+    min-height: 38px !important;
+    font-size: 0.88rem !important;
+    transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+html body [data-testid="stTextInput"] input:focus {
+    border-color: #0E7490 !important;
+    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.18) !important;
+    outline: none !important;
+}
+
+/* ── Dropdown popup ─────────────────────────────────────────────── */
+html body [data-baseweb="popover"] [data-baseweb="menu"],
+html body [data-baseweb="popover"] ul {
+    border-radius: 8px !important;
+    border: 1.5px solid #0E7490 !important;
+    box-shadow: 0 4px 16px rgba(14,116,144,0.15) !important;
+}
+html body [data-baseweb="option"]:hover,
+html body [data-baseweb="option"][aria-selected="true"] {
+    background: rgba(14,116,144,0.10) !important;
+    color: #0E7490 !important;
 }
 
 /* ── Pills ──────────────────────────────────────────────────────── */
-[data-testid="stPills"] {
-    gap: 5px !important;
-    flex-wrap: wrap !important;
-}
-[data-testid="stPillsOption"],
-button[data-testid="stPillsOption"] {
+html body [data-testid="stPillsOption"],
+html body button[data-testid="stPillsOption"] {
     font-size: 0.82rem !important;
     font-weight: 600 !important;
-    padding: 4px 13px !important;
+    padding: 4px 14px !important;
     border-radius: 999px !important;
-    border: 1.5px solid #67E8F9 !important;
+    border: 1.5px solid #0E7490 !important;
     background: #FFFFFF !important;
     color: #0E7490 !important;
     transition: all 0.15s ease !important;
 }
-[data-testid="stPillsOption"][aria-pressed="true"],
-button[data-testid="stPillsOption"][aria-pressed="true"] {
+html body [data-testid="stPillsOption"][aria-pressed="true"],
+html body button[data-testid="stPillsOption"][aria-pressed="true"] {
     background: #0E7490 !important;
     color: #FFFFFF !important;
     border-color: #0E7490 !important;
-    box-shadow: 0 2px 6px rgba(14,116,144,0.25) !important;
+    box-shadow: 0 2px 6px rgba(14,116,144,0.30) !important;
 }
 
 /* ── Segmented control ──────────────────────────────────────────── */
-[data-testid="stSegmentedControl"] button,
-div[data-testid="stSegmentedControl"] button {
+html body [data-testid="stSegmentedControl"] button {
     font-size: 0.82rem !important;
     font-weight: 500 !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     transition: all 0.15s ease !important;
 }
-[data-testid="stSegmentedControl"] button[aria-pressed="true"],
-div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
     background: linear-gradient(135deg, #0E7490 0%, #06B6D4 100%) !important;
     color: #FFFFFF !important;
     border-color: transparent !important;
-    box-shadow: 0 2px 8px rgba(14, 116, 144, 0.30) !important;
+    box-shadow: 0 2px 8px rgba(14,116,144,0.30) !important;
     font-weight: 700 !important;
 }
 
-/* ── Quitar margen inferior en widgets dentro del panel ─────────── */
-.stSelectbox,
-.stTextInput,
-.stMultiSelect,
-[data-testid="stPills"],
-[data-testid="stSegmentedControl"] {
+/* ── Compactar widgets ──────────────────────────────────────────── */
+html body .stSelectbox,
+html body .stTextInput,
+html body .stMultiSelect,
+html body [data-testid="stPills"],
+html body [data-testid="stSegmentedControl"] {
     margin-bottom: 0 !important;
     padding-bottom: 0 !important;
 }
 
-/* ── Columnas compactas ─────────────────────────────────────────── */
-[data-testid="column"] {
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
+/* ── Botón de reset ─────────────────────────────────────────────── */
+html body [data-testid="stButton"] > button {
+    transition: all 0.15s ease !important;
 }
-
-/* ── Dropdown popup ─────────────────────────────────────────────── */
-[data-baseweb="popover"] [data-baseweb="menu"],
-[data-baseweb="popover"] ul {
-    border-radius: 10px !important;
-    border: 1px solid #67E8F9 !important;
-    box-shadow: 0 4px 16px rgba(14,116,144,0.12) !important;
-}
-[data-baseweb="option"]:hover,
-[data-baseweb="option"][aria-selected="true"] {
-    background: rgba(14,116,144,0.08) !important;
+html body [data-testid="stButton"] > button:hover {
+    border-color: #0E7490 !important;
     color: #0E7490 !important;
+    background: rgba(14,116,144,0.06) !important;
 }
 </style>"""
 
@@ -270,10 +253,12 @@ def render_filter_panel(
 
     with st.container(border=True):
         if title:
-            st.markdown(f"🔍 **{title}**")
+            st.caption(f"🔍 {title}")
 
         if show_reset:
-            cols = st.columns(actual_n_cols + 1, gap="small")
+            # Columna de reset estrecha (0.35 unidades) — botón icono pequeño
+            col_widths = [1] * actual_n_cols + [0.35]
+            cols = st.columns(col_widths, gap="small")
             filter_cols = cols[:actual_n_cols]
             reset_col = cols[actual_n_cols]
         else:
@@ -289,7 +274,8 @@ def render_filter_panel(
             with reset_col:
                 _auto_reset_keys = reset_keys or [f"{key_prefix}_{f['key']}" for f in filters]
                 st.write("")  # alineación vertical con los widgets
-                if st.button("↺ Limpiar", key=f"{key_prefix}_reset_btn", use_container_width=True):
+                if st.button("↺", key=f"{key_prefix}_reset_btn", use_container_width=True,
+                             help="Restablecer filtros"):
                     for k in _auto_reset_keys:
                         st.session_state.pop(k, None)
                     st.rerun()
