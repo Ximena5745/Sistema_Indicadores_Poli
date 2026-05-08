@@ -114,7 +114,11 @@ def _normalize_pct(series: pd.Series, pct_col: str) -> pd.Series:
 
 
 def _is_cmi_procesos(df: pd.DataFrame) -> bool:
-    """Detecta si el DataFrame corresponde a CMI por Procesos según columnas presentes."""
+    """Detecta si el DataFrame corresponde a CMI por Procesos según columnas de subproceso.
+
+    Esta detección se basa en la presencia de subprocesos; no debe depender del
+    campo `Ind act`, que está deprecado para la vista de CMI por Procesos.
+    """
     for col in ("Subproceso", "Subproceso_final", "Subprocesos", "Subproceso_norm"):
         if col in df.columns:
             return True

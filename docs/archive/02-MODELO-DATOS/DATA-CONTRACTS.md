@@ -223,6 +223,7 @@ ID: 999, Indicador: "Métrica Auxiliar", Tipo_Registro: Metrica
 - La selección de indicadores para "CMI por Procesos" se basa en el valor de la columna `Subprocesos == 1` del catálogo `Indicadores por CMI.xlsx`.
 - El flag `Ind act` se considera no confiable y queda deprecado como criterio para el conteo de indicadores activos.
 - Para determinar si un indicador debe considerarse activo en un año concreto, se debe cruzar su `Id` con los archivos consolidados de Kawak ubicados en `data/raw/Fuentes Consolidadas/` (por ejemplo `Consolidado_API_Kawak.xlsx` o `Indicadores Kawak.xlsx`) filtrando por el año correspondiente; si el Id aparece en el consolidado del año, se incluye, si no aparece, se omite del cómputo.
+- El filtro central del proyecto para esta regla es `services.cmi_filters.filter_df_for_procesos(...)`.
 - Esta validación anual debe implementarse en la capa de ingest/filtrado (loaders) y quedar registrada en `config/data_contracts.yaml` como regla de negocio.
 
 ---

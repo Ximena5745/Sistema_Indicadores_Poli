@@ -77,7 +77,7 @@ try:
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
     from streamlit_app.services.data_service import DataService
-    from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
+    from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_procesos
 except (ImportError, ModuleNotFoundError):
     import sys
 
@@ -88,7 +88,7 @@ except (ImportError, ModuleNotFoundError):
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
     from streamlit_app.services.data_service import DataService
-    from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
+    from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_procesos
 
 # Limpiar caché corrupto si es necesario
 if "page_cache_cleared" not in st.session_state:
@@ -1056,7 +1056,7 @@ def render():
 
     # Cargar datos y aplicar filtro CMI por Procesos
     pdi_procesos = preparar_pdi_con_cierre(int(year_procesos), int(month_procesos))
-    pdi_procesos = filter_df_for_cmi_procesos(pdi_procesos, id_column="Id")
+    pdi_procesos = filter_df_for_procesos(pdi_procesos, id_column="Id", year=int(year_procesos))
 
     # Merge con tipos de proceso
     data_service = DataService()
@@ -1173,7 +1173,7 @@ def render():
             prev_month_p = _latest_month_for_year(consolidado, prev_year_p)
             if prev_month_p:
                 prev_pdi_procesos = preparar_pdi_con_cierre(prev_year_p, prev_month_p)
-                prev_pdi_procesos = filter_df_for_cmi_procesos(prev_pdi_procesos, id_column="Id")
+                prev_pdi_procesos = filter_df_for_procesos(prev_pdi_procesos, id_column="Id", year=prev_year_p)
 
                 best_improvements, worst_declines = _compute_trends(pdi_procesos, prev_pdi_procesos)
 

@@ -70,6 +70,7 @@ Este documento detalla las fuentes de datos (archivos y hojas específicas) util
 **Nota oficial (CMI por Procesos):**
 - La regla de selección para "CMI por Procesos" en la aplicación es: `Subprocesos == 1` (valor en `Indicadores por CMI.xlsx`).
 - El flag `Ind act` ya NO debe usarse como criterio para conteos de indicadores activos. En su lugar, la validación de si un indicador está activo en un año concreto se realiza cruzando el `Id` con los archivos consolidados de Kawak ubicados en `data/raw/Fuentes Consolidadas/` (por ejemplo `Consolidado_API_Kawak.xlsx` o `Indicadores Kawak.xlsx`) filtrando por el año seleccionado.
+- El filtro estándar del proyecto para esta regla es `services.cmi_filters.filter_df_for_procesos(...)`.
 - Esta lógica debe implementarse en los loaders que alimentan `resumen_por_proceso.py` y cualquier otra página que muestre el conteo de indicadores activos por procesos.
 
 ## 6. Seguimiento de Reportes (`seguimiento_reportes.py`)

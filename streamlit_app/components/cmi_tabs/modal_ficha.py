@@ -54,6 +54,27 @@ def _find_ejecucion_col(df: pd.DataFrame) -> Optional[str]:
     return None
 
 
+def _periodo_a_fecha(periodo: object) -> pd.Timestamp | pd.NaT:
+    if periodo is None:
+        return pd.NaT
+    text = str(periodo).strip()
+    if not text:
+        return pd.NaT
+
+    match = re.match(r"^(?P<year>\d{4})[-/](?P<period>\d{1,2})$", text)
+    if match:
+        year = int(match.group("year"))
+        period = int(match.group("period"))
+        if period == 1:
+            return pd.Timestamp(year=year, month=6, day=1)
+        if period == 2:
+            return pd.Timestamp(year=year, month=12, day=1)
+    try:
+        return pd.to_datetime(text, errors="coerce")
+    except Exception:
+        return pd.NaT
+
+
 def _sanitize_ai_response(text: str) -> str:
     if text is None:
         return ""
@@ -143,7 +164,14 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
     h = hist.copy()
     if "Periodo" not in h.columns:
         h["Periodo"] = h["Anio"].astype(str) + "-" + h["Mes"].astype(str).str.zfill(2)
-    h = h.sort_values("Periodo").tail(12)
+
+    h["_Periodo_fecha"] = h["Periodo"].apply(_periodo_a_fecha)
+    if h["_Periodo_fecha"].notna().any():
+        h = h.sort_values("_Periodo_fecha").tail(12)
+        x_values = h["_Periodo_fecha"]
+    else:
+        h = h.sort_values("Periodo").tail(12)
+        x_values = h["Periodo"]
 
     fig = go.Figure()
 
@@ -154,7 +182,7 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
         mv = pd.to_numeric(h["Meta"], errors="coerce")
         if mv.notna().sum() >= 1:
             fig.add_trace(go.Bar(
-                x=h["Periodo"], y=mv, name="Meta",
+                x=x_values, y=mv, name="Meta",
                 marker_color="#F59E0B",
                 opacity=0.65,
                 yaxis="y1",
@@ -169,7 +197,7 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
         ev = pd.to_numeric(h["Ejecucion"], errors="coerce")
         if ev.notna().sum() >= 1:
             fig.add_trace(go.Bar(
-                x=h["Periodo"], y=ev, name="Ejecución",
+                x=x_values, y=ev, name="Ejecución",
                 marker_color=COLORES.get("primario", "#1A3A5C"),
                 opacity=0.85,
                 yaxis="y1",
@@ -186,7 +214,7 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
         cump_vals = pd.to_numeric(h[cump_col], errors="coerce")
         if cump_vals.notna().sum() >= 1:
             fig.add_trace(go.Scatter(
-                x=h["Periodo"], y=cump_vals, mode="lines+markers+text",
+                x=x_values, y=cump_vals, mode="lines+markers+text",
                 name="% Cumplimiento",
                 line=dict(color="#0EA5E9", width=2),
                 marker=dict(size=7, color="#0EA5E9"),

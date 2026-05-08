@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
-from services.cmi_filters import filter_df_for_cmi_procesos
+from services.cmi_filters import filter_df_for_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
 from streamlit_app.styles.design_system import get_strategic_palette
 from streamlit_app.components.dashboard_components import (
@@ -450,6 +450,7 @@ def _render_resumen_overview_cards(
 
     ind_delta, ind_color, ind_label = _delta_card(total_indicadores, base_total_indicadores)
     proc_delta, proc_color, proc_label = _delta_card(total_process, base_total_process)
+    sub_delta, sub_color, sub_label = _delta_card(total_subprocess, base_total_subprocess)
     cumpl_delta, cumpl_color, cumpl_label = _delta_card(avg_cumpl, base_cumplimiento)
     alerta_delta, alerta_color, alerta_label = _delta_card(alertas, base_alertas)
     riesgo_delta, riesgo_color, riesgo_label = _delta_card(riesgos, base_riesgos)
@@ -459,6 +460,7 @@ def _render_resumen_overview_cards(
 
     ind_cls = _delta_class(ind_delta)
     proc_cls = _delta_class(proc_delta)
+    sub_cls = _delta_class(sub_delta)
     cumpl_cls = _delta_class(cumpl_delta)
     alerta_cls = _delta_class(alerta_delta)
     riesgo_cls = _delta_class(riesgo_delta)
@@ -468,14 +470,14 @@ def _render_resumen_overview_cards(
         <style>
         .rp-card-grid {{
             display:grid;
-            grid-template-columns:repeat(4,minmax(220px,1fr));
+            grid-template-columns:repeat(3,minmax(220px,1fr));
             gap:18px;
             margin:18px 0 24px;
         }}
-        @media (max-width: 1080px) {{
+        @media (max-width: 1180px) {{
             .rp-card-grid {{ grid-template-columns:repeat(2,minmax(220px,1fr)); }}
         }}
-        @media (max-width: 700px) {{
+        @media (max-width: 780px) {{
             .rp-card-grid {{ grid-template-columns:1fr; }}
         }}
         .rp-card {{
@@ -624,6 +626,34 @@ def _render_resumen_overview_cards(
                     <div class='rp-card-spark'>{_sparkline_svg('#dc2626', riesgo_delta.startswith('+') or riesgo_delta == '0')}</div>
                 </div>
             </div>
+            <div class='rp-card rp-card-type-2'>
+                <div class='rp-card-content'>
+                    <div class='rp-card-header'>
+                        <div>
+                            <p class='rp-card-title'>Procesos activos</p>
+                            <p class='rp-card-value accent-2'>{total_process}</p>
+                        </div>
+                        <div class='rp-card-badge type-2'>📂</div>
+                    </div>
+                    <p class='rp-card-meta'>Total de procesos con indicadores en el corte actual.</p>
+                    <p class='rp-card-delta {proc_cls}'>{proc_label}</p>
+                    <div class='rp-card-spark'>{_sparkline_svg('#16a34a', proc_delta.startswith('+') or proc_delta == '0')}</div>
+                </div>
+            </div>
+            <div class='rp-card rp-card-type-3'>
+                <div class='rp-card-content'>
+                    <div class='rp-card-header'>
+                        <div>
+                            <p class='rp-card-title'>Subprocesos activos</p>
+                            <p class='rp-card-value accent-3'>{total_subprocess}</p>
+                        </div>
+                        <div class='rp-card-badge type-3'>🧩</div>
+                    </div>
+                    <p class='rp-card-meta'>Subprocesos válidos según el filtro CMI por Procesos.</p>
+                    <p class='rp-card-delta {sub_cls}'>{sub_label}</p>
+                    <div class='rp-card-spark'>{_sparkline_svg('#f59e0b', sub_delta.startswith('+') or sub_delta == '0')}</div>
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -705,12 +735,13 @@ def _render_resumen_banner(
         </style>
         <div class='rpp-banner-card'>
             <p class='rpp-banner-title'>{healthy_pct}% de los indicadores opera en niveles saludables — {month_name} {global_year}</p>
-            <p class='rpp-banner-text'>El Politécnico cierra el corte de {month_name} {global_year} con un cumplimiento promedio de {avg_cumpl:.1f}%, manteniendo una base de referencia en {base_year or 'sin cierre anterior'}. Se identifican {riesgos} indicadores en peligro crítico y {alertas} en alerta.</p>
+            <p class='rpp-banner-text'>Este corte incluye únicamente indicadores de CMI por Procesos con <strong>Subprocesos == 1</strong>, validando además los IDs activos contra el cruce anual de Kawak para asegurar consistencia en el conjunto vigente.</p>
             <div class='rpp-banner-chips'>
+                <span class='rpp-banner-chip'>Filtro: Subprocesos == 1</span>
+                <span class='rpp-banner-chip'>Validación anual Kawak</span>
                 <span class='rpp-banner-chip'>{total_indicadores} Indicadores activos</span>
                 <span class='rpp-banner-chip'>{total_process} Procesos</span>
                 <span class='rpp-banner-chip'>{total_subprocess} Subprocesos</span>
-                <span class='rpp-banner-chip'>Base: Cierre {base_year if base_year is not None else 'N/A'}</span>
             </div>
         </div>
         """,
@@ -1405,12 +1436,19 @@ def _to_float(value: object) -> float | None:
         return None
 
 
-def _mes_to_num(value: object) -> float | None:
+def _mes_to_num(value: object, periodicidad: object = None) -> float | None:
     if pd.isna(value):
         return None
+
+    period_norm = str(periodicidad or "").strip().lower()
     if isinstance(value, (int, float)):
         try:
             v = int(value)
+            if period_norm == "semestral":
+                if v in (1, 2):
+                    return 6.0
+                if v == 7:
+                    return 12.0
             return float(v) if 1 <= v <= 12 else None
         except Exception:
             return None
@@ -1419,11 +1457,17 @@ def _mes_to_num(value: object) -> float | None:
     if not txt:
         return None
 
+    txt_norm = _norm_text(txt)
+    if period_norm == "semestral":
+        if txt_norm in ("1", "01", "ENERO", "ENE"):
+            return 6.0
+        if txt_norm in ("2", "02", "JULIO", "JUL", "7", "07"):
+            return 12.0
+
     if txt.isdigit():
         v = int(txt)
         return float(v) if 1 <= v <= 12 else None
 
-    txt_norm = _norm_text(txt)
     return float(MES_MAP.get(txt_norm)) if txt_norm in MES_MAP else None
 
 
@@ -1590,8 +1634,14 @@ def _ensure_historic_tracking(df: pd.DataFrame) -> pd.DataFrame:
     out["Cumplimiento_norm"] = pd.to_numeric(out["Cumplimiento_pct"], errors="coerce") / 100
     out["Categoria"] = out["Cumplimiento_pct"].apply(_categoria_por_pct)
     if "Anio" in out.columns and "Mes" in out.columns:
-        # Convertir mes string a número (Enero->01, Febrero->02, etc.)
-        out["Mes_num"] = out["Mes"].apply(lambda x: _mes_to_num(x) if pd.notna(x) else None)
+        # Convertir mes string a número (Enero->06 para semestral, Jul->12 para semestral, etc.)
+        if "Periodicidad" in out.columns:
+            out["Mes_num"] = out.apply(
+                lambda row: _mes_to_num(row["Mes"], row.get("Periodicidad")),
+                axis=1,
+            )
+        else:
+            out["Mes_num"] = out["Mes"].apply(lambda x: _mes_to_num(x) if pd.notna(x) else None)
         out["Fecha"] = pd.to_datetime(
             out["Anio"].astype(str).str.replace("<NA>", "NaN", regex=False)
             + "-"
@@ -3090,9 +3140,9 @@ def render() -> None:
     # Aplicar filtro global CMI por Procesos: solo indicadores con 'Subprocesos' == 1
     # Usar el último año disponible como valor por defecto para el cruce anual
     if default_year is not None:
-        full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id", year=default_year)
+        full_work_df = filter_df_for_procesos(full_work_df, id_column="Id", year=default_year, map_df=map_df)
     else:
-        full_work_df = filter_df_for_cmi_procesos(full_work_df, id_column="Id")
+        full_work_df = filter_df_for_procesos(full_work_df, id_column="Id", map_df=map_df)
     snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=default_month_num)
     cmi_catalog = _load_indicadores_por_cmi()
     procesos_all = sorted(full_work_df["Proceso_padre"].dropna().astype(str).unique().tolist())
@@ -3232,9 +3282,9 @@ def render() -> None:
     base_filtered = snapshot_df.copy()
     # Asegurar que el corte también respete el filtro CMI por Procesos (usar año seleccionado)
     if anio is not None:
-        base_filtered = filter_df_for_cmi_procesos(base_filtered, id_column="Id", year=int(anio))
+        base_filtered = filter_df_for_procesos(base_filtered, id_column="Id", year=int(anio), map_df=map_df)
     else:
-        base_filtered = filter_df_for_cmi_procesos(base_filtered, id_column="Id")
+        base_filtered = filter_df_for_procesos(base_filtered, id_column="Id", map_df=map_df)
 
     if anio is not None and "Anio" in base_filtered.columns:
         base_filtered = base_filtered[
@@ -3312,7 +3362,7 @@ def render() -> None:
 
             cmi_global = tracking_df[tracking_df["Anio"] == int(global_year)].copy()
             cmi_global = _prepare_tracking(cmi_global, map_df, month_num=_latest_m)
-            cmi_global = filter_df_for_cmi_procesos(cmi_global, id_column="Id", year=int(global_year))
+            cmi_global = filter_df_for_procesos(cmi_global, id_column="Id", year=int(global_year), map_df=map_df)
 
             cmi_base_prev_year = pd.DataFrame()
             if _base_year in years:
@@ -3320,11 +3370,12 @@ def render() -> None:
                 if _base_m is not None:
                     cmi_base_prev_year = tracking_df[tracking_df["Anio"] == int(_base_year)].copy()
                     cmi_base_prev_year = _prepare_tracking(cmi_base_prev_year, map_df, month_num=int(_base_m))
-                    cmi_base_prev_year = filter_df_for_cmi_procesos(
+                    cmi_base_prev_year = filter_df_for_procesos(
                         cmi_base_prev_year,
                         id_column="Id",
                         year=int(_base_year),
                         omit_if_no_cross=False,
+                        map_df=map_df,
                     )
 
         _latest_month_name = (

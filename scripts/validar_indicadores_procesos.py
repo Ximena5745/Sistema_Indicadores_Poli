@@ -181,7 +181,10 @@ def build_cross_validation_table(
     merged["Subproceso_missing"] = merged["Subproceso"].astype(str).str.strip() == ""
     merged["Unidad_missing"] = merged["Unidad"].astype(str).str.strip() == ""
     merged["Master_match"] = merged["Unidad_final"].astype(str).str.strip() != ""
-    merged["CMI_por_procesos"] = merged["Subprocesos_flag"] == 1
+
+    valid_cmi_ids = get_cmi_procesos_ids(year=kawak_year, omit_if_no_cross=False, use_kawak_cross=True)
+    merged["CMI_por_procesos"] = merged["Id_norm"].isin(valid_cmi_ids)
+    merged["CMI_por_procesos_base"] = merged["Subprocesos_flag"] == 1
     merged["Missing_unit_cmi"] = merged["CMI_por_procesos"] & (merged["Unidad_final"].astype(str).str.strip() == "")
     merged["Missing_master_cmi"] = merged["CMI_por_procesos"] & (~merged["Master_match"])
 

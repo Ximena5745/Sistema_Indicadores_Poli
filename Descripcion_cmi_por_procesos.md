@@ -12,6 +12,7 @@ KPI cards: métricas principales (conteo de indicadores, % cumplimiento medio, #
 Tabla resumen breve (footnote): lista de filtros aplicados.
 Fuentes de datos
 Origen: Resultados Consolidados.xlsx y tracking via DataService(); lectura Excel con openpyxl. Campos clave: Id, Indicador, Cumplimiento_pct, Anio, Mes. Frecuencia: semestral/mensual según origen. Observaciones: ausencia de metadatos "última actualización" por widget.
+Regla CMI por Procesos: se seleccionan solo indicadores con `Subprocesos == 1`; el flag `Ind act` está deprecado para esta vista y los activos deben validarse por año con un cruce de `Id` contra Kawak.
 Tablas
 Aplican mínimamente (resumen textual). Columnas: no hay tabla detallada en esta pestaña. Funcionalidades: filtros globales afectan KPIs. Relación: KPIs derivan de agregaciones de la tabla base.
 Indicadores y cálculos
