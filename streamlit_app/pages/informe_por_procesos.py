@@ -309,65 +309,54 @@ def render() -> None:
     topbar_year = st.session_state.get("topbar_year")
     topbar_month = st.session_state.get("topbar_month")
 
-    # Año y mes pueden venir del topbar o del filtro local
+    # Panel único de filtros — opciones calculadas del estado previo de sesión
     if topbar_year is not None:
         anio = int(topbar_year)
         mes = str(topbar_month) if topbar_month is not None else default_month
-        st.info(f"Filtro activo desde barra global: {mes} {anio}")
-    else:
-        # Renderizar filtros de tiempo primero (año y mes)
-        sels_time = render_filter_panel(
-            filters=[
-                {
-                    "key": "anio", "label": "Año",
-                    "type": "selectbox",
-                    "options": years, "default": default_year, "include_all": False,
-                },
-                {
-                    "key": "mes", "label": "Mes",
-                    "type": "selectbox",
-                    "options": MESES_OPCIONES, "default": default_month, "include_all": False,
-                },
-            ],
-            title="",
-            key_prefix="filter",
-            n_cols=2,
-        )
-        anio = sels_time["anio"] or default_year
-        mes = sels_time["mes"] or default_month
-
-    selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
-    full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
-
-    procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
-    proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
-    subproceso_options_base: list[str] = []
-    if proceso_sel_cur != "Todos":
-        subproceso_options_base = sorted(
+        selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
+        full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+        procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+        proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
+        subproceso_options_base: list[str] = sorted(
             snapshot_df[snapshot_df["Proceso_padre"].astype(str) == proceso_sel_cur][
                 "Subproceso_final"
             ].dropna().astype(str).unique().tolist()
+        ) if proceso_sel_cur != "Todos" else []
+        sels_all = render_filter_panel(
+            filters=[
+                {"key": "proceso", "label": "Proceso", "type": "selectbox", "options": procesos, "include_all": True},
+                {"key": "subproceso", "label": "Subproceso", "type": "selectbox", "options": subproceso_options_base, "include_all": True},
+            ],
+            title="", key_prefix="filter", n_cols=2, show_reset=True,
         )
-
-    sels_proc = render_filter_panel(
-        filters=[
-            {
-                "key": "proceso", "label": "Proceso",
-                "type": "selectbox",
-                "options": procesos, "include_all": True,
-            },
-            {
-                "key": "subproceso", "label": "Subproceso",
-                "type": "selectbox",
-                "options": subproceso_options_base, "include_all": True,
-            },
-        ],
-        title="Filtros oficiales",
-        key_prefix="filter",
-        n_cols=2,
-    )
-    proceso_sel = sels_proc["proceso"] or "Todos"
-    subproceso_sel = sels_proc["subproceso"] or "Todos"
+    else:
+        # Calcular opciones con valores previos de session_state antes de renderizar
+        ss_anio = int(st.session_state.get("filter_anio") or default_year)
+        ss_mes = str(st.session_state.get("filter_mes") or default_month)
+        ss_month_num = MESES_OPCIONES.index(ss_mes) + 1 if ss_mes in MESES_OPCIONES else default_month_num
+        _, prev_snapshot = _prepare_filters(tracking_df, map_df, ss_anio, ss_month_num)
+        procesos = sorted(prev_snapshot["Proceso_padre"].dropna().astype(str).unique().tolist())
+        proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
+        subproceso_options_base: list[str] = sorted(
+            prev_snapshot[prev_snapshot["Proceso_padre"].astype(str) == proceso_sel_cur][
+                "Subproceso_final"
+            ].dropna().astype(str).unique().tolist()
+        ) if proceso_sel_cur != "Todos" else []
+        sels_all = render_filter_panel(
+            filters=[
+                {"key": "anio", "label": "Año", "type": "selectbox", "options": years, "default": default_year, "include_all": False},
+                {"key": "mes", "label": "Mes", "type": "selectbox", "options": MESES_OPCIONES, "default": default_month, "include_all": False},
+                {"key": "proceso", "label": "Proceso", "type": "selectbox", "options": procesos, "include_all": True},
+                {"key": "subproceso", "label": "Subproceso", "type": "selectbox", "options": subproceso_options_base, "include_all": True},
+            ],
+            title="", key_prefix="filter", n_cols=4, show_reset=True,
+        )
+        anio = sels_all["anio"] or default_year
+        mes = sels_all["mes"] or default_month
+        selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
+        full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+    proceso_sel = sels_all["proceso"] or "Todos"
+    subproceso_sel = sels_all["subproceso"] or "Todos"
 
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":
