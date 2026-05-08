@@ -16,13 +16,13 @@ except (ImportError, ModuleNotFoundError):
 
 # Importes desde streamlit_app
 try:
-    from ..components.filters import render_filters
+    from ..components.filter_panel import render_filter_panel
     from ..utils.formatting import formatear_meta_ejecucion_df
 except ImportError:
     import sys
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from components.filters import render_filters
+    from streamlit_app.components.filter_panel import render_filter_panel
     from utils.formatting import formatear_meta_ejecucion_df
 
 
@@ -65,41 +65,37 @@ def render():
     st.caption("Panel de cumplimiento, brechas y matriz de acreditación.")
 
     # --- Filtros ---
-    with st.expander("🔎 Filtros", expanded=False):
-        if st.button("Limpiar filtros", key="pdi_clear_filters"):
-            for _k in ("pdi_estado", "pdi_macro", "pdi_horizonte"):
-                if _k in st.session_state:
-                    del st.session_state[_k]
-            st.rerun()
-
-        sel = render_filters(
-            pd.DataFrame(),
+    sel = render_filter_panel(
+        filters=[
             {
-                "estado": {
-                    "label": "Estado",
-                    "options": [
-                        "Peligro",
-                        "Alerta",
-                        "Cumplimiento",
-                        "Sobrecumplimiento",
-                        "Sin dato",
-                    ],
-                },
-                "macro": {
-                    "label": "Macrolinea",
-                    "options": ["Docencia", "Investigación", "Extensión", "Gobierno"],
-                },
-                "horizonte": {
-                    "label": "Horizonte",
-                    "options": ["2026-1", "2026-2", "2027-1"],
-                    "include_all": False,
-                    "default": "2026-1",
-                },
+                "key": "estado",
+                "label": "Estado",
+                "type": "selectbox",
+                "options": ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin dato"],
+                "include_all": True,
             },
-            key_prefix="pdi",
-            columns_per_row=3,
-            collapsible=True,
-        )
+            {
+                "key": "macro",
+                "label": "Macrolínea",
+                "type": "selectbox",
+                "options": ["Docencia", "Investigación", "Extensión", "Gobierno"],
+                "include_all": True,
+            },
+            {
+                "key": "horizonte",
+                "label": "Horizonte",
+                "type": "selectbox",
+                "options": ["2026-1", "2026-2", "2027-1"],
+                "default": "2026-1",
+                "include_all": False,
+            },
+        ],
+        title="Filtros",
+        key_prefix="pdi",
+        n_cols=3,
+        show_reset=True,
+        reset_keys=["pdi_estado", "pdi_macro", "pdi_horizonte"],
+    )
 
     activos = []
     if sel.get("estado", "Todos") != "Todos":

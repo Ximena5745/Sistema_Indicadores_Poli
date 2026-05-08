@@ -13,94 +13,157 @@ import streamlit as st
 # ──────────────────────────────────────────────────────────────────────────────
 
 _FILTER_CSS = """<style>
-/* ── Labels nativos de widgets ─────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   SISTEMA UNIFICADO DE FILTROS — Streamlit 1.36-1.56+
+   Selectores verificados contra el DOM real de Streamlit 1.56.0
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Labels nativos: stWidgetLabel ─────────────────────────────── */
 [data-testid="stWidgetLabel"] p,
-[data-testid="stWidgetLabel"] > span {
+[data-testid="stWidgetLabel"] label,
+[data-testid="stWidgetLabel"] > div > p,
+.stSelectbox label,
+.stTextInput label,
+.stMultiSelect label {
     font-size: 0.72rem !important;
     font-weight: 700 !important;
     color: #0E7490 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.07em !important;
-    margin-bottom: 4px !important;
+    margin-bottom: 2px !important;
     line-height: 1.3 !important;
 }
 
-/* ── Selectbox ──────────────────────────────────────────────────── */
-[data-baseweb="select"] > div:first-child {
+/* ── Selectbox — borde y fondo ──────────────────────────────────── */
+/* Streamlit 1.30-1.56: el visual input es el primer div hijo de baseweb select */
+[data-baseweb="select"] > div,
+[data-baseweb="select"] > div:first-child,
+div[data-testid="stSelectbox"] > div > div[data-baseweb="select"] > div {
     border: 1.5px solid #67E8F9 !important;
     border-radius: 10px !important;
     background: #FFFFFF !important;
     min-height: 40px !important;
-    font-size: 0.88rem !important;
-    transition: border-color 0.18s, box-shadow 0.18s;
+    transition: border-color 0.18s, box-shadow 0.18s !important;
 }
+[data-baseweb="select"] > div:focus-within,
 [data-baseweb="select"] > div:first-child:focus-within {
     border-color: #0E7490 !important;
-    box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.15) !important;
+    box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.18) !important;
+}
+
+/* Texto del valor seleccionado */
+[data-baseweb="select"] span,
+[data-baseweb="select"] [data-testid="stSelectboxContainer"] span {
+    font-size: 0.88rem !important;
+    color: #1E293B !important;
 }
 
 /* ── Text input ─────────────────────────────────────────────────── */
-.stTextInput input {
+.stTextInput input,
+[data-testid="stTextInput"] input {
     border: 1.5px solid #67E8F9 !important;
     border-radius: 10px !important;
     background: #FFFFFF !important;
     min-height: 40px !important;
     font-size: 0.88rem !important;
     padding: 0 10px !important;
+    transition: border-color 0.18s, box-shadow 0.18s !important;
 }
-.stTextInput input:focus {
+.stTextInput input:focus,
+[data-testid="stTextInput"] input:focus {
     border-color: #0E7490 !important;
-    box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.15) !important;
+    box-shadow: 0 0 0 2.5px rgba(14, 116, 144, 0.18) !important;
+    outline: none !important;
+}
+
+/* ── Multiselect ────────────────────────────────────────────────── */
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+    border: 1.5px solid #67E8F9 !important;
+    border-radius: 10px !important;
+    background: #FFFFFF !important;
+    min-height: 40px !important;
 }
 
 /* ── Pills ──────────────────────────────────────────────────────── */
-[data-testid="stPills"] { gap: 6px !important; }
-[data-testid="stPillsOption"] {
-    font-size: 0.83rem !important;
-    padding: 5px 14px !important;
+[data-testid="stPills"] {
+    gap: 5px !important;
+    flex-wrap: wrap !important;
+}
+[data-testid="stPillsOption"],
+button[data-testid="stPillsOption"] {
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    padding: 4px 13px !important;
     border-radius: 999px !important;
     border: 1.5px solid #67E8F9 !important;
+    background: #FFFFFF !important;
+    color: #0E7490 !important;
+    transition: all 0.15s ease !important;
 }
-[data-testid="stPillsOption"][aria-pressed="true"] {
+[data-testid="stPillsOption"][aria-pressed="true"],
+button[data-testid="stPillsOption"][aria-pressed="true"] {
     background: #0E7490 !important;
     color: #FFFFFF !important;
     border-color: #0E7490 !important;
+    box-shadow: 0 2px 6px rgba(14,116,144,0.25) !important;
 }
 
 /* ── Segmented control ──────────────────────────────────────────── */
-[data-testid="stSegmentedControl"] button {
-    font-size: 0.83rem !important;
+[data-testid="stSegmentedControl"] button,
+div[data-testid="stSegmentedControl"] button {
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
     border-radius: 8px !important;
+    transition: all 0.15s ease !important;
 }
-[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
     background: linear-gradient(135deg, #0E7490 0%, #06B6D4 100%) !important;
     color: #FFFFFF !important;
-    border-color: #0E7490 !important;
+    border-color: transparent !important;
     box-shadow: 0 2px 8px rgba(14, 116, 144, 0.30) !important;
+    font-weight: 700 !important;
 }
 
-/* ── Quitar margen inferior de widgets dentro del panel ─────────── */
+/* ── Quitar margen inferior en widgets dentro del panel ─────────── */
 .stSelectbox,
+.stTextInput,
+.stMultiSelect,
 [data-testid="stPills"],
-[data-testid="stSegmentedControl"],
-.stTextInput {
+[data-testid="stSegmentedControl"] {
     margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
 }
 
 /* ── Columnas compactas ─────────────────────────────────────────── */
 [data-testid="column"] {
-    padding-top: 0 !important;
+    padding-top: 2px !important;
     padding-bottom: 2px !important;
+}
+
+/* ── Dropdown popup ─────────────────────────────────────────────── */
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="popover"] ul {
+    border-radius: 10px !important;
+    border: 1px solid #67E8F9 !important;
+    box-shadow: 0 4px 16px rgba(14,116,144,0.12) !important;
+}
+[data-baseweb="option"]:hover,
+[data-baseweb="option"][aria-selected="true"] {
+    background: rgba(14,116,144,0.08) !important;
+    color: #0E7490 !important;
 }
 </style>"""
 
 
 def inject_filter_styles() -> None:
-    """Inyecta el CSS una vez por sesión."""
-    if st.session_state.get("_uf_styles_injected"):
-        return
+    """Inyecta el CSS en cada render de página.
+
+    IMPORTANTE: NO usar session_state guard aquí.
+    En Streamlit multi-page, session_state persiste entre páginas pero
+    el DOM se limpia en cada navegación — el CSS debe reinyectarse siempre.
+    """
     st.markdown(_FILTER_CSS, unsafe_allow_html=True)
-    st.session_state["_uf_styles_injected"] = True
 
 
 # ──────────────────────────────────────────────────────────────────────────────

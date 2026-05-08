@@ -80,6 +80,7 @@ try:
     from core.semantica import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
+    from streamlit_app.components.filter_panel import render_filter_panel
 except (ImportError, ModuleNotFoundError):
     import sys
 
@@ -92,6 +93,7 @@ except (ImportError, ModuleNotFoundError):
     from core.semantica import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
+    from streamlit_app.components.filter_panel import render_filter_panel
 
 import numpy as np
 # Limpiar caché corrupto si es necesario (defensa para st stub en tests)
@@ -2129,43 +2131,32 @@ def render():
         """,
         unsafe_allow_html=True,
     )
-    # Selector de año y filtro de categoría
-    st.markdown(
-        """
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros generales</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
+    # Filtros generales — contenedor nativo, sin HTML wrappers
+    _rg_sels = render_filter_panel(
+        filters=[
+            {
+                "key": "anio",
+                "label": "Año",
+                "type": "segmented_control",
+                "options": years,
+                "default": years[-1],
+                "include_all": False,
+            },
+            {
+                "key": "vista",
+                "label": "Vista",
+                "type": "segmented_control",
+                "options": ["Indicadores", "Proyectos", "Plan de Retos", "Consolidado"],
+                "default": "Indicadores",
+                "include_all": False,
+            },
+        ],
+        title="Filtros generales",
+        key_prefix="rg",
+        n_cols=2,
     )
-    _seg_col, _cat_col, _ = st.columns([2, 2, 3])
-    with _seg_col:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
-        year_estrategico = st.segmented_control(
-            "Año",
-            options=years,
-            default=years[-1],
-            key="cmi_estrategico_year",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    with _cat_col:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Vista</div>", unsafe_allow_html=True)
-        categoria = st.segmented_control(
-            "Vista",
-            options=["Indicadores", "Proyectos", "Plan de Retos", "Consolidado"],
-            default="Indicadores",
-            key="cmi_categoria",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
-    # Defensa ante estado transitorio del widget (puede devolver None en algunos reruns)
-    if year_estrategico is None:
-        year_estrategico = years[-1]
-    if categoria is None:
-        categoria = "Indicadores"
+    year_estrategico = _rg_sels["anio"] or years[-1]
+    categoria = _rg_sels["vista"] or "Indicadores"
 
     safe_year_estrategico = int(year_estrategico)
 

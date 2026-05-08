@@ -1,6 +1,14 @@
+"""filters.py — Wrapper de compatibilidad hacia render_filter_panel.
+
+render_filters() traduce el formato de config legado al nuevo formato de
+render_filter_panel, sin ningún HTML envolvente.  Páginas nuevas deben
+importar render_filter_panel directamente.
+"""
+from __future__ import annotations
+
 import streamlit as st
 
-from streamlit_app.components.filter_panel import inject_filter_styles
+from streamlit_app.components.filter_panel import render_filter_panel, inject_filter_styles
 
 
 def render_filters(
@@ -12,114 +20,32 @@ def render_filters(
     collapsed_by_default: bool = True,
     compact: bool = True,
 ):
-    """Renderiza filtros reutilizables.
+    """Renderiza filtros reutilizables usando render_filter_panel.
 
-    Args:
-        data: no usado, mantenido para compatibilidad.
-        config: dict con definición de filtros (label, options, default, include_all).
-        key_prefix: prefijo para keys de Streamlit.
-        columns_per_row: cuántos filtros mostrar por fila.
-        collapsible: si True muestra los primeros `columns_per_row` filtros en línea y el resto dentro de un `st.expander`.
-        collapsed_by_default: si el expander inicia colapsado cuando `collapsible=True`.
+    Convierte el formato de config legado ``{key: {label, options, default, include_all}}``
+    al formato de filtros unificado.  Sin HTML envolvente.
 
-    Devuelve: dict con las selecciones.
+    Retorna: dict ``{key: valor_seleccionado}``
     """
-    del data
+    del data, collapsible, collapsed_by_default, compact  # parámetros legados ignorados
 
-    inject_filter_styles()
+    filters = []
+    for key, conf in config.items():
+        filt = {
+            "key": key,
+            "label": conf.get("label", key),
+            "type": "selectbox",
+            "options": list(conf.get("options", [])),
+            "include_all": conf.get("include_all", True),
+            "all_label": conf.get("all_label", "Todos"),
+        }
+        if "default" in conf:
+            filt["default"] = conf["default"]
+        filters.append(filt)
 
-    selections = {}
-    items = list(config.items())
-
-    st.markdown(
-        "<div class='dashboard-filter-panel'>"
-        "<div class='dashboard-filter-title'>Filtros</div>"
-        "<div class='dashboard-filter-row'>"
-        , unsafe_allow_html=True
-    )
-
-    if collapsible and len(items) > columns_per_row:
-        # Mostrar primeros N filtros en línea, el resto en un expander
-        primary = items[:columns_per_row]
-        secondary = items[columns_per_row:]
-
-        # Render primary inline
-        cols = st.columns(len(primary))
-        for col, (key, conf) in zip(cols, primary):
-            with col:
-                st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-                selections[key] = _render_single_filter(conf, key_prefix, key, compact=compact)
-                st.markdown("</div>", unsafe_allow_html=True)
-
-        # Render secondary inside expander
-        # Persistir preferencia de colapso en st.session_state
-        persist_key = f"{key_prefix}_filters_collapsed"
-        if persist_key not in st.session_state:
-            st.session_state[persist_key] = collapsed_by_default
-
-        # Checkbox para que el usuario fije la preferencia (visible siempre)
-        c1, c2 = st.columns([1, 9])
-        with c1:
-            st.checkbox(
-                "Mantener filtros cerrados", value=st.session_state[persist_key], key=persist_key
-            )
-
-        expanded = not st.session_state[persist_key]
-        with st.expander("🔎 Filtros avanzados", expanded=expanded):
-            for start in range(0, len(secondary), columns_per_row):
-                row_items = secondary[start : start + columns_per_row]
-                cols = st.columns(min(columns_per_row, len(row_items)))
-                for col, (key, conf) in zip(cols, row_items):
-                    with col:
-                        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-                        selections[key] = _render_single_filter(
-                            conf, key_prefix, key, compact=compact
-                        )
-                        st.markdown("</div>", unsafe_allow_html=True)
-
-    else:
-        # Render all inline in rows
-        for start in range(0, len(items), columns_per_row):
-            cols = st.columns(min(columns_per_row, len(items) - start))
-            row_items = items[start : start + columns_per_row]
-
-            for col, (key, conf) in zip(cols, row_items):
-                with col:
-                    st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-                    selections[key] = _render_single_filter(conf, key_prefix, key, compact=compact)
-                    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("</div></div>", unsafe_allow_html=True)
-    return selections
-
-
-def _render_single_filter(conf: dict, key_prefix: str, key: str, compact: bool = True):
-    """Helper: renderiza un solo filtro y devuelve el valor seleccionado."""
-    raw_options = list(conf.get("options", []))
-    include_all = conf.get("include_all", True)
-    all_label = conf.get("all_label", "Todos")
-    options = ([all_label] if include_all else []) + raw_options
-
-    label = conf.get("label", key)
-    if compact and conf.get("short_label"):
-        label = conf.get("short_label")
-
-    st.markdown(f"<div class='dashboard-filter-label'>{label}</div>", unsafe_allow_html=True)
-    if not options:
-        st.selectbox("", ["Sin opciones"], disabled=True, key=f"{key_prefix}_{key}", label_visibility="collapsed")
-        return None
-
-    default_value = conf.get("default", options[0])
-    if default_value not in options:
-        default_value = options[0]
-
-    return st.selectbox(
-        "",
-        options,
-        index=options.index(default_value),
-        key=f"{key_prefix}_{key}",
-        label_visibility="collapsed",
-        format_func=lambda x, ia=include_all, al=all_label, conf=conf: (
-            str(conf.get("all_display", "— Todos —")) if ia and x == al else str(x)
-        ),
+    return render_filter_panel(
+        filters=filters,
+        title="Filtros",
+        key_prefix=key_prefix,
+        n_cols=min(columns_per_row, len(filters)) if filters else 1,
     )

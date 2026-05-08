@@ -70,34 +70,30 @@ def render():
 
     _anio_default, _corte_default = _default_corte(anios)
 
-    with st.expander("🔎 Filtros", expanded=False):
-        _pm_reset_keys = ["pm_cna_anio", "pm_cna_corte"]
-        if st.button("Limpiar filtros", key="pm_cna_clear"):
-            for k in ["pm_cna_anio", "pm_cna_corte", "pm_cna_factor",
-                      "pm_cna_caracteristica", "pm_cna_nombre", "_pm_cna_last_anio"]:
-                st.session_state.pop(k, None)
-            st.rerun()
-
-        sels_corte = render_filter_panel(
-            filters=[
-                {
-                    "key": "anio", "label": "Año de corte",
-                    "type": "segmented_control",
-                    "options": anios, "default": _anio_default, "include_all": False,
-                },
-                {
-                    "key": "corte", "label": "Corte semestral",
-                    "type": "segmented_control",
-                    "options": list(CORTE_SEMESTRAL.keys()),
-                    "default": _corte_default, "include_all": False,
-                },
-            ],
-            title="Filtros",
-            key_prefix="pm_cna",
-            n_cols=2,
-        )
-        anio = sels_corte["anio"] or _anio_default
-        corte = sels_corte["corte"] or _corte_default
+    _pm_reset_keys = ["pm_cna_anio", "pm_cna_corte"]
+    sels_corte = render_filter_panel(
+        filters=[
+            {
+                "key": "anio", "label": "Año de corte",
+                "type": "segmented_control",
+                "options": anios, "default": _anio_default, "include_all": False,
+            },
+            {
+                "key": "corte", "label": "Corte semestral",
+                "type": "segmented_control",
+                "options": list(CORTE_SEMESTRAL.keys()),
+                "default": _corte_default, "include_all": False,
+            },
+        ],
+        title="Filtros",
+        key_prefix="pm_cna",
+        n_cols=2,
+        show_reset=True,
+        reset_keys=["pm_cna_anio", "pm_cna_corte", "pm_cna_factor",
+                    "pm_cna_caracteristica", "pm_cna_nombre", "_pm_cna_last_anio"],
+    )
+    anio = sels_corte["anio"] or _anio_default
+    corte = sels_corte["corte"] or _corte_default
 
     mes = CORTE_SEMESTRAL[corte]
     df = preparar_cna_con_cierre(int(anio), int(mes))
