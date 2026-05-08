@@ -39,6 +39,73 @@ MESES_OPCIONES = [
 ]
 
 
+def _render_informe_por_procesos_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .informe-filter-panel {
+            background: linear-gradient(180deg, #f0f5ff 0%, #ffffff 100%);
+            border: 1px solid rgba(37, 99, 235, 0.16);
+            border-radius: 18px;
+            padding: 14px;
+            margin-bottom: 18px;
+            box-shadow: 0 18px 35px rgba(15, 34, 91, 0.08);
+        }
+        .informe-filter-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: #1d4ed8;
+            margin-bottom: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .informe-filter-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #eef4ff;
+            padding: 8px;
+            border-radius: 14px;
+            box-shadow: inset 0 1px 4px rgba(37, 99, 235, 0.08);
+        }
+        .stTabs [data-baseweb="tab"] {
+            padding: 0.8rem 1.2rem;
+            border-radius: 999px !important;
+            font-weight: 600;
+            color: #1e3a8a;
+            transition: all 0.2s ease;
+            border: 1px solid transparent !important;
+        }
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #1d4ed8, #60a5fa) !important;
+            color: white !important;
+            box-shadow: 0 8px 18px rgba(29, 78, 169, 0.16);
+        }
+        .stTabs [data-baseweb="tab"]:not([aria-selected="true"]) {
+            background: rgba(255,255,255,0.96) !important;
+            border: 1px solid rgba(37, 99, 235, 0.13) !important;
+        }
+        .stButton > button {
+            border-radius: 999px;
+            min-height: 44px;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+        }
+        .informe-button-row .stButton > button {
+            width: 100%;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _load_propuestas(proceso_actual: str = "Todos", subproceso_actual: str = "Todos") -> tuple[pd.DataFrame, str | None]:
     excel_path = (
         Path(__file__).parents[2]
@@ -270,6 +337,7 @@ def _prepare_filters(tracking_df: pd.DataFrame, map_df: pd.DataFrame, anio: int,
 
 def render() -> None:
     st.title("Informe por Procesos")
+    _render_informe_por_procesos_styles()
 
     ds = DataService()
     tracking_df = ds.get_tracking_data()
@@ -299,62 +367,78 @@ def render() -> None:
     default_month_num = _get_prev_month_for_year(tracking_df, default_year) or 12
     default_month = MESES_OPCIONES[default_month_num - 1]
 
-    st.markdown("#### Filtros globales")
-    c1, c2, c3 = st.columns(3)
+    st.markdown("""
+        <div class='informe-filter-panel'>
+            <div class='informe-filter-title'>Filtros oficiales</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    col1, col2, col3, col4 = st.columns(4, gap="small")
     topbar_year = st.session_state.get("topbar_year")
     topbar_month = st.session_state.get("topbar_month")
-    with c1:
+    with col1:
+        st.markdown("<div class='informe-filter-label'>Año</div>", unsafe_allow_html=True)
         if topbar_year is not None:
             anio = int(topbar_year)
-            st.markdown(f"**Año global:** {anio}")
+            st.markdown(f"**{anio}**")
         else:
             anio = st.selectbox(
                 "Año",
                 options=years,
                 index=default_year_idx if years else None,
                 key="filter_anio",
+                label_visibility="collapsed",
             )
-    with c2:
+    with col2:
+        st.markdown("<div class='informe-filter-label'>Mes</div>", unsafe_allow_html=True)
         if topbar_month is not None:
             mes = str(topbar_month)
-            st.markdown(f"**Mes global:** {mes}")
+            st.markdown(f"**{mes}**")
         else:
             mes = st.selectbox(
                 "Mes",
                 options=MESES_OPCIONES,
                 index=MESES_OPCIONES.index(default_month),
                 key="filter_mes",
+                label_visibility="collapsed",
             )
-    with c3:
-        st.caption("Estos son los filtros oficiales de corte para el informe por Procesos.")
 
     selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
 
-    procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
-    proceso_sel = st.selectbox(
-        "Proceso (Filtro Padre)",
-        options=["Todos"] + procesos,
-        index=0,
-        key="filter_proceso",
-    )
+    with col3:
+        st.markdown("<div class='informe-filter-label'>Proceso</div>", unsafe_allow_html=True)
+        procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+        proceso_sel = st.selectbox(
+            "Proceso (Filtro Padre)",
+            options=["Todos"] + procesos,
+            index=0,
+            key="filter_proceso",
+            label_visibility="collapsed",
+        )
+    with col4:
+        st.markdown("<div class='informe-filter-label'>Subproceso</div>", unsafe_allow_html=True)
+        subproceso_options = ["Todos"]
+        if proceso_sel != "Todos":
+            subprocesos = sorted(
+                snapshot_df[snapshot_df["Proceso_padre"].astype(str) == proceso_sel]["Subproceso_final"].dropna().astype(str).unique().tolist()
+            )
+            if subprocesos:
+                subproceso_options += subprocesos
+        subproceso_sel = st.selectbox(
+            "Subproceso",
+            options=subproceso_options,
+            index=0,
+            key="filter_subproceso",
+            label_visibility="collapsed",
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
 
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":
         filtered = filtered[filtered["Proceso_padre"].astype(str) == proceso_sel]
-
-    subproceso_sel = "Todos"
-    if proceso_sel != "Todos":
-        subprocesos = sorted(filtered["Subproceso_final"].dropna().astype(str).unique().tolist())
-        if subprocesos:
-            subproceso_sel = st.selectbox(
-                "Subproceso",
-                options=["Todos"] + subprocesos,
-                index=0,
-                key="filter_subproceso",
-            )
-            if subproceso_sel != "Todos":
-                filtered = filtered[filtered["Subproceso_final"].astype(str) == subproceso_sel]
+    if subproceso_sel != "Todos":
+        filtered = filtered[filtered["Subproceso_final"].astype(str) == subproceso_sel]
 
     selected_process_label = proceso_sel if proceso_sel != "Todos" else "Todos los procesos"
     selected_subprocess_label = subproceso_sel if subproceso_sel != "Todos" else "Todos los subprocesos"

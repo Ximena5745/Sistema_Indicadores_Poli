@@ -19,6 +19,7 @@ from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from services.cmi_filters import filter_df_for_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
 from streamlit_app.styles.design_system import get_strategic_palette
+from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
 from streamlit_app.components.dashboard_components import (
     render_executive_kpis,
     render_alertas_criticas,
@@ -369,6 +370,86 @@ def _render_resumen_procesos_style() -> None:
             .rpp-keycards {
                 grid-template-columns: 1fr;
             }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_rpp_global_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .rpp-filter-panel {
+            background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
+            border: 1px solid rgba(34, 94, 184, 0.14);
+            border-radius: 18px;
+            padding: 16px 18px 14px;
+            margin-bottom: 18px;
+            box-shadow: 0 14px 28px rgba(15, 35, 74, 0.08);
+        }
+        .rpp-filter-header {
+            margin-bottom: 14px;
+            font-size: 0.92rem;
+            color: #102a43;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .rpp-filter-panel .stSelectbox, .rpp-filter-panel .stPills {
+            min-height: 44px;
+        }
+        .rpp-filter-panel .css-1n76uvr, .rpp-filter-panel .css-1siy2j7 {
+            margin-bottom: 0 !important;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+            background-color: #eef4fb;
+            padding: 8px 10px;
+            border-radius: 14px;
+            box-shadow: inset 0 1px 4px rgba(26, 51, 97, 0.08);
+        }
+        .stTabs [data-baseweb="tab"] {
+            padding: 12px 18px;
+            border-radius: 12px !important;
+            font-weight: 600;
+            color: #1d3f70;
+            transition: all 0.18s ease;
+        }
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #2454a1, #3993f0) !important;
+            color: white !important;
+            box-shadow: 0 10px 24px rgba(17, 49, 102, 0.18);
+            border-color: transparent !important;
+        }
+        .stTabs [data-baseweb="tab"]:not([aria-selected="true"]) {
+            background: rgba(255,255,255,0.9) !important;
+            border: 1px solid rgba(34, 68, 132, 0.10) !important;
+        }
+        .rpp-section-banner {
+            background: linear-gradient(135deg, rgba(36, 94, 166, 0.12), rgba(224, 235, 255, 0.9));
+            border-left: 4px solid #2454a1;
+            padding: 18px 22px;
+            border-radius: 18px;
+            margin-bottom: 18px;
+        }
+        .rpp-section-banner strong {
+            color: #102a43;
+        }
+        .rpp-tab-highlight {
+            margin-bottom: 18px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: #ffffff;
+            border: 1px solid rgba(19, 54, 108, 0.08);
+            box-shadow: 0 10px 24px rgba(15, 30, 70, 0.06);
+        }
+        .rpp-tab-highlight p {
+            margin: 0;
+            color: #334e68;
+            font-size: 0.95rem;
+            line-height: 1.6;
         }
         </style>
         """,
@@ -1684,6 +1765,40 @@ def _cumpl_label(pct: float | None) -> str:
     return f"{_cumpl_icon(pct)} {pct:.1f}%"
 
 
+def _status_color_for_pct(pct: float | None) -> str:
+    if pct is None or pd.isna(pct):
+        return "#6E7781"
+    if pct >= 105:
+        return "#2563EB"
+    if pct >= 100:
+        return "#047857"
+    if pct >= 80:
+        return "#F59E0B"
+    return "#DC2626"
+
+
+def _render_progress_bar_html(ejec: object, meta: object, pct: float | None) -> str:
+    ejec_val = _to_float(ejec)
+    meta_val = _to_float(meta)
+    if ejec_val is None or meta_val is None or meta_val == 0:
+        return "<div style='margin-top:12px;color:#475569;font-size:0.82rem;'>No hay datos completos para mostrar la barra de progreso.</div>"
+
+    ratio = max(0.0, min(1.0, ejec_val / meta_val))
+    fill_pct = ratio * 100
+    color = _status_color_for_pct(pct)
+    label = f"{ejec_val:.1f} / {meta_val:.1f}"
+    return (
+        f"<div style='margin-top:12px;'>"
+        f"<div style='display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:6px;'>"
+        f"<span>Ejecución vs Meta</span><span>{label}</span>"
+        f"</div>"
+        f"<div style='width:100%;height:10px;border-radius:999px;background:#E5ECF8;overflow:hidden;'>"
+        f"<div style='width:{fill_pct:.1f}%;height:100%;background:{color};box-shadow:0 3px 8px rgba(15,23,42,0.12);border-radius:999px;'></div>"
+        f"</div>"
+        f"</div>"
+    )
+
+
 def _latest_per_indicator(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -2785,6 +2900,76 @@ def _render_indicadores_subproceso_cards(
         st.info("Sin indicadores para el filtro actual.")
         return
 
+    st.markdown(
+        """
+        <style>
+        .informe-card {
+            background: #ffffff;
+            border: 1px solid rgba(37, 99, 235, 0.16);
+            border-radius: 18px;
+            box-shadow: 0 20px 40px rgba(15, 30, 80, 0.08);
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+        .informe-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .informe-card-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #102a43;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+        .informe-card-kpi {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1;
+        }
+        .informe-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.82rem;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+        .informe-card-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(37, 99, 235, 0.12);
+            color: #1d4ed8;
+            border: 1px solid rgba(37, 99, 235, 0.18);
+        }
+        .informe-card-footer {
+            color: #475569;
+            font-size: 0.84rem;
+            line-height: 1.55;
+            margin-top: 12px;
+            max-height: 5.4em;
+            overflow: hidden;
+        }
+        .informe-card-note {
+            margin-top: 10px;
+            color: #475569;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     analisis_map = _load_analisis_indicadores()
     analisis_periodos = _load_analisis_periodos()
     subprocesos_datos = (
@@ -2878,16 +3063,27 @@ def _render_indicadores_subproceso_cards(
                 )
                 color = NIVELES_COLORS.get(categoria.lower(), "#6E7781")
 
+                progress_html = _render_progress_bar_html(ejec, meta, cumpl)
+                category_label = categoria if categoria else "Sin dato"
                 with cols[idx % 3]:
                     st.markdown(
                         f"""
-                        <div style='background:#f9fbff;border:1px solid #dbe5f1;border-left:6px solid {color};border-radius:10px;padding:12px 12px 10px 12px;margin-bottom:8px;min-height:170px;'>
-                            <div style='font-weight:700;color:#1a237e;margin-bottom:6px;line-height:1.25;'>{indicador}</div>
-                            <div style='font-size:0.9rem;color:#263238;'>Meta: <b>{meta}</b></div>
-                            <div style='font-size:0.9rem;color:#263238;'>Ejecución: <b>{ejec}</b></div>
-                            <div style='font-size:0.9rem;color:#263238;'>Cumplimiento: <b>{_cumpl_label(cumpl)}</b></div>
-                            <div style='font-size:0.85rem;color:{delta_color};margin-top:4px;'><b>{delta_txt}</b></div>
-                            <div style='font-size:0.78rem;color:#455a64;margin-top:6px;line-height:1.25;'>{analisis_txt}</div>
+                        <div class='informe-card'>
+                            <div class='informe-card-header'>
+                                <div>
+                                    <div class='informe-card-title'>{indicador}</div>
+                                    <div class='informe-card-meta'>
+                                        <span>Meta: <strong>{meta}</strong></span>
+                                        <span>Ejecución: <strong>{ejec}</strong></span>
+                                    </div>
+                                </div>
+                                <div style='text-align:right;'>
+                                    <div class='informe-card-kpi'>{_cumpl_label(cumpl)}</div>
+                                    <div class='informe-card-badge' style='background:rgba(0,0,0,0.05);color:{color};margin-top:8px;'>{category_label}</div>
+                                </div>
+                            </div>
+                            {progress_html}
+                            <div class='informe-card-footer'>{analisis_txt}</div>
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -3181,7 +3377,8 @@ def render() -> None:
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown('<div class="filter-bar"><span class="filter-label-main"><i class="fas fa-sliders-h" style="margin-right:6px;color:#022457;"></i>FILTROS</span></div>', unsafe_allow_html=True)
+    _render_rpp_global_styles()
+    st.markdown('<div class="rpp-filter-panel"><div class="rpp-filter-header"><i class="fas fa-sliders-h" style="margin-right:8px;color:#2454a1;"></i>Filtros activos</div>', unsafe_allow_html=True)
     
     # PRIMERA FILA DE FILTROS: Año, Mes, Clasificación, Frecuencia
     col1, col2, col3, col4 = st.columns(4, gap="small")
@@ -3273,6 +3470,7 @@ def render() -> None:
         )
         st.write("**Subproceso**")
         subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso", label_visibility="collapsed")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (
@@ -3348,6 +3546,10 @@ def render() -> None:
 
     with tabs[0]:
         _render_resumen_procesos_style()
+        st.markdown(
+            "<div class='rpp-tab-highlight'><p>Vista general de CMI por Procesos con los principales KPI, estado de cumplimiento y comparativos históricos usando el corte seleccionado.</p></div>",
+            unsafe_allow_html=True,
+        )
         _section_title("CMI por Procesos — Vista Global", level=3)
 
         # Usar el filtro global de año de la sección CMI por Procesos
@@ -3607,12 +3809,24 @@ def render() -> None:
             # El análisis por unidad se muestra en el tab Procesos y Unidades.
 
     with tabs[1]:
+        st.markdown(
+            "<div class='rpp-tab-highlight'><p>Explora el comportamiento de los procesos y unidades organizacionales. Observa el desempeño por tipo de proceso y las comparaciones de cumplimiento.</p></div>",
+            unsafe_allow_html=True,
+        )
         _render_tab_procesos_unidades(cmi_global, cmi_base_prev_year, int(global_year), _base_year, _latest_month_name)
 
     with tabs[2]:
+        st.markdown(
+            "<div class='rpp-tab-highlight'><p>Consulta los indicadores activos, su distribución de niveles de cumplimiento y las fichas individuales con detalles clave.</p></div>",
+            unsafe_allow_html=True,
+        )
         _render_tab_indicadores(filtered, cmi_catalog)
 
     with tabs[3]:
+        st.markdown(
+            "<div class='rpp-tab-highlight'><p>Alertas y hallazgos clave de CMI por Procesos, con detalles de eventos críticos y señales de riesgo.</p></div>",
+            unsafe_allow_html=True,
+        )
         if not cmi_global.empty:
             st.divider()
             _section_title("🚨 Alertas y Hallazgos", level=4)
@@ -3620,6 +3834,10 @@ def render() -> None:
         render_tab_alertas(filtered)
 
     with tabs[4]:
+        st.markdown(
+            "<div class='rpp-tab-highlight'><p>Análisis avanzado y propuesta de mejora para los procesos filtrados, con recomendaciones y comparativos de cumplimiento.</p></div>",
+            unsafe_allow_html=True,
+        )
         _section_title("Propuesta de mejora", level=3)
         st.caption(
             "Gráficas, tablas e insights que complementan la sección Resumen CMI por Procesos."
