@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import exportar_excel
 from streamlit_app.utils.formatting import id_limpio
 from core.config import CACHE_TTL
+from streamlit_app.components.filter_panel import render_filter_panel, build_active_summary
 
 RUTA_SEGUIMIENTO = (
     Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
@@ -111,101 +112,68 @@ def render():
         st.error("No se encontró la hoja Tracking Mensual en data/output/Seguimiento_Reporte.xlsx.")
         return
 
-    st.markdown(
-        """
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros de reporte</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
-    )
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-    # Meses en español
-    MESES_OPCIONES = [
-        "Enero",
-        "Febrero",
-        "Marzo",
-        "Abril",
-        "Mayo",
-        "Junio",
-        "Julio",
-        "Agosto",
-        "Septiembre",
-        "Octubre",
-        "Noviembre",
-        "Diciembre",
+    _MESES_OPCIONES = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
     ]
 
     anios = sorted(
         pd.to_numeric(df.get("Año", pd.Series(dtype=float)), errors="coerce")
-        .dropna()
-        .astype(int)
-        .unique()
-        .tolist()
+        .dropna().astype(int).unique().tolist()
     )
-    # default: prefer 2025 if present, else the latest year
-    with col_f1:
-        year_options = ["Todos"] + anios
-        if 2025 in anios:
-            default_year = 2025
-        else:
-            default_year = anios[-1] if anios else "Todos"
-        anio_sel = st.segmented_control("Año", options=year_options, default=default_year)
-
     meses_nums = sorted(
         pd.to_numeric(df.get("Mes", pd.Series(dtype=float)), errors="coerce")
-        .dropna()
-        .astype(int)
-        .unique()
-        .tolist()
+        .dropna().astype(int).unique().tolist()
     )
-    with col_f2:
-        # map numeric months to names for display
-        mes_names = [MESES_OPCIONES[m - 1] for m in meses_nums if 1 <= m <= 12]
-        mes_options = ["Todos"] + mes_names
-        # default to Diciembre if available
-        default_mes_idx = (
-            mes_options.index("Diciembre")
-            if "Diciembre" in mes_options
-            else max(0, len(mes_options) - 1)
-        )
-        mes_sel = st.selectbox("Mes", options=mes_options, index=default_mes_idx)
-
+    mes_names = [_MESES_OPCIONES[m - 1] for m in meses_nums if 1 <= m <= 12]
     procesos = (
         sorted(df["Proceso"].dropna().astype(str).unique().tolist())
-        if "Proceso" in df.columns
-        else []
+        if "Proceso" in df.columns else []
     )
-    with col_f3:
-        proceso_sel = st.selectbox("Proceso", options=["Todos"] + procesos)
-
     estados = (
         sorted(df["Estado"].dropna().astype(str).unique().tolist())
-        if "Estado" in df.columns
-        else []
+        if "Estado" in df.columns else []
     )
-    with col_f4:
-        estado_sel = st.selectbox("Estado", options=["Todos"] + estados)
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    default_year = 2025 if 2025 in anios else (anios[-1] if anios else "Todos")
+    default_mes = "Diciembre" if "Diciembre" in mes_names else (mes_names[-1] if mes_names else "Todos")
+
+    _filter_defs = [
+        {
+            "key": "anio", "label": "Año", "type": "segmented_control",
+            "options": anios, "default": default_year, "include_all": True,
+        },
+        {
+            "key": "mes", "label": "Mes", "type": "selectbox",
+            "options": mes_names, "default": default_mes, "include_all": True,
+        },
+        {
+            "key": "proceso", "label": "Proceso", "type": "selectbox",
+            "options": procesos, "include_all": True,
+        },
+        {
+            "key": "estado", "label": "Estado", "type": "selectbox",
+            "options": estados, "include_all": True,
+        },
+    ]
+    sels = render_filter_panel(_filter_defs, title="Filtros de reporte", key_prefix="sr", n_cols=4)
+    anio_sel = sels["anio"]
+    mes_sel = sels["mes"]
+    proceso_sel = sels["proceso"]
+    estado_sel = sels["estado"]
 
     df_view = df.copy()
-    if anio_sel != "Todos" and "Año" in df_view.columns:
+    if anio_sel not in (None, "Todos") and "Año" in df_view.columns:
         df_view = df_view[df_view["Año"] == anio_sel]
-    if mes_sel != "Todos" and "Mes" in df_view.columns:
-        # mes_sel is a month name; map back to number
+    if mes_sel not in (None, "Todos") and "Mes" in df_view.columns:
         try:
-            mes_num = MESES_OPCIONES.index(mes_sel) + 1
+            mes_num = _MESES_OPCIONES.index(mes_sel) + 1
             df_view = df_view[df_view["Mes"] == mes_num]
         except Exception:
-            # fallback: if mes_sel was numeric-like, compare directly
-            try:
-                df_view = df_view[df_view["Mes"] == int(mes_sel)]
-            except Exception:
-                pass
-    if proceso_sel != "Todos" and "Proceso" in df_view.columns:
+            pass
+    if proceso_sel not in (None, "Todos") and "Proceso" in df_view.columns:
         df_view = df_view[df_view["Proceso"] == proceso_sel]
-    if estado_sel != "Todos" and "Estado" in df_view.columns:
+    if estado_sel not in (None, "Todos") and "Estado" in df_view.columns:
         df_view = df_view[df_view["Estado"] == estado_sel]
 
     total = len(df_view)

@@ -1,5 +1,7 @@
 import streamlit as st
 
+from streamlit_app.components.filter_panel import inject_filter_styles
+
 
 def render_filters(
     data,
@@ -23,6 +25,8 @@ def render_filters(
     Devuelve: dict con las selecciones.
     """
     del data
+
+    inject_filter_styles()
 
     selections = {}
     items = list(config.items())

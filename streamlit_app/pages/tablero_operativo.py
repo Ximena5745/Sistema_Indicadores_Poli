@@ -40,6 +40,12 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from utils.formatting import id_limpio as _id_limpio, to_num as _to_num
 
+try:
+    from streamlit_app.components.filter_panel import render_filter_panel
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from streamlit_app.components.filter_panel import render_filter_panel
+
 # ── Rutas ─────────────────────────────────────────────────────────────────────
 _ROOT = Path(__file__).resolve().parents[2]
 _ARTIFACTS = _ROOT / "data" / "output" / "artifacts"
@@ -379,41 +385,41 @@ def render() -> None:
             anios = sorted(df_all["Fecha"].dt.year.dropna().astype(int).unique().tolist())
 
     # ── Filtros globales ───────────────────────────────────────────────────
-    with st.expander("🔍 Filtros", expanded=True):
-        st.markdown(
-            """
-            <div class='dashboard-filter-panel'>
-                <div class='dashboard-filter-title'>Filtros operativos</div>
-                <div class='dashboard-filter-row'>
-            """,
-            unsafe_allow_html=True,
-        )
-        fc1, fc2, fc3, fc4 = st.columns(4)
-        with fc1:
-            default_idx = len(anios) if anios else 0
-            anio_sel = st.selectbox(
-                "Año",
-                options=["Todos"] + anios,
-                index=default_idx,
-                key="to_anio",
-            )
-        with fc2:
-            mes_sel = st.selectbox("Mes", options=["Todos"] + _MESES, key="to_mes")
-        with fc3:
-            procs_op = (
-                ["Todos"] + sorted(df_all["Proceso"].dropna().astype(str).unique().tolist())
-                if not df_all.empty and "Proceso" in df_all.columns
-                else ["Todos"]
-            )
-            proceso_sel = st.selectbox("Proceso", procs_op, key="to_proc")
-        with fc4:
-            perios_op = (
-                ["Todas"] + sorted(df_all["Periodicidad"].dropna().astype(str).unique().tolist())
-                if not df_all.empty and "Periodicidad" in df_all.columns
-                else ["Todas"]
-            )
-            period_sel = st.selectbox("Periodicidad", perios_op, key="to_perio")
-        st.markdown("</div></div>", unsafe_allow_html=True)
+    procs_op = (
+        sorted(df_all["Proceso"].dropna().astype(str).unique().tolist())
+        if not df_all.empty and "Proceso" in df_all.columns
+        else []
+    )
+    perios_op = (
+        sorted(df_all["Periodicidad"].dropna().astype(str).unique().tolist())
+        if not df_all.empty and "Periodicidad" in df_all.columns
+        else []
+    )
+    default_anio = anios[-1] if anios else None
+
+    _filter_defs = [
+        {
+            "key": "anio", "label": "Año", "type": "selectbox",
+            "options": anios, "default": default_anio, "include_all": True,
+        },
+        {
+            "key": "mes", "label": "Mes", "type": "selectbox",
+            "options": _MESES, "include_all": True,
+        },
+        {
+            "key": "proceso", "label": "Proceso", "type": "selectbox",
+            "options": procs_op, "include_all": True,
+        },
+        {
+            "key": "periodicidad", "label": "Periodicidad", "type": "selectbox",
+            "options": perios_op, "include_all": True, "all_label": "Todas",
+        },
+    ]
+    sels = render_filter_panel(_filter_defs, title="Filtros operativos", key_prefix="to", n_cols=4)
+    anio_sel = sels["anio"]
+    mes_sel = sels["mes"]
+    proceso_sel = sels["proceso"]
+    period_sel = sels["periodicidad"]
 
     anio_v = int(anio_sel) if anio_sel != "Todos" and anio_sel else None
     mes_v = _MES_NUM.get(mes_sel) if mes_sel != "Todos" else None

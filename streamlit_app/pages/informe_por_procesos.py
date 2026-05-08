@@ -39,91 +39,6 @@ MESES_OPCIONES = [
 ]
 
 
-def _render_informe_por_procesos_styles() -> None:
-    st.markdown(
-        """
-        <style>
-        .dashboard-filter-panel, .informe-filter-panel {
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-left: 4px solid #1D4ED8;
-            border-radius: 18px;
-            padding: 16px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-        }
-        .dashboard-filter-title, .informe-filter-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #1E3A8A;
-            margin-bottom: 14px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
-        .dashboard-filter-label, .informe-filter-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #475569;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .dashboard-filter-panel .stSelectbox > div,
-        .informe-filter-panel .stSelectbox > div {
-            background: #ffffff !important;
-            border: 1px solid #CBD5E1 !important;
-            border-radius: 12px !important;
-            min-height: 42px !important;
-            padding: 0.12rem 0.35rem !important;
-        }
-        .dashboard-filter-panel .stSelectbox label,
-        .informe-filter-panel .stSelectbox label {
-            display: none !important;
-        }
-        .dashboard-filter-panel .stSelectbox .css-1n76uvr,
-        .dashboard-filter-panel .stSelectbox .css-1siy2j7,
-        .informe-filter-panel .stSelectbox .css-1n76uvr,
-        .informe-filter-panel .stSelectbox .css-1siy2j7 {
-            margin-bottom: 0 !important;
-        }
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 8px;
-            background-color: #eef4ff;
-            padding: 8px;
-            border-radius: 14px;
-            box-shadow: inset 0 1px 4px rgba(37, 99, 235, 0.08);
-        }
-        .stTabs [data-baseweb="tab"] {
-            padding: 0.8rem 1.2rem;
-            border-radius: 999px !important;
-            font-weight: 600;
-            color: #1e3a8a;
-            transition: all 0.2s ease;
-            border: 1px solid transparent !important;
-        }
-        .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, #1d4ed8, #60a5fa) !important;
-            color: white !important;
-            box-shadow: 0 8px 18px rgba(29, 78, 169, 0.16);
-        }
-        .stTabs [data-baseweb="tab"]:not([aria-selected="true"]) {
-            background: rgba(255,255,255,0.96) !important;
-            border: 1px solid rgba(37, 99, 235, 0.13) !important;
-        }
-        .stButton > button {
-            border-radius: 999px;
-            min-height: 44px;
-            font-weight: 600;
-            padding: 0.75rem 1rem;
-        }
-        .informe-button-row .stButton > button {
-            width: 100%;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 def _load_propuestas(proceso_actual: str = "Todos", subproceso_actual: str = "Todos") -> tuple[pd.DataFrame, str | None]:
     excel_path = (
@@ -356,7 +271,6 @@ def _prepare_filters(tracking_df: pd.DataFrame, map_df: pd.DataFrame, anio: int,
 
 def render() -> None:
     st.title("Informe por Procesos")
-    _render_informe_por_procesos_styles()
 
     ds = DataService()
     tracking_df = ds.get_tracking_data()
@@ -371,6 +285,13 @@ def render() -> None:
         st.warning("No se encontró el mapeo de procesos en data/raw/Subproceso-Proceso-Area.xlsx.")
         return
 
+    try:
+        from streamlit_app.components.filter_panel import render_filter_panel
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from streamlit_app.components.filter_panel import render_filter_panel
+
     years = (
         sorted(
             [
@@ -382,85 +303,71 @@ def render() -> None:
         else []
     )
     default_year = 2025 if 2025 in years else (years[-1] if years else None)
-    default_year_idx = years.index(default_year) if default_year in years else 0
     default_month_num = _get_prev_month_for_year(tracking_df, default_year) or 12
     default_month = MESES_OPCIONES[default_month_num - 1]
 
-    st.markdown("""
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros oficiales</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
-    )
-    col1, col2, col3, col4 = st.columns([1, 1, 2, 2], gap="small")
     topbar_year = st.session_state.get("topbar_year")
     topbar_month = st.session_state.get("topbar_month")
-    with col1:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
-        if topbar_year is not None:
-            anio = int(topbar_year)
-            st.markdown(f"**{anio}**")
-        else:
-            anio = st.selectbox(
-                "Año",
-                options=years,
-                index=default_year_idx if years else None,
-                key="filter_anio",
-                label_visibility="collapsed",
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
-        if topbar_month is not None:
-            mes = str(topbar_month)
-            st.markdown(f"**{mes}**")
-        else:
-            mes = st.selectbox(
-                "Mes",
-                options=MESES_OPCIONES,
-                index=MESES_OPCIONES.index(default_month),
-                key="filter_mes",
-                label_visibility="collapsed",
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Año y mes pueden venir del topbar o del filtro local
+    if topbar_year is not None:
+        anio = int(topbar_year)
+        mes = str(topbar_month) if topbar_month is not None else default_month
+        st.info(f"Filtro activo desde barra global: {mes} {anio}")
+    else:
+        # Renderizar filtros de tiempo primero (año y mes)
+        sels_time = render_filter_panel(
+            filters=[
+                {
+                    "key": "anio", "label": "Año",
+                    "type": "selectbox",
+                    "options": years, "default": default_year, "include_all": False,
+                },
+                {
+                    "key": "mes", "label": "Mes",
+                    "type": "selectbox",
+                    "options": MESES_OPCIONES, "default": default_month, "include_all": False,
+                },
+            ],
+            title="",
+            key_prefix="filter",
+            n_cols=2,
+        )
+        anio = sels_time["anio"] or default_year
+        mes = sels_time["mes"] or default_month
 
     selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
 
-    with col3:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Proceso</div>", unsafe_allow_html=True)
-        procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
-        proceso_sel = st.selectbox(
-            "Proceso (Filtro Padre)",
-            options=["Todos"] + procesos,
-            index=0,
-            key="filter_proceso",
-            label_visibility="collapsed",
+    procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+    proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
+    subproceso_options_base: list[str] = []
+    if proceso_sel_cur != "Todos":
+        subproceso_options_base = sorted(
+            snapshot_df[snapshot_df["Proceso_padre"].astype(str) == proceso_sel_cur][
+                "Subproceso_final"
+            ].dropna().astype(str).unique().tolist()
         )
-        st.markdown("</div>", unsafe_allow_html=True)
-    with col4:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Subproceso</div>", unsafe_allow_html=True)
-        subproceso_options = ["Todos"]
-        if proceso_sel != "Todos":
-            subprocesos = sorted(
-                snapshot_df[snapshot_df["Proceso_padre"].astype(str) == proceso_sel]["Subproceso_final"].dropna().astype(str).unique().tolist()
-            )
-            if subprocesos:
-                subproceso_options += subprocesos
-        subproceso_sel = st.selectbox(
-            "Subproceso",
-            options=subproceso_options,
-            index=0,
-            key="filter_subproceso",
-            label_visibility="collapsed",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+
+    sels_proc = render_filter_panel(
+        filters=[
+            {
+                "key": "proceso", "label": "Proceso",
+                "type": "selectbox",
+                "options": procesos, "include_all": True,
+            },
+            {
+                "key": "subproceso", "label": "Subproceso",
+                "type": "selectbox",
+                "options": subproceso_options_base, "include_all": True,
+            },
+        ],
+        title="Filtros oficiales",
+        key_prefix="filter",
+        n_cols=2,
+    )
+    proceso_sel = sels_proc["proceso"] or "Todos"
+    subproceso_sel = sels_proc["subproceso"] or "Todos"
 
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":

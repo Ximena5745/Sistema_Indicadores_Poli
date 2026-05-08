@@ -136,54 +136,52 @@ def render():
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros generales</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
-    )
+    try:
+        from streamlit_app.components.filter_panel import render_filter_panel
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent))
+        from streamlit_app.components.filter_panel import render_filter_panel
+
     _anio_default = _default_anio(anios)
-    _fc1, _fc2, _fc_btn = st.columns([2, 2, 1])
-    with _fc1:
-        anio = st.segmented_control(
-            "Año de corte", options=anios, default=_anio_default, key="cmi_pdi_anio"
+    _corte_default = _default_corte(_anio_default)
+
+    _c1, _c_btn = st.columns([5, 1])
+    with _c1:
+        sels_gral = render_filter_panel(
+            filters=[
+                {
+                    "key": "anio", "label": "Año de corte",
+                    "type": "segmented_control",
+                    "options": anios, "default": _anio_default, "include_all": False,
+                },
+                {
+                    "key": "corte", "label": "Corte semestral",
+                    "type": "segmented_control",
+                    "options": list(CORTE_SEMESTRAL.keys()),
+                    "default": _corte_default, "include_all": False,
+                },
+            ],
+            title="Filtros generales",
+            key_prefix="cmi_pdi",
+            n_cols=2,
         )
-        if anio is None:
-            anio = _anio_default
-    with _fc2:
-        _corte_default = _default_corte(int(anio) if anio is not None else None)
-        corte = st.segmented_control(
-            "Corte semestral",
-            options=list(CORTE_SEMESTRAL.keys()),
-            default=_corte_default,
-            key="cmi_pdi_corte",
-        )
-        if corte is None:
-            corte = _corte_default
-    with _fc_btn:
+    with _c_btn:
         st.markdown("<div style='margin-top:26px'>", unsafe_allow_html=True)
         if st.button("Limpiar", key="cmi_pdi_clear", use_container_width=True):
-            for k in [
-                "cmi_pdi_anio",
-                "cmi_pdi_corte",
-                "cmi_pdi_linea",
-                "cmi_pdi_objetivo",
-                "cmi_pdi_nombre",
-            ]:
-                if k in st.session_state:
-                    del st.session_state[k]
+            for k in ["cmi_pdi_anio", "cmi_pdi_corte", "cmi_pdi_linea",
+                      "cmi_pdi_objetivo", "cmi_pdi_nombre"]:
+                st.session_state.pop(k, None)
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+
+    anio = sels_gral["anio"] or _anio_default
+    corte = sels_gral["corte"] or _corte_default
     mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_pdi_con_cierre(int(anio), int(mes))
 
     # ═══ FILTRO GLOBAL CMI ═══
-    # Usar services/cmi_filters.py para aplicar regla de negocio:
-    # CMI Estratégico = Indicadores Plan estrategico==1 AND Proyecto!=1
     df = filter_df_for_cmi_estrategico(df, id_column="Id")
 
     if df.empty:
@@ -196,45 +194,44 @@ def render():
         if not pdi_catalog.empty
         else df["Linea"].dropna().astype(str).unique().tolist()
     )
-    st.markdown(
-        """
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros adicionales</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
-    )
-    _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
-    with _ff1:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Línea estratégica</div>", unsafe_allow_html=True)
-        linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_pdi_linea")
-        st.markdown("</div>", unsafe_allow_html=True)
 
+    # Panel de filtros adicionales — linea primero para cargar objetivos dinámicamente
+    linea_sel = st.session_state.get("cmi_pdi_linea", "Todas")
     if not pdi_catalog.empty:
         obj_pool = (
-            pdi_catalog if linea_sel == "Todas" else pdi_catalog[pdi_catalog["Linea"] == linea_sel]
+            pdi_catalog if linea_sel == "Todas"
+            else pdi_catalog[pdi_catalog["Linea"] == linea_sel]
         )
         objetivos = sorted(obj_pool["Objetivo"].dropna().astype(str).unique().tolist())
     else:
         df_obj = df if linea_sel == "Todas" else df[df["Linea"] == linea_sel]
         objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
 
-    with _ff2:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Objetivo estratégico</div>", unsafe_allow_html=True)
-        objetivo_sel = st.selectbox(
-            "Objetivo estratégico", ["Todos"] + objetivos, key="cmi_pdi_objetivo"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    with _ff3:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Buscar indicador</div>", unsafe_allow_html=True)
-        nombre_q = st.text_input(
-            "Buscar indicador", key="cmi_pdi_nombre", placeholder="Texto en nombre del indicador"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    sels_extra = render_filter_panel(
+        filters=[
+            {
+                "key": "linea", "label": "Línea estratégica",
+                "type": "selectbox",
+                "options": lineas, "include_all": True, "all_label": "Todas",
+            },
+            {
+                "key": "objetivo", "label": "Objetivo estratégico",
+                "type": "selectbox",
+                "options": objetivos, "include_all": True,
+            },
+            {
+                "key": "nombre", "label": "Buscar indicador",
+                "type": "text",
+                "placeholder": "Texto en nombre del indicador",
+            },
+        ],
+        title="Filtros adicionales",
+        key_prefix="cmi_pdi",
+        n_cols=3,
+    )
+    linea_sel = sels_extra["linea"] or "Todas"
+    objetivo_sel = sels_extra["objetivo"] or "Todos"
+    nombre_q = sels_extra.get("nombre") or ""
 
     if linea_sel != "Todas":
         df = df[df["Linea"] == linea_sel]

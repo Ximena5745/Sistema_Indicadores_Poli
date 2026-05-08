@@ -1,6 +1,6 @@
 """Componentes UI reutilizables para el dashboard Streamlit.
 
-- `render_filters()` crea los controles de filtro y devuelve un dict con selección.
+- `render_filters()` — DEPRECATED: usar `render_filter_panel` de filter_panel.py
 - `build_dashboard_payload(filters)` carga datos (services.data_loader), calcula KPIs,
   donut, barras y tabla, devolviendo un dict listo para serializar a JSON.
 """
@@ -13,25 +13,20 @@ import numpy as np
 from services import data_loader
 from core import calculos
 from core import config as core_config
+from streamlit_app.components.filter_panel import render_filter_panel, inject_filter_styles
 
 
 def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
-    """Renderiza filtros compactos en una sola línea y retorna el estado.
+    """Renderiza filtros usando el sistema unificado.
 
     Devuelve: {"anio": int|None, "mes": str|None, "modalidad": str|None}
+
+    .. deprecated::
+        Usar :func:`streamlit_app.components.filter_panel.render_filter_panel` directamente.
     """
     df = data_loader.cargar_dataset()
 
-    st.markdown(
-        "<div class='dashboard-filter-panel'>"
-        "<div class='dashboard-filter-title'>Filtros</div>"
-        "<div class='dashboard-filter-row'>"
-        , unsafe_allow_html=True
-    )
-    cols = st.columns([1, 1, 1])
-
-    # Años
-    anios = []
+    anios: list = []
     if not df.empty and "Anio" in df.columns:
         try:
             anios = sorted([int(x) for x in df["Anio"].dropna().unique()])
@@ -39,35 +34,11 @@ def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
             anios = sorted(
                 [int(x) for x in pd.to_numeric(df["Anio"], errors="coerce").dropna().unique()]
             )
-    with cols[0]:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
-        anio = st.selectbox(
-            "",
-            options=["Todos"] + [str(a) for a in anios],
-            key=f"{key_prefix}_anio",
-            label_visibility="collapsed",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-        anio_sel = None if anio == "Todos" else int(anio)
 
-    # Mes
-    meses = []
+    meses: list = []
     if not df.empty and "Mes" in df.columns:
         meses = [m for m in pd.Series(df["Mes"].dropna().unique()).astype(str).tolist()]
-    with cols[1]:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
-        mes = st.selectbox(
-            "",
-            options=["Todos"] + meses,
-            key=f"{key_prefix}_mes",
-            label_visibility="collapsed",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-        mes_sel = None if mes == "Todos" else mes
 
-    # Modalidad (fallback)
     modalidades = ["On-Campus", "Virtual"]
     col_name = next(
         (c for c in ("Modalidad", "modalidad", "Tipo", "Modalidad de entrega") if c in df.columns),
@@ -77,21 +48,48 @@ def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
         modalidades = [
             str(x) for x in pd.Series(df[col_name].dropna().unique()).astype(str).tolist()
         ]
-    with cols[2]:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Modalidad</div>", unsafe_allow_html=True)
-        mod = st.selectbox(
-            "",
-            options=["Todos"] + modalidades,
-            index=modalidades.index("On-Campus") if "On-Campus" in modalidades else 0,
-            key=f"{key_prefix}_mod",
-            label_visibility="collapsed",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-        mod_sel = None if mod == "Todos" else mod
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
-    return {"anio": anio_sel, "mes": mes_sel, "modalidad": mod_sel}
+    sels = render_filter_panel(
+        filters=[
+            {
+                "key": "anio",
+                "label": "Año",
+                "type": "selectbox",
+                "options": [str(a) for a in anios],
+                "default": "Todos",
+                "include_all": True,
+            },
+            {
+                "key": "mes",
+                "label": "Mes",
+                "type": "selectbox",
+                "options": meses,
+                "default": "Todos",
+                "include_all": True,
+            },
+            {
+                "key": "modalidad",
+                "label": "Modalidad",
+                "type": "selectbox",
+                "options": modalidades,
+                "default": "On-Campus" if "On-Campus" in modalidades else "Todos",
+                "include_all": True,
+            },
+        ],
+        title="Filtros",
+        key_prefix=key_prefix,
+        n_cols=3,
+    )
+
+    anio_raw = sels.get("anio")
+    mes_raw = sels.get("mes")
+    mod_raw = sels.get("modalidad")
+
+    return {
+        "anio": None if anio_raw in (None, "Todos") else int(anio_raw),
+        "mes": None if mes_raw in (None, "Todos") else str(mes_raw),
+        "modalidad": None if mod_raw in (None, "Todos") else str(mod_raw),
+    }
 
 
 def _safe_group_count(df: pd.DataFrame, by: str) -> pd.Series:

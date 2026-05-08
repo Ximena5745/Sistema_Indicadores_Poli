@@ -1200,38 +1200,44 @@ def render():
     if "Subproceso" in df_riesgo.columns:
         subprocesos += sorted(df_riesgo["Subproceso"].dropna().astype(str).unique().tolist())
 
-    with st.expander("Filtros", expanded=True):
-        st.markdown(
-            """
-            <div class='dashboard-filter-panel'>
-                <div class='dashboard-filter-title'>Filtros</div>
-                <div class='dashboard-filter-row'>
-            """,
-            unsafe_allow_html=True,
-        )
-        fa, fm, fp, fs = st.columns(4)
-        with fa:
-            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-            st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
-            anio_sel = st.segmented_control("Año", options=anios, default="2025")
-            st.markdown("</div>", unsafe_allow_html=True)
-        with fm:
-            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-            st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
-            default_mes = meses.index("Diciembre")
-            mes_sel = st.selectbox("Mes", meses, index=default_mes)
-            st.markdown("</div>", unsafe_allow_html=True)
-        with fp:
-            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-            st.markdown("<div class='dashboard-filter-label'>Proceso</div>", unsafe_allow_html=True)
-            proc_sel = st.selectbox("Proceso", procesos, index=0)
-            st.markdown("</div>", unsafe_allow_html=True)
-        with fs:
-            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-            st.markdown("<div class='dashboard-filter-label'>Subproceso</div>", unsafe_allow_html=True)
-            sub_sel = st.selectbox("Subproceso", subprocesos, index=0)
-            st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div></div>", unsafe_allow_html=True)
+    from streamlit_app.components.filter_panel import render_filter_panel
+
+    _default_anio_str = "2025" if "2025" in anios else anios[0] if anios else "2025"
+    _default_mes = "Diciembre" if "Diciembre" in meses else meses[-1] if meses else "Diciembre"
+    _proc_opts = [p for p in procesos if p != "Todos"]
+    _sub_opts = [s for s in subprocesos if s != "Todos"]
+
+    sels = render_filter_panel(
+        filters=[
+            {
+                "key": "anio", "label": "Año",
+                "type": "segmented_control",
+                "options": anios, "default": _default_anio_str, "include_all": False,
+            },
+            {
+                "key": "mes", "label": "Mes",
+                "type": "selectbox",
+                "options": meses, "default": _default_mes, "include_all": False,
+            },
+            {
+                "key": "proceso", "label": "Proceso",
+                "type": "selectbox",
+                "options": _proc_opts, "include_all": True,
+            },
+            {
+                "key": "subproceso", "label": "Subproceso",
+                "type": "selectbox",
+                "options": _sub_opts, "include_all": True,
+            },
+        ],
+        title="Filtros",
+        key_prefix="gom",
+        n_cols=4,
+    )
+    anio_sel = sels["anio"] or _default_anio_str
+    mes_sel = sels["mes"] or _default_mes
+    proc_sel = sels["proceso"] or "Todos"
+    sub_sel = sels["subproceso"] or "Todos"
 
     # Checkbox para mostrar indicadores en alerta
     mostrar_alerta = st.checkbox(

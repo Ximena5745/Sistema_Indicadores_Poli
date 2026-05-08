@@ -61,58 +61,33 @@ def render():
 
         pdi_catalog = pd.DataFrame()
 
-        # ── Estilos neon-azul para segmented_control seleccionado ────────────
-        st.markdown(
-            """<style>
-            [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
-                background: linear-gradient(135deg,#00B4FF 0%,#0066FF 100%) !important;
-                color:#FFFFFF !important;
-                border-color:#00B4FF !important;
-                box-shadow:0 0 10px rgba(0,180,255,.55),0 0 3px rgba(0,180,255,.25) !important;
-            }
-            </style>""",
-            unsafe_allow_html=True,
-        )
+        from streamlit_app.components.filter_panel import render_filter_panel
 
-        # Filtros Globales — Año de corte y Corte Semestral (sin desplegable)
-        st.markdown(
-            """
-            <div class='dashboard-filter-panel'>
-                <div class='dashboard-filter-title'>Filtros generales</div>
-                <div class='dashboard-filter-row'>
-            """,
-            unsafe_allow_html=True,
-        )
         _anio_default = _default_anio(anios)
-        _fc1, _fc2, _fc_btn = st.columns([2, 2, 1])
-        with _fc1:
-            anio = st.segmented_control(
-                "Año de corte",
-                options=anios,
-                default=_anio_default,
-                key="cmi_tab_anio",
-            )
-            if anio is None:
-                anio = _anio_default
-        with _fc2:
-            _corte_default = _default_corte(int(anio) if anio is not None else None)
-            corte = st.segmented_control(
-                "Corte semestral",
-                options=list(CORTE_SEMESTRAL.keys()),
-                default=_corte_default,
-                key="cmi_tab_corte",
-            )
-            if corte is None:
-                corte = _corte_default
-        with _fc_btn:
-            st.markdown("<div style='margin-top:26px'>", unsafe_allow_html=True)
-            if st.button("Limpiar", key="cmi_pdi_clear_tab", use_container_width=True):
-                for k in ["cmi_tab_anio", "cmi_tab_corte"]:
-                    if k in st.session_state:
-                        del st.session_state[k]
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div></div>", unsafe_allow_html=True)
+        _corte_default = _default_corte(_anio_default)
+
+        sels = render_filter_panel(
+            filters=[
+                {
+                    "key": "anio", "label": "Año de corte",
+                    "type": "segmented_control",
+                    "options": anios, "default": _anio_default, "include_all": False,
+                },
+                {
+                    "key": "corte", "label": "Corte semestral",
+                    "type": "segmented_control",
+                    "options": list(CORTE_SEMESTRAL.keys()),
+                    "default": _corte_default, "include_all": False,
+                },
+            ],
+            title="Filtros",
+            key_prefix="cmi_tab",
+            n_cols=2,
+            show_reset=True,
+            reset_keys=["cmi_tab_anio", "cmi_tab_corte"],
+        )
+        anio = sels["anio"] or _anio_default
+        corte = sels["corte"] or _corte_default
         mes = CORTE_SEMESTRAL[corte]
 
         df = preparar_pdi_con_cierre(int(anio), int(mes))

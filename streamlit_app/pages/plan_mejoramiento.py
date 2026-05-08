@@ -29,6 +29,13 @@ except (ImportError, ModuleNotFoundError):
         load_cierres,
     )
 
+try:
+    from streamlit_app.components.filter_panel import render_filter_panel
+except ImportError:
+    import sys
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent))
+    from streamlit_app.components.filter_panel import render_filter_panel
+
 CORTE_SEMESTRAL = {
     "Junio": 6,
     "Diciembre": 12,
@@ -61,50 +68,38 @@ def render():
         st.error("No hay años disponibles en consolidado de cierres.")
         return
 
+    _anio_default, _corte_default = _default_corte(anios)
+
     with st.expander("🔎 Filtros", expanded=False):
+        _pm_reset_keys = ["pm_cna_anio", "pm_cna_corte"]
         if st.button("Limpiar filtros", key="pm_cna_clear"):
-            for k in [
-                "pm_cna_anio",
-                "pm_cna_mes",
-                "pm_cna_factor",
-                "pm_cna_caracteristica",
-                "pm_cna_nombre",
-                "_pm_cna_last_anio",
-            ]:
-                if k in st.session_state:
-                    del st.session_state[k]
+            for k in ["pm_cna_anio", "pm_cna_corte", "pm_cna_factor",
+                      "pm_cna_caracteristica", "pm_cna_nombre", "_pm_cna_last_anio"]:
+                st.session_state.pop(k, None)
             st.rerun()
 
-        st.markdown(
-            """
-            <div class='dashboard-filter-panel'>
-                <div class='dashboard-filter-title'>Filtros</div>
-                <div class='dashboard-filter-row'>
-            """,
-            unsafe_allow_html=True,
+        sels_corte = render_filter_panel(
+            filters=[
+                {
+                    "key": "anio", "label": "Año de corte",
+                    "type": "segmented_control",
+                    "options": anios, "default": _anio_default, "include_all": False,
+                },
+                {
+                    "key": "corte", "label": "Corte semestral",
+                    "type": "segmented_control",
+                    "options": list(CORTE_SEMESTRAL.keys()),
+                    "default": _corte_default, "include_all": False,
+                },
+            ],
+            title="Filtros",
+            key_prefix="pm_cna",
+            n_cols=2,
         )
-        _anio_default, _corte_default = _default_corte(anios)
-        _pfc1, _pfc2 = st.columns(2)
-        with _pfc1:
-            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-            st.markdown("<div class='dashboard-filter-label'>Año de corte</div>", unsafe_allow_html=True)
-            anio = st.segmented_control(
-                "Año de corte", options=anios, default=_anio_default, key="pm_cna_anio"
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
-        with _pfc2:
-            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-            st.markdown("<div class='dashboard-filter-label'>Corte semestral</div>", unsafe_allow_html=True)
-            corte = st.selectbox(
-                "Corte semestral",
-                list(CORTE_SEMESTRAL.keys()),
-                index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
-                key="pm_cna_corte",
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div></div>", unsafe_allow_html=True)
-        mes = CORTE_SEMESTRAL[corte]
+        anio = sels_corte["anio"] or _anio_default
+        corte = sels_corte["corte"] or _corte_default
 
+    mes = CORTE_SEMESTRAL[corte]
     df = preparar_cna_con_cierre(int(anio), int(mes))
     if df.empty:
         st.warning("No hay indicadores CNA (flag=1) para el corte seleccionado.")
@@ -116,25 +111,12 @@ def render():
         if not cna_catalog.empty
         else df["Factor"].dropna().astype(str).unique().tolist()
     )
-    st.markdown(
-        """
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros CNA</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
-    )
-    _pff1, _pff2, _pff3 = st.columns([1, 2, 2])
-    with _pff1:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Factor CNA</div>", unsafe_allow_html=True)
-        factor_sel = st.selectbox("Factor CNA", ["Todos"] + factores, key="pm_cna_factor")
-        st.markdown("</div>", unsafe_allow_html=True)
 
+    # Panel de filtros CNA — factor primero, luego cargar caracts dinámicamente
+    factor_sel = st.session_state.get("pm_cna_factor", "Todos")
     if not cna_catalog.empty:
         car_pool = (
-            cna_catalog
-            if factor_sel == "Todos"
+            cna_catalog if factor_sel == "Todos"
             else cna_catalog[cna_catalog["Factor"] == factor_sel]
         )
         caracts = sorted(car_pool["Caracteristica"].dropna().astype(str).unique().tolist())
@@ -142,19 +124,31 @@ def render():
         df_car = df if factor_sel == "Todos" else df[df["Factor"] == factor_sel]
         caracts = sorted(df_car["Caracteristica"].dropna().astype(str).unique().tolist())
 
-    with _pff2:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Característica</div>", unsafe_allow_html=True)
-        car_sel = st.selectbox("Característica", ["Todas"] + caracts, key="pm_cna_caracteristica")
-        st.markdown("</div>", unsafe_allow_html=True)
-    with _pff3:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        st.markdown("<div class='dashboard-filter-label'>Buscar indicador</div>", unsafe_allow_html=True)
-        nombre_q = st.text_input(
-            "Buscar indicador", key="pm_cna_nombre", placeholder="Texto en nombre del indicador"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    sels_cna = render_filter_panel(
+        filters=[
+            {
+                "key": "factor", "label": "Factor CNA",
+                "type": "selectbox",
+                "options": factores, "include_all": True,
+            },
+            {
+                "key": "caracteristica", "label": "Característica",
+                "type": "selectbox",
+                "options": caracts, "include_all": True, "all_label": "Todas",
+            },
+            {
+                "key": "nombre", "label": "Buscar indicador",
+                "type": "text",
+                "placeholder": "Texto en nombre del indicador",
+            },
+        ],
+        title="Filtros CNA",
+        key_prefix="pm_cna",
+        n_cols=3,
+    )
+    factor_sel = sels_cna["factor"] or "Todos"
+    car_sel = sels_cna["caracteristica"] or "Todas"
+    nombre_q = sels_cna.get("nombre") or ""
 
     if factor_sel != "Todos":
         df = df[df["Factor"] == factor_sel]

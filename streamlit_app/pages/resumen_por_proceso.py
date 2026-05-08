@@ -377,87 +377,6 @@ def _render_resumen_procesos_style() -> None:
     )
 
 
-def _render_rpp_global_styles() -> None:
-    st.markdown(
-        """
-        <style>
-        .dashboard-filter-panel, .rpp-filter-panel {
-            background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
-            border: 1px solid rgba(34, 94, 184, 0.14);
-            border-radius: 18px;
-            padding: 16px 18px 14px;
-            margin-bottom: 18px;
-            box-shadow: 0 14px 28px rgba(15, 35, 74, 0.08);
-        }
-        .dashboard-filter-title, .rpp-filter-header {
-            margin-bottom: 14px;
-            font-size: 0.92rem;
-            color: #102a43;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-        .dashboard-filter-panel .stSelectbox, .dashboard-filter-panel .stPills,
-        .rpp-filter-panel .stSelectbox, .rpp-filter-panel .stPills {
-            min-height: 44px;
-        }
-        .dashboard-filter-panel .css-1n76uvr, .dashboard-filter-panel .css-1siy2j7,
-        .rpp-filter-panel .css-1n76uvr, .rpp-filter-panel .css-1siy2j7 {
-            margin-bottom: 0 !important;
-        }
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-            background-color: #eef4fb;
-            padding: 8px 10px;
-            border-radius: 14px;
-            box-shadow: inset 0 1px 4px rgba(26, 51, 97, 0.08);
-        }
-        .stTabs [data-baseweb="tab"] {
-            padding: 12px 18px;
-            border-radius: 12px !important;
-            font-weight: 600;
-            color: #1d3f70;
-            transition: all 0.18s ease;
-        }
-        .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, #2454a1, #3993f0) !important;
-            color: white !important;
-            box-shadow: 0 10px 24px rgba(17, 49, 102, 0.18);
-            border-color: transparent !important;
-        }
-        .stTabs [data-baseweb="tab"]:not([aria-selected="true"]) {
-            background: rgba(255,255,255,0.9) !important;
-            border: 1px solid rgba(34, 68, 132, 0.10) !important;
-        }
-        .rpp-section-banner {
-            background: linear-gradient(135deg, rgba(36, 94, 166, 0.12), rgba(224, 235, 255, 0.9));
-            border-left: 4px solid #2454a1;
-            padding: 18px 22px;
-            border-radius: 18px;
-            margin-bottom: 18px;
-        }
-        .rpp-section-banner strong {
-            color: #102a43;
-        }
-        .rpp-tab-highlight {
-            margin-bottom: 18px;
-            padding: 16px 18px;
-            border-radius: 18px;
-            background: #ffffff;
-            border: 1px solid rgba(19, 54, 108, 0.08);
-            box-shadow: 0 10px 24px rgba(15, 30, 70, 0.06);
-        }
-        .rpp-tab-highlight p {
-            margin: 0;
-            color: #334e68;
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 def _render_resumen_overview_cards(
     df: pd.DataFrame,
@@ -3352,148 +3271,130 @@ def render() -> None:
     clasificacion_col = _first_col(snapshot_df, ["Clasificación", "Clasificacion", "Categoria"])
     tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
 
-    # ========== FILTROS GLOBALES COMPACTOS ==========
-    # Inyectar Font Awesome CDN
-    st.markdown("""
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-    .filter-bar {
-        background: linear-gradient(90deg, #f8f9fa 0%, #f0f2f5 100%);
-        border-left: 4px solid #022457;
-        padding: 8px 12px;
-        margin: 0 0 8px 0;
-        border-radius: 6px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    .filter-label-main {
-        font-weight: 700;
-        color: #022457;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    /* Reducir espaciado de columnas */
-    [data-testid="column"] {
-        padding: 0 4px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    _render_rpp_global_styles()
-    st.markdown(
-        """
-        <div class='dashboard-filter-panel'>
-            <div class='dashboard-filter-title'>Filtros activos</div>
-            <div class='dashboard-filter-row'>
-        """,
-        unsafe_allow_html=True,
+    try:
+        from streamlit_app.components.filter_panel import render_filter_panel
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from streamlit_app.components.filter_panel import render_filter_panel
+
+    # Preparar opciones de clasificación y frecuencia antes de renderizar filtros
+    clasificacion_options_base: list[str] = []
+    if clasificacion_col and clasificacion_col in snapshot_df.columns:
+        clasificacion_options_base = sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
+
+    frecuencia_options_base: list[str] = []
+    if frecuencia_col and frecuencia_col in snapshot_df.columns:
+        frecuencia_options_base = sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
+    elif not cmi_catalog.empty:
+        catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
+        if catalog_freq_col is not None:
+            frecuencia_options_base = sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
+
+    unidad_options_base: list[str] = []
+    if unidad_col and unidad_col in snapshot_df.columns:
+        unidad_options_base = sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
+
+    # Leer estado actual para calcular opciones dependientes
+    unidad_sel_cur = st.session_state.get("filter_unidad", "Todos")
+    proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
+
+    proceso_df_base = snapshot_df.copy()
+    if unidad_sel_cur != "Todos" and unidad_col and unidad_col in proceso_df_base.columns:
+        proceso_df_base = proceso_df_base[proceso_df_base[unidad_col].astype(str) == unidad_sel_cur]
+    proceso_options_base = sorted(proceso_df_base[proceso_col].dropna().astype(str).unique().tolist())
+
+    sub_df_base = snapshot_df.copy()
+    if unidad_sel_cur != "Todos" and unidad_col and unidad_col in sub_df_base.columns:
+        sub_df_base = sub_df_base[sub_df_base[unidad_col].astype(str) == unidad_sel_cur]
+    if proceso_sel_cur != "Todos":
+        sub_df_base = sub_df_base[sub_df_base[proceso_col].astype(str) == proceso_sel_cur]
+    subproceso_options_base = sorted(sub_df_base[subproceso_col].dropna().astype(str).unique().tolist())
+
+    topbar_year = st.session_state.get("topbar_year")
+    topbar_month = st.session_state.get("topbar_month")
+
+    if topbar_year is not None:
+        anio = int(topbar_year)
+        mes = str(topbar_month) if topbar_month is not None else default_month
+    else:
+        year_options = [str(y) for y in years] if years else [str(default_year)]
+        default_year_label = str(2025 if 2025 in years else years[-1] if years else default_year)
+
+        sels_time = render_filter_panel(
+            filters=[
+                {
+                    "key": "anio", "label": "Año",
+                    "type": "pills",
+                    "options": year_options,
+                    "default": default_year_label if default_year_label in year_options else year_options[0],
+                    "include_all": False,
+                },
+                {
+                    "key": "mes", "label": "Mes",
+                    "type": "selectbox",
+                    "options": MESES_OPCIONES,
+                    "default": default_month, "include_all": False,
+                },
+            ],
+            title="",
+            key_prefix="filter",
+            n_cols=2,
+        )
+        anio_raw = sels_time["anio"]
+        anio = int(anio_raw) if anio_raw is not None else None
+        mes = sels_time["mes"] or default_month
+
+    sels_cat = render_filter_panel(
+        filters=[
+            {
+                "key": "clasificacion", "label": "Clasificación",
+                "type": "pills",
+                "options": clasificacion_options_base,
+                "include_all": True,
+            },
+            {
+                "key": "frecuencia", "label": "Frecuencia",
+                "type": "selectbox",
+                "options": frecuencia_options_base,
+                "include_all": True,
+            },
+        ],
+        title="Filtros activos",
+        key_prefix="filter",
+        n_cols=2,
     )
-    
-    # PRIMERA FILA DE FILTROS: Año, Mes, Clasificación, Frecuencia
-    col1, col2, col3, col4 = st.columns(4, gap="small")
-    
-    # Año
-    with col1:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        topbar_year = st.session_state.get("topbar_year")
-        if topbar_year is not None:
-            anio = int(topbar_year)
-            st.markdown(f"<div class='dashboard-filter-label'>Año</div><div><strong>{anio}</strong></div>", unsafe_allow_html=True)
-        else:
-            year_options = [str(y) for y in years] if years else [str(default_year)]
-            default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-            st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
-            anio = st.pills(
-                "Año",
-                options=year_options,
-                default=default_year_label if default_year_label in year_options else year_options[0],
-                key="filter_anio",
-            )
-            anio = int(anio) if anio is not None else None
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Mes
-    with col2:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        topbar_month = st.session_state.get("topbar_month")
-        if topbar_month is not None:
-            mes = str(topbar_month)
-            st.markdown(f"<div class='dashboard-filter-label'>Mes</div><div><strong>{mes}</strong></div>", unsafe_allow_html=True)
-        else:
-            st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
-            mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Clasificación
-    with col3:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        clasificacion_options = ["Todos"]
-        if clasificacion_col and clasificacion_col in snapshot_df.columns:
-            clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
-        st.markdown("<div class='dashboard-filter-label'>Clasificación</div>", unsafe_allow_html=True)
-        clasificacion_sel = st.pills(
-            "Clasificación",
-            options=clasificacion_options,
-            default="Todos",
-            key="filter_clasificacion",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Frecuencia
-    with col4:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        frecuencia_options = ["Todos"]
-        if frecuencia_col and frecuencia_col in snapshot_df.columns:
-            frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
-        elif not cmi_catalog.empty:
-            catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
-            if catalog_freq_col is not None:
-                frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
-        st.markdown("<div class='dashboard-filter-label'>Frecuencia</div>", unsafe_allow_html=True)
-        frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # SEGUNDA FILA DE FILTROS: Unidad, Proceso, Subproceso
-    col6, col7, col8 = st.columns(3, gap="small")
-    
-    # Unidad
-    with col6:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        unidad_options = ["Todos"]
-        if unidad_col and unidad_col in snapshot_df.columns:
-            unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
-        st.markdown("<div class='dashboard-filter-label'>Unidad</div>", unsafe_allow_html=True)
-        unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Proceso
-    with col7:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        proceso_df = snapshot_df.copy()
-        if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
-            proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
-        proceso_options = ["Todos"] + sorted(
-            proceso_df[proceso_col].dropna().astype(str).unique().tolist()
-        )
-        st.markdown("<div class='dashboard-filter-label'>Proceso</div>", unsafe_allow_html=True)
-        proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Subproceso
-    with col8:
-        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
-        sub_df = snapshot_df.copy()
-        if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
-            sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
-        if proceso_sel != "Todos":
-            sub_df = sub_df[sub_df[proceso_col].astype(str) == proceso_sel]
-        subproceso_options = ["Todos"] + sorted(
-            sub_df[subproceso_col].dropna().astype(str).unique().tolist()
-        )
-        st.markdown("<div class='dashboard-filter-label'>Subproceso</div>", unsafe_allow_html=True)
-        subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    clasificacion_sel = sels_cat["clasificacion"] or "Todos"
+    frecuencia_sel = sels_cat["frecuencia"] or "Todos"
+
+    sels_proc = render_filter_panel(
+        filters=[
+            {
+                "key": "unidad", "label": "Unidad",
+                "type": "selectbox",
+                "options": unidad_options_base,
+                "include_all": True,
+            },
+            {
+                "key": "proceso", "label": "Proceso",
+                "type": "selectbox",
+                "options": proceso_options_base,
+                "include_all": True,
+            },
+            {
+                "key": "subproceso", "label": "Subproceso",
+                "type": "selectbox",
+                "options": subproceso_options_base,
+                "include_all": True,
+            },
+        ],
+        title="",
+        key_prefix="filter",
+        n_cols=3,
+    )
+    unidad_sel = sels_proc["unidad"] or "Todos"
+    proceso_sel = sels_proc["proceso"] or "Todos"
+    subproceso_sel = sels_proc["subproceso"] or "Todos"
 
     # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (
