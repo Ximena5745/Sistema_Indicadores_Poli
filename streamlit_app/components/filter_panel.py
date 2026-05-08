@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from itertools import cycle
 from typing import Any
 
 import streamlit as st
@@ -251,34 +250,35 @@ def render_filter_panel(
     actual_n_cols = n_cols or min(len(filters), 4)
     selections: dict[str, Any] = {}
 
+    # Todas las filas usan el mismo ancho de columnas para alineación perfecta
+    if show_reset:
+        col_widths = [1] * actual_n_cols + [0.35]
+    else:
+        col_widths = actual_n_cols
+
+    _auto_reset_keys = reset_keys or [f"{key_prefix}_{f['key']}" for f in filters]
+
     with st.container(border=True):
         if title:
             st.caption(f"🔍 {title}")
 
-        if show_reset:
-            # Columna de reset estrecha (0.35 unidades) — botón icono pequeño
-            col_widths = [1] * actual_n_cols + [0.35]
-            cols = st.columns(col_widths, gap="small")
-            filter_cols = cols[:actual_n_cols]
-            reset_col = cols[actual_n_cols]
-        else:
-            cols = st.columns(actual_n_cols, gap="small")
-            filter_cols = cols
-
-        col_iter = cycle(filter_cols)
-        for filt in filters:
-            with next(col_iter):
-                selections[filt["key"]] = _render_widget(filt, key_prefix)
-
-        if show_reset:
-            with reset_col:
-                _auto_reset_keys = reset_keys or [f"{key_prefix}_{f['key']}" for f in filters]
-                st.write("")  # alineación vertical con los widgets
-                if st.button("↺", key=f"{key_prefix}_reset_btn", use_container_width=True,
-                             help="Restablecer filtros"):
-                    for k in _auto_reset_keys:
-                        st.session_state.pop(k, None)
-                    st.rerun()
+        # Partir filtros en filas de actual_n_cols — una fila = un st.columns()
+        rows = [filters[i : i + actual_n_cols] for i in range(0, len(filters), actual_n_cols)]
+        for row_idx, row_filters in enumerate(rows):
+            is_last = row_idx == len(rows) - 1
+            row_cols = st.columns(col_widths, gap="small")
+            for col_i, filt in enumerate(row_filters):
+                with row_cols[col_i]:
+                    selections[filt["key"]] = _render_widget(filt, key_prefix)
+            # Botón reset en la última columna de la última fila
+            if is_last and show_reset:
+                with row_cols[-1]:
+                    st.write("")  # alineación vertical
+                    if st.button("↺", key=f"{key_prefix}_reset_btn",
+                                 use_container_width=True, help="Restablecer filtros"):
+                        for k in _auto_reset_keys:
+                            st.session_state.pop(k, None)
+                        st.rerun()
 
     if summary:
         st.caption(summary)
