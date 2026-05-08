@@ -44,17 +44,17 @@ def _render_informe_por_procesos_styles() -> None:
         """
         <style>
         .informe-filter-panel {
-            background: linear-gradient(180deg, #f0f5ff 0%, #ffffff 100%);
-            border: 1px solid rgba(37, 99, 235, 0.16);
-            border-radius: 18px;
-            padding: 14px;
-            margin-bottom: 18px;
-            box-shadow: 0 18px 35px rgba(15, 34, 91, 0.08);
+            background: #ffffff;
+            border: 1px solid #CBD5E1;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
         }
         .informe-filter-title {
-            font-size: 0.88rem;
-            font-weight: 800;
-            color: #1d4ed8;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #0F172A;
             margin-bottom: 12px;
             letter-spacing: 0.08em;
             text-transform: uppercase;
@@ -62,10 +62,24 @@ def _render_informe_por_procesos_styles() -> None:
         .informe-filter-label {
             font-size: 0.78rem;
             font-weight: 700;
-            color: #334155;
-            margin-bottom: 6px;
+            color: #475569;
+            margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+        }
+        .informe-filter-panel .stSelectbox > div {
+            background: #F8FAFC !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 12px !important;
+            min-height: 44px !important;
+            padding: 0.18rem 0.3rem !important;
+        }
+        .informe-filter-panel .stSelectbox label {
+            display: none !important;
+        }
+        .informe-filter-panel .stSelectbox .css-1n76uvr,
+        .informe-filter-panel .stSelectbox .css-1siy2j7 {
+            margin-bottom: 0 !important;
         }
         .stTabs [data-baseweb="tab-list"] {
             gap: 8px;
