@@ -1201,16 +1201,37 @@ def render():
         subprocesos += sorted(df_riesgo["Subproceso"].dropna().astype(str).unique().tolist())
 
     with st.expander("Filtros", expanded=True):
+        st.markdown(
+            """
+            <div class='dashboard-filter-panel'>
+                <div class='dashboard-filter-title'>Filtros</div>
+                <div class='dashboard-filter-row'>
+            """,
+            unsafe_allow_html=True,
+        )
         fa, fm, fp, fs = st.columns(4)
         with fa:
+            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+            st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
             anio_sel = st.segmented_control("Año", options=anios, default="2025")
+            st.markdown("</div>", unsafe_allow_html=True)
         with fm:
+            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+            st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
             default_mes = meses.index("Diciembre")
             mes_sel = st.selectbox("Mes", meses, index=default_mes)
+            st.markdown("</div>", unsafe_allow_html=True)
         with fp:
+            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+            st.markdown("<div class='dashboard-filter-label'>Proceso</div>", unsafe_allow_html=True)
             proc_sel = st.selectbox("Proceso", procesos, index=0)
+            st.markdown("</div>", unsafe_allow_html=True)
         with fs:
+            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+            st.markdown("<div class='dashboard-filter-label'>Subproceso</div>", unsafe_allow_html=True)
             sub_sel = st.selectbox("Subproceso", subprocesos, index=0)
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
     # Checkbox para mostrar indicadores en alerta
     mostrar_alerta = st.checkbox(

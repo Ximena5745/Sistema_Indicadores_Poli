@@ -136,6 +136,14 @@ def render():
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros generales</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     _anio_default = _default_anio(anios)
     _fc1, _fc2, _fc_btn = st.columns([2, 2, 1])
     with _fc1:
@@ -168,6 +176,7 @@ def render():
                     del st.session_state[k]
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
     mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_pdi_con_cierre(int(anio), int(mes))
@@ -187,9 +196,20 @@ def render():
         if not pdi_catalog.empty
         else df["Linea"].dropna().astype(str).unique().tolist()
     )
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros adicionales</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     _ff1, _ff2, _ff3 = st.columns([1, 2, 2])
     with _ff1:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Línea estratégica</div>", unsafe_allow_html=True)
         linea_sel = st.selectbox("Línea estratégica", ["Todas"] + lineas, key="cmi_pdi_linea")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if not pdi_catalog.empty:
         obj_pool = (
@@ -201,13 +221,20 @@ def render():
         objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
 
     with _ff2:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Objetivo estratégico</div>", unsafe_allow_html=True)
         objetivo_sel = st.selectbox(
             "Objetivo estratégico", ["Todos"] + objetivos, key="cmi_pdi_objetivo"
         )
+        st.markdown("</div>", unsafe_allow_html=True)
     with _ff3:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Buscar indicador</div>", unsafe_allow_html=True)
         nombre_q = st.text_input(
             "Buscar indicador", key="cmi_pdi_nombre", placeholder="Texto en nombre del indicador"
         )
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     if linea_sel != "Todas":
         df = df[df["Linea"] == linea_sel]

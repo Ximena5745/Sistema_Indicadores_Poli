@@ -21,6 +21,13 @@ def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
     Devuelve: {"anio": int|None, "mes": str|None, "modalidad": str|None}
     """
     df = data_loader.cargar_dataset()
+
+    st.markdown(
+        "<div class='dashboard-filter-panel'>"
+        "<div class='dashboard-filter-title'>Filtros</div>"
+        "<div class='dashboard-filter-row'>"
+        , unsafe_allow_html=True
+    )
     cols = st.columns([1, 1, 1])
 
     # Años
@@ -33,9 +40,15 @@ def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
                 [int(x) for x in pd.to_numeric(df["Anio"], errors="coerce").dropna().unique()]
             )
     with cols[0]:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
         anio = st.selectbox(
-            "Año", options=["Todos"] + [str(a) for a in anios], key=f"{key_prefix}_anio"
+            "",
+            options=["Todos"] + [str(a) for a in anios],
+            key=f"{key_prefix}_anio",
+            label_visibility="collapsed",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
         anio_sel = None if anio == "Todos" else int(anio)
 
     # Mes
@@ -43,7 +56,15 @@ def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
     if not df.empty and "Mes" in df.columns:
         meses = [m for m in pd.Series(df["Mes"].dropna().unique()).astype(str).tolist()]
     with cols[1]:
-        mes = st.selectbox("Mes", options=["Todos"] + meses, key=f"{key_prefix}_mes")
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
+        mes = st.selectbox(
+            "",
+            options=["Todos"] + meses,
+            key=f"{key_prefix}_mes",
+            label_visibility="collapsed",
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
         mes_sel = None if mes == "Todos" else mes
 
     # Modalidad (fallback)
@@ -57,14 +78,19 @@ def render_filters(key_prefix: str = "f") -> Dict[str, Any]:
             str(x) for x in pd.Series(df[col_name].dropna().unique()).astype(str).tolist()
         ]
     with cols[2]:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Modalidad</div>", unsafe_allow_html=True)
         mod = st.selectbox(
-            "Modalidad",
+            "",
             options=["Todos"] + modalidades,
             index=modalidades.index("On-Campus") if "On-Campus" in modalidades else 0,
             key=f"{key_prefix}_mod",
+            label_visibility="collapsed",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
         mod_sel = None if mod == "Todos" else mod
 
+    st.markdown("</div></div>", unsafe_allow_html=True)
     return {"anio": anio_sel, "mes": mes_sel, "modalidad": mod_sel}
 
 

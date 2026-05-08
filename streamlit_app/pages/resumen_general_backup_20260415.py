@@ -821,15 +821,27 @@ def render():
     st.caption("Fuente real: Consolidado Cierres — Resultados Consolidados.xlsx")
 
     # Filtros independientes para CMI Estratégico
-    st.markdown("##### Filtros")
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros CMI Estratégico</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     col_year_e, col_month_e, col_linea = st.columns(3)
 
     with col_year_e:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Año de análisis</div>", unsafe_allow_html=True)
         year_estrategico = st.selectbox(
             "Año de análisis", options=years, index=len(years) - 1, key="cmi_estrategico_year"
         )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_month_e:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Mes de análisis</div>", unsafe_allow_html=True)
         available_months_e = _available_months_for_year(consolidado, year_estrategico)
         if available_months_e:
             last_avail_e = max([m for m in available_months_e if 1 <= m <= 12], default=12)
@@ -843,6 +855,16 @@ def render():
             key="cmi_estrategico_month",
         )
         month_estrategico = MESES_NOMBRES.index(month_name_estrategico) + 1
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col_linea:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Línea Estratégica</div>", unsafe_allow_html=True)
+        linea_seleccionada = st.selectbox(
+            "Línea Estratégica", options=["Todas"] + lineas_disponibles, key="cmi_estrategico_linea"
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     # Cargar datos y aplicar filtro CMI Estratégico
     pdi_estrategico = preparar_pdi_con_cierre(int(year_estrategico), int(month_estrategico))
@@ -1026,15 +1048,27 @@ def render():
     st.caption("Fuente real: Consolidado Cierres — Resultados Consolidados.xlsx")
 
     # Filtros independientes para CMI por Procesos
-    st.markdown("##### Filtros")
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros CMI por Procesos</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     col_year_p, col_month_p, col_tipo = st.columns(3)
 
     with col_year_p:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Año de análisis</div>", unsafe_allow_html=True)
         year_procesos = st.selectbox(
             "Año de análisis", options=years, index=len(years) - 1, key="cmi_procesos_year"
         )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_month_p:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Mes de análisis</div>", unsafe_allow_html=True)
         available_months_p = _available_months_for_year(consolidado, year_procesos)
         if available_months_p:
             last_avail_p = max([m for m in available_months_p if 1 <= m <= 12], default=12)
@@ -1045,14 +1079,19 @@ def render():
             "Mes de análisis", options=MESES_NOMBRES, index=default_idx_p, key="cmi_procesos_month"
         )
         month_procesos = MESES_NOMBRES.index(month_name_procesos) + 1
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_tipo:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Tipo de proceso</div>", unsafe_allow_html=True)
         tipo_proceso_seleccionado = st.selectbox(
             "Tipo de proceso",
             options=["Todos"] + TIPOS_PROCESO,
             key="cmi_procesos_tipo",
             help="Filtrar indicadores por tipo de proceso",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     # Cargar datos y aplicar filtro CMI por Procesos
     pdi_procesos = preparar_pdi_con_cierre(int(year_procesos), int(month_procesos))

@@ -2130,21 +2130,36 @@ def render():
         unsafe_allow_html=True,
     )
     # Selector de año y filtro de categoría
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros generales</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     _seg_col, _cat_col, _ = st.columns([2, 2, 3])
     with _seg_col:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
         year_estrategico = st.segmented_control(
             "Año",
             options=years,
             default=years[-1],
             key="cmi_estrategico_year",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
     with _cat_col:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Vista</div>", unsafe_allow_html=True)
         categoria = st.segmented_control(
             "Vista",
             options=["Indicadores", "Proyectos", "Plan de Retos", "Consolidado"],
             default="Indicadores",
             key="cmi_categoria",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     # Defensa ante estado transitorio del widget (puede devolver None en algunos reruns)
     if year_estrategico is None:

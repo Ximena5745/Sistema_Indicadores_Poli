@@ -3378,21 +3378,29 @@ def render() -> None:
     """, unsafe_allow_html=True)
     
     _render_rpp_global_styles()
-    st.markdown('<div class="rpp-filter-panel"><div class="rpp-filter-header"><i class="fas fa-sliders-h" style="margin-right:8px;color:#2454a1;"></i>Filtros activos</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros activos</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     
     # PRIMERA FILA DE FILTROS: Año, Mes, Clasificación, Frecuencia
     col1, col2, col3, col4 = st.columns(4, gap="small")
     
     # Año
     with col1:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         topbar_year = st.session_state.get("topbar_year")
         if topbar_year is not None:
             anio = int(topbar_year)
-            st.write(f"**Año: {anio}**")
+            st.markdown(f"<div class='dashboard-filter-label'>Año</div><div><strong>{anio}</strong></div>", unsafe_allow_html=True)
         else:
             year_options = [str(y) for y in years] if years else [str(default_year)]
             default_year_label = str(2025 if 2025 in years else years[-1] if years else default_month_num)
-            st.write("**Año**")
+            st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
             anio = st.pills(
                 "Año",
                 options=year_options,
@@ -3400,32 +3408,38 @@ def render() -> None:
                 key="filter_anio",
             )
             anio = int(anio) if anio is not None else None
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Mes
     with col2:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         topbar_month = st.session_state.get("topbar_month")
         if topbar_month is not None:
             mes = str(topbar_month)
-            st.write(f"**Mes: {mes}**")
+            st.markdown(f"<div class='dashboard-filter-label'>Mes</div><div><strong>{mes}</strong></div>", unsafe_allow_html=True)
         else:
-            st.write("**Mes**")
+            st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
             mes = st.selectbox("Mes", options=MESES_OPCIONES, index=MESES_OPCIONES.index(default_month), key="filter_mes", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Clasificación
     with col3:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         clasificacion_options = ["Todos"]
         if clasificacion_col and clasificacion_col in snapshot_df.columns:
             clasificacion_options += sorted(snapshot_df[clasificacion_col].dropna().astype(str).unique().tolist())
-        st.write("**Clasificación**")
+        st.markdown("<div class='dashboard-filter-label'>Clasificación</div>", unsafe_allow_html=True)
         clasificacion_sel = st.pills(
             "Clasificación",
             options=clasificacion_options,
             default="Todos",
             key="filter_clasificacion",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Frecuencia
     with col4:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         frecuencia_options = ["Todos"]
         if frecuencia_col and frecuencia_col in snapshot_df.columns:
             frecuencia_options += sorted(snapshot_df[frecuencia_col].dropna().astype(str).unique().tolist())
@@ -3433,33 +3447,39 @@ def render() -> None:
             catalog_freq_col = _first_col(cmi_catalog, ["Periodicidad", "Frecuencia", "Frecuencia de Medición"])
             if catalog_freq_col is not None:
                 frecuencia_options += sorted(cmi_catalog[catalog_freq_col].dropna().astype(str).unique().tolist())
-        st.write("**Frecuencia**")
+        st.markdown("<div class='dashboard-filter-label'>Frecuencia</div>", unsafe_allow_html=True)
         frecuencia_sel = st.selectbox("Frecuencia", options=frecuencia_options, index=0, key="filter_frecuencia", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # SEGUNDA FILA DE FILTROS: Unidad, Proceso, Subproceso
     col6, col7, col8 = st.columns(3, gap="small")
     
     # Unidad
     with col6:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         unidad_options = ["Todos"]
         if unidad_col and unidad_col in snapshot_df.columns:
             unidad_options += sorted(snapshot_df[unidad_col].dropna().astype(str).unique().tolist())
-        st.write("**Unidad**")
+        st.markdown("<div class='dashboard-filter-label'>Unidad</div>", unsafe_allow_html=True)
         unidad_sel = st.selectbox("Unidad", options=unidad_options, index=0, key="filter_unidad", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Proceso
     with col7:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         proceso_df = snapshot_df.copy()
         if unidad_sel != "Todos" and unidad_col and unidad_col in proceso_df.columns:
             proceso_df = proceso_df[proceso_df[unidad_col].astype(str) == unidad_sel]
         proceso_options = ["Todos"] + sorted(
             proceso_df[proceso_col].dropna().astype(str).unique().tolist()
         )
-        st.write("**Proceso**")
+        st.markdown("<div class='dashboard-filter-label'>Proceso</div>", unsafe_allow_html=True)
         proceso_sel = st.selectbox("Proceso", options=proceso_options, index=0, key="filter_proceso", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Subproceso
     with col8:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
         sub_df = snapshot_df.copy()
         if unidad_sel != "Todos" and unidad_col and unidad_col in sub_df.columns:
             sub_df = sub_df[sub_df[unidad_col].astype(str) == unidad_sel]
@@ -3468,9 +3488,10 @@ def render() -> None:
         subproceso_options = ["Todos"] + sorted(
             sub_df[subproceso_col].dropna().astype(str).unique().tolist()
         )
-        st.write("**Subproceso**")
+        st.markdown("<div class='dashboard-filter-label'>Subproceso</div>", unsafe_allow_html=True)
         subproceso_sel = st.selectbox("Subproceso", options=subproceso_options, index=0, key="filter_subproceso", label_visibility="collapsed")
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
     # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (

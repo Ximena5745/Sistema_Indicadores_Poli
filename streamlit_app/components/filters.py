@@ -27,6 +27,13 @@ def render_filters(
     selections = {}
     items = list(config.items())
 
+    st.markdown(
+        "<div class='dashboard-filter-panel'>"
+        "<div class='dashboard-filter-title'>Filtros</div>"
+        "<div class='dashboard-filter-row'>"
+        , unsafe_allow_html=True
+    )
+
     if collapsible and len(items) > columns_per_row:
         # Mostrar primeros N filtros en línea, el resto en un expander
         primary = items[:columns_per_row]
@@ -36,7 +43,9 @@ def render_filters(
         cols = st.columns(len(primary))
         for col, (key, conf) in zip(cols, primary):
             with col:
+                st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
                 selections[key] = _render_single_filter(conf, key_prefix, key, compact=compact)
+                st.markdown("</div>", unsafe_allow_html=True)
 
         # Render secondary inside expander
         # Persistir preferencia de colapso en st.session_state
@@ -58,9 +67,11 @@ def render_filters(
                 cols = st.columns(min(columns_per_row, len(row_items)))
                 for col, (key, conf) in zip(cols, row_items):
                     with col:
+                        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
                         selections[key] = _render_single_filter(
                             conf, key_prefix, key, compact=compact
                         )
+                        st.markdown("</div>", unsafe_allow_html=True)
 
     else:
         # Render all inline in rows
@@ -70,8 +81,11 @@ def render_filters(
 
             for col, (key, conf) in zip(cols, row_items):
                 with col:
+                    st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
                     selections[key] = _render_single_filter(conf, key_prefix, key, compact=compact)
+                    st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("</div></div>", unsafe_allow_html=True)
     return selections
 
 
@@ -86,8 +100,9 @@ def _render_single_filter(conf: dict, key_prefix: str, key: str, compact: bool =
     if compact and conf.get("short_label"):
         label = conf.get("short_label")
 
+    st.markdown(f"<div class='dashboard-filter-label'>{label}</div>", unsafe_allow_html=True)
     if not options:
-        st.selectbox(label, ["Sin opciones"], disabled=True, key=f"{key_prefix}_{key}")
+        st.selectbox("", ["Sin opciones"], disabled=True, key=f"{key_prefix}_{key}", label_visibility="collapsed")
         return None
 
     default_value = conf.get("default", options[0])
@@ -95,10 +110,11 @@ def _render_single_filter(conf: dict, key_prefix: str, key: str, compact: bool =
         default_value = options[0]
 
     return st.selectbox(
-        label,
+        "",
         options,
         index=options.index(default_value),
         key=f"{key_prefix}_{key}",
+        label_visibility="collapsed",
         format_func=lambda x, ia=include_all, al=all_label, conf=conf: (
             str(conf.get("all_display", "— Todos —")) if ia and x == al else str(x)
         ),

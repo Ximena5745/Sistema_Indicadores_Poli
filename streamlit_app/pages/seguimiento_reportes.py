@@ -111,6 +111,14 @@ def render():
         st.error("No se encontró la hoja Tracking Mensual en data/output/Seguimiento_Reporte.xlsx.")
         return
 
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros de reporte</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     # Meses en español
     MESES_OPCIONES = [
@@ -178,6 +186,8 @@ def render():
     )
     with col_f4:
         estado_sel = st.selectbox("Estado", options=["Todos"] + estados)
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     df_view = df.copy()
     if anio_sel != "Todos" and "Año" in df_view.columns:

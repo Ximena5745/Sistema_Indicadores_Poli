@@ -390,8 +390,9 @@ def render() -> None:
     default_month = MESES_OPCIONES[default_month_num - 1]
 
     st.markdown("""
-        <div class='informe-filter-panel'>
-            <div class='informe-filter-title'>Filtros oficiales</div>
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros oficiales</div>
+            <div class='dashboard-filter-row'>
         """,
         unsafe_allow_html=True,
     )
@@ -399,7 +400,8 @@ def render() -> None:
     topbar_year = st.session_state.get("topbar_year")
     topbar_month = st.session_state.get("topbar_month")
     with col1:
-        st.markdown("<div class='informe-filter-label'>Año</div>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Año</div>", unsafe_allow_html=True)
         if topbar_year is not None:
             anio = int(topbar_year)
             st.markdown(f"**{anio}**")
@@ -411,8 +413,10 @@ def render() -> None:
                 key="filter_anio",
                 label_visibility="collapsed",
             )
+        st.markdown("</div>", unsafe_allow_html=True)
     with col2:
-        st.markdown("<div class='informe-filter-label'>Mes</div>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Mes</div>", unsafe_allow_html=True)
         if topbar_month is not None:
             mes = str(topbar_month)
             st.markdown(f"**{mes}**")
@@ -424,12 +428,14 @@ def render() -> None:
                 key="filter_mes",
                 label_visibility="collapsed",
             )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
 
     with col3:
-        st.markdown("<div class='informe-filter-label'>Proceso</div>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Proceso</div>", unsafe_allow_html=True)
         procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
         proceso_sel = st.selectbox(
             "Proceso (Filtro Padre)",
@@ -438,8 +444,10 @@ def render() -> None:
             key="filter_proceso",
             label_visibility="collapsed",
         )
+        st.markdown("</div>", unsafe_allow_html=True)
     with col4:
-        st.markdown("<div class='informe-filter-label'>Subproceso</div>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Subproceso</div>", unsafe_allow_html=True)
         subproceso_options = ["Todos"]
         if proceso_sel != "Todos":
             subprocesos = sorted(
@@ -454,7 +462,8 @@ def render() -> None:
             key="filter_subproceso",
             label_visibility="collapsed",
         )
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":

@@ -75,19 +75,34 @@ def render():
                     del st.session_state[k]
             st.rerun()
 
+        st.markdown(
+            """
+            <div class='dashboard-filter-panel'>
+                <div class='dashboard-filter-title'>Filtros</div>
+                <div class='dashboard-filter-row'>
+            """,
+            unsafe_allow_html=True,
+        )
         _anio_default, _corte_default = _default_corte(anios)
         _pfc1, _pfc2 = st.columns(2)
         with _pfc1:
+            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+            st.markdown("<div class='dashboard-filter-label'>Año de corte</div>", unsafe_allow_html=True)
             anio = st.segmented_control(
                 "Año de corte", options=anios, default=_anio_default, key="pm_cna_anio"
             )
+            st.markdown("</div>", unsafe_allow_html=True)
         with _pfc2:
+            st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+            st.markdown("<div class='dashboard-filter-label'>Corte semestral</div>", unsafe_allow_html=True)
             corte = st.selectbox(
                 "Corte semestral",
                 list(CORTE_SEMESTRAL.keys()),
                 index=list(CORTE_SEMESTRAL.keys()).index(_corte_default),
                 key="pm_cna_corte",
             )
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True)
         mes = CORTE_SEMESTRAL[corte]
 
     df = preparar_cna_con_cierre(int(anio), int(mes))
@@ -101,9 +116,20 @@ def render():
         if not cna_catalog.empty
         else df["Factor"].dropna().astype(str).unique().tolist()
     )
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros CNA</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
     _pff1, _pff2, _pff3 = st.columns([1, 2, 2])
     with _pff1:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Factor CNA</div>", unsafe_allow_html=True)
         factor_sel = st.selectbox("Factor CNA", ["Todos"] + factores, key="pm_cna_factor")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if not cna_catalog.empty:
         car_pool = (
@@ -117,11 +143,18 @@ def render():
         caracts = sorted(df_car["Caracteristica"].dropna().astype(str).unique().tolist())
 
     with _pff2:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Característica</div>", unsafe_allow_html=True)
         car_sel = st.selectbox("Característica", ["Todas"] + caracts, key="pm_cna_caracteristica")
+        st.markdown("</div>", unsafe_allow_html=True)
     with _pff3:
+        st.markdown("<div class='dashboard-filter-item'>", unsafe_allow_html=True)
+        st.markdown("<div class='dashboard-filter-label'>Buscar indicador</div>", unsafe_allow_html=True)
         nombre_q = st.text_input(
             "Buscar indicador", key="pm_cna_nombre", placeholder="Texto en nombre del indicador"
         )
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     if factor_sel != "Todos":
         df = df[df["Factor"] == factor_sel]

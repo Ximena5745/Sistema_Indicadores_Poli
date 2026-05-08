@@ -117,6 +117,54 @@ div[data-testid="stSelectbox"] select:focus {
     box-shadow: 0 0 0 3px rgba(2, 36, 87, 0.08) !important;
 }
 
+/* ===== ESTILO GLOBAL DE PANEL DE FILTROS ===== */
+[data-testid="stAppViewContainer"] .dashboard-filter-panel,
+[data-testid="stAppViewContainer"] .informe-filter-panel {
+    background: #ffffff !important;
+    border: 1px solid #d8e5ef !important;
+    border-radius: 18px !important;
+    padding: 1.1rem 1.25rem 1.25rem !important;
+    box-shadow: 0 16px 32px rgba(15, 24, 44, 0.10) !important;
+    margin-bottom: 1.5rem !important;
+}
+
+[data-testid="stAppViewContainer"] .dashboard-filter-title,
+[data-testid="stAppViewContainer"] .informe-filter-title {
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    color: #0f3a6d !important;
+    margin-bottom: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+}
+
+[data-testid="stAppViewContainer"] .dashboard-filter-row {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    gap: 0.95rem 1rem !important;
+    align-items: flex-end !important;
+}
+
+[data-testid="stAppViewContainer"] .dashboard-filter-item {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.4rem !important;
+}
+
+[data-testid="stAppViewContainer"] .dashboard-filter-label,
+[data-testid="stAppViewContainer"] .informe-filter-label {
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+    margin-bottom: 0.35rem !important;
+}
+
+[data-testid="stAppViewContainer"] .dashboard-filter-item [data-baseweb="select"] > div:first-child,
+[data-testid="stAppViewContainer"] .dashboard-filter-item select,
+[data-testid="stAppViewContainer"] .dashboard-filter-item input {
+    min-height: 46px !important;
+}
+
 /* Segmented control mejorado */
 div[data-testid="stSegmentedControl"] > div {
     border-radius: 8px !important;

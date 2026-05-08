@@ -380,6 +380,14 @@ def render() -> None:
 
     # ── Filtros globales ───────────────────────────────────────────────────
     with st.expander("🔍 Filtros", expanded=True):
+        st.markdown(
+            """
+            <div class='dashboard-filter-panel'>
+                <div class='dashboard-filter-title'>Filtros operativos</div>
+                <div class='dashboard-filter-row'>
+            """,
+            unsafe_allow_html=True,
+        )
         fc1, fc2, fc3, fc4 = st.columns(4)
         with fc1:
             default_idx = len(anios) if anios else 0
@@ -405,6 +413,7 @@ def render() -> None:
                 else ["Todas"]
             )
             period_sel = st.selectbox("Periodicidad", perios_op, key="to_perio")
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
     anio_v = int(anio_sel) if anio_sel != "Todos" and anio_sel else None
     mes_v = _MES_NUM.get(mes_sel) if mes_sel != "Todos" else None

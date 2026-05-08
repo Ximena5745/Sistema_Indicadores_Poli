@@ -75,6 +75,14 @@ def render():
         )
 
         # Filtros Globales — Año de corte y Corte Semestral (sin desplegable)
+        st.markdown(
+            """
+            <div class='dashboard-filter-panel'>
+                <div class='dashboard-filter-title'>Filtros generales</div>
+                <div class='dashboard-filter-row'>
+            """,
+            unsafe_allow_html=True,
+        )
         _anio_default = _default_anio(anios)
         _fc1, _fc2, _fc_btn = st.columns([2, 2, 1])
         with _fc1:
@@ -104,6 +112,7 @@ def render():
                         del st.session_state[k]
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True)
         mes = CORTE_SEMESTRAL[corte]
 
         df = preparar_pdi_con_cierre(int(anio), int(mes))

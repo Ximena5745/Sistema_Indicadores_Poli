@@ -457,6 +457,15 @@ def render():
         "Diciembre",
     ]
 
+    st.markdown(
+        """
+        <div class='dashboard-filter-panel'>
+            <div class='dashboard-filter-title'>Filtros del corte</div>
+            <div class='dashboard-filter-row'>
+        """,
+        unsafe_allow_html=True,
+    )
+
     col_year, col_month = st.columns(2)
     with col_year:
         selected_year = st.segmented_control("Año de análisis", options=years, default=years[-1])
@@ -473,6 +482,7 @@ def render():
             "Mes de análisis", options=MESES_NOMBRES, index=default_idx
         )
         selected_month = MESES_NOMBRES.index(selected_month_name) + 1
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
     month_label = (
         MESES_NOMBRES[selected_month - 1]
