@@ -250,12 +250,6 @@ def render_filter_panel(
     actual_n_cols = n_cols or min(len(filters), 4)
     selections: dict[str, Any] = {}
 
-    # Todas las filas usan el mismo ancho de columnas para alineación perfecta
-    if show_reset:
-        col_widths = [1] * actual_n_cols + [0.35]
-    else:
-        col_widths = actual_n_cols
-
     _auto_reset_keys = reset_keys or [f"{key_prefix}_{f['key']}" for f in filters]
 
     with st.container(border=True):
@@ -266,10 +260,26 @@ def render_filter_panel(
         rows = [filters[i : i + actual_n_cols] for i in range(0, len(filters), actual_n_cols)]
         for row_idx, row_filters in enumerate(rows):
             is_last = row_idx == len(rows) - 1
-            row_cols = st.columns(col_widths, gap="small")
+            
+            # Calcular ancho de columnas para ESTA fila específicamente
+            if is_last and show_reset:
+                # Última fila CON botón reset: n_filtros en esta fila + columna reset
+                row_col_widths = [1] * len(row_filters) + [0.35]
+            elif show_reset and not is_last:
+                # Filas intermedias CON botón reset: mantener consistencia visual
+                row_col_widths = [1] * actual_n_cols + [0.35]
+            elif is_last and not show_reset:
+                # Última fila SIN botón: solo los filtros que hay
+                row_col_widths = [1] * len(row_filters)
+            else:
+                # Filas intermedias SIN botón
+                row_col_widths = [1] * actual_n_cols
+            
+            row_cols = st.columns(row_col_widths, gap="small")
             for col_i, filt in enumerate(row_filters):
                 with row_cols[col_i]:
                     selections[filt["key"]] = _render_widget(filt, key_prefix)
+            
             # Botón reset en la última columna de la última fila
             if is_last and show_reset:
                 with row_cols[-1]:
