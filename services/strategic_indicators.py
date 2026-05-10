@@ -51,11 +51,6 @@ def _validate_cached_result(df: pd.DataFrame, context: str) -> bool:
     return True
 
 
-# Aliases decimales para compatibilidad
-UMBRAL_ALERTA_DEC = UMBRAL_ALERTA
-UMBRAL_PELIGRO_DEC = UMBRAL_PELIGRO
-UMBRAL_SOBRECUMPLIMIENTO_DEC = UMBRAL_SOBRECUMPLIMIENTO
-
 ROOT = Path(__file__).resolve().parents[1]
 RAW_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
 OUT_XLSX = ROOT / "data" / "output" / "Resultados Consolidados.xlsx"

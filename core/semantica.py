@@ -23,9 +23,10 @@ import pandas as pd
 import numpy as np
 import logging
 
-# Importar configuración (incluyendo IDS_PLAN_ANUAL ahora dinámico)
+# Importar configuración (incluyendo IDS_PLAN_ANUAL y IDS_TOPE_100 ahora dinámicos)
 from core.config import (
     IDS_PLAN_ANUAL,
+    IDS_TOPE_100,
     UMBRAL_PELIGRO,
     UMBRAL_ALERTA,
     UMBRAL_SOBRECUMPLIMIENTO,
@@ -326,10 +327,13 @@ def recalcular_cumplimiento_faltante(meta, ejecucion, sentido="Positivo", id_ind
 
     # Aplicar tope según tipo de indicador
     es_plan_anual = False
+    es_tope_100 = False
     if id_indicador is not None:
-        es_plan_anual = str(id_indicador).strip() in IDS_PLAN_ANUAL
+        id_str = str(id_indicador).strip()
+        es_plan_anual = id_str in IDS_PLAN_ANUAL
+        es_tope_100 = id_str in IDS_TOPE_100
 
-    tope = 1.0 if es_plan_anual else 1.3
+    tope = 1.0 if (es_plan_anual or es_tope_100) else 1.3
 
     # Retornar acotado [0, tope]
     resultado = min(max(raw, 0.0), tope)

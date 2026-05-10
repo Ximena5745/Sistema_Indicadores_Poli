@@ -159,8 +159,13 @@ class TestCategorizarCumplimiento:
         assert categorizar_cumplimiento(0.99, id_indicador="45") == "Cumplimiento"
 
     def test_plan_anual_sobrecumplimiento_100(self):
-        # 100% exacto → Sobrecumplimiento en PA (tope es < 1.0)
-        assert categorizar_cumplimiento(1.00, id_indicador="45") == "Sobrecumplimiento"
+        # 100% exacto en PA → Cumplimiento (tope = 100%, no puede sobrecumplir)
+        # Lógica oficial en core/semantica.py: c <= UMBRAL_SOBRECUMPLIMIENTO_PA (1.00) → Cumplimiento
+        assert categorizar_cumplimiento(1.00, id_indicador="45") == "Cumplimiento"
+
+    def test_plan_anual_sobrecumplimiento_por_encima_100(self):
+        # > 100% en PA → Sobrecumplimiento (prácticamente no ocurre, tope en Excel es 1.0)
+        assert categorizar_cumplimiento(1.01, id_indicador="45") == "Sobrecumplimiento"
 
     def test_indicador_normal_no_es_pa(self):
         # Id no PA: 95% sigue siendo Alerta

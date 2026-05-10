@@ -183,7 +183,9 @@ class TestProblema6ConsistenciaEntreFunciones:
             df_source.to_excel(writer, sheet_name="Cierre historico", index=False)
 
         monkeypatch.setattr(si, "OUT_XLSX", excel_path)
+        # Limpiar AMBOS cachés: @st.cache_data y el caché manual _CACHE_MANUAL
         si.load_cierres.clear()
+        si._CACHE_MANUAL.clear()
         result = si.load_cierres()
 
         assert not result.empty

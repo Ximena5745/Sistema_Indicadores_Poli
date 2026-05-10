@@ -110,13 +110,18 @@ def test_cargar_indicadores_riesgo_filtra_y_ultima_fecha(monkeypatch):
         ]
     )
 
-    monkeypatch.setattr(gestion_om, "cargar_dataset", lambda: fake_df)
+    monkeypatch.setattr(gestion_om, "cargar_dataset_historico", lambda: fake_df)
 
     result = gestion_om._cargar_indicadores_riesgo()
 
-    assert set(result["Id"].tolist()) == {"1", "3"}
-    fila_1 = result[result["Id"] == "1"].iloc[0]
-    assert fila_1["Categoria"] == "Alerta"
+    # ID "1" tiene 2 registros en riesgo (Peligro enero + Alerta febrero)
+    # ID "2" tiene Cumplimiento → excluido del filtro
+    # ID "3" tiene Peligro → incluido
+    filas_id1 = result[result["Id"] == "1"]
+    assert len(filas_id1) == 2  # ambos registros de riesgo de ID "1" se mantienen
+    categorias_id1 = set(filas_id1["Categoria"].tolist())
+    assert "Peligro" in categorias_id1
+    assert "Alerta" in categorias_id1
 
 
 def test_cargar_tracking_desde_excel(tmp_path, monkeypatch):

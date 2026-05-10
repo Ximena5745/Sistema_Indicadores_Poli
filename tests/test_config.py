@@ -183,6 +183,60 @@ class TestConfigPaths:
         assert BASE_DIR in DATA_OUTPUT.parents
 
 
+class TestCargaDinamicaIDS_PLAN_ANUAL:
+    """P1.3 — Valida que _cargar_ids_plan_anual() lee dinámicamente desde Excel."""
+
+    def test_funcion_retorna_frozenset(self):
+        """La función de carga devuelve frozenset con al menos un ID."""
+        from core.config import _cargar_ids_plan_anual
+        resultado = _cargar_ids_plan_anual()
+        assert isinstance(resultado, frozenset)
+        assert len(resultado) > 0, (
+            "IDS_PLAN_ANUAL vacío. Verificar que data/raw/Indicadores por CMI.xlsx exista."
+        )
+
+    def test_todos_ids_son_strings(self):
+        """Todos los IDs cargados son strings (no int ni float)."""
+        from core.config import _cargar_ids_plan_anual
+        ids = _cargar_ids_plan_anual()
+        for id_val in ids:
+            assert isinstance(id_val, str), (
+                f"ID debe ser string, obtuvo {type(id_val)}: {id_val!r}"
+            )
+
+    def test_fallback_si_excel_no_existe(self, tmp_path, monkeypatch):
+        """Si el Excel no existe, levanta FileNotFoundError (FAIL-LOUD)."""
+        import core.config as cfg_module
+        # Redirigir DATA_RAW a un directorio vacío
+        monkeypatch.setattr(cfg_module, "DATA_RAW", tmp_path)
+        # Ahora espera FileNotFoundError en lugar de frozenset()
+        with pytest.raises(FileNotFoundError):
+            cfg_module._cargar_ids_plan_anual()
+
+    def test_carga_desde_excel_con_mock(self, tmp_path, monkeypatch):
+        """Verifica que la carga usa columnas 'plan_anual' / 'proyecto' correctamente."""
+        import pandas as pd
+        import core.config as cfg_module
+
+        # Crear Excel minimal con estructura esperada
+        df = pd.DataFrame({
+            "Id": ["10", "20", "30", "99"],
+            "Plan anual": [1, 0, 1, 0],
+            "Proyecto":   [0, 1, 0, 0],
+        })
+        excel_path = tmp_path / "Indicadores por CMI.xlsx"
+        df.to_excel(excel_path, index=False, engine="openpyxl")
+
+        monkeypatch.setattr(cfg_module, "DATA_RAW", tmp_path)
+        resultado = cfg_module._cargar_ids_plan_anual()
+
+        # IDs 10 (plan anual=1), 20 (proyecto=1), 30 (plan anual=1) deben incluirse
+        assert "10" in resultado
+        assert "20" in resultado
+        assert "30" in resultado
+        assert "99" not in resultado  # ni plan anual ni proyecto
+
+
 class TestConfigIntegration:
     """Integration tests for config usage"""
 

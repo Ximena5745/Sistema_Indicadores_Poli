@@ -1,0 +1,7 @@
+archivo,modulo,patron,tipo_validacion,instancias
+scripts/actualizar_consolidado.py,ETL Principal,if not,Business Rule,4
+scripts/actualizar_consolidado.py,ETL Principal,raise,Error Handling,1
+core/calculos.py,Cálculo de Indicadores,if not,Business Rule,1
+core/config.py,Configuración y Umbrales,if not,Business Rule,2
+core/config.py,Configuración y Umbrales,raise,Error Handling,4
+generar_reporte.py,Generación de Reportes,if not,Business Rule,25

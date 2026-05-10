@@ -1,7 +1,6 @@
 # config/mapeos_procesos.yaml
 # Mapeo de subprocesos → procesos padre
 # Fuente original: Subproceso-Proceso-Area.xlsx
-# Actualizado: 11-abr-2026
 #
 # Estructura:
 #   PROCESO_PADRE_EN_MAYUSCULAS:
@@ -13,6 +12,16 @@
 # - Los nombres en YAML deben coincidir exactamente (se normalizan en tiempo de ejecución)
 # - Se valida contra archivo Excel si disponible
 # - Cambios aquí NO requieren redeploy (caché se invalida automáticamente)
+#
+# =============================================================================
+# AUDIT TRAIL — Historial de cambios (formato: YYYY-MM-DD | autor | descripción)
+# =============================================================================
+# 2026-04-11 | equipo SGIND    | Creación inicial desde Subproceso-Proceso-Area.xlsx
+# 2026-05-09 | sistema/copilot | Agregado bloque audit trail para trazabilidad
+# -----------------------------------------------------------------------------
+# INSTRUCCIONES: Al modificar este archivo, agregar una línea al audit trail:
+#   YYYY-MM-DD | tu.nombre | qué cambió y por qué
+# =============================================================================
 
 DIRECCIONAMIENTO ESTRATEGICO:
   - "Gestion de Proyectos"

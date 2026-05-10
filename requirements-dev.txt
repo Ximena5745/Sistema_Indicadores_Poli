@@ -8,7 +8,7 @@ coverage>=7.0                    # Code coverage analysis
 coverage-badge>=1.1.0            # Coverage badge generation
 
 # Calidad de código
-ruff>=0.4                        # Linter + formatter (reemplaza flake8 + black)
+ruff>=0.6.0                      # Linter + formatter (reemplaza flake8 + black)
 mypy>=1.9                        # Type checking
 bandit>=1.7                      # Security vulnerability scanner
 

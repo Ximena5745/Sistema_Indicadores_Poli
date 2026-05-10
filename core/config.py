@@ -101,10 +101,13 @@ def _cargar_ids_plan_anual():
 
     xlsx_path = DATA_RAW / "Indicadores por CMI.xlsx"
 
-    # Si no existe, retornar set vacío (fallback seguro)
+    # Si no existe, fallar explícitamente (FALLA SEGURA)
     if not xlsx_path.exists():
-        logger.warning(f"Archivo no encontrado: {xlsx_path}. IDS_PLAN_ANUAL vacío.")
-        return frozenset()
+        logger.error(f"ARCHIVO REQUERIDO FALTA: {xlsx_path}")
+        raise FileNotFoundError(
+            f"No se puede cargar IDS_PLAN_ANUAL: {xlsx_path} no existe. "
+            f"Verificar que 'Indicadores por CMI.xlsx' esté en {DATA_RAW}"
+        )
 
     try:
         # Leer Excel
@@ -126,14 +129,18 @@ def _cargar_ids_plan_anual():
             if col in ["proyecto", "proyecto_id"]:
                 col_proyecto = col
 
-        # Si no encuentra columnas necesarias, fallback
+        # Si no encuentra columnas necesarias, fallar explícitamente
         if col_id is None or (col_plan_anual is None and col_proyecto is None):
-            logger.warning(
-                f"Columnas no encontradas en {xlsx_path}. "
-                f"Esperado: 'id' (o similar), 'plan_anual' (o similar). "
+            logger.error(
+                f"ESQUEMA INCORRECTO en {xlsx_path}. "
+                f"Esperado: 'id' (o similar) + 'plan_anual' o 'proyecto' (o similares). "
                 f"Encontrado: {list(df.columns)}"
             )
-            return frozenset()
+            raise ValueError(
+                f"Columnas requeridas no encontradas en {xlsx_path}. "
+                f"Esperado: id, plan_anual (o proyecto). "
+                f"Columnas encontradas: {list(df.columns)}"
+            )
 
         # Extraer IDs donde (Plan anual=1) OR (Proyecto=1)
         mascara = pd.Series([False] * len(df))
@@ -152,12 +159,23 @@ def _cargar_ids_plan_anual():
         return ids_plan_anual
 
     except Exception as e:
-        logger.error(f"Error al cargar IDS_PLAN_ANUAL desde {xlsx_path}: {e}")
-        return frozenset()
+        logger.critical(f"FALLO CRÍTICO al cargar IDS_PLAN_ANUAL: {type(e).__name__}: {e}")
+        raise RuntimeError(
+            f"No se puede inicializar el sistema sin IDS_PLAN_ANUAL. "
+            f"Error: {type(e).__name__}: {e}"
+        ) from e
 
 
 # Cargar dinámicamente (se ejecuta en tiempo de importación)
 IDS_PLAN_ANUAL = _cargar_ids_plan_anual()
+
+# Validación: IDS_PLAN_ANUAL nunca debe estar vacío
+if not IDS_PLAN_ANUAL:
+    raise RuntimeError(
+        "FALLO CRÍTICO: IDS_PLAN_ANUAL está vacío después de cargar. "
+        "Verificar que 'Indicadores por CMI.xlsx' contiene indicadores con "
+        "columna 'Plan anual'=1 o 'Proyecto'=1"
+    )
 
 UMBRAL_ALERTA_PA = 0.95  # PA cumple desde 95%
 UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00  # tope 100%

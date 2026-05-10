@@ -54,21 +54,8 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-# Importar lógica centralizada de categorización
-try:
-    from core.semantica import categorizar_cumplimiento
-except ImportError:
-    # Fallback si no se puede importar
-    def categorizar_cumplimiento(c, id_indicador=None):
-        """Fallback local si semantica no está disponible."""
-        try:
-            v = float(c)
-        except (TypeError, ValueError):
-            return "Sin dato"
-        if v >= 1.05: return "Sobrecumplimiento"
-        if v >= 1.00: return "Cumplimiento"
-        if v >= 0.80: return "Alerta"
-        return "Peligro"
+# Importar lógica centralizada de categorización (FUENTE ÚNICA OFICIAL)
+from core.semantica import categorizar_cumplimiento
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -135,10 +122,8 @@ PROCESOS_NO_APLICA_SIN_REPORTE: List[str] = [
 # ── Fuente de cierres históricos ──────────────────────────────────────────────
 RUTA_CONSOLIDADOS = os.path.join(BASE_DIR, "data", "output", "Resultados Consolidados.xlsx")
 
-# ── Umbrales de cumplimiento (alineados con core/config.py) ───────────────────
-UMBRAL_PELIGRO_D           = 0.80   # < 80%  → Peligro
-UMBRAL_ALERTA_D            = 1.00   # 80–99% → Alerta  / ≥100% → Cumplimiento
-UMBRAL_SOBRECUMPLIMIENTO_D = 1.05   # ≥105%  → Sobrecumplimiento
+# Lógica de categorización: usar core.semantica directamente (FUENTE ÚNICA OFICIAL)
+from core.semantica import categorizar_cumplimiento
 
 # ── Paleta de colores ──────────────────────────────────────────────────────────
 C_HEADER    = "1F4E79"

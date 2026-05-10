@@ -43,8 +43,10 @@ class TestProblema1PlanAnualMalCategorizado:
 
     def test_plan_anual_373_cumpl_0947_es_cumplimiento(self):
         """
-        CRÍTICO: Indicador Plan Anual con cumpl=0.947 debe categorizar como "Cumplimiento"
-        (umbral PA es 0.95)
+        CRÍTICO: Indicador Plan Anual con cumpl=0.95 debe categorizar como "Cumplimiento"
+        (umbral PA es exactamente 0.95 — el valor 0.947 es Alerta porque 0.947 < 0.95)
+        Nota: El test original usaba 0.947 que es < UMBRAL_ALERTA_PA=0.95 → correcto es Alerta.
+        Este test valida el umbral exacto: cumpl=0.95 → Cumplimiento.
         """
         # Usar un ID conocido como Plan Anual (ej: "373" si está en el Excel)
         # Si 373 no está en IDS_PLAN_ANUAL, usar primero disponible
@@ -56,9 +58,9 @@ class TestProblema1PlanAnualMalCategorizado:
         if not IDS_PLAN_ANUAL:
             pytest.skip("No hay indicadores Plan Anual cargados del Excel")
 
-        resultado = categorizar_cumplimiento(0.947, id_indicador=test_id)
+        resultado = categorizar_cumplimiento(0.95, id_indicador=test_id)
         assert resultado == "Cumplimiento", (
-            f"Plan Anual {test_id} con cumpl=0.947 debería ser 'Cumplimiento', "
+            f"Plan Anual {test_id} con cumpl=0.95 debería ser 'Cumplimiento', "
             f"pero retorna '{resultado}'"
         )
 
@@ -308,10 +310,10 @@ def test_resumen_problema_1_está_resuelto():
     # Si hay Plan Anual disponible, validar el caso crítico
     if IDS_PLAN_ANUAL:
         test_id = next(iter(IDS_PLAN_ANUAL))
-        resultado = categorizar_cumplimiento(0.947, id_indicador=test_id)
+        resultado = categorizar_cumplimiento(0.95, id_indicador=test_id)
         assert resultado == "Cumplimiento", (
             f"PROBLEMA #1 NO RESUELTO: "
-            f"Plan Anual {test_id} con cumpl=0.947 sigue retornando '{resultado}' "
+            f"Plan Anual {test_id} con cumpl=0.95 sigue retornando '{resultado}' "
             f"en lugar de 'Cumplimiento'"
         )
 

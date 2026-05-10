@@ -4,11 +4,19 @@ from pathlib import Path
 from streamlit.components.v1 import html
 from typing import Any
 
+from auth import require_auth, init_auth_session
+
 # Limpiar caché corrupto al inicio
 if "cache_cleared" not in st.session_state:
     st.cache_data.clear()
     st.cache_resource.clear()
     st.session_state.cache_cleared = True
+
+# Inicializar session state de autenticación
+init_auth_session()
+
+# REQUERIR AUTENTICACIÓN - Proteger toda la aplicación
+user_info = require_auth()
 
 from components import ui_components
 

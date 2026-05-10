@@ -106,8 +106,7 @@ from typing import Any, Dict, List, Optional, Set
 import numpy as np
 import pandas as pd
 
-from .config import IDS_PLAN_ANUAL, IDS_TOPE_100
-from .cumplimiento import _calc_cumpl
+from .cumplimiento import _calc_cumpl, obtener_tope_cumplimiento
 from .formulas_excel import (
     _build_col_map, _validar_col_formulas,
     formula_G, formula_H, formula_I, formula_L, formula_M, formula_R,
@@ -281,7 +280,7 @@ def escribir_filas(
             _set(r, "CumplReal",   None)
         else:
             _id_fila = _id_str(fila.get("Id"))
-            _tope = 1.0 if _id_fila in IDS_PLAN_ANUAL or _id_fila in IDS_TOPE_100 else 1.3
+            _tope = obtener_tope_cumplimiento(_id_fila)
             _set(r, "Cumplimiento", formula_L(r, tope=_tope), "0.00%")
             _set(r, "CumplReal",   formula_M(r), "0.00%")
 

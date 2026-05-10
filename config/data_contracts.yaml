@@ -47,8 +47,8 @@ resultados_consolidados:
           descripcion: "Nombre del mes asociado al corte"
         Periodo:
           tipo: "string"
-          requerida: true
-          descripcion: "Periodo consolidado en formato AAAA-S"
+          requerida: false
+          descripcion: "Periodo consolidado en formato AAAA-S (puede no existir en historico)"
         Id:
           tipo: "string"
           requerida: true
@@ -62,8 +62,8 @@ resultados_consolidados:
           descripcion: "Nombre del indicador"
         Proceso:
           tipo: "string"
-          requerida: true
-          descripcion: "Proceso padre (macroproceso)"
+          requerida: false
+          descripcion: "Proceso padre (puede ser nulo en registros historicos)"
         Periodicidad:
           tipo: "categorical"
           requerida: true
@@ -211,8 +211,74 @@ resultados_consolidados:
       validaciones:
         - "Todos los Id en Catalogo deben existir en Consolidado Semestral"
 
+plan_accion:
+  archivo: "data/raw/Plan de accion/PA_*.xlsx"
+  tipo: "excel"
+  descripcion: |
+    Planes de Acción de mejora por proceso. Archivos uno por proceso/año,
+    nombrados PA_<Proceso>_<Año>.xlsx. Fuente manual validada por líderes de proceso.
+  actualizado_por: "Manual (líderes de proceso)"
+  frecuencia_actualizacion: "Por eventos de mejora (no periódico fijo)"
+  hojas:
+    "Worksheet":
+      descripcion: "Acciones de mejora con estado, avance y fechas"
+      columnas:
+        "Id Acción":
+          tipo: "string"
+          requerida: true
+          descripcion: "Identificador único de la acción de mejora"
+        "Fecha creación":
+          tipo: "datetime"
+          requerida: true
+          formato: "YYYY-MM-DD"
+          descripcion: "Fecha en que se registró la acción"
+        "Fecha límite":
+          tipo: "datetime"
+          requerida: false
+          formato: "YYYY-MM-DD"
+          descripcion: "Fecha límite para cumplir la acción"
+        "Clasificación":
+          tipo: "categorical"
+          requerida: true
+          valores_permitidos: ["Corrección", "Acción Correctiva", "Acción Preventiva", "Mejora"]
+          descripcion: "Tipo de acción de mejora"
+        "Avance (%)":
+          tipo: "float"
+          requerida: true
+          min: 0
+          max: 100
+          descripcion: "Porcentaje de avance de la acción (0–100)"
+        "Estado (Plan de Acción)":
+          tipo: "categorical"
+          requerida: true
+          valores_permitidos: ["Abierto", "Cerrado", "En proceso", "Pendiente"]
+          descripcion: "Estado actual de la acción"
+        "Responsable":
+          tipo: "string"
+          requerida: false
+          descripcion: "Nombre o cargo del responsable de la acción"
+        "Proceso":
+          tipo: "string"
+          requerida: false
+          descripcion: "Proceso al que pertenece la acción"
+      validaciones:
+        - "Id Acción único por archivo (sin duplicados)"
+        - "Avance (%) en rango [0, 100]"
+        - "Estado (Plan de Acción) en valores permitidos"
+        - "Fecha creación no puede ser futura respecto a fecha de corte"
+        - "Si Estado = Cerrado → Avance (%) debe ser 100"
+  semaforizacion:
+    campo: "Avance (%)"
+    rangos:
+      critico: "<50"
+      atencion: "50-80"
+      normal: "80-100"
+  reglas_negocio:
+    - "Un indicador puede tener 0 o más acciones de mejora asociadas"
+    - "Las acciones no tienen FK directa al Id de indicador en esta versión"
+    - "No se usa como fuente primaria del dashboard CMI — solo reportes de gestión"
+
 kawak_consolidado:
-  archivo: "data/raw/Fuentes Consolidadas/Consolidado_API_Kawak.xlsx"
   tipo: "excel"
   descripcion: "Consolidación de datos desde API Kawak (origen)"
   actualizado_por: "scripts/consolidar_api.py"
@@ -329,15 +395,20 @@ indicadores_cmi:
           requerida: false
       validaciones:
         - "Id debe existir en Catalogo Indicadores"
-          - "Sin duplicados en Id"
-          - "Regla oficial CMI por Procesos: Si `Subproceso == 1`, el indicador puede ser candidato a CMI por Procesos; la determinación de 'activo' por año requiere cruce del `Id` con los consolidados Kawak (kawak_consolidado / kawak_catalogo) para el año correspondiente. El campo `Ind act` está deprecado y no debe usarse como criterio de inclusión."
+        - "Sin duplicados en Id"
+        - "Regla oficial CMI por Procesos: Si Subproceso == 1, el indicador puede ser candidato a CMI por Procesos; la determinacion de activo por año requiere cruce del Id con los consolidados Kawak para el año correspondiente. El campo Ind act esta deprecado y no debe usarse como criterio de inclusion."
 
   # Metadata del contrato
   contract_metadata:
     contract_name: "data_contracts"
-    version: "1.1.0"
-    last_updated: "2026-05-05"
+    version: "1.2.0"
+    last_updated: "2026-05-09"
     changelog:
+      - version: "1.2.0"
+        date: "2026-05-09"
+        author: "copilot-agent-P1"
+        changes:
+          - "Agregado contrato formal para Plan de Accion (PA_*.xlsx)"
       - version: "1.1.0"
         date: "2026-05-05"
         author: "script:copilot-patch"

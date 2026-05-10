@@ -32,6 +32,7 @@ import shutil
 import sys
 import tempfile
 import warnings
+from datetime import datetime
 from pathlib import Path
 
 import openpyxl
@@ -46,6 +47,7 @@ if str(_ROOT) not in sys.path:
 # ── ETL modules ───────────────────────────────────────────────────
 from etl.config import AÑO_CIERRE_ACTUAL, OUTPUT_FILE  # noqa: E402
 from etl.normalizacion import _id_str  # noqa: E402
+from etl.validation_gate import validar_consolidado_api_entrada  # noqa: E402
 from etl.fuentes import (                          # noqa: E402
     cargar_fuente_consolidada,
     cargar_kawak_validos,
@@ -84,6 +86,10 @@ from etl.builders import (                         # noqa: E402
     construir_registros_cierres,
 )
 from etl.workbook_io import workbook_local_copy   # noqa: E402
+from etl.versioning import VersionManager         # noqa: E402
+from etl.audit import AuditTrail                  # noqa: E402
+from etl.retry_handler import retry_pipeline      # noqa: E402
+from etl.notifications import EmailNotifier         # noqa: E402
 
 # ── Logging ───────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -93,6 +99,7 @@ logger = logging.getLogger(__name__)
 # main
 # ─────────────────────────────────────────────────────────────────
 
+@retry_pipeline(max_attempts=3, initial_wait=2.0, max_wait=60.0)
 def main() -> None:
     if not logging.getLogger().handlers:
         logging.basicConfig(
@@ -109,6 +116,15 @@ def main() -> None:
     logger.info("1. Cargando fuente consolidada API/Kawak…")
     df_api = cargar_fuente_consolidada()
     logger.info("   %d registros fuente", len(df_api))
+
+    # ── 1.5 VALIDAR CONTRATO DE ENTRADA ───────────────────────────
+    logger.info("1.5 Validando contrato de datos (LAYER 1)…")
+    validacion = validar_consolidado_api_entrada(df_api, verbose=True)
+    if validacion.status == "error":
+        logger.error("❌ VALIDACIÓN FALLIDA — Pipeline bloqueado")
+        sys.exit(1)
+    # noqa: E501
+    logger.info("✅ Gate 1 OK: datos listos para procesar")
 
     # ── 2. Catálogo (un solo I/O) ─────────────────────────────────
     logger.info("2. Cargando catálogo…")
@@ -133,7 +149,28 @@ def main() -> None:
     logger.info("4. Cargando config_patrones…")
     config_patrones = cargar_config_patrones()
     logger.info("   %d patrones configurados", len(config_patrones))
-
+    # ── 4.5 Inicializar versionado y auditoría ──────────────────
+    logger.info("4.5 Inicializando versionado y auditoría…")
+    vm = VersionManager(OUTPUT_FILE, max_versions=5)
+    trail = AuditTrail()
+    notifier = EmailNotifier()  # Inicializar notificador
+    
+    if not notifier.enabled:
+        logger.info("   💬 Email notifications deshabilitado")
+    else:
+        logger.info(f"   💬 Email notifications habilitado para: {notifier.recipient_emails}")
+    
+    # Registrar inicio de consolidación
+    trail.registrar_ejecucion(
+        evento="consolidacion_iniciada",
+        detalles={
+            "año_cierre": AÑO_CIERRE_ACTUAL,
+            "timestamp_inicio": datetime.now().isoformat(),
+            "registros_api": len(df_api),
+        },
+        usuario="etl_script",
+        exitoso=True,
+    )
     # ── 5. Abrir workbook ─────────────────────────────────────────
     logger.info("5. Abriendo workbook %s…", OUTPUT_FILE.name)
     with workbook_local_copy(OUTPUT_FILE) as (local_output_file, source_workbook):
@@ -144,6 +181,21 @@ def main() -> None:
                 OUTPUT_FILE.name,
             )
         wb = openpyxl.load_workbook(local_output_file)
+
+        # ── 5.5 Crear versión (backup) antes de modificar ──────────
+        logger.info("5.5 Creando versión de seguridad…")
+        try:
+            version_path = vm.crear_version(tag="pre_consolidacion")
+            trail.registrar_cambio_datos(
+                tipo_cambio="backup",
+                tabla="Resultados Consolidados",
+                registros_afectados=0,
+                descripcion=f"Versión de seguridad previa a consolidación",
+                usuario="etl_script",
+            )
+        except Exception as e:
+            logger.warning(f"   No se pudo crear versión de seguridad: {e}")
+            trail.registrar_error("versionado", str(e), usuario="etl_script")
 
         ws_hist     = wb["Consolidado Historico"]
         ws_sem      = wb["Consolidado Semestral"]
@@ -281,44 +333,111 @@ def main() -> None:
 
     # ── 15. Guardar ───────────────────────────────────────────────
     logger.info("15. Guardando %s…", OUTPUT_FILE.name)
-    # Backup antes de sobreescribir
+    # Backup anterior (compatibilidad)
     backup = OUTPUT_FILE.with_suffix(".bak.xlsx")
     try:
         respaldo_origen = source_workbook if source_workbook.exists() else OUTPUT_FILE
         shutil.copy2(respaldo_origen, backup)
     except Exception as exc:
-        logger.warning("   No se pudo crear backup: %s", exc)
+        logger.warning("   No se pudo crear backup clásico: %s", exc)
 
-    with tempfile.TemporaryDirectory(prefix="sip_excel_save_", ignore_cleanup_errors=True) as temp_dir:
-        temp_root = Path(temp_dir)
-        local_output_saved = temp_root / OUTPUT_FILE.name
-        wb.save(local_output_saved)
-        if hasattr(wb, "close"):
-            wb.close()
-        shutil.copy2(local_output_saved, OUTPUT_FILE)
+    try:
+        with tempfile.TemporaryDirectory(prefix="sip_excel_save_", ignore_cleanup_errors=True) as temp_dir:
+            temp_root = Path(temp_dir)
+            local_output_saved = temp_root / OUTPUT_FILE.name
+            wb.save(local_output_saved)
+            if hasattr(wb, "close"):
+                wb.close()
+            shutil.copy2(local_output_saved, OUTPUT_FILE)
 
-        # ── Generar copia solo valores ────────────────────────────
-        valores_file = OUTPUT_FILE.with_name(OUTPUT_FILE.stem + " VALORES.xlsx")
-        wb_val = openpyxl.load_workbook(local_output_saved)
-        for ws in wb_val.worksheets:
-            try:
-                _materializar_cumplimiento(ws)
-            except Exception as e:
-                logger.warning(f"No se pudo materializar cumplimiento en hoja {ws.title}: {e}")
-        local_valores_saved = temp_root / valores_file.name
-        wb_val.save(local_valores_saved)
-        if hasattr(wb_val, "close"):
-            wb_val.close()
-        shutil.copy2(local_valores_saved, valores_file)
+            # ── Generar copia solo valores ────────────────────────────
+            valores_file = OUTPUT_FILE.with_name(OUTPUT_FILE.stem + " VALORES.xlsx")
+            wb_val = openpyxl.load_workbook(local_output_saved)
+            for ws in wb_val.worksheets:
+                try:
+                    _materializar_cumplimiento(ws)
+                except Exception as e:
+                    logger.warning(f"No se pudo materializar cumplimiento en hoja {ws.title}: {e}")
+            local_valores_saved = temp_root / valores_file.name
+            wb_val.save(local_valores_saved)
+            if hasattr(wb_val, "close"):
+                wb_val.close()
+            shutil.copy2(local_valores_saved, valores_file)
 
-    logger.info("   Guardado correctamente.")
-    logger.info(f"   Copia solo valores guardada en: {valores_file}")
+        logger.info("   Guardado correctamente.")
+        logger.info(f"   Copia solo valores guardada en: {valores_file}")
+        
+        # Registrar consolidación exitosa
+        trail.registrar_ejecucion(
+            evento="consolidacion_completada",
+            detalles={
+                "registros_historico": len(regs_hist),
+                "registros_semestral": len(regs_sem),
+                "registros_cierres": len(regs_cierres),
+                "total_nuevos": len(regs_hist) + len(regs_sem) + len(regs_cierres),
+            },
+            usuario="etl_script",
+            exitoso=True,
+        )
+        
+    except Exception as consolidation_error:
+        logger.error(f"❌ ERROR durante consolidación: {consolidation_error}")
+        logger.info("🔄 Intentando rollback automático…")
+        
+        # Enviar alerta de fallo
+        audit_summary = trail.resumen()
+        notifier.send_pipeline_failure_alert(
+            error=consolidation_error,
+            operation="Consolidación ETL - Actualizar Consolidado",
+            audit_summary=audit_summary,
+        )
+        
+        # Registrar error en audit trail
+        trail.registrar_error(
+            evento="consolidacion",
+            error=f"{type(consolidation_error).__name__}: {consolidation_error}",
+            usuario="etl_script",
+        )
+        
+        # Intentar rollback
+        if vm.restaurar_ultima_version():
+            logger.info("✅ Rollback completado — consolidado anterior restaurado")
+            trail.registrar_ejecucion(
+                evento="rollback_ejecutado",
+                detalles={"razon": "error_consolidacion"},
+                usuario="etl_script",
+                exitoso=True,
+            )
+            # Enviar alerta de recuperación
+            notifier.send_recovery_success_alert(
+                operation="Consolidación ETL",
+                recovery_method="Rollback automático a versión anterior",
+                audit_summary=audit_summary,
+            )
+        else:
+            logger.error("❌ NO se pudo restaurar versión anterior — REQUIERE INTERVENCIÓN MANUAL")
+            trail.registrar_error(
+                evento="rollback",
+                error="Fallo restauración de versión anterior",
+                usuario="etl_script",
+            )
+        
+        # Re-lanzar excepción para que se note el error
+        raise
 
     # ── Resumen final ─────────────────────────────────────────────
     total_nuevos = len(regs_hist) + len(regs_sem) + len(regs_cierres)
     logger.info("=" * 65)
     logger.info("  COMPLETADO — %d registros nuevos totales", total_nuevos)
     logger.info("=" * 65)
+    
+    # ── Resumen de auditoría ──────────────────────────────────────
+    audit_summary = trail.resumen()
+    logger.info("AUDITORÍA: %d eventos registrados | %d exitosos | %d errores",
+                audit_summary["total_eventos"],
+                audit_summary["eventos_exitosos"],
+                audit_summary["eventos_error"])
+    logger.info(f"Archivo de auditoría: {trail.audit_file}")
 
 
 if __name__ == "__main__":

@@ -16,3 +16,10 @@ enableCORS = false
 
 [global]
 hideStreamlitLogo = true
+
+# =============================================================================
+# Autenticación OIDC - Streamlit 1.35+
+# =============================================================================
+# La autenticación se configura en los Secrets de Streamlit Cloud
+# No es necesario configurar nada aquí para st.login() básico
+# =============================================================================
