@@ -11,10 +11,13 @@
 
 | Métrica | Valor | Estado |
 |---------|-------|--------|
-| **Tests Totales** | 149 | ✅ |
-| **Tests Pasando** | 149 | ✅ 100% |
-| **Coverage** | 41% | 🟡 |
-| **Fase** | FASE 3 COMPLETA | ✅ |
+| **Tests Totales** | 573 | ✅ |
+| **Tests Pasando** | 573 | ✅ 100% |
+| **Coverage Global** | 18% | 🔴 |
+| **Coverage core/** | 100% | ✅ |
+| **Coverage services/** | 35% | 🟡 |
+| **Coverage scripts/** | 12% | 🔴 |
+| **Fase** | FASE 3 (MEDIA) | ⏳ |
 
 ---
 
@@ -140,13 +143,156 @@ color = color_alerta("Alerta")  # No pasar enums
 
 ---
 
-## 5. Coverage Goals
+## 5. Plan de Mejora de Coverage (18% → 80%)
 
-| Threshold | Color | Descripción |
-|-----------|-------|-------------|
-| ≥ 80% | 🟢 Verde | Meta para producción |
-| 60-79% | 🟡 Naranja | Aceptable, mejorable |
-| < 60% | 🔴 Rojo | Requiere atención |
+### 5.1 Módulos Priorizados para Testing
+
+#### 🔴 FASE 1 CRÍTICA (Semana 1) — 0% → 40%
+**Impacto:** Producción, indicadores, dashboards
+
+| Módulo | Líneas | Coverage | Tests Necesarios | Tiempo |
+|--------|--------|----------|------------------|--------|
+| `services/cmi_filters.py` | 170 | 11% | 12-15 | 3h |
+| `services/data_loader.py` | 336 | 38% | 15-20 | 4h |
+| `services/data_validation.py` | 266 | 75% | 5-8 | 2h |
+| **Subtotal** | **772** | **40%** | **32-43** | **9h** |
+
+**Tests específicos para CMI Filters:**
+```python
+# test_cmi_filters_coverage.py
+- get_cmi_estrategico_ids() → todas las variantes
+- filter_by_line() → todos los casos edge
+- normalize_indicator_ids() → caracteres especiales, nulos
+- get_cmi_metadata() → ausencia de campos
+```
+
+**Tests específicos para Data Loader:**
+```python
+# test_data_loader_full_coverage.py
+- _load_consolidado_cierres() → todas las hojas
+- cargar_dataset() → errores de lectura, archivos faltantes
+- _validate_columns() → validación estricta
+- _enrich_with_metadata() → casos especiales
+```
+
+#### 🟠 FASE 2 ALTA (Semana 2-3) — 40% → 60%
+**Impacto:** Integraciones, reporting
+
+| Módulo | Líneas | Coverage | Tests Necesarios | Tiempo |
+|--------|--------|----------|------------------|--------|
+| `services/strategic_indicators.py` | 318 | 86% | 8-10 | 2h |
+| `services/ai_analysis.py` | 104 | 50% | 12-15 | 3h |
+| `scripts/etl/cumplimiento.py` | 55 | 89% | 2-3 | 1h |
+| `scripts/etl/notifications.py` | 104 | 79% | 5-8 | 2h |
+| **Subtotal** | **581** | **76%** | **27-36** | **8h** |
+
+**Tests específicos:**
+- `strategic_indicators.py`: Casos de error en carga de Excel
+- `ai_analysis.py`: Generación de narrativas con datos vacíos
+- `notifications.py`: Fallos de SMTP, webhooks
+
+#### 🟡 FASE 3 MEDIA (Semana 4) — 60% → 80%
+**Impacto:** Scripts auxiliares, CLI
+
+| Módulo | Líneas | Coverage | Tests Necesarios | Tiempo |
+|--------|--------|----------|------------------|--------|
+| `scripts/etl/` (14 archivos) | 2,150+ | <5% | 40-50 | 12h |
+| `scripts/consolidation/` (8 archivos) | 800+ | <10% | 20-25 | 8h |
+| `scripts/` auxiliares (12 archivos) | 2,000+ | 0% | 30-40 | 10h |
+| **Subtotal** | **4,950+** | **2%** | **90-115** | **30h** |
+
+### 5.2 Estrategia de Testing por Módulo
+
+#### Pattern: Test Doubles (Mocks)
+
+```python
+# services/data_loader.py - Usar mock de pandas.read_excel
+@patch('pandas.read_excel')
+def test_cargar_dataset_archivo_corrompido(self, mock_read):
+    mock_read.side_effect = openpyxl.utils.exceptions.InvalidFileException()
+    
+    result = cargar_dataset('data/invalid.xlsx')
+    
+    assert result is None or result.empty
+    assert logger.error.called  # Verificar que se loguea error
+```
+
+#### Pattern: Fixtures con Datos Reales
+
+```python
+# tests/fixtures/consolidado_fixtures.py
+@pytest.fixture
+def consolidado_sample():
+    """DataFrame con estructura real del Consolidado"""
+    return pd.read_excel('tests/data/consolidado_sample.xlsx')
+```
+
+#### Pattern: Parametrization para Edge Cases
+
+```python
+@pytest.mark.parametrize("input,expected", [
+    (None, "Sin dato"),
+    ("", "Sin dato"),
+    (np.nan, "Sin dato"),
+    ("95%", "Cumplimiento"),  # Plan Anual
+])
+def test_categorizar_edge_cases(self, input, expected):
+    result = categorizar_cumplimiento(input)
+    assert result == expected
+```
+
+### 5.3 Roadmap de Implementación
+
+**Semana 1 (9-13 mayo):** FASE 1 CRÍTICA
+```bash
+# Crear archivo de tests
+touch tests/test_services_coverage_phase1.py
+
+# Ejecutar solo nuevos tests
+pytest tests/test_services_coverage_phase1.py -v --cov
+
+# Meta: 40%
+```
+
+**Semana 2-3 (14-24 mayo):** FASE 2 ALTA
+```bash
+# Agregar tests de integraciones
+pytest tests/ -v --cov=services --cov=scripts/etl/
+
+# Meta: 60%
+```
+
+**Semana 4+ (25 mayo+):** FASE 3 MEDIA
+```bash
+# Coverage completo
+pytest tests/ --cov --cov-report=html
+
+# Meta: 80% global
+```
+
+### 5.4 Validación y Métricas
+
+| Milestone | Coverage | Tests | Timestamp |
+|-----------|----------|-------|-----------|
+| Baseline | 18% | 573 | 2026-05-09 |
+| FASE 1 ✅ | 40% | 605-615 | 2026-05-13 |
+| FASE 2 ✅ | 60% | 632-651 | 2026-05-24 |
+| FASE 3 ✅ | 80%+ | 722-788 | 2026-06-06 |
+
+### 5.5 Áreas de Exclusión (No testear)
+
+Los siguientes módulos NO requieren cobertura alta:
+
+| Módulo | Razón |
+|--------|-------|
+| `scripts/profile_pipeline.py` | Solo para debugging |
+| `scripts/debug_cascada.py` | Análisis adhoc |
+| `streamlit_app/` | Tested manualmente |
+| `notebooks/` | Exploración, no código producción |
+
+---
+
+## 6. Coverage Goals
 
 **Estado actual:** 41% → Necesita incremento
 
