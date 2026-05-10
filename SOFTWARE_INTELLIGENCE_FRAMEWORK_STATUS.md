@@ -1,10 +1,10 @@
 # 🏗️ Software Intelligence Framework — SGIND
 ## Resumen de AGENTs Implementados
 
-**Estado General:** 🟢 **FRAMEWORK EN CONSTRUCCIÓN - 4/9 AGENTES OPERATIVOS (44%)**  
+**Estado General:** 🟢 **FRAMEWORK EN CONSTRUCCIÓN - 5/9 AGENTES OPERATIVOS (56%)**  
 **Fecha:** 9 de mayo de 2026  
 **Versión:** 1.0 SGIND-Optimizada  
-**Horas Completadas:** 120/260 (46%)
+**Horas Completadas:** 140/260 (54%)
 
 ---
 
@@ -13,8 +13,8 @@
 | AGENT | Especialidad | Status | Artefactos | Hallazgos |
 |-------|-------------|--------|-----------|-----------|
 | **AGENT 1** | Auditoría de Fuentes | ✅ Implementado | 2 artefactos | 4 fuentes |
-| **AGENT 2** | Auditoría de Procesos | 🟡 Diseño | - | - |
-| **AGENT 3** | Auditoría de Responsables | 🟡 Diseño | - | - |
+| **AGENT 2** | Auditoría de ETL | ✅ Implementado | 1 artefacto | 1 hallazgo |
+| **AGENT 3** | Auditoría de Indicadores | 🟡 Diseño | - | - |
 | **AGENT 4** | Sincronización de Docs | ✅ Implementado | 4 archivos | 9/9 resueltos |
 | **AGENT 5** | Validación de Datos | ✅ Implementado | 6 artefactos | 2 CRÍTICOS |
 | **AGENT 6** | Grafo de Dependencias | 🟡 Diseño | - | - |
@@ -41,6 +41,41 @@
 - ✅ `scripts/agent1_data_source_audit.py` (500+ líneas)
 - ✅ `artifacts/AGENT1_DATA_SOURCE_AUDIT_20260509_231901.md`
 - ✅ `artifacts/AGENT1_FIELD_MAPPING_20260509_231901.json`
+
+---
+
+## ✅ AGENT 2 — ETL Pipeline Analysis
+**Status:** Implementado 9 mayo 2026 ✅  
+**Duración:** 1 hora  
+**Hallazgos:** 1 encontrado
+
+### Logros
+- Auditoría integral de 8 dimensiones del ETL
+- Análisis de reproducibilidad del pipeline
+- Validación de contratos de datos
+- Mapeo de flujo de datos Kawak → Consolidado → Indicadores
+- Verificación de versionado y audit trail
+- Evaluación de modularidad (8 módulos ETL identificados)
+- Análisis de configuración
+
+### Dimensiones Auditadas
+1. ✅ Separación de Responsabilidades (OK)
+2. ✅ Reproducibilidad (OK)
+3. ✅ Contratos de Datos (OK - Great Expectations integrado)
+4. 🟡 Flujo de Datos (WARNING - Módulos de mapeo no localizados)
+5. ✅ Versionado (OK - VersionManager + AuditTrail integrados)
+6. ✅ Manejo de Errores (OK - Try-catch y logging presentes)
+7. ✅ Modularidad (OK - 8 módulos ETL)
+8. ✅ Configuración (OK - Config files presentes)
+
+### Artefactos
+- ✅ `.agent2.instructions.md` (500+ líneas)
+- ✅ `scripts/agent2_etl_pipeline_audit.py` (300+ líneas)
+- ✅ `artifacts/AGENT2_ETL_AUDIT_20260509_233514.json`
+
+### Hallazgos
+- 1 hallazgo MEDIO: Módulos de mapeo no localizados en etl/
+- Recomendación: Centralizar lógica de mapeo de campos
 
 ---
 
