@@ -34,6 +34,7 @@ import tempfile
 import warnings
 from datetime import datetime
 from pathlib import Path
+from typing import Tuple
 
 import openpyxl
 import pandas as pd
@@ -48,6 +49,7 @@ if str(_ROOT) not in sys.path:
 from etl.config import AÑO_CIERRE_ACTUAL, OUTPUT_FILE  # noqa: E402
 from etl.normalizacion import _id_str  # noqa: E402
 from etl.validation_gate import validar_consolidado_api_entrada  # noqa: E402
+from etl.agent5_corrections import AGENT5Corrections  # noqa: E402
 from etl.fuentes import (                          # noqa: E402
     cargar_fuente_consolidada,
     cargar_kawak_validos,
@@ -92,6 +94,98 @@ from etl.retry_handler import retry_pipeline      # noqa: E402
 from etl.notifications import EmailNotifier         # noqa: E402
 
 # ── Logging ───────────────────────────────────────────────────────
+logger = logging.getLogger(__name__)
+
+
+def apply_agent5_corrections_to_registros(
+    regs_hist: list, regs_sem: list, regs_cierres: list, trail, logger
+) -> Tuple[list, list, list, dict]:
+    """
+    Aplicar correcciones AGENT 5 a los registros antes de escribir.
+
+    HALLAZGOS CRÍTICOS:
+    1. Ejecución > 1.3 → Capping automático
+    2. Meta = 0 → Flagging para revisión
+
+    Args:
+        regs_hist: Lista de dicts (registro histórico)
+        regs_sem: Lista de dicts (registro semestral)
+        regs_cierres: Lista de dicts (registro cierres)
+        trail: AuditTrail para registrar cambios
+        logger: Logger para mensajes
+
+    Returns:
+        Tuple (regs_hist_corregido, regs_sem_corregido, regs_cierres_corregido, reporte_correcciones)
+    """
+    logger.info("🔧 Aplicando correcciones AGENT 5 (hallazgos críticos)…")
+
+    reporte_total = {
+        "historico": {"ejecucion_capping": 0, "meta_validaciones": 0},
+        "semestral": {"ejecucion_capping": 0, "meta_validaciones": 0},
+        "cierres": {"ejecucion_capping": 0, "meta_validaciones": 0},
+    }
+
+    # Procesar cada conjunto de registros
+    for nombre_hoja, regs in [
+        ("Historico", regs_hist),
+        ("Semestral", regs_sem),
+        ("Cierres", regs_cierres),
+    ]:
+        if not regs:
+            logger.info(f"   {nombre_hoja}: sin registros, omitiendo")
+            continue
+
+        # Convertir lista de dicts a DataFrame
+        df_temp = pd.DataFrame(regs)
+
+        # Aplicar correcciones
+        df_corregido, reporte_correcciones = AGENT5Corrections.apply_all_corrections(df_temp)
+
+        # Registrar hallazgos en audit trail
+        if reporte_correcciones.get("ejecucion_capping", 0) > 0:
+            trail.registrar_cambio_datos(
+                tipo_cambio="corrección_crítica",
+                tabla=f"Consolidado {nombre_hoja}",
+                registros_afectados=reporte_correcciones["ejecucion_capping"],
+                descripcion=f"Capping ejecución > 1.3 a máximo 1.3",
+                usuario="etl_agent5",
+            )
+            logger.warning(
+                f"   ⚠️  {nombre_hoja}: {reporte_correcciones['ejecucion_capping']} "
+                "registros con ejecución capeada"
+            )
+
+        if reporte_correcciones.get("meta_zero_count", 0) > 0:
+            trail.registrar_cambio_datos(
+                tipo_cambio="validación_crítica",
+                tabla=f"Consolidado {nombre_hoja}",
+                registros_afectados=reporte_correcciones["meta_zero_count"],
+                descripcion=f"Detectados {reporte_correcciones['meta_zero_count']} registros con meta=0 (requiere revisión)",
+                usuario="etl_agent5",
+            )
+            logger.error(
+                f"   🔴 {nombre_hoja}: {reporte_correcciones['meta_zero_count']} "
+                "registros con META=0 detectados (revisar manualmente)"
+            )
+
+        # Convertir DataFrame corregido de vuelta a lista de dicts
+        regs_corregidos = df_corregido.to_dict(orient="records")
+
+        # Actualizar referencia (aunque sea local, se retorna)
+        if nombre_hoja == "Historico":
+            regs_hist = regs_corregidos
+            reporte_total["historico"] = reporte_correcciones
+        elif nombre_hoja == "Semestral":
+            regs_sem = regs_corregidos
+            reporte_total["semestral"] = reporte_correcciones
+        elif nombre_hoja == "Cierres":
+            regs_cierres = regs_corregidos
+            reporte_total["cierres"] = reporte_correcciones
+
+    logger.info("✅ Correcciones AGENT 5 aplicadas")
+    return regs_hist, regs_sem, regs_cierres, reporte_total
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -291,6 +385,11 @@ def main() -> None:
         tipo_indicador_map=tipo_indicador_map,
     )
     logger.info("   Cierres:   %d nuevos, %d omitidos, %d NA", len(regs_cierres), skip_c, na_c)
+
+    # ── 10.5 APLICAR CORRECCIONES AGENT 5 (hallazgos críticos) ──────
+    regs_hist, regs_sem, regs_cierres, reporte_agent5 = apply_agent5_corrections_to_registros(
+        regs_hist, regs_sem, regs_cierres, trail, logger
+    )
 
     # ── 11. Escribir nuevas filas ─────────────────────────────────
     logger.info("11. Escribiendo nuevas filas…")
