@@ -42,11 +42,12 @@ cumplimiento = min(cumplimiento, 1.3)  # 130%
 | Rango | Categoría | Código | Color |
 |-------|-----------|--------|-------|
 | **< 80%** | Peligro | `PEL` | `#D32F2F` 🔴 |
-| **80% - 94.99%** | Alerta | `ALE` | `#FBAF17` 🟡 |
+| **80% - < 95%** | Alerta | `ALE` | `#FBAF17` 🟡 |
 | **≥ 95% (máx 100%)** | Cumplimiento | `CUM` | `#43A047` 🟢 |
 
 **Características PA:**
 - Cumplen desde 95% (vs 100% en regular)
+- **Nota:** 95% es INCLUSIVO: ≥ 95% = Cumplimiento
 - Tope máximo 100% (no sobrecumplimiento)
 - Auto-detectados por ID desde Excel: `Indicadores por CMI.xlsx`
 
@@ -107,30 +108,91 @@ Ejemplo: "68-2024-06-30"
 
 ---
 
-## 6. Motor de Reglas (Opcional - Fase 2)
+## 6. Motor de Reglas (Fase 2 - No Activo)
+
+### Status Actual
+
+| Componente | Estado | Ubicación |
+|-----------|--------|-----------|
+| **Código** | ✅ Implementado | `scripts/consolidation/core/rules_engine.py` |
+| **Tests** | ❌ 0% coverage | `tests/test_rules_engine.py` (no existe) |
+| **Activación** | 🟡 Pendiente | Estimado: Junio 2026 |
+| **Integración** | 🟡 Parcial | Importable pero no usado en pipelines |
+
+### Descripción
+
+El **Motor de Reglas** es un sistema extensible para evaluar condiciones sobre indicadores y generar alertas automáticas. Fue diseñado en FASE 2 pero está pausado hasta Junio 2026 por:
+
+1. **Requisitos No Met:** Necesita cobertura de tests ≥ 80%
+2. **Prioridades:** FASE 1-3 de sincronización documental prioritarias
+3. **Roadmap:** Activación programada post-auditoría AGENT 4
+
+### API y Ejemplos
 
 ```python
 from scripts.consolidation.core.rules_engine import RulesEngine, NivelAlerta
 
-# Crear motor
+# ═══════════════════════════════════════════════════════════════════════════
+# OPCIÓN 1: Uso Directo (Cuando se active en Junio 2026)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Crear motor con configuración por defecto
 motor = RulesEngine()
 
-# Evaluar reglas sobre DataFrame
-resultados = motor.evaluar_todo(df)
+# Evaluar todas las reglas sobre un DataFrame
+resultados = motor.evaluar_todo(df_consolidado)
 
 # Generar alertas formales
 alertas = motor.generar_alertas(resultados)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# OPCIÓN 2: Agregar Reglas Personalizadas (Fase 3+)
+# ═══════════════════════════════════════════════════════════════════════════
+
+from scripts.consolidation.core.rules_engine import Regla, TipoRegla
+
+# Crear regla personalizada
+regla_custom = Regla(
+    id="mi_regla",
+    nombre="Mi Regla Personalizada",
+    tipo=TipoRegla.VARIACION,
+    nivel_alerta=NivelAlerta.CRÍTICA,
+    evaluador=lambda df: df[df['cumplimiento'] < 0.50]  # Detección custom
+)
+
+# Agregar al motor
+motor.agregar_regla(regla_custom)
+
+# Evaluar
+resultados = motor.evaluar_todo(df)
 ```
 
-### Reglas Implementadas
+### Reglas Estándar (Disponibles)
 
-| ID | Nombre | Tipo | Prioridad |
-|----|--------|------|-----------|
-| semaforizacion | Semaforización | rango_cumplimiento | 1 |
-| variacion_abrupta | Variación Abrupta | variacion | 2 |
-| tendencia_descendente | Tendencia Descendente | tendencia | 3 |
-| falta_actualizacion | Falta de Actualización | actualizacion | 2 |
-| nulos_excesivos | Nulos Excesivos | nulos | 3 |
+| ID | Nombre | Tipo | Descripción | Nivel |
+|----|----|------|-------------|-------|
+| `semaforizacion` | Semaforización | Cumplimiento | Detección automática de Peligro/Alerta/Cumplimiento | INFO |
+| `variacion_abrupta` | Variación Abrupta | Variación | Cambio > ±25% mes a mes | CRÍTICA |
+| `tendencia_descendente` | Tendencia Descendente | Tendencia | 3+ meses consecutivos con caída | ALTA |
+| `falta_actualizacion` | Falta de Actualización | Actualización | Registro sin actualizar > 30 días | MEDIA |
+| `nulos_excesivos` | Nulos Excesivos | Nulos | > 30% de registros sin valor | CRÍTICA |
+
+### Timeline de Activación
+
+**Fase 2a: Setup (Mayo 2026)**
+- Crear suite de tests (`tests/test_rules_engine.py`)
+- Alcanzar 80% coverage del módulo
+- Documentar casos de uso
+
+**Fase 2b: Integración (Junio 2026)**
+- Conectar motor a `scripts/actualizar_consolidado.py`
+- Agregar alertas a notificaciones
+- Implementar exportación de alertas
+
+**Fase 2c: Production (Julio 2026)**
+- Monitoring de reglas en dashboard
+- Tuning de umbrales según datos reales
+- Soporte para reglas personalizadas
 
 ---
 
@@ -261,6 +323,133 @@ Cumplimiento_Línea = promedio(cumplimiento_pct de todos los indicadores de la l
 2. Agrupar por año
 3. Calcular promedio de `cumplimiento_pct`
 4. Mostrar en tarjeta + gráfico histórico
+
+---
+
+### 9.4 Función: `obtener_color_categoria()`
+
+**Ubicación:** [`core/semantica.py:168`](../../core/semantica.py#L168)
+
+**Propósito:** Retorna el color hexadecimal asignado a una categoría de cumplimiento.
+
+**Data Contract:**
+
+```python
+def obtener_color_categoria(categoria: str) -> str:
+    """
+    RETORNA: color hex (ej: "#D32F2F")
+    
+    PARÁMETROS:
+    - categoria: str - Una de: "Peligro", "Alerta", "Cumplimiento", 
+                       "Sobrecumplimiento", "Sin dato"
+    """
+```
+
+**Valores de Retorno:**
+
+| Categoría | Color Hex | Uso |
+|-----------|-----------|-----|
+| Peligro | #D32F2F | 🔴 Rojo |
+| Alerta | #FBAF17 | 🟡 Naranja |
+| Cumplimiento | #43A047 | 🟢 Verde |
+| Sobrecumplimiento | #6699FF | 🔵 Azul |
+| Sin dato | #BDBDBD | ⚪ Gris |
+
+**Ejemplo:**
+```python
+from core.semantica import obtener_color_categoria
+
+color = obtener_color_categoria("Cumplimiento")
+print(color)  # "#43A047"
+```
+
+---
+
+### 9.5 Función: `obtener_icono_categoria()`
+
+**Ubicación:** [`core/semantica.py:179`](../../core/semantica.py#L179)
+
+**Propósito:** Retorna el emoji/ícono asignado a una categoría de cumplimiento.
+
+**Data Contract:**
+
+```python
+def obtener_icono_categoria(categoria: str) -> str:
+    """
+    RETORNA: emoji (ej: "🔴")
+    
+    PARÁMETROS:
+    - categoria: str - Una de: "Peligro", "Alerta", "Cumplimiento", 
+                       "Sobrecumplimiento", "Sin dato"
+    """
+```
+
+**Valores de Retorno:**
+
+| Categoría | Ícono |
+|-----------|-------|
+| Peligro | 🔴 |
+| Alerta | 🟡 |
+| Cumplimiento | 🟢 |
+| Sobrecumplimiento | 🔵 |
+| Sin dato | ⚪ |
+
+**Ejemplo:**
+```python
+from core.semantica import obtener_icono_categoria
+
+icono = obtener_icono_categoria("Alerta")
+print(icono)  # "🟡"
+```
+
+---
+
+### 9.6 Función: `recalcular_cumplimiento_faltante()`
+
+**Ubicación:** [`core/semantica.py:187`](../../core/semantica.py#L187)
+
+**Propósito:** Recalcula cumplimiento cuando falta por derivación de meta/ejecución.
+
+**Data Contract:**
+
+```python
+def recalcular_cumplimiento_faltante(
+    meta: float,
+    ejecucion: float,
+    sentido: str = "Positivo",
+    id_indicador: str | int | None = None
+) -> float:
+    """
+    RETORNA: cumplimiento normalizado (0.0 a 1.3)
+    
+    PARÁMETROS:
+    - meta: float - Valor de meta
+    - ejecucion: float - Valor de ejecución
+    - sentido: str - "Positivo" o "Negativo"
+    - id_indicador: str - Para detectar Plan Anual (opcional)
+    """
+```
+
+**Lógica:**
+- **Positivo:** cumplimiento = ejecución / meta
+- **Negativo:** cumplimiento = meta / ejecución
+- **Casos especiales:**
+  - Si meta=0 AND ejecución=0 → 1.0 (100%)
+  - Si negativo AND ejecución=0 → 1.0 (100%)
+- **Tope:** mín(cumplimiento, 1.3) = máximo 130%
+
+**Ejemplo:**
+```python
+from core.semantica import recalcular_cumplimiento_faltante
+
+# Indicador positivo: 85/100 = 0.85 (85%)
+c1 = recalcular_cumplimiento_faltante(meta=100, ejecucion=85, sentido="Positivo")
+print(c1)  # 0.85
+
+# Indicador negativo: 10/8 = 1.25 (125%)
+c2 = recalcular_cumplimiento_faltante(meta=10, ejecucion=8, sentido="Negativo")
+print(c2)  # 1.25
+```
 
 ---
 
