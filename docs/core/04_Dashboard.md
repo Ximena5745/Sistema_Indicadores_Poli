@@ -9,13 +9,73 @@
 
 ## 1. Páginas del Dashboard
 
-| Página | Descripción | Fuente Principal |
-|--------|-------------|------------------|
-| **Resumen General** | Dashboard principal KPIs | Consolidado Cierres |
-| **CMI Estratégico** | Indicadores PDI por líneas | Consolidado Cierres + Indicadores por CMI |
-| **Plan de Mejoramiento** | Indicadores CNA | Consolidado Cierres + Indicadores por CMI |
-| **Gestión OM** | Oportunidades de mejora | Consolidado Historico |
-| **Resumen por Proceso** | Vista por proceso | Consolidado Semestral |
+| Página | Descripción | Fuente Principal | Status |
+|--------|-------------|------------------|--------|
+| **Resumen General** | Dashboard principal KPIs | Consolidado Cierres | ✅ Producción |
+| **CMI Estratégico** | Indicadores PDI por líneas | Consolidado Cierres + Indicadores por CMI | ✅ Producción |
+| **CMI Estratégico Tabulado** | Vista tabular del CMI | Consolidado Cierres | ✅ Producción |
+| **CMI por Procesos** | Indicadores por proceso | Consolidado Semestral | ✅ Producción |
+| **Plan de Mejoramiento** | Indicadores CNA | Consolidado Cierres + Indicadores por CMI | ✅ Producción |
+| **Gestión OM** | Oportunidades de mejora | Consolidado Historico | ✅ Producción |
+| **Resumen por Proceso** | Vista por proceso/subproceso | Consolidado Semestral | ✅ Producción |
+| **Seguimiento Reportes** | Tracking de envío de reportes | Registros internos | 🟡 Beta |
+| **Diagnóstico** | Validación de datos y sincronización | Data contracts | 🟡 Beta |
+| **Informe por Procesos** | Reporte detallado por proceso | Consolidado Semestral | 🟡 Beta |
+| **PDI Acreditación** | Indicadores para acreditación | Indicadores por CMI | 🟡 Beta |
+| **Tablero Operativo** | Vista ejecutiva operacional | Consolidado Cierres | 🟡 Beta |
+
+---
+
+### 1.1 Descripciones Detalladas de Nuevas Páginas
+
+#### CMI Estratégico Tabulado
+- **Archivo:** `streamlit_app/pages/cmi_estrategico_tabulado.py`
+- **Propósito:** Presentación tabular del CMI Estratégico (alternativa a vista jerárquica)
+- **Datos:** Mismos indicadores que CMI Estratégico, diferentes visualización
+- **Filtros:** Línea, Objetivo, Período
+- **Status:** ✅ Producción
+
+#### CMI por Procesos
+- **Archivo:** `streamlit_app/pages/cmi_por_procesos_resumen.py`
+- **Propósito:** Indicadores organizados por proceso y subproceso institucional
+- **Datos:** Indicadores con jerarquía de procesos desde `Subproceso-Proceso-Area.xlsx`
+- **Filtros:** Proceso, Subproceso, Período
+- **Status:** ✅ Producción
+
+#### Seguimiento Reportes (Beta)
+- **Archivo:** `streamlit_app/pages/seguimiento_reportes.py`
+- **Propósito:** Tracking de envío y entrega de reportes
+- **Datos:** Registro interno (base datos local)
+- **Filtros:** Período, Destinatario, Estado
+- **Status:** 🟡 Experimental - puede cambiar
+
+#### Diagnóstico (Beta)
+- **Archivo:** `streamlit_app/pages/diagnostico.py`
+- **Propósito:** Validación automática de datos y sincronización entre fuentes
+- **Datos:** Análisis de data contracts vs datos reales
+- **Alertas:** Infracciones de tipos, datos faltantes, inconsistencias
+- **Status:** 🟡 Experimental
+
+#### Informe por Procesos
+- **Archivo:** `streamlit_app/pages/informe_por_procesos.py`
+- **Propósito:** Reporte detallado de cumplimiento por proceso
+- **Datos:** Consolidado Semestral + Jerarquía de procesos
+- **Incluye:** Tablas, gráficos, resumen ejecutivo por proceso
+- **Status:** ✅ Producción
+
+#### PDI Acreditación
+- **Archivo:** `streamlit_app/pages/pdi_acreditacion.py`
+- **Propósito:** Indicadores específicos para proceso de acreditación institucional
+- **Datos:** Indicadores con flag especial en `Indicadores por CMI.xlsx`
+- **Filtros:** Año, Factor de acreditación
+- **Status:** ✅ Producción
+
+#### Tablero Operativo
+- **Archivo:** `streamlit_app/pages/tablero_operativo.py`
+- **Propósito:** Dashboard ejecutivo con vista consolidada de salud institucional
+- **Datos:** Cierres semestrales + tendencias
+- **KPIs:** Total, Peligro, Alerta, Cumplimiento, Sobrecumplimiento
+- **Status:** 🟡 Producción
 
 ---
 
@@ -104,16 +164,31 @@ fig = px.bar(df, x="mes", y="valor", color="categoria",
 
 ### Fuentes Detalladas
 
-| Página | Función | Archivo | Hoja |
-|--------|---------|---------|------|
+| Página | Función | Archivo | Entrada |
+|--------|---------|---------|---------|
 | resumen_general | `_load_consolidado_cierres()` | Resultados Consolidados.xlsx | Consolidado Cierres |
 | cmi_estrategico | `load_cierres()` | Resultados Consolidados.xlsx | Consolidado Cierres |
 | cmi_estrategico | `load_pdi_catalog()` | Indicadores por CMI.xlsx | Worksheet |
+| cmi_estrategico | `get_cmi_estrategico_ids()` | cmi_filters.py | Worksheet (flags) |
+| cmi_estrategico | `ai_analysis.generate_narrative()` | ai_analysis.py | DataFrame |
+| cmi_estrategico_tabulado | `load_cierres()` | Resultados Consolidados.xlsx | Consolidado Cierres |
+| cmi_por_procesos | `_load_calidad_data()` | Monitoreo_Informacion_Procesos.xlsx | Primera hoja |
+| cmi_por_procesos | `load_procesos_map()` | Subproceso-Proceso-Area.xlsx | Worksheet |
 | plan_mejoramiento | `load_cna_catalog()` | Indicadores por CMI.xlsx | Worksheet |
 | plan_mejoramiento | `cargar_acciones_mejora()` | acciones_mejora.xlsx | Acciones |
-| gestion_om | `cargar_dataset_historico()` | Resultados Consolidados.xlsx | **Consolidado Historico** |
+| gestion_om | `cargar_dataset_historico()` | Resultados Consolidados.xlsx | Consolidado Historico |
 | gestion_om | `_cargar_avance_om()` | Plan de accion/PA_*.xlsx | Primera hoja |
-| resumen_por_proceso | `_load_calidad_data()` | Monitoreo_Informacion_Procesos 2025.xlsx | Primera |
+| resumen_por_proceso | `_load_calidad_data()` | Monitoreo_Informacion_Procesos.xlsx | Primera |
+| resumen_por_proceso | `load_procesos_map()` | Subproceso-Proceso-Area.xlsx | Worksheet |
+| seguimiento_reportes | `load_reporte_tracking()` | (Interno) | registros_om.db |
+| diagnostico | `validate_data_contracts()` | data_contracts.yaml | Config |
+| diagnostico | `_validate_consolidado()` | Resultados Consolidados.xlsx | Todas hojas |
+| informe_por_procesos | `_load_calidad_data()` | Monitoreo_Informacion_Procesos.xlsx | Primera |
+| informe_por_procesos | `load_procesos_map()` | Subproceso-Proceso-Area.xlsx | Worksheet |
+| pdi_acreditacion | `load_cierres()` | Resultados Consolidados.xlsx | Consolidado Cierres |
+| pdi_acreditacion | `filter_acreditacion_indicators()` | Indicadores por CMI.xlsx | Flag acreditación |
+| tablero_operativo | `_load_base_data_by_type()` | (Múltiples) | Múltiples |
+| tablero_operativo | `_generate_narrative()` | ai_analysis.py | DataFrame |
 
 ---
 
