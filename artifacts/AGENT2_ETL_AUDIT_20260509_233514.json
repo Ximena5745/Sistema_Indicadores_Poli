@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-05-09T23:35:14.843918",
+  "framework": "SGIND v1.0",
+  "dimensiones": {
+    "separation_of_concerns": {
+      "status": "OK",
+      "etl_modules_count": 23
+    },
+    "reproducibility": {
+      "status": "OK",
+      "checks": {
+        "has_deduplication": true,
+        "hardcoded_year": false,
+        "hardcoded_paths": true
+      }
+    },
+    "data_contracts": {
+      "status": "OK",
+      "great_expectations": true,
+      "validation_gate_found": true
+    },
+    "data_flow": {
+      "status": "WARNING",
+      "pipeline_flow": "API Kawak → Transform → Consolidado.xlsx → Indicadores",
+      "mapping_modules": 0
+    },
+    "versioning": {
+      "status": "OK",
+      "has_version_manager": true,
+      "has_audit_trail": true
+    },
+    "error_handling": {
+      "status": "OK",
+      "try_except_blocks": 4,
+      "error_logging": true
+    },
+    "modularity": {
+      "status": "OK",
+      "module_count": 23,
+      "modules": [
+        "__init__.py",
+        "agent5_corrections.py",
+        "audit.py",
+        "builders.py",
+        "catalogo.py",
+        "config.py",
+        "cumplimiento.py",
+        "desglose.py",
+        "escritura.py",
+        "extraccion.py"
+      ]
+    },
+    "configuration": {
+      "status": "OK",
+      "config_files": [
+        ".env.example",
+        ".env.template",
+        "render.yaml",
+        "config.toml",
+        "config.py",
+        ".pre-commit-config.yaml"
+      ]
+    }
+  },
+  "hallazgos": [
+    {
+      "dimensión": "Flujo",
+      "hallazgo": "No se encontraron módulos de mapeo",
+      "recomendación": "Centralizar lógica de mapeo de campos",
+      "priority": "MEDIO"
+    }
+  ],
+  "summary": {
+    "total_hallazgos": 1,
+    "criticos": 0,
+    "altos": 0
+  }
+}

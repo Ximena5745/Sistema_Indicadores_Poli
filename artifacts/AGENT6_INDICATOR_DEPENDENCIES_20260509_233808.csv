@@ -1,0 +1,8 @@
+Indicador,Tipo,Perspectiva,Proceso,Dependientes,Dependencias,Criticidad
+Cumplimiento Académico,base,Procesos,Académica,2,1,MEDIA
+Cumplimiento Administrativo,base,Procesos,Administrativa,1,1,MEDIA
+Cumplimiento Bienestar,base,Cliente,Bienestar,1,1,MEDIA
+CMI Estratégico,compuesto,Todas,,1,3,MEDIA
+Ejecución Presupuestal,base,Financiera,,1,1,MEDIA
+Desempeño General,compuesto,,,0,2,BAJA
+Tendencia Académica,derivado,,,0,1,BAJA

@@ -1,0 +1,192 @@
+{
+  "hallazgos_por_dimension": {
+    "datos": [
+      {
+        "id": "DD-001-DATOS",
+        "dimension": "datos",
+        "tipo": "Fórmulas Duplicadas",
+        "severidad": "CRÍTICA",
+        "evidencia": "calculos.py vs generar_reporte.py usan fórmulas diferentes para cumplimiento",
+        "impacto_actual": "Dashboard A vs B muestran valores diferentes mismo período",
+        "impacto_futuro": "Escalará a más dashboards, inconsistencia sistémica",
+        "costo_horas": 4,
+        "beneficios": "100% consistencia entre reportes",
+        "riesgo_prob": "Alta",
+        "riesgo_consecuencia": "Decisiones estratégicas incorrectas",
+        "prioridad": "P1",
+        "roi": 25.0
+      }
+    ],
+    "documentacion": [
+      {
+        "id": "DD-002-DOCS",
+        "dimension": "documentacion",
+        "tipo": "Desincronización Fórmulas",
+        "severidad": "ALTA",
+        "evidencia": "docs/02_Logica_Indicadores.md vs core/calculos.py fórmulas no coinciden",
+        "impacto_actual": "Nuevo código sigue docs, pero ejecuta mal",
+        "impacto_futuro": "Bugs escalados a producción",
+        "costo_horas": 3,
+        "beneficios": "Trazabilidad de cambios",
+        "riesgo_prob": "Alta",
+        "riesgo_consecuencia": "Errores de cálculo no detectados",
+        "prioridad": "P1",
+        "roi": 33.333333333333336
+      },
+      {
+        "id": "DD-003-DOCS",
+        "dimension": "documentacion",
+        "tipo": "Metadatos Incompletos",
+        "severidad": "MEDIA",
+        "evidencia": "50% indicadores sin línea base o meta documentada",
+        "impacto_actual": "Imposible evaluar progreso histórico",
+        "impacto_futuro": "Stakeholders desconfían de datos",
+        "costo_horas": 8,
+        "beneficios": "Trazabilidad completa",
+        "riesgo_prob": "Media",
+        "riesgo_consecuencia": "Conocimiento tribalizado",
+        "prioridad": "P3",
+        "roi": 12.5
+      }
+    ],
+    "validacion": [
+      {
+        "id": "DD-004-VALIDACION",
+        "dimension": "validacion",
+        "tipo": "Tests Faltantes",
+        "severidad": "ALTA",
+        "evidencia": "Solo 8 test files para 100+ indicadores críticos",
+        "impacto_actual": "Cambios no detectan regresiones",
+        "impacto_futuro": "Bugs llegan a producción",
+        "costo_horas": 12,
+        "beneficios": "Regresión detectada automáticamente",
+        "riesgo_prob": "Alta",
+        "riesgo_consecuencia": "Datos incorrectos en dashboards",
+        "prioridad": "P2",
+        "roi": 8.333333333333334
+      },
+      {
+        "id": "DD-005-VALIDACION",
+        "dimension": "validacion",
+        "tipo": "ETL sin Validación",
+        "severidad": "ALTA",
+        "evidencia": "consolidar_api.py no valida Ejecución ≤ 1.3",
+        "impacto_actual": "Datos inválidos (1.35) llegan a dashboards",
+        "impacto_futuro": "Decisiones basadas en 135% (inválido)",
+        "costo_horas": 2,
+        "beneficios": "Validación automática en pipeline",
+        "riesgo_prob": "Alta",
+        "riesgo_consecuencia": "Decisiones incorrectas",
+        "prioridad": "P1",
+        "roi": 50.0
+      }
+    ],
+    "reproducibilidad": [
+      {
+        "id": "DD-006-REPRODUCIBILIDAD",
+        "dimension": "reproducibilidad",
+        "tipo": "Valores Hardcodeados",
+        "severidad": "MEDIA",
+        "evidencia": "Umbrales (1.3, 1.0, 0.6) hardcodeados en código",
+        "impacto_actual": "Cambiar umbral = editar código + tests + redeploy",
+        "impacto_futuro": "Error-prone, lento, difícil auditar cambios",
+        "costo_horas": 3,
+        "beneficios": "Configuración centralizada, rápido cambiar",
+        "riesgo_prob": "Media",
+        "riesgo_consecuencia": "Cambios lentos, errores en producción",
+        "prioridad": "P2",
+        "roi": 33.333333333333336
+      },
+      {
+        "id": "DD-007-REPRODUCIBILIDAD",
+        "dimension": "reproducibilidad",
+        "tipo": "Sin Versionado de Datos",
+        "severidad": "MEDIA",
+        "evidencia": "Consolidado_API.xlsx descargado sin metadatos de versión",
+        "impacto_actual": "Imposible saber cuál versión usó para qué indicador",
+        "impacto_futuro": "Imposible reproducir cálculos históricos",
+        "costo_horas": 5,
+        "beneficios": "Audit trail completo",
+        "riesgo_prob": "Media",
+        "riesgo_consecuencia": "Imposible investigar discrepancias",
+        "prioridad": "P2",
+        "roi": 20.0
+      }
+    ],
+    "dependencias": [
+      {
+        "id": "DD-008-DEPENDENCIAS",
+        "dimension": "dependencias",
+        "tipo": "Librerías Desactualizadas",
+        "severidad": "MEDIA",
+        "evidencia": "openpyxl==3.0.1 (actual: 3.1.4, 20 bug fixes)",
+        "impacto_actual": "Potencial bugs, missing features",
+        "impacto_futuro": "Incompatibilidad futura",
+        "costo_horas": 2,
+        "beneficios": "Seguridad, features, performance",
+        "riesgo_prob": "Baja",
+        "riesgo_consecuencia": "Problemas de compatibilidad",
+        "prioridad": "P2",
+        "roi": 50.0
+      }
+    ],
+    "arquitectura": [
+      {
+        "id": "DD-009-ARQUITECTURA",
+        "dimension": "arquitectura",
+        "tipo": "Monolito sin Modularidad",
+        "severidad": "ALTA",
+        "evidencia": "actualizar_consolidado.py 1200+ líneas, 3 funciones",
+        "impacto_actual": "Cambio en transformación = retest todo",
+        "impacto_futuro": "Integración frágil, scaling imposible",
+        "costo_horas": 16,
+        "beneficios": "Modularidad, reutilización, testabilidad",
+        "riesgo_prob": "Alta",
+        "riesgo_consecuencia": "Bloquea escalabilidad",
+        "prioridad": "P2",
+        "roi": 6.25
+      },
+      {
+        "id": "DD-010-ARQUITECTURA",
+        "dimension": "arquitectura",
+        "tipo": "Lógica Mezclada",
+        "severidad": "MEDIA",
+        "evidencia": "Cálculos en consolidar_api.py (debería estar en core/)",
+        "impacto_actual": "Reutilización imposible",
+        "impacto_futuro": "Código duplicado, bugs",
+        "costo_horas": 8,
+        "beneficios": "Separación clara de responsabilidades",
+        "riesgo_prob": "Media",
+        "riesgo_consecuencia": "Complejidad aumenta",
+        "prioridad": "P3",
+        "roi": 12.5
+      }
+    ],
+    "seguridad": [
+      {
+        "id": "DD-011-SEGURIDAD",
+        "dimension": "seguridad",
+        "tipo": "Credenciales en Código",
+        "severidad": "CRÍTICA",
+        "evidencia": "config.py tiene SUPABASE_PASSWORD expuesta",
+        "impacto_actual": "Acceso no autorizado a BD posible",
+        "impacto_futuro": "Data breach, compliance violation",
+        "costo_horas": 2,
+        "beneficios": "Seguridad de datos crítica",
+        "riesgo_prob": "Alta",
+        "riesgo_consecuencia": "Incident de seguridad",
+        "prioridad": "P1",
+        "roi": 50.0
+      }
+    ]
+  },
+  "total_por_dimension": {
+    "datos": 1,
+    "documentacion": 2,
+    "validacion": 2,
+    "reproducibilidad": 2,
+    "dependencias": 1,
+    "arquitectura": 2,
+    "seguridad": 1
+  }
+}

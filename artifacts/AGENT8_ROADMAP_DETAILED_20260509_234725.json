@@ -1,0 +1,211 @@
+{
+  "timestamp": "2026-05-09T23:47:25.306666",
+  "framework": "SGIND v1.0",
+  "phases": {
+    "phase_1_stabilization": {
+      "name": "PHASE 1: STABILIZATION",
+      "duration_weeks": 2,
+      "duration_hours": 20,
+      "objective": "Eliminar riesgo inmediato, asegurar data correcta",
+      "workstreams": [
+        {
+          "name": "Security Lockdown",
+          "duration_hours": 4,
+          "debt_items": [
+            "DD-011"
+          ],
+          "tasks": [
+            "Mover credenciales a .env (no commitear)",
+            "1Password/AWS Secrets Manager setup",
+            "Audit git history para credenciales expuestas"
+          ],
+          "success_criteria": "Zero hardcoded passwords en git",
+          "priority": "P1-CRITICAL"
+        },
+        {
+          "name": "Data Quality Fixes",
+          "duration_hours": 8,
+          "debt_items": [
+            "DD-001",
+            "DD-005"
+          ],
+          "tasks": [
+            "Unificar fórmulas de cumplimiento en core/calculos.py",
+            "Remover duplicadas de consolidar_api.py",
+            "Agregar validación Ejecución ≤ 1.3",
+            "Agregar validación Meta > 0",
+            "Dashboard A vs B: Validar identidad de resultados"
+          ],
+          "success_criteria": "100% formula consistency, ETL validates",
+          "priority": "P1-CRITICAL"
+        },
+        {
+          "name": "Documentation Sync",
+          "duration_hours": 8,
+          "debt_items": [
+            "DD-003"
+          ],
+          "tasks": [
+            "Documentar 4 indicadores: baseline, target, owner",
+            "Sincronizar docs/02_Logica_Indicadores.md",
+            "Crear docs/METADATA_COVERAGE.md (checklist 100%)"
+          ],
+          "success_criteria": "All 4 indicators documented completely",
+          "priority": "P2-HIGH"
+        }
+      ]
+    },
+    "phase_2_reproducibility": {
+      "name": "PHASE 2: REPRODUCIBILITY",
+      "duration_weeks": 2,
+      "duration_hours": 15,
+      "objective": "Habilitar audit trail y reproducibilidad histórica",
+      "workstreams": [
+        {
+          "name": "Config Centralization",
+          "duration_hours": 5,
+          "debt_items": [
+            "DD-006"
+          ],
+          "tasks": [
+            "Mover thresholds a config/settings.toml",
+            "1.3 (Ejecución max), 1.0 (Meta max), 0.6 (warning)",
+            "Implementar config.reload() en runtime",
+            "Git track cambios de umbral"
+          ],
+          "success_criteria": "Zero hardcoded thresholds",
+          "priority": "P2-HIGH"
+        },
+        {
+          "name": "Data Versioning",
+          "duration_hours": 10,
+          "debt_items": [
+            "DD-007"
+          ],
+          "tasks": [
+            "Add metadata: version, timestamp, source_version",
+            "Log snapshot de cada consolidado download",
+            "Archive: data/versions/consolidado_v1_*.xlsx",
+            "SQL table: data_snapshots(id, version, timestamp, hash)",
+            "Implement rollback function (restore from archive)"
+          ],
+          "success_criteria": "Full historical reproducibility",
+          "priority": "P2-HIGH"
+        }
+      ]
+    },
+    "phase_3_testability": {
+      "name": "PHASE 3: TESTABILITY",
+      "duration_weeks": 3,
+      "duration_hours": 15,
+      "objective": "Test coverage comprehensivo, detección de regresiones",
+      "workstreams": [
+        {
+          "name": "Test Suite Expansion",
+          "duration_hours": 15,
+          "debt_items": [
+            "DD-004"
+          ],
+          "tasks": [
+            "Unit tests: core/calculos.py (10 test functions)",
+            "Integration tests: ETL pipeline (8 test functions)",
+            "Regression tests: Formula comparison (5 cases)",
+            "Data validation: Edge cases, boundaries, nulls (8 cases)",
+            "CI pipeline: Block merges si <85% coverage"
+          ],
+          "success_criteria": "85%+ code coverage, 39+ test functions",
+          "priority": "P1-CRITICAL"
+        }
+      ]
+    },
+    "phase_4_scalability": {
+      "name": "PHASE 4: SCALABILITY",
+      "duration_weeks": 3,
+      "duration_hours": 20,
+      "objective": "Arquitectura modular, preparación para crecimiento",
+      "workstreams": [
+        {
+          "name": "ETL Refactoring",
+          "duration_hours": 20,
+          "debt_items": [
+            "DD-009",
+            "DD-010"
+          ],
+          "tasks": [
+            "Break actualizar_consolidado.py (1200+ líneas)",
+            "Module 1: etl/source_connector.py (300L, 8 tests)",
+            "Module 2: etl/transformers.py (250L, 10 tests)",
+            "Module 3: etl/validators.py (200L, 8 tests)",
+            "Module 4: etl/exporters.py (150L, 6 tests)",
+            "Orchestrator: etl/pipeline.py (150L)",
+            "Error handling: Rollback on validation failure"
+          ],
+          "success_criteria": "5 modules <500 LOC each, all tested",
+          "priority": "P1-CRITICAL"
+        }
+      ]
+    }
+  },
+  "timeline": {
+    "phase_1_stabilization": {
+      "start": "2026-05-09",
+      "end": "2026-05-23",
+      "weeks": 2,
+      "hours": 20
+    },
+    "phase_2_reproducibility": {
+      "start": "2026-05-23",
+      "end": "2026-06-06",
+      "weeks": 2,
+      "hours": 15
+    },
+    "phase_3_testability": {
+      "start": "2026-06-06",
+      "end": "2026-06-27",
+      "weeks": 3,
+      "hours": 15
+    },
+    "phase_4_scalability": {
+      "start": "2026-06-27",
+      "end": "2026-07-18",
+      "weeks": 3,
+      "hours": 20
+    }
+  },
+  "metrics": {
+    "total_phases": 4,
+    "total_weeks": 10,
+    "total_hours": 70,
+    "total_debt_items": 11,
+    "quick_wins_hours": 9,
+    "test_coverage_target": "85%+",
+    "estimated_cost": "$10500",
+    "roi_estimate": "$30,000+ value created"
+  },
+  "risks": [
+    {
+      "risk": "Phase 1 breaking production",
+      "probability": "Medium",
+      "impact": "Critical",
+      "mitigation": "Blue-green deploy, smoke tests, rollback plan"
+    },
+    {
+      "risk": "Phase 4 regression (refactoring bugs)",
+      "probability": "High",
+      "impact": "High",
+      "mitigation": "Extensive regression suite, UAT phase"
+    },
+    {
+      "risk": "Timeline slippage",
+      "probability": "Medium",
+      "impact": "Medium",
+      "mitigation": "2-week buffer, priority focus, weekly standups"
+    },
+    {
+      "risk": "Stakeholder alignment",
+      "probability": "Low",
+      "impact": "Medium",
+      "mitigation": "Weekly updates, early approval gates, communication plan"
+    }
+  ]
+}

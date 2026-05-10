@@ -1,0 +1,103 @@
+{
+  "@context": {
+    "@vocab": "https://indicadores.sgind/",
+    "indicadores": "https://indicadores.sgind/indicador/",
+    "depende_de": {
+      "@type": "@id"
+    },
+    "compuesto_de": {
+      "@type": "@id"
+    },
+    "transforma": {
+      "@type": "@id"
+    }
+  },
+  "@graph": [
+    {
+      "@id": "indicadores:cumplimiento_academico",
+      "@type": "Indicador",
+      "id": "cumplimiento_academico",
+      "nombre": "Cumplimiento Académico",
+      "tipo": "base",
+      "fuente": "Kawak",
+      "perspectiva": "Procesos",
+      "proceso": "Académica",
+      "in_degree": 2,
+      "out_degree": 1
+    },
+    {
+      "@id": "indicadores:cumplimiento_administrativo",
+      "@type": "Indicador",
+      "id": "cumplimiento_administrativo",
+      "nombre": "Cumplimiento Administrativo",
+      "tipo": "base",
+      "fuente": "Kawak",
+      "perspectiva": "Procesos",
+      "proceso": "Administrativa",
+      "in_degree": 1,
+      "out_degree": 1
+    },
+    {
+      "@id": "indicadores:cumplimiento_bienestar",
+      "@type": "Indicador",
+      "id": "cumplimiento_bienestar",
+      "nombre": "Cumplimiento Bienestar",
+      "tipo": "base",
+      "fuente": "Kawak",
+      "perspectiva": "Cliente",
+      "proceso": "Bienestar",
+      "in_degree": 1,
+      "out_degree": 1
+    },
+    {
+      "@id": "indicadores:cmi_estrategico",
+      "@type": "Indicador",
+      "id": "cmi_estrategico",
+      "nombre": "CMI Estratégico",
+      "tipo": "compuesto",
+      "perspectiva": "Todas",
+      "componentes": [
+        "cumplimiento_academico",
+        "cumplimiento_administrativo",
+        "cumplimiento_bienestar"
+      ],
+      "in_degree": 1,
+      "out_degree": 3
+    },
+    {
+      "@id": "indicadores:ejecucion_presupuestal",
+      "@type": "Indicador",
+      "id": "ejecucion_presupuestal",
+      "nombre": "Ejecución Presupuestal",
+      "tipo": "base",
+      "fuente": "Excel",
+      "perspectiva": "Financiera",
+      "in_degree": 1,
+      "out_degree": 1
+    },
+    {
+      "@id": "indicadores:desempeño_general",
+      "@type": "Indicador",
+      "id": "desempeño_general",
+      "nombre": "Desempeño General",
+      "tipo": "compuesto",
+      "componentes": [
+        "cmi_estrategico",
+        "ejecucion_presupuestal"
+      ],
+      "in_degree": 0,
+      "out_degree": 2
+    },
+    {
+      "@id": "indicadores:tendencia_academica",
+      "@type": "Indicador",
+      "id": "tendencia_academica",
+      "nombre": "Tendencia Académica",
+      "tipo": "derivado",
+      "base": "cumplimiento_academico",
+      "transformacion": "tendencia_temporal",
+      "in_degree": 0,
+      "out_degree": 1
+    }
+  ]
+}

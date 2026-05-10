@@ -1,0 +1,142 @@
+{
+  "hallazgos_por_severidad": {
+    "CRÍTICA": [
+      {
+        "id": "FORMULA_cumplimiento_academico",
+        "tipo": "Fórmula Inconsistente",
+        "severidad": "CRÍTICA",
+        "indicador": "Cumplimiento Académico",
+        "formula_docs": "(Cumplidos / Total) * 100",
+        "formula_code": "(df['Cumplidos'] / df['Total']) * 100",
+        "impacto": "Posible inconsistencia en cálculos",
+        "recomendacion": "Validar y sincronizar fórmulas en docs y código"
+      },
+      {
+        "id": "FORMULA_cumplimiento_administrativo",
+        "tipo": "Fórmula Inconsistente",
+        "severidad": "CRÍTICA",
+        "indicador": "Cumplimiento Administrativo",
+        "formula_docs": "(Ejecutado / Planeado) * 100",
+        "formula_code": "(df['Ejecutado'] / df['Planeado']) * 100",
+        "impacto": "Posible inconsistencia en cálculos",
+        "recomendacion": "Validar y sincronizar fórmulas en docs y código"
+      },
+      {
+        "id": "FORMULA_ejecucion_presupuestal",
+        "tipo": "Fórmula Inconsistente",
+        "severidad": "CRÍTICA",
+        "indicador": "Ejecución Presupuestal",
+        "formula_docs": "(Gastos / Presupuesto) * 100",
+        "formula_code": "(df['Gastos'] / df['Presupuesto']) * 100",
+        "impacto": "Posible inconsistencia en cálculos",
+        "recomendacion": "Validar y sincronizar fórmulas en docs y código"
+      },
+      {
+        "id": "FORMULA_cmi_estrategico",
+        "tipo": "Fórmula Inconsistente",
+        "severidad": "CRÍTICA",
+        "indicador": "CMI Estratégico",
+        "formula_docs": "(Academico*0.3 + Administrativo*0.4 + Financiero*0.3)",
+        "formula_code": "(ac*0.3 + ad*0.4 + fn*0.3)",
+        "impacto": "Posible inconsistencia en cálculos",
+        "recomendacion": "Validar y sincronizar fórmulas en docs y código"
+      }
+    ],
+    "ALTA": [],
+    "MEDIA": [
+      {
+        "id": "META_cumplimiento_academico_linea_base_faltante",
+        "tipo": "Línea Base Faltante",
+        "severidad": "MEDIA",
+        "indicador": "Cumplimiento Académico",
+        "impacto": "Indicador sin línea base documentada",
+        "recomendacion": "Definir linea base faltante"
+      },
+      {
+        "id": "META_cumplimiento_academico_meta_faltante",
+        "tipo": "Meta Faltante",
+        "severidad": "MEDIA",
+        "indicador": "Cumplimiento Académico",
+        "impacto": "Indicador sin meta definida",
+        "recomendacion": "Definir meta faltante"
+      },
+      {
+        "id": "META_cumplimiento_administrativo_linea_base_faltante",
+        "tipo": "Línea Base Faltante",
+        "severidad": "MEDIA",
+        "indicador": "Cumplimiento Administrativo",
+        "impacto": "Indicador sin línea base documentada",
+        "recomendacion": "Definir linea base faltante"
+      },
+      {
+        "id": "META_cumplimiento_administrativo_meta_faltante",
+        "tipo": "Meta Faltante",
+        "severidad": "MEDIA",
+        "indicador": "Cumplimiento Administrativo",
+        "impacto": "Indicador sin meta definida",
+        "recomendacion": "Definir meta faltante"
+      },
+      {
+        "id": "DOC_cumplimiento_academico",
+        "tipo": "Documentación Incompleta",
+        "severidad": "MEDIA",
+        "indicador": "Cumplimiento Académico",
+        "campos_faltantes": [
+          "linea_base",
+          "meta",
+          "responsable"
+        ],
+        "impacto": "Imposible auditar indicador completamente",
+        "recomendacion": "Documentar campos: linea_base, meta, responsable"
+      },
+      {
+        "id": "DOC_cumplimiento_administrativo",
+        "tipo": "Documentación Incompleta",
+        "severidad": "MEDIA",
+        "indicador": "Cumplimiento Administrativo",
+        "campos_faltantes": [
+          "linea_base",
+          "meta",
+          "responsable"
+        ],
+        "impacto": "Imposible auditar indicador completamente",
+        "recomendacion": "Documentar campos: linea_base, meta, responsable"
+      },
+      {
+        "id": "DOC_ejecucion_presupuestal",
+        "tipo": "Documentación Incompleta",
+        "severidad": "MEDIA",
+        "indicador": "Ejecución Presupuestal",
+        "campos_faltantes": [
+          "linea_base"
+        ],
+        "impacto": "Imposible auditar indicador completamente",
+        "recomendacion": "Documentar campos: linea_base"
+      }
+    ],
+    "BAJA": [
+      {
+        "id": "META_cumplimiento_academico_responsable_no_asignado",
+        "tipo": "Responsable No Asignado",
+        "severidad": "BAJA",
+        "indicador": "Cumplimiento Académico",
+        "impacto": "Nadie es accountable por este indicador",
+        "recomendacion": "Definir responsable no asignado"
+      },
+      {
+        "id": "META_cumplimiento_administrativo_responsable_no_asignado",
+        "tipo": "Responsable No Asignado",
+        "severidad": "BAJA",
+        "indicador": "Cumplimiento Administrativo",
+        "impacto": "Nadie es accountable por este indicador",
+        "recomendacion": "Definir responsable no asignado"
+      }
+    ]
+  },
+  "total_por_severidad": {
+    "CRÍTICA": 4,
+    "ALTA": 0,
+    "MEDIA": 7,
+    "BAJA": 2
+  }
+}

@@ -1363,5 +1363,187 @@
     "detalles": {
       "error": "error"
     }
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.575885",
+    "evento": "test_inicio",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "test": true
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.580668",
+    "evento": "cambio_datos_insert",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "test_tabla",
+      "registros_afectados": 10,
+      "descripcion": "test cambio"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.588274",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_test",
+    "exitoso": true,
+    "detalles": {
+      "registros": 100
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.594130",
+    "evento": "test_error_error",
+    "usuario": "test_user",
+    "exitoso": false,
+    "detalles": {
+      "error": "Test error message"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.605622",
+    "evento": "persistencia_test",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "persist": true
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.612965",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.617240",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.620984",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.625535",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.630591",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:01:17.633904",
+    "evento": "test_error_error",
+    "usuario": "user",
+    "exitoso": false,
+    "detalles": {
+      "error": "error"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.851537",
+    "evento": "test_inicio",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "test": true
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.855446",
+    "evento": "cambio_datos_insert",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "test_tabla",
+      "registros_afectados": 10,
+      "descripcion": "test cambio"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.863067",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_test",
+    "exitoso": true,
+    "detalles": {
+      "registros": 100
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.870356",
+    "evento": "test_error_error",
+    "usuario": "test_user",
+    "exitoso": false,
+    "detalles": {
+      "error": "Test error message"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.882889",
+    "evento": "persistencia_test",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "persist": true
+    }
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.893732",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.897899",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.904054",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.910239",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.914543",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T00:03:47.919263",
+    "evento": "test_error_error",
+    "usuario": "user",
+    "exitoso": false,
+    "detalles": {
+      "error": "error"
+    }
   }
 ]

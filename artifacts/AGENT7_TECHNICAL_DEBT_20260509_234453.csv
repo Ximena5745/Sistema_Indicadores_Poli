@@ -1,0 +1,12 @@
+ID,Dimensión,Tipo,Severidad,Horas,Prioridad,ROI,Cuadrante
+DD-001-DATOS,datos,Fórmulas Duplicadas,CRÍTICA,4,P1,25.0,Quick Wins
+DD-002-DOCS,documentacion,Desincronización Fórmulas,ALTA,3,P1,33.3,Quick Wins
+DD-005-VALIDACION,validacion,ETL sin Validación,ALTA,2,P1,50.0,Quick Wins
+DD-011-SEGURIDAD,seguridad,Credenciales en Código,CRÍTICA,2,P1,50.0,Quick Wins
+DD-004-VALIDACION,validacion,Tests Faltantes,ALTA,12,P2,8.3,Strategic
+DD-006-REPRODUCIBILIDAD,reproducibilidad,Valores Hardcodeados,MEDIA,3,P2,33.3,Low Value
+DD-007-REPRODUCIBILIDAD,reproducibilidad,Sin Versionado de Datos,MEDIA,5,P2,20.0,Low Value
+DD-008-DEPENDENCIAS,dependencias,Librerías Desactualizadas,MEDIA,2,P2,50.0,Low Value
+DD-009-ARQUITECTURA,arquitectura,Monolito sin Modularidad,ALTA,16,P2,6.2,Strategic
+DD-003-DOCS,documentacion,Metadatos Incompletos,MEDIA,8,P3,12.5,Black Hole
+DD-010-ARQUITECTURA,arquitectura,Lógica Mezclada,MEDIA,8,P3,12.5,Black Hole

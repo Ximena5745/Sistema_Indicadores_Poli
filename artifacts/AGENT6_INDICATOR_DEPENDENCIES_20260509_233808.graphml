@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlformat/graphml">
+  <graph edgedefault="directed">
+    <node id="cumplimiento_academico" label="Cumplimiento Académico" size="40"/>
+    <node id="cumplimiento_administrativo" label="Cumplimiento Administrativo" size="35"/>
+    <node id="cumplimiento_bienestar" label="Cumplimiento Bienestar" size="35"/>
+    <node id="cmi_estrategico" label="CMI Estratégico" size="35"/>
+    <node id="ejecucion_presupuestal" label="Ejecución Presupuestal" size="35"/>
+    <node id="desempeño_general" label="Desempeño General" size="30"/>
+    <node id="tendencia_academica" label="Tendencia Académica" size="30"/>
+    <edge source="cumplimiento_academico" target="campo_total_cumplido" label="depende_de"/>
+    <edge source="cumplimiento_administrativo" target="campo_total_cumplido" label="depende_de"/>
+    <edge source="cumplimiento_bienestar" target="campo_total_cumplido" label="depende_de"/>
+    <edge source="ejecucion_presupuestal" target="campo_gastos_reales" label="depende_de"/>
+    <edge source="cmi_estrategico" target="cumplimiento_academico" label="compuesto_de"/>
+    <edge source="cmi_estrategico" target="cumplimiento_administrativo" label="compuesto_de"/>
+    <edge source="cmi_estrategico" target="cumplimiento_bienestar" label="compuesto_de"/>
+    <edge source="desempeño_general" target="cmi_estrategico" label="compuesto_de"/>
+    <edge source="desempeño_general" target="ejecucion_presupuestal" label="compuesto_de"/>
+    <edge source="tendencia_academica" target="cumplimiento_academico" label="transforma"/>
+  </graph>
+</graphml>
