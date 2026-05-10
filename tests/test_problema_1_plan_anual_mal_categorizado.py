@@ -140,14 +140,12 @@ class TestEstandarNivelesPlanAnual:
     - Cumplimiento ≥ 95% (tope 100%)
     """
 
-    @pytest.mark.skipif(not IDS_PLAN_ANUAL, reason="No hay indicadores Plan Anual")
     def test_plan_anual_peligro_bajo_80(self):
         """PA < 80% → Peligro"""
         test_id = next(iter(IDS_PLAN_ANUAL))
         assert categorizar_cumplimiento(0.79, id_indicador=test_id) == "Peligro"
         assert categorizar_cumplimiento(0.50, id_indicador=test_id) == "Peligro"
 
-    @pytest.mark.skipif(not IDS_PLAN_ANUAL, reason="No hay indicadores Plan Anual")
     def test_plan_anual_alerta_80_a_94(self):
         """PA 80% - 94.99% → Alerta"""
         test_id = next(iter(IDS_PLAN_ANUAL))
@@ -156,7 +154,6 @@ class TestEstandarNivelesPlanAnual:
         assert categorizar_cumplimiento(0.94, id_indicador=test_id) == "Alerta"
         assert categorizar_cumplimiento(0.9499, id_indicador=test_id) == "Alerta"
 
-    @pytest.mark.skipif(not IDS_PLAN_ANUAL, reason="No hay indicadores Plan Anual")
     def test_plan_anual_cumplimiento_desde_95(self):
         """PA ≥ 95% → Cumplimiento (sin sobrecumplimiento)"""
         test_id = next(iter(IDS_PLAN_ANUAL))
