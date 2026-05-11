@@ -1,6 +1,8 @@
 """
 core/db_manager.py — Persistencia dual SQLite (local) / PostgreSQL (Supabase).
 
+DEPRECATED: Functions moved to core/db/ subpackage.
+
 Prioridad de detección de DATABASE_URL:
   1. st.secrets["DATABASE_URL"]  → Streamlit Cloud
   2. Variable de entorno DATABASE_URL → .env local / Render
@@ -11,10 +13,8 @@ import os
 import re
 import sqlite3
 import datetime
-import socket
 from pathlib import Path
 from typing import Any, Dict, Optional
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 try:
     from dotenv import load_dotenv
@@ -23,378 +23,58 @@ try:
 except ImportError:
     pass
 
+# Import from refactored modules
+from core.db.config_provider import (
+    safe_streamlit_secrets_get,
+    get_database_url,
+    sanitize_postgres_dsn,
+    extract_supabase_project_ref,
+    get_postgres_connect_kwargs,
+)
+
+from core.db.data_normalizer import (
+    numero_mes_a_nombre,
+    normalizar_nombre_mes,
+    normalizar_periodo_anio,
+)
+
+from core.db.connection_manager import (
+    _connect_postgres,
+    _build_ipv4_retry_connect_kwargs,
+    _use_pg,
+    _notify_streamlit,
+    _init_sqlite,
+    _init_postgres,
+    inicializar_db,
+)
+
+from core.db.schema_manager import (
+    _ensure_sqlite_unique_index,
+    _ensure_postgres_unique_constraint,
+)
+
+# Create backward-compatible aliases for private functions
+# These allow existing code in this file to use _-prefixed names
+_safe_st_secrets_get = safe_streamlit_secrets_get
+_get_database_url = get_database_url
+_sanitize_postgres_dsn = sanitize_postgres_dsn
+_extract_supabase_project_ref = extract_supabase_project_ref
+_get_postgres_connect_kwargs = get_postgres_connect_kwargs
+_mes_numero_a_nombre = numero_mes_a_nombre
+_normalize_mes_nombre = normalizar_nombre_mes
+_normalize_om_periodo_anio = normalizar_periodo_anio
+
+# Legacy path constant for backward compatibility
 DB_PATH = Path(__file__).parent.parent / "data" / "db" / "registros_om.db"
 
-
-def _safe_st_secrets_get(key: str, default: str = "") -> str:
-    """Lee un secret de Streamlit si está disponible, sin romper en ejecución no-Streamlit."""
-    try:
-        import streamlit as st
-
-        return str(st.secrets.get(key, default)).strip()
-    except Exception:
-        return default
-
-
-def _get_database_url() -> str:
-    """Lee DATABASE_URL desde st.secrets o variable de entorno."""
-    db_url = _safe_st_secrets_get("DATABASE_URL")
-    if db_url:
-        return _sanitize_postgres_dsn(db_url)
-    return _sanitize_postgres_dsn(os.getenv("DATABASE_URL", "").strip())
-
-
-def _sanitize_postgres_dsn(dsn: str) -> str:
-    """Elimina parámetros de query no soportados por psycopg2 en URIs PostgreSQL."""
-    raw = str(dsn or "").strip()
-    if not raw or not raw.startswith("postgresql://"):
-        return raw
-
-    parsed = urlparse(raw)
-    unsupported = {"pgbouncer"}
-    cleaned_qs = [
-        (k, v)
-        for (k, v) in parse_qsl(parsed.query, keep_blank_values=True)
-        if k.lower() not in unsupported
-    ]
-    new_query = urlencode(cleaned_qs, doseq=True)
-    return urlunparse(
-        (parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment)
-    )
-
-
-def _extract_supabase_project_ref(supabase_url: str) -> str:
-    """Extrae el project_ref desde https://<project_ref>.supabase.co."""
-    if not supabase_url:
-        return ""
-    raw = str(supabase_url).strip().replace("https://", "").replace("http://", "")
-    return raw.split(".")[0] if raw else ""
-
-
-def _get_postgres_connect_kwargs() -> Optional[Dict[str, Any]]:
-    """Construye kwargs de conexión a Postgres para Supabase.
-
-    Prioridad:
-      1) DATABASE_URL
-      2) SUPABASE_POOLER_URL
-      3) SUPABASE_URL + SUPABASE_DB_PASSWORD (+ overrides de host/puerto/usuario/db)
-    """
-    db_url = _get_database_url()
-    if db_url:
-        return {"dsn": db_url}
-
-    pooler_url = (
-        _safe_st_secrets_get("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_POOLER_URL", "").strip()
-    )
-    if pooler_url:
-        return {"dsn": _sanitize_postgres_dsn(pooler_url)}
-
-    supabase_url = _safe_st_secrets_get("SUPABASE_URL") or os.getenv("SUPABASE_URL", "").strip()
-    supabase_db_password = (
-        _safe_st_secrets_get("SUPABASE_DB_PASSWORD")
-        or os.getenv("SUPABASE_DB_PASSWORD", "").strip()
-    )
-    supabase_db_host = (
-        _safe_st_secrets_get("SUPABASE_DB_HOST") or os.getenv("SUPABASE_DB_HOST", "").strip()
-    )
-    supabase_db_port = (
-        _safe_st_secrets_get("SUPABASE_DB_PORT") or os.getenv("SUPABASE_DB_PORT", "").strip()
-    )
-    supabase_db_user = (
-        _safe_st_secrets_get("SUPABASE_DB_USER") or os.getenv("SUPABASE_DB_USER", "").strip()
-    )
-    supabase_db_name = (
-        _safe_st_secrets_get("SUPABASE_DB_NAME") or os.getenv("SUPABASE_DB_NAME", "").strip()
-    )
-
-    project_ref = _extract_supabase_project_ref(supabase_url)
-    if project_ref and supabase_db_password:
-        host = supabase_db_host or f"db.{project_ref}.supabase.co"
-        port = int(supabase_db_port) if supabase_db_port.isdigit() else 5432
-        user = supabase_db_user or "postgres"
-        dbname = supabase_db_name or "postgres"
-        return {
-            "host": host,
-            "port": port,
-            "dbname": dbname,
-            "user": user,
-            "password": supabase_db_password,
-            "sslmode": "require",
-        }
-
-    return None
-
-
-def _connect_postgres():
-    import psycopg2
-
-    kwargs = _get_postgres_connect_kwargs()
-    if not kwargs:
-        raise ValueError(
-            "No hay credenciales de PostgreSQL configuradas. Usa DATABASE_URL o SUPABASE_URL + SUPABASE_DB_PASSWORD."
-        )
-    try:
-        return psycopg2.connect(**kwargs)
-    except Exception as exc:
-        msg = str(exc)
-        # Entornos sin salida IPv6 pueden fallar con hostnames que resuelven primero AAAA.
-        if "Cannot assign requested address" in msg or "Network is unreachable" in msg:
-            # Si hay pooler configurado, priorizarlo como fallback incluso cuando DATABASE_URL sea directa.
-            pooler_url = (
-                _safe_st_secrets_get("SUPABASE_POOLER_URL")
-                or os.getenv("SUPABASE_POOLER_URL", "").strip()
-            )
-            if pooler_url:
-                try:
-                    return psycopg2.connect(dsn=pooler_url)
-                except Exception:
-                    pass
-            retry_kwargs = _build_ipv4_retry_connect_kwargs(kwargs)
-            if retry_kwargs:
-                return psycopg2.connect(**retry_kwargs)
-        raise
-
-
-def _mes_numero_a_nombre(numero: int) -> str:
-    meses = [
-        "Enero",
-        "Febrero",
-        "Marzo",
-        "Abril",
-        "Mayo",
-        "Junio",
-        "Julio",
-        "Agosto",
-        "Septiembre",
-        "Octubre",
-        "Noviembre",
-        "Diciembre",
-    ]
-    return meses[numero - 1] if 1 <= numero <= 12 else str(numero)
-
-
-def _normalize_mes_nombre(mes: Any) -> str:
-    texto = str(mes or "").strip()
-    if not texto:
-        return ""
-    texto_lower = texto.lower()
-    meses_map = {
-        "ene": "Enero",
-        "ene.": "Enero",
-        "enero": "Enero",
-        "feb": "Febrero",
-        "feb.": "Febrero",
-        "febrero": "Febrero",
-        "mar": "Marzo",
-        "mar.": "Marzo",
-        "marzo": "Marzo",
-        "abr": "Abril",
-        "abr.": "Abril",
-        "abril": "Abril",
-        "may": "Mayo",
-        "mayo": "Mayo",
-        "jun": "Junio",
-        "jun.": "Junio",
-        "junio": "Junio",
-        "jul": "Julio",
-        "jul.": "Julio",
-        "julio": "Julio",
-        "ago": "Agosto",
-        "ago.": "Agosto",
-        "agosto": "Agosto",
-        "sep": "Septiembre",
-        "sep.": "Septiembre",
-        "sept": "Septiembre",
-        "sept.": "Septiembre",
-        "septiembre": "Septiembre",
-        "oct": "Octubre",
-        "oct.": "Octubre",
-        "octubre": "Octubre",
-        "nov": "Noviembre",
-        "nov.": "Noviembre",
-        "noviembre": "Noviembre",
-        "dic": "Diciembre",
-        "dic.": "Diciembre",
-        "diciembre": "Diciembre",
-    }
-    return meses_map.get(texto_lower, texto.capitalize())
-
-
-def _normalize_om_periodo_anio(periodo: Any, anio: Any) -> tuple[str, int]:
-    periodo_str = str(periodo or "").strip()
-    anio_int = 0
-    if isinstance(anio, int):
-        anio_int = anio
-    else:
-        anio_text = str(anio or "").strip()
-        if anio_text.isdigit():
-            anio_int = int(anio_text)
-
-    if not periodo_str:
-        return "", anio_int
-
-    match = re.match(r"^(\d{4})[-/](\d{1,2})$", periodo_str)
-    if match:
-        anio_int = int(match.group(1))
-        return _mes_numero_a_nombre(int(match.group(2))), anio_int
-
-    if periodo_str.isdigit():
-        numero = int(periodo_str)
-        if 1 <= numero <= 12:
-            return _mes_numero_a_nombre(numero), anio_int
-
-    return _normalize_mes_nombre(periodo_str), anio_int
-
-
-def _ensure_sqlite_unique_index(conn: sqlite3.Connection) -> None:
-    """Crea un índice único local para que ON CONFLICT funcione con la clave esperada."""
-    cur = conn.cursor()
-    cur.execute("PRAGMA index_list('registros_om')")
-    indexes = {row[1] for row in cur.fetchall() if row[2] == 1}
-    if "idx_registros_om_id_indicador_periodo_anio_unique" not in indexes:
-        cur.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_registros_om_id_indicador_periodo_anio_unique "
-            "ON registros_om (id_indicador, periodo, anio)"
-        )
-        conn.commit()
-
-
-def _ensure_postgres_unique_constraint(cur) -> None:
-    """Crea la constraint única en Postgres para que ON CONFLICT ON CONSTRAINT funcione."""
-    cur.execute("""
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'registros_om_unique_key'
-          AND conrelid = 'public.registros_om'::regclass
-    """)
-    if cur.fetchone() is not None:
-        return
-
-    # Si existe un índice con ese nombre pero no es constraint, elimínalo antes de crearla.
-    cur.execute("""
-        SELECT 1
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relname = 'registros_om_unique_key'
-          AND c.relkind = 'i'
-          AND n.nspname = 'public'
-    """)
-    if cur.fetchone() is not None:
-        cur.execute("DROP INDEX IF EXISTS public.registros_om_unique_key")
-
-    cur.execute(
-        "ALTER TABLE public.registros_om ADD CONSTRAINT registros_om_unique_key UNIQUE (id_indicador, periodo, anio)"
-    )
-
-
-def _build_ipv4_retry_connect_kwargs(kwargs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Crea kwargs de reintento forzando hostaddr IPv4 cuando sea posible."""
-    if "hostaddr" in kwargs:
-        return None
-
-    host = kwargs.get("host")
-    port = kwargs.get("port", 5432)
-
-    if not host and "dsn" in kwargs:
-        parsed = urlparse(str(kwargs.get("dsn", "")))
-        host = parsed.hostname
-        port = parsed.port or 5432
-
-    if not host:
-        return None
-
-    try:
-        ipv4_infos = socket.getaddrinfo(str(host), int(port), socket.AF_INET, socket.SOCK_STREAM)
-        if not ipv4_infos:
-            return None
-        ipv4_addr = ipv4_infos[0][4][0]
-    except Exception:
-        return None
-
-    retry_kwargs = dict(kwargs)
-    retry_kwargs["hostaddr"] = ipv4_addr
-    return retry_kwargs
-
-
-def _use_pg() -> bool:
-    return _get_postgres_connect_kwargs() is not None
-
-
-def _notify_streamlit(level: str, message: str) -> None:
-    """Publica mensajes en Streamlit si existe contexto UI."""
-    try:
-        import streamlit as st
-
-        fn = getattr(st, level, None)
-        if callable(fn):
-            fn(message)
-    except Exception:
-        pass
-
-
-# ── Inicialización ────────────────────────────────────────────────────────────
+# Override _init_sqlite from connection_manager to use db_manager.DB_PATH
+# This allows tests to monkeypatch DB_PATH and have it propagate correctly
+_original_init_sqlite = _init_sqlite
 
 
 def _init_sqlite():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS registros_om (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_indicador      TEXT NOT NULL,
-            nombre_indicador  TEXT,
-            proceso           TEXT,
-            periodo           TEXT,
-            anio              INTEGER,
-            tiene_om          INTEGER DEFAULT 0,
-            tipo_accion       TEXT DEFAULT 'OM Kawak',
-            numero_om         TEXT,
-            comentario        TEXT,
-            registrado_por    TEXT DEFAULT '',
-            fecha_registro    TEXT,
-            UNIQUE(id_indicador, periodo, anio)
-        )
-    """)
-    conn.commit()
-    _ensure_sqlite_unique_index(conn)
-    conn.close()
-
-
-def _init_postgres():
-    conn = _connect_postgres()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS registros_om (
-            id                SERIAL PRIMARY KEY,
-            id_indicador      TEXT NOT NULL,
-            nombre_indicador  TEXT,
-            proceso           TEXT,
-            periodo           TEXT,
-            anio              INTEGER,
-            tiene_om          INTEGER DEFAULT 0,
-            tipo_accion       TEXT DEFAULT 'OM Kawak',
-            numero_om         TEXT,
-            comentario        TEXT,
-            registrado_por    TEXT DEFAULT '',
-            fecha_registro    TEXT,
-            UNIQUE(id_indicador, periodo, anio)
-        )
-    """)
-    conn.commit()
-    _ensure_postgres_unique_constraint(cur)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-def inicializar_db():
-    try:
-        if _use_pg():
-            _init_postgres()
-        else:
-            _init_sqlite()
-    except Exception as e:
-        _notify_streamlit("warning", f"No se pudo inicializar la base de datos: {e}")
+    """Wrapper that passes db_manager.DB_PATH to connection_manager._init_sqlite"""
+    return _original_init_sqlite(db_path=DB_PATH)
 
 
 # ── Upsert ────────────────────────────────────────────────────────────────────

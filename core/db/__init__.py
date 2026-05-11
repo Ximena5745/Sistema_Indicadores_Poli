@@ -21,6 +21,16 @@ from core.db.data_normalizer import (
     normalizar_periodo_anio,
 )
 
+from core.db.connection_manager import (
+    inicializar_db,
+    _connect_postgres,
+    _build_ipv4_retry_connect_kwargs,
+    _use_pg,
+    _notify_streamlit,
+    _init_sqlite,
+    _init_postgres,
+)
+
 __all__ = [
     # Config provider
     "DB_PATH",
@@ -35,4 +45,12 @@ __all__ = [
     "numero_mes_a_nombre",
     "normalizar_nombre_mes",
     "normalizar_periodo_anio",
+    # Connection manager
+    "inicializar_db",
+    "_connect_postgres",
+    "_build_ipv4_retry_connect_kwargs",
+    "_use_pg",
+    "_notify_streamlit",
+    "_init_sqlite",
+    "_init_postgres",
 ]
