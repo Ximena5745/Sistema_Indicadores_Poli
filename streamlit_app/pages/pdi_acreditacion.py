@@ -1,10 +1,3 @@
-"""
-Accreditation and gap management dashboard (Level 2).
-
-Refactored PHASE 2 WEEK 4: Extracted config and utility functions.
-"""
-
-import os
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -32,28 +25,71 @@ except ImportError:
     from streamlit_app.components.filter_panel import render_filter_panel
     from utils.formatting import formatear_meta_ejecucion_df
 
-# Import refactored utilities
-from .pdi_config import FILTER_DEFINITIONS, MATRIX_COLUMNS, CNA_SHEET
-from .pdi_utils import (
-    preparar_datos_acciones,
-    aplicar_filtros,
-    enriquecer_datos_cna,
-    extraer_columna_cumplimiento,
-    clasificar_estado,
-)
 
-# Re-export for backward compatibility with tests
-_clasificar_estado = clasificar_estado
+def _brecha(row):
+    try:
+        return float(row.get("Meta", 0)) - float(row.get("Ejecucion", 0))
+    except Exception:
+        return None
+
+
+def _clasificar_estado(cumpl, id_indicador=None):
+    """
+    Clasifica el estado de cumplimiento.
+
+    Problema #7 FIX: Usa categorizar_cumplimiento() en lugar de hardcoding 105.
+
+    PARÁMETROS:
+      cumpl: Valor de cumplimiento en porcentaje (0-100 o 0-130)
+      id_indicador: ID del indicador para detectar Plan Anual (opcional)
+
+    RETORNA:
+      "Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", o "Sin dato"
+    """
+    if pd.isna(cumpl):
+        return "Sin dato"
+
+    try:
+        cumpl_pct = float(cumpl)
+    except Exception:
+        return "Sin dato"
+
+    # MEJORA FASE 2: Usar wrapper centralizado
+    from core.semantica import normalizar_y_categorizar
+
+    return normalizar_y_categorizar(cumpl_pct, es_porcentaje=True, id_indicador=id_indicador)
 
 
 def render():
-    """Main render function for PDI accreditation page."""
     st.title("Gestión y Acreditación (Nivel 2)")
     st.caption("Panel de cumplimiento, brechas y matriz de acreditación.")
 
     # --- Filtros ---
     sel = render_filter_panel(
-        filters=FILTER_DEFINITIONS,
+        filters=[
+            {
+                "key": "estado",
+                "label": "Estado",
+                "type": "selectbox",
+                "options": ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Sin dato"],
+                "include_all": True,
+            },
+            {
+                "key": "macro",
+                "label": "Macrolínea",
+                "type": "selectbox",
+                "options": ["Docencia", "Investigación", "Extensión", "Gobierno"],
+                "include_all": True,
+            },
+            {
+                "key": "horizonte",
+                "label": "Horizonte",
+                "type": "selectbox",
+                "options": ["2026-1", "2026-2", "2027-1"],
+                "default": "2026-1",
+                "include_all": False,
+            },
+        ],
         title="Filtros",
         key_prefix="pdi",
         n_cols=3,
@@ -78,32 +114,49 @@ def render():
         return
 
     # --- Filtrado y normalización ---
+
     df = df[df["Clasificacion"].str.contains("acredit", case=False, na=False)]
     df = df.copy()
 
-    # Cargar catálogo CNA
+    # Cargar catálogo CNA para completar columnas faltantes
+    import os
+
     cna_path = os.path.join(os.path.dirname(__file__), "../../data/db/Indicadores por CMI.xlsx")
     try:
-        df_cna = pd.read_excel(cna_path, sheet_name=CNA_SHEET)
+        df_cna = pd.read_excel(cna_path, sheet_name="Worksheet")
     except Exception:
         df_cna = pd.DataFrame()
 
-    # Enrich with CNA metadata
-    df = enriquecer_datos_cna(df, df_cna)
+    # Completar columnas faltantes desde el catálogo CNA
+    for col in ["Linea", "Objetivo", "Indicador"]:
+        if col not in df.columns and not df_cna.empty and col in df_cna.columns:
+            df = df.merge(df_cna[["Id", col]], on="Id", how="left")
 
-    # Extract and prepare compliance data
-    try:
-        col_cumpl, cumpl_series = extraer_columna_cumplimiento(df)
-        df["cumplimiento_pct"] = cumpl_series
-    except ValueError as e:
-        st.error(str(e))
+    # Buscar la columna de cumplimiento real disponible
+    col_cumpl = None
+    for c in ["Cumplimiento", "Cumplimiento_norm", "cumplimiento", "cumplimiento_norm"]:
+        if c in df.columns:
+            col_cumpl = c
+            break
+    if col_cumpl is None:
+        st.error("No se encontró ninguna columna de cumplimiento en los datos.")
         return
+    df["cumplimiento_pct"] = pd.to_numeric(df[col_cumpl], errors="coerce") * 100
+    df["brecha"] = df.apply(_brecha, axis=1)
 
-    # Prepare data with Estado classification and gaps
-    df = preparar_datos_acciones(df)
+    # Problema #7 FIX: Pasar ID del indicador a _clasificar_estado
+    def _clasificar_con_id(row):
+        id_ind = row.get("Id", None)
+        return _clasificar_estado(row["cumplimiento_pct"], id_indicador=id_ind)
 
-    # Apply filters
-    df = aplicar_filtros(df, sel)
+    df["Estado"] = df.apply(_clasificar_con_id, axis=1)
+
+    if sel.get("estado") and sel["estado"] != "Todos":
+        df = df[df["Estado"] == sel["estado"]]
+    if sel.get("macro") and sel["macro"] != "Todos":
+        df = df[df["Linea"] == sel["macro"]]
+    if sel.get("horizonte"):
+        df = df[df["Periodo"] == sel["horizonte"]]
 
     # --- KPIs Scorecard ---
     k1, k2 = st.columns(2)
@@ -141,6 +194,7 @@ def render():
         try:
             from ..components.renderers import render_echarts
 
+            # construir datos jerárquicos para ECharts treemap
             tree_data = []
             for macro, gmacro in df_tm.groupby("Macrolinea"):
                 macro_children = []
@@ -161,6 +215,7 @@ def render():
 
     # --- Comparativa vs Benchmark (mock) ---
     st.markdown("#### Comparativa vs Benchmark (mock)")
+    # Simulación: benchmark = cumplimiento propio - 5pp, por proceso
     if "Proceso" in df.columns:
         df_bench = (
             df.groupby("Proceso", dropna=False)
@@ -188,6 +243,7 @@ def render():
         try:
             from ..components.renderers import render_echarts
 
+            # construir opción ECharts para barras agrupadas
             df_m = df_bench.melt(
                 id_vars="Proceso",
                 value_vars=["cumplimiento", "benchmark"],
@@ -236,6 +292,7 @@ def render():
         try:
             from ..components.renderers import render_echarts
 
+            # construir opción ECharts para serie temporal por proceso
             periods = sorted(df_evo["Periodo"].astype(str).unique().tolist())
             procs = sorted(df_evo["Proceso"].astype(str).unique().tolist())
             series = []
@@ -264,18 +321,41 @@ def render():
 
     # --- Matriz de acreditación ---
     st.markdown("#### Matriz de acreditación")
-    cols = [c for c in MATRIX_COLUMNS if c in df.columns]
-    if cols and not df.empty:
-        tabla = df[cols].copy()
-        tabla = tabla.rename(
-            columns={
-                "cumplimiento_pct": "% Cumplimiento",
-                "Meta": "Meta",
-                "Ejecucion": "Ejecución",
-                "Linea": "Macrolinea",
-            }
-        )
-        tabla = formatear_meta_ejecucion_df(tabla, meta_col="Meta", ejec_col="Ejecución")
-        st.dataframe(tabla, use_container_width=True, hide_index=True, height=420)
-    else:
-        st.info("No hay columnas disponibles para mostrar la matriz.")
+    cols = [
+        c
+        for c in [
+            "Id",
+            "Indicador",
+            "Linea",
+            "Objetivo",
+            "cumplimiento_pct",
+            "Meta",
+            "Ejecucion",
+            "Estado",
+            "Meta_Signo",
+            "Meta s",
+            "MetaS",
+            "Ejecucion_Signo",
+            "Ejecución s",
+            "Ejecucion s",
+            "EjecS",
+            "Decimales",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
+            "DecimalesEje",
+            "DecMeta",
+            "DecEjec",
+        ]
+        if c in df.columns
+    ]
+    tabla = df[cols].copy()
+    tabla = tabla.rename(
+        columns={
+            "cumplimiento_pct": "% Cumplimiento",
+            "Meta": "Meta",
+            "Ejecucion": "Ejecución",
+            "Linea": "Macrolinea",
+        }
+    )
+    tabla = formatear_meta_ejecucion_df(tabla, meta_col="Meta", ejec_col="Ejecución")
+    st.dataframe(tabla, use_container_width=True, hide_index=True, height=420)

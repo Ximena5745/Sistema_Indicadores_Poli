@@ -1,13 +1,13 @@
-"""
-CMI Estratégico tabbed interface for strategic indicators (PDI).
-
-Refactored PHASE 2 WEEK 4: Extracted config and utility functions.
-"""
-
 import streamlit as st
 import pandas as pd
+from datetime import date as _date
 
-from services.strategic_indicators import load_cierres, load_pdi_catalog
+from services.cmi_filters import filter_df_for_cmi_estrategico
+from services.strategic_indicators import (
+    load_pdi_catalog,
+    preparar_pdi_con_cierre,
+    load_cierres,
+)
 from streamlit_app.components.cmi_tabs import (
     render_tab_resumen,
     render_tab_listado,
@@ -15,17 +15,33 @@ from streamlit_app.components.cmi_tabs import (
 )
 from streamlit_app.components.cmi_tabs.tab_lineas import render_tab_lineas
 
-# Import refactored utilities
-from .cmi_estrategico_config import CORTE_SEMESTRAL, TAB_NAMES
-from .cmi_estrategico_utils import default_anio, default_corte, prepare_cmi_data
+CORTE_SEMESTRAL = {
+    "Junio": 6,
+    "Diciembre": 12,
+}
 
+def _default_anio(anios: list[int]) -> int:
+    if 2025 in anios:
+        return 2025
+    if anios:
+        return anios[-1]
+    return _date.today().year
+
+def _default_corte(anio: int | None) -> str:
+    if anio is None:
+        return "Diciembre"
+    today = _date.today()
+    if int(anio) < today.year:
+        return "Diciembre"
+    if today > _date(today.year, 7, 20):
+        return "Junio"
+    return "Diciembre"
 
 def render():
-    """Main render function for CMI Estratégico page."""
     from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
     inject_cmi_premium_css()
 
-    # Padding exclusivo para CMI Estratégico
+    # Padding exclusivo para CMI Estratégico via layout (sin tocar otras páginas).
     pad_left, content_col, pad_right = st.columns([0.035, 0.93, 0.035])
     with content_col:
         st.title("CMI Estratégico")
@@ -43,10 +59,12 @@ def render():
             st.error("No hay años disponibles en consolidado de cierres.")
             return
 
+        pdi_catalog = pd.DataFrame()
+
         from streamlit_app.components.filter_panel import render_filter_panel
 
-        _anio_default = default_anio(anios)
-        _corte_default = default_corte(_anio_default)
+        _anio_default = _default_anio(anios)
+        _corte_default = _default_corte(_anio_default)
 
         sels = render_filter_panel(
             filters=[
@@ -72,14 +90,60 @@ def render():
         corte = sels["corte"] or _corte_default
         mes = CORTE_SEMESTRAL[corte]
 
-        # Prepare data
-        df_filtrado, pdi_catalog = prepare_cmi_data(int(anio), int(mes))
+        df = preparar_pdi_con_cierre(int(anio), int(mes))
+        df = filter_df_for_cmi_estrategico(df, id_column="Id")
 
-        if df_filtrado.empty:
+        if df.empty:
             st.warning("No hay indicadores para los filtros seleccionados.")
             return
 
-        # Navigation handling
+        pdi_catalog = load_pdi_catalog(include_ids=True)
+        df_filtrado = df
+
+        # Enriquecer df_filtrado con metadatos de Ficha_Tecnica.xlsx (join por Id).
+        # Aporta: Descripcion, Responsable del calculo, Fuente V1, Formula, Frecuencia.
+        # Fuente única de verdad — no duplica lógica de cálculo.
+        try:
+            from services.data_loader import cargar_ficha_tecnica as _cft
+            _ft = _cft()
+            if not _ft.empty and "Id" in _ft.columns:
+                # La columna de descripción puede venir con encoding roto (Latin-1 mal leído).
+                # Se detecta dinámicamente buscando la columna que contiene "descripci" (case-insensitive).
+                _desc_col = next(
+                    (c for c in _ft.columns if "descripci" in c.lower()),
+                    None,
+                )
+                _wanted = [
+                    c for c in [
+                        _desc_col,
+                        "Responsable del calculo",
+                        "Fuente V1",
+                        "Formula",
+                        "Frecuencia",
+                    ]
+                    if c and c in _ft.columns
+                ]
+                _ft_sub = _ft[["Id"] + _wanted].drop_duplicates(subset="Id", keep="first").copy()
+                if _desc_col and _desc_col in _ft_sub.columns:
+                    _ft_sub = _ft_sub.rename(columns={_desc_col: "Descripcion"})
+                # Normalizar ambas claves a string antes del join para evitar mismatch int↔str.
+                df_filtrado = df_filtrado.copy()
+                df_filtrado["Id"] = df_filtrado["Id"].astype(str)
+                _ft_sub["Id"] = _ft_sub["Id"].astype(str)
+                df_filtrado = df_filtrado.merge(_ft_sub, on="Id", how="left")
+        except Exception:
+            pass  # Si falla el join, la ficha renderiza con los campos disponibles
+
+        # Navegación principal controlable por estado
+        tab_names = [
+            "Resumen Desglosado",
+            "Líneas Estratégicas",
+            "Listado de Indicadores",
+            "Alertas"
+        ]
+
+        # Navegación desde CTA "Ver análisis detallado" de Vista rápida.
+        # Evita rerun por mutar query_params; se procesa una vez por valor.
         linea_target = st.query_params.get("cmi_linea")
         if linea_target:
             if isinstance(linea_target, list):
@@ -90,17 +154,16 @@ def render():
                 st.session_state["cmi_tab_panel"] = "Líneas Estratégicas"
                 st.session_state["_cmi_linea_processed"] = linea_target
 
-        if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in TAB_NAMES:
+        if "cmi_tab_panel" not in st.session_state or st.session_state["cmi_tab_panel"] not in tab_names:
             st.session_state["cmi_tab_panel"] = "Resumen Desglosado"
 
         selected_panel = st.segmented_control(
             "Sección",
-            options=TAB_NAMES,
+            options=tab_names,
             key="cmi_tab_panel",
             label_visibility="collapsed",
         )
 
-        # Render selected tab
         if selected_panel == "Resumen Desglosado":
             render_tab_resumen(df_filtrado)
         elif selected_panel == "Líneas Estratégicas":
