@@ -11,7 +11,6 @@ Pillow==10.0.0
 python-dotenv==1.0.1
 sqlalchemy==2.0.23
 anthropic==0.40.0
-streamlit-extras==0.1.0
 streamlit-option-menu==0.3.12
 reportlab==4.0.9
 pypdf==4.2.0
