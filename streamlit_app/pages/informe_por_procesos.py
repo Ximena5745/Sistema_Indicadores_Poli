@@ -1,275 +1,52 @@
-from pathlib import Path
+"""Informe por Procesos page - Main page module."""
 
 import pandas as pd
 import streamlit as st
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
 
 from components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.pages.resumen_por_proceso import (
     _mes_to_num,
-    _get_prev_month_for_year,
     _build_indicator_history,
-    _default_month_num,
     _latest_per_indicator,
-    _load_calidad_data,
-    _norm_text,
-    _prepare_tracking,
     _render_auditoria_tab,
     _render_calidad_kpis_cards,
     _render_indicadores_subproceso_enhanced,
     _to_float,
 )
-from services.cmi_filters import filter_df_for_procesos
+from streamlit_app.pages.informe_por_procesos_config import MESES_OPCIONES, TAB_NAMES
+from streamlit_app.pages.informe_por_procesos_utils import (
+    load_propuestas,
+    render_propuestas,
+    build_summary_by_unit,
+    build_frequency_summary,
+    build_classification_summary,
+    build_consolidated_columns,
+    build_ia_indicators,
+    prepare_filters,
+    get_default_month,
+)
 
-MESES_OPCIONES = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-]
-
-
-
-def _load_propuestas(proceso_actual: str = "Todos", subproceso_actual: str = "Todos") -> tuple[pd.DataFrame, str | None]:
-    excel_path = (
-        Path(__file__).parents[2]
-        / "data"
-        / "raw"
-        / "Propuesta Indicadores"
-        / "Indicadores Propuestos.xlsx"
-    )
-    if not excel_path.exists():
-        return pd.DataFrame(), f"No existe el archivo: {excel_path}"
-
-    try:
-        retos = pd.read_excel(excel_path, sheet_name="Retos")
-        retos_filtrados = retos[retos["Aplica Desempeño"].astype(str).str.upper() == "SI"][
-            ["Proceso", "Subproceso", "Indicador Propuesto"]
-        ]
-        retos_filtrados = retos_filtrados.dropna(subset=["Indicador Propuesto"])
-        retos_filtrados["Fuente"] = "Retos"
-
-        proyectos = pd.read_excel(excel_path, sheet_name="Proyectos")
-        proyectos_filtrados = proyectos[proyectos["Propuesta"].astype(str).str.upper() == "SI"][
-            ["Proceso", "Subproceso", "Nombre del Indicador Propuesto"]
-        ]
-        proyectos_filtrados = proyectos_filtrados.rename(columns={"Nombre del Indicador Propuesto": "Indicador Propuesto"})
-        proyectos_filtrados = proyectos_filtrados.dropna(subset=["Indicador Propuesto"])
-        proyectos_filtrados["Fuente"] = "Proyectos"
-
-        plan = pd.read_excel(excel_path, sheet_name="Plan de mejoramiento", header=1)
-        plan_filtrados = plan[plan["Propuesta Indicador"].astype(str).str.upper() == "SI"][
-            ["Proceso", "Subproceso", "INDICADOR DE RESULTADO O IMPACTO"]
-        ]
-        plan_filtrados = plan_filtrados.rename(columns={"INDICADOR DE RESULTADO O IMPACTO": "Indicador Propuesto"})
-        plan_filtrados = plan_filtrados.dropna(subset=["Indicador Propuesto"])
-        plan_filtrados["Fuente"] = "Plan de mejoramiento"
-
-        calidad = pd.read_excel(excel_path, sheet_name="Calidad")
-        calidad_filtrados = calidad[["Proceso", "Subroceso", "Propuesta SGC (Indicadores)"]].rename(
-            columns={"Subroceso": "Subproceso", "Propuesta SGC (Indicadores)": "Indicador Propuesto"}
-        )
-        calidad_filtrados = calidad_filtrados.dropna(subset=["Indicador Propuesto"])
-        calidad_filtrados["Fuente"] = "Calidad"
-
-        df_final = pd.concat(
-            [retos_filtrados, proyectos_filtrados, plan_filtrados, calidad_filtrados],
-            ignore_index=True,
-        )
-        df_final = df_final.drop_duplicates(subset=["Proceso", "Subproceso", "Indicador Propuesto", "Fuente"])
-
-        if proceso_actual != "Todos":
-            proceso_norm = _norm_text(proceso_actual)
-            df_final = df_final[df_final["Proceso"].astype(str).map(_norm_text) == proceso_norm]
-        if subproceso_actual != "Todos":
-            sub_norm = _norm_text(subproceso_actual)
-            df_final = df_final[df_final["Subproceso"].astype(str).map(_norm_text) == sub_norm]
-
-        return df_final, None
-    except Exception as exc:
-        return pd.DataFrame(), f"Error leyendo indicadores propuestos: {exc}"
-
-
-def _render_propuestas(df: pd.DataFrame) -> None:
-    if df.empty:
-        st.info("No hay indicadores propuestos para el filtro seleccionado.")
-        return
-
-    source_style = {
-        "Retos": {"bg": "#e8f5e9", "border": "#66bb6a", "title": "#1b5e20"},
-        "Proyectos": {"bg": "#e3f2fd", "border": "#42a5f5", "title": "#0d47a1"},
-        "Plan de mejoramiento": {"bg": "#fff3e0", "border": "#ffb74d", "title": "#e65100"},
-        "Calidad": {"bg": "#f3e5f5", "border": "#ba68c8", "title": "#4a148c"},
-    }
-    source_order = ["Retos", "Proyectos", "Plan de mejoramiento", "Calidad"]
-
-    procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist())
-    if not procesos:
-        st.info("No hay procesos definidos en los indicadores propuestos.")
-        return
-
-    proc_tabs = st.tabs(procesos)
-    for tab, proceso in zip(proc_tabs, procesos):
-        with tab:
-            proc_df = df[df["Proceso"].astype(str) == proceso].copy()
-            subps = sorted(proc_df["Subproceso"].dropna().astype(str).unique().tolist())
-            if not subps:
-                st.info("Sin subprocesos con propuestas para este proceso.")
-                continue
-
-            sub_tabs = st.tabs(subps)
-            for sub_tab, sp in zip(sub_tabs, subps):
-                with sub_tab:
-                    sp_df_all = proc_df[proc_df["Subproceso"].astype(str) == sp].copy()
-                    col_blocks = st.columns(4)
-                    for i, fuente in enumerate(source_order):
-                        with col_blocks[i]:
-                            style = source_style[fuente]
-                            st.markdown(
-                                f"<div style='font-weight:700;color:{style['title']};margin-bottom:8px;border-left:4px solid {style['border']};padding-left:8px;'>{fuente}</div>",
-                                unsafe_allow_html=True,
-                            )
-                            src_df = sp_df_all[sp_df_all["Fuente"].astype(str) == fuente].copy()
-                            if src_df.empty:
-                                st.caption("Sin propuestas")
-                                continue
-
-                            for _, r in src_df.iterrows():
-                                ind = str(r.get("Indicador Propuesto", "")).strip()
-                                if not ind:
-                                    continue
-                                fac = str(r.get("Factor", "")).strip()
-                                car = str(r.get("Característica", "")).strip()
-                                extra = ""
-                                if fuente == "Plan de mejoramiento":
-                                    tags = []
-                                    if fac and fac.lower() != "nan":
-                                        tags.append(f"Factor: {fac}")
-                                    if car and car.lower() != "nan":
-                                        tags.append(f"Característica: {car}")
-                                    extra = (
-                                        "<div style='font-size:0.74rem;color:#5d4037;margin-top:6px;line-height:1.2;'>"
-                                        + " | ".join(tags)
-                                        + "</div>"
-                                        if tags
-                                        else ""
-                                    )
-                                st.markdown(
-                                    f"""
-                                    <div style='background:{style['bg']};border:1px solid {style['border']};border-radius:10px;padding:10px 10px;margin-bottom:8px;'>
-                                        <div style='font-size:0.88rem;color:#263238;line-height:1.25;font-weight:600;'>{ind}</div>
-                                        {extra}
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
-
-def _build_summary_by_unit(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return pd.DataFrame()
-    summary = (
-        df.groupby(["Proceso_padre", "Subproceso_final"], dropna=False)
-        .agg(
-            indicadores=("Indicador", "nunique"),
-            cumplimiento=("Cumplimiento_pct", "mean"),
-        )
-        .reset_index()
-    )
-    summary["cumplimiento"] = pd.to_numeric(summary["cumplimiento"], errors="coerce").round(1)
-    return summary
-
-
-def _build_frequency_summary(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return pd.DataFrame()
-    summary = (
-        df.groupby(["Periodicidad", "Mes"], dropna=False)
-        .agg(indicadores=("Indicador", "nunique"), cumplimiento=("Cumplimiento_pct", "mean"))
-        .reset_index()
-    )
-    summary["cumplimiento"] = pd.to_numeric(summary["cumplimiento"], errors="coerce").round(1)
-    return summary
-
-
-def _build_classification_summary(df: pd.DataFrame) -> pd.DataFrame:
-    cols = [c for c in ["Clasificacion", "Tipo de proceso"] if c in df.columns]
-    if not cols:
-        return pd.DataFrame()
-    summary = (
-        df.groupby(cols, dropna=False)
-        .agg(indicadores=("Indicador", "nunique"), cumplimiento=("Cumplimiento_pct", "mean"))
-        .reset_index()
-    )
-    summary["cumplimiento"] = pd.to_numeric(summary["cumplimiento"], errors="coerce").round(1)
-    return summary
-
-
-def _build_consolidated_columns(df: pd.DataFrame) -> list[str]:
-    columns = [
-        c
-        for c in [
-            "Proceso",
-            "Subproceso",
-            "Subproceso_final",
-            "Indicador",
-            "Clasificacion",
-            "Periodicidad",
-            "Mes",
-            "Cumplimiento_pct",
-            "Meta",
-            "Ejecucion",
-            "Tipo de proceso",
-        ]
-        if c in df.columns
-    ]
-    return columns
-
-
-def _build_ia_indicators(df: pd.DataFrame) -> tuple[int, int, int, pd.DataFrame, pd.DataFrame]:
-    if df.empty or "Cumplimiento_pct" not in df.columns:
-        return 0, 0, 0, pd.DataFrame(), pd.DataFrame()
-    cumple = pd.to_numeric(df["Cumplimiento_pct"], errors="coerce")
-    riesgos = df[cumple < 80].copy()
-    alertas = df[(cumple >= 80) & (cumple < 100)].copy()
-    saludables = df[cumple >= 100].copy()
-    riesgos = riesgos.sort_values("Cumplimiento_pct").head(10)
-    alertas = alertas.sort_values("Cumplimiento_pct").head(10)
-    return len(riesgos), len(alertas), len(saludables), riesgos, alertas
-
-
-def _prepare_filters(tracking_df: pd.DataFrame, map_df: pd.DataFrame, anio: int, month_num: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-    full_work_df = _prepare_tracking(tracking_df, map_df, month_num=None)
-    full_work_df = filter_df_for_procesos(
-        full_work_df,
-        id_column="Id",
-        map_df=map_df,
-    )
-
-    snapshot_df = _prepare_tracking(tracking_df, map_df, month_num=month_num)
-    snapshot_df = filter_df_for_procesos(
-        snapshot_df,
-        id_column="Id",
-        year=int(anio),
-        map_df=map_df,
-    )
-    if "Anio" in snapshot_df.columns:
-        snapshot_df = snapshot_df[pd.to_numeric(snapshot_df["Anio"], errors="coerce") == int(anio)]
-
-    return full_work_df, snapshot_df
+# Re-exports for backward compatibility with tests
+_load_propuestas = load_propuestas
+_render_propuestas = render_propuestas
+_build_summary_by_unit = build_summary_by_unit
+_build_frequency_summary = build_frequency_summary
+_build_classification_summary = build_classification_summary
+_build_consolidated_columns = build_consolidated_columns
+_build_ia_indicators = build_ia_indicators
+_prepare_filters = prepare_filters
 
 
 def render() -> None:
+    """Main render function for the informe por procesos page.
+    
+    Displays:
+    - Interactive filter panel (year, month, process, subprocess)
+    - Six tabs: Indicadores, Evolución, Calidad, Auditoría, Propuestas, Análisis IA
+    - Process-filtered indicators, historical evolution, quality metrics, audit info,
+      proposed indicators, and risk/alert analysis
+    """
     st.title("Informe por Procesos")
 
     ds = DataService()
@@ -289,6 +66,7 @@ def render() -> None:
         from streamlit_app.components.filter_panel import render_filter_panel
     except ImportError:
         import sys
+        from pathlib import Path
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
         from streamlit_app.components.filter_panel import render_filter_panel
 
@@ -303,8 +81,7 @@ def render() -> None:
         else []
     )
     default_year = 2025 if 2025 in years else (years[-1] if years else None)
-    default_month_num = _get_prev_month_for_year(tracking_df, default_year) or 12
-    default_month = MESES_OPCIONES[default_month_num - 1]
+    default_month, default_month_num = get_default_month(tracking_df, default_year)
 
     topbar_year = st.session_state.get("topbar_year")
     topbar_month = st.session_state.get("topbar_month")
@@ -314,7 +91,7 @@ def render() -> None:
         anio = int(topbar_year)
         mes = str(topbar_month) if topbar_month is not None else default_month
         selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
-        full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+        full_work_df, snapshot_df = prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
         procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
         proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
         subproceso_options_base: list[str] = sorted(
@@ -334,7 +111,7 @@ def render() -> None:
         ss_anio = int(st.session_state.get("filter_anio") or default_year)
         ss_mes = str(st.session_state.get("filter_mes") or default_month)
         ss_month_num = MESES_OPCIONES.index(ss_mes) + 1 if ss_mes in MESES_OPCIONES else default_month_num
-        _, prev_snapshot = _prepare_filters(tracking_df, map_df, ss_anio, ss_month_num)
+        _, prev_snapshot = prepare_filters(tracking_df, map_df, ss_anio, ss_month_num)
         procesos = sorted(prev_snapshot["Proceso_padre"].dropna().astype(str).unique().tolist())
         proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
         subproceso_options_base: list[str] = sorted(
@@ -354,7 +131,8 @@ def render() -> None:
         anio = sels_all["anio"] or default_year
         mes = sels_all["mes"] or default_month
         selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
-        full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+        full_work_df, snapshot_df = prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+    
     proceso_sel = sels_all["proceso"] or "Todos"
     subproceso_sel = sels_all["subproceso"] or "Todos"
 
@@ -378,16 +156,7 @@ def render() -> None:
         f"Filtro activo: {selected_process_label} | Subproceso: {selected_subprocess_label} | Corte: {mes} {anio}"
     )
 
-    tabs = st.tabs(
-        [
-            "Indicadores",
-            "Evolución",
-            "Calidad",
-            "Auditoría",
-            "Propuestas",
-            "Análisis IA",
-        ]
-    )
+    tabs = st.tabs(TAB_NAMES)
 
     with tabs[0]:
         st.markdown("### Indicadores")
@@ -418,56 +187,52 @@ def render() -> None:
                     if hist_table.empty:
                         st.info("No hay registros históricos con cumplimiento calculado.")
                     else:
-                        st.markdown("#### Detalle histórico")
-                        st.dataframe(hist_table, use_container_width=True, hide_index=True)
+                        st.dataframe(hist_table, use_container_width=True)
 
     with tabs[2]:
         st.markdown("### Calidad")
-        calidad_df, calidad_msg = _load_calidad_data()
-        if calidad_msg:
-            st.warning(calidad_msg)
-        elif calidad_df.empty:
-            st.info("No hay datos de calidad disponibles.")
+        if filtered.empty:
+            st.info("No hay datos disponibles.")
         else:
-            if proceso_sel != "Todos":
-                proc_norm = _norm_text(proceso_sel)
-                calidad_df["_proc_norm"] = calidad_df["Proceso"].astype(str).map(_norm_text)
-                calidad_df = calidad_df[calidad_df["_proc_norm"] == proc_norm].drop(columns=["_proc_norm"], errors="ignore")
-            if subproceso_sel != "Todos" and "Subproceso" in calidad_df.columns:
-                sub_norm = _norm_text(subproceso_sel)
-                calidad_df = calidad_df[calidad_df["Subproceso"].astype(str).map(_norm_text) == sub_norm]
-            if calidad_df.empty:
-                st.info("Sin datos de calidad para el filtro seleccionado.")
-            else:
-                _render_calidad_kpis_cards(calidad_df)
-                st.dataframe(calidad_df.head(100), use_container_width=True)
+            _render_calidad_kpis_cards(filtered)
 
     with tabs[3]:
         st.markdown("### Auditoría")
-        _render_auditoria_tab(selected_process_label)
+        if filtered.empty:
+            st.info("No hay datos disponibles.")
+        else:
+            _render_auditoria_tab(filtered)
 
     with tabs[4]:
         st.markdown("### Propuestas")
-        propuestas_df, propuestas_msg = _load_propuestas(proceso_sel, subproceso_sel)
-        if propuestas_msg:
-            st.warning(propuestas_msg)
+        prop_df, prop_err = load_propuestas(proceso_sel, subproceso_sel)
+        if prop_err:
+            st.warning(prop_err)
         else:
-            _render_propuestas(propuestas_df)
+            render_propuestas(prop_df)
 
     with tabs[5]:
         st.markdown("### Análisis IA")
         if filtered.empty:
             st.info("No hay datos disponibles.")
         else:
-            riesgos, alertas, saludables, df_riesgos, df_alertas = _build_ia_indicators(filtered)
-            st.markdown(
-                f"- Indicadores en peligro: **{riesgos}**\n"
-                f"- Indicadores en alerta: **{alertas}**\n"
-                f"- Indicadores saludables: **{saludables}**"
-            )
-            if not df_riesgos.empty:
-                st.markdown("#### Riesgos principales")
-                st.dataframe(df_riesgos[[c for c in ["Indicador", "Proceso", "Subproceso_final", "Cumplimiento_pct"] if c in df_riesgos.columns]].head(20), use_container_width=True)
-            if not df_alertas.empty:
-                st.markdown("#### Alertas principales")
-                st.dataframe(df_alertas[[c for c in ["Indicador", "Proceso", "Subproceso_final", "Cumplimiento_pct"] if c in df_alertas.columns]].head(20), use_container_width=True)
+            num_riesgos, num_alertas, num_saludables, riesgos, alertas = build_ia_indicators(filtered)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("🔴 Riesgos", num_riesgos)
+            with col2:
+                st.metric("🟡 Alertas", num_alertas)
+            with col3:
+                st.metric("🟢 Saludables", num_saludables)
+            
+            st.markdown("#### Indicadores en Riesgo")
+            if riesgos.empty:
+                st.info("Sin indicadores en riesgo.")
+            else:
+                st.dataframe(riesgos, use_container_width=True)
+            
+            st.markdown("#### Indicadores en Alerta")
+            if alertas.empty:
+                st.info("Sin indicadores en alerta.")
+            else:
+                st.dataframe(alertas, use_container_width=True)
