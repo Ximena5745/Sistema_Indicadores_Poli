@@ -1240,6 +1240,10 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if current.empty or previous.empty:
         return [], []
     
+    # Limpiar columnas duplicadas
+    current = current.loc[:, ~current.columns.duplicated()].copy()
+    previous = previous.loc[:, ~previous.columns.duplicated()].copy()
+    
     # Determinar qué columna usar para el nombre (Indicador, Nombre, o Id como fallback)
     name_col = None
     if "Indicador" in current.columns:
@@ -1251,8 +1255,8 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     
     # Incluir Linea si existe para mostrarla en tablas
     extra_cols = [c for c in ["Linea"] if c in current.columns]
-    cols_to_select = ["Id", name_col, "cumplimiento_pct"] + extra_cols
-    cols_to_select = [c for c in cols_to_select if c in current.columns]  # Solo columnas que existan
+    cols_to_select = ["Id"] + ([name_col] if name_col != "Id" else []) + ["cumplimiento_pct"] + extra_cols
+    cols_to_select = list(dict.fromkeys([c for c in cols_to_select if c in current.columns]))  # Remover duplicados manteniendo orden
     
     cur = (
         current[cols_to_select]
