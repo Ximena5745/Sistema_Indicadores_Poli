@@ -18,20 +18,3 @@ menu = render_sidebar_navigation()
 
 # Enrutar al módulo seleccionado
 router(menu)
-
-    elif menu == "Plan de Mejoramiento":
-        plan_mejoramiento.render()
-
-    elif menu == "Seguimiento Operativo":
-        tab_a, tab_b = st.tabs(["Tablero Operativo", "Seguimiento reportes"])
-        with tab_a:
-            tablero_operativo.render()
-        with tab_b:
-            seguimiento_reportes.render()
-
-    elif menu == "Indicadores en Riesgo":
-        gestion_om.render()
-
-
-if __name__ == "__main__":
-    main()
