@@ -1,26 +1,25 @@
-from datetime import date
-from pathlib import Path
+"""
+Tracking and reporting monitoring for strategic indicators.
 
+Refactored PHASE 2 WEEK 4: Extracted config and utility functions.
+"""
+
+from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from components.charts import exportar_excel
-from streamlit_app.utils.formatting import id_limpio
+from streamlit_app.components.filter_panel import render_filter_panel
 from core.config import CACHE_TTL
-from streamlit_app.components.filter_panel import render_filter_panel, build_active_summary
+from streamlit_app.utils.formatting import id_limpio
 
-RUTA_SEGUIMIENTO = (
-    Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
-)
+# Import refactored utilities
+from .seguimiento_config import MESES_OPCIONES, COLOR_ESTADO
+from .seguimiento_utils import detectar_vencidos
 
-# Ventana máxima en meses antes de marcar como vencido
-_VENTANA_MESES: dict[str, int] = {
+# Module-level variables for backward compatibility with tests
+RUTA_SEGUIMIENTO = Path(__file__).resolve().parents[2] / "data" / "output" / "Seguimiento_Reporte.xlsx"
+VENTANA_MESES = {
     "mensual": 1,
     "bimestral": 2,
     "trimestral": 3,
@@ -29,63 +28,12 @@ _VENTANA_MESES: dict[str, int] = {
 }
 
 
-def _nm(s: str) -> str:
-    """Normaliza string a minúsculas sin tildes."""
-    s = str(s or "").strip().lower()
-    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u")):
-        s = s.replace(a, b)
-    return s
-
-
-def _ventana(periodicidad: str) -> int:
-    return _VENTANA_MESES.get(_nm(periodicidad), 1)
-
-
-def _detectar_vencidos(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Retorna (vencidos, por_vencer) basados en última fecha de reporte.
-
-    Lógica:
-    - Por cada indicador, busca el último registro con Estado=="Reportado".
-    - Compara el año-mes de ese registro con el mes actual.
-    - Si la diferencia supera la ventana de su periodicidad → Vencido.
-    - Si la diferencia está entre 80-100 % de la ventana → Por vencer.
-    """
-    hoy = date.today()
-    ym_actual = hoy.year * 12 + hoy.month
-
-    needed = {"Id", "Año", "Mes", "Estado"}
-    if not needed.issubset(df.columns):
-        return pd.DataFrame(), pd.DataFrame()
-
-    df_rep = df[df["Estado"].astype(str).str.strip() == "Reportado"].copy()
-    df_rep["ym"] = pd.to_numeric(df_rep["Año"], errors="coerce").fillna(0).astype(
-        int
-    ) * 12 + pd.to_numeric(df_rep["Mes"], errors="coerce").fillna(0).astype(int)
-    ultimo = df_rep.groupby("Id")["ym"].max().reset_index().rename(columns={"ym": "ultimo_ym"})
-
-    # Metadatos base por indicador
-    meta_cols = [c for c in ["Id", "Periodicidad", "Proceso", "Indicador"] if c in df.columns]
-    meta = df[meta_cols].drop_duplicates(subset=["Id"])
-
-    merged = meta.merge(ultimo, on="Id", how="left")
-    merged["ultimo_ym"] = merged["ultimo_ym"].fillna(0).astype(int)
-    merged["ventana"] = merged.get("Periodicidad", pd.Series("mensual", index=merged.index)).apply(
-        _ventana
-    )
-    merged["diff_meses"] = ym_actual - merged["ultimo_ym"]
-
-    vencidos = merged[merged["diff_meses"] > merged["ventana"]].copy()
-    por_vencer = merged[
-        (merged["diff_meses"] <= merged["ventana"])
-        & (merged["diff_meses"] >= (merged["ventana"] * 0.8).astype(int))
-        & (merged["diff_meses"] > 0)
-    ].copy()
-
-    return vencidos, por_vencer
-
-
 @st.cache_data(ttl=CACHE_TTL, show_spinner="Cargando Tracking Mensual...")
 def _cargar_tracking() -> pd.DataFrame:
+    """
+    Load tracking data from Excel file.
+    This function is kept here (instead of moved to utils) to support test monkeypatching.
+    """
     if not RUTA_SEGUIMIENTO.exists():
         return pd.DataFrame()
     try:
@@ -104,6 +52,7 @@ def _cargar_tracking() -> pd.DataFrame:
 
 
 def render():
+    """Main render function for seguimiento de reportes page."""
     st.title("Seguimiento de Reportes")
     st.caption("Vista operativa de reportes mensuales por estado, proceso y periodicidad.")
 
@@ -111,11 +60,6 @@ def render():
     if df.empty:
         st.error("No se encontró la hoja Tracking Mensual en data/output/Seguimiento_Reporte.xlsx.")
         return
-
-    _MESES_OPCIONES = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-    ]
 
     anios = sorted(
         pd.to_numeric(df.get("Año", pd.Series(dtype=float)), errors="coerce")
@@ -125,7 +69,7 @@ def render():
         pd.to_numeric(df.get("Mes", pd.Series(dtype=float)), errors="coerce")
         .dropna().astype(int).unique().tolist()
     )
-    mes_names = [_MESES_OPCIONES[m - 1] for m in meses_nums if 1 <= m <= 12]
+    mes_names = [MESES_OPCIONES[m - 1] for m in meses_nums if 1 <= m <= 12]
     procesos = (
         sorted(df["Proceso"].dropna().astype(str).unique().tolist())
         if "Proceso" in df.columns else []
@@ -167,7 +111,7 @@ def render():
         df_view = df_view[df_view["Año"] == anio_sel]
     if mes_sel not in (None, "Todos") and "Mes" in df_view.columns:
         try:
-            mes_num = _MESES_OPCIONES.index(mes_sel) + 1
+            mes_num = MESES_OPCIONES.index(mes_sel) + 1
             df_view = df_view[df_view["Mes"] == mes_num]
         except Exception:
             pass
@@ -176,6 +120,7 @@ def render():
     if estado_sel not in (None, "Todos") and "Estado" in df_view.columns:
         df_view = df_view[df_view["Estado"] == estado_sel]
 
+    # Display metrics
     total = len(df_view)
     reportado = int((df_view.get("Estado", pd.Series(dtype=str)) == "Reportado").sum())
     pendiente = int((df_view.get("Estado", pd.Series(dtype=str)) == "Pendiente").sum())
@@ -187,8 +132,8 @@ def render():
     k3.metric("Pendientes", pendiente)
     k4.metric("No aplica", no_aplica)
 
-    # ── Alertas de reporte vencido ─────────────────────────────────────────
-    vencidos, por_vencer = _detectar_vencidos(df)
+    # Alert section
+    vencidos, por_vencer = detectar_vencidos(df)
     if not vencidos.empty or not por_vencer.empty:
         st.markdown("### ⚠️ Alertas de frecuencia de reporte")
         ac1, ac2 = st.columns(2)
@@ -225,17 +170,12 @@ def render():
             else:
                 st.success("Sin indicadores próximos a vencer.")
 
-    # ── Gráfica de estado por proceso ──────────────────────────────────────
+    # Chart: estado por proceso
     if "Proceso" in df_view.columns and "Estado" in df_view.columns:
         st.markdown("### Estado de reportes por proceso")
         df_proc = (
             df_view.groupby(["Proceso", "Estado"], dropna=False).size().reset_index(name="Cantidad")
         )
-        _col_estado = {
-            "Reportado": "#28a745",
-            "Pendiente": "#ffc107",
-            "No aplica": "#6c757d",
-        }
         fig_proc = px.bar(
             df_proc,
             x="Proceso",
@@ -243,7 +183,7 @@ def render():
             color="Estado",
             barmode="stack",
             title="Indicadores por proceso y estado de reporte",
-            color_discrete_map=_col_estado,
+            color_discrete_map=COLOR_ESTADO,
         )
         fig_proc.update_layout(
             xaxis_tickangle=-35,
@@ -256,7 +196,6 @@ def render():
             def _option_proc_estado(df_proc, color_map):
                 procs = df_proc["Proceso"].astype(str).unique().tolist()
                 estados = df_proc["Estado"].astype(str).unique().tolist()
-                # ordenar procs
                 procs = sorted(procs)
                 series = []
                 for est in estados:
@@ -283,7 +222,7 @@ def render():
                 }
                 return {"option": option, "height": max(320, len(procs) * 28 + 80)}
 
-            opt = _option_proc_estado(df_proc, _col_estado)
+            opt = _option_proc_estado(df_proc, COLOR_ESTADO)
             if opt and opt.get("option"):
                 render_echarts(opt["option"], height=opt.get("height", 420))
             else:
@@ -298,6 +237,4 @@ def render():
         label="Descargar vista filtrada (Excel)",
         data=exportar_excel(df_view, nombre_hoja="Seguimiento"),
         file_name="seguimiento_reportes_filtrado.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
     )
