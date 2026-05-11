@@ -2274,12 +2274,14 @@ def render():
                     # Normalizar para que tengan Linea/Objetivo si existen en CMI
                     if not pdi_proy.empty:
                         base = load_worksheet_flags()
-                        if not base.empty:
+                        if not base.empty and "Linea" not in pdi_proy.columns:
                             base_norm = base.copy()
                             base_norm["Id"] = base_norm["Id"].astype(str)
-                            cols_to_merge = ["Id", "Linea", "Objetivo"]
-                            base_cols = [c for c in cols_to_merge if c in base_norm.columns]
-                            pdi_proy = pdi_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                            # Solo merge si Linea no existe
+                            merge_cols = [c for c in ["Linea", "Objetivo"] if c in base_norm.columns]
+                            if merge_cols:
+                                base_to_merge = base_norm[["Id"] + merge_cols].drop_duplicates(subset=["Id"])
+                                pdi_proy = pdi_proy.merge(base_to_merge, on="Id", how="left", suffixes=("", "_cmi"))
                         
                         # Calcular cumplimiento_pct si no existe
                         if "cumplimiento_pct" not in pdi_proy.columns and "Ejecucion" in pdi_proy.columns and "Meta" in pdi_proy.columns:
@@ -2287,8 +2289,17 @@ def render():
                                 lambda r: (r["Ejecucion"] / r["Meta"] * 100) if r.get("Meta") and r["Meta"] != 0 else 0, axis=1
                             )
                         
-                        # Deduplicar por ID
-                        pdi_proy = pdi_proy.drop_duplicates(subset=["Id"], keep="last")
+                        # Limpiar duplicados de columnas por sufijo y deduplicar por ID
+                        if "_cmi" in pdi_proy.columns.tolist():
+                            # Resolver sufijos
+                            for col in pdi_proy.columns:
+                                if col.endswith("_cmi"):
+                                    base_col = col[:-4]
+                                    if base_col in pdi_proy.columns:
+                                        pdi_proy[base_col] = pdi_proy[base_col].fillna(pdi_proy[col])
+                                    pdi_proy = pdi_proy.drop(col, axis=1)
+                        
+                        pdi_proy = pdi_proy.sort_values("Id", na_position="last").drop_duplicates(subset=["Id"], keep="last")
             
             linea_summary = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
