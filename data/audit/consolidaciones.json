@@ -4093,5 +4093,96 @@
     "detalles": {
       "error": "error"
     }
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.101730",
+    "evento": "test_inicio",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "test": true
+    }
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.109197",
+    "evento": "cambio_datos_insert",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "test_tabla",
+      "registros_afectados": 10,
+      "descripcion": "test cambio"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.119353",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_test",
+    "exitoso": true,
+    "detalles": {
+      "registros": 100
+    }
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.128900",
+    "evento": "test_error_error",
+    "usuario": "test_user",
+    "exitoso": false,
+    "detalles": {
+      "error": "Test error message"
+    }
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.142383",
+    "evento": "persistencia_test",
+    "usuario": "test_user",
+    "exitoso": true,
+    "detalles": {
+      "persist": true
+    }
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.153252",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.160438",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.168185",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.175776",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.184090",
+    "evento": "test_evento",
+    "usuario": "user",
+    "exitoso": true,
+    "detalles": {}
+  },
+  {
+    "timestamp": "2026-05-10T22:44:10.191705",
+    "evento": "test_error_error",
+    "usuario": "user",
+    "exitoso": false,
+    "detalles": {
+      "error": "error"
+    }
   }
 ]
