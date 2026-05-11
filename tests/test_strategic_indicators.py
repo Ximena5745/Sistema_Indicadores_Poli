@@ -1,5 +1,5 @@
 """
-Unit tests para services/strategic_indicators.py
+Unit tests para services/strategic_indicators/
 
 Casos de prueba:
 - Utilidades de normalización (_norm_text, _id_limpio)
@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, r"c:\Users\ximen\OneDrive\Proyectos_DS\Sistema_Indicadores_Poli")
 
+from services.strategic_indicators import utils as strategic_indicators_utils
 from services import strategic_indicators
 
 
@@ -24,23 +25,23 @@ class TestNormText(unittest.TestCase):
 
     def test_norm_text_acentos(self):
         """Debe remover acentos de caracteres acentuados."""
-        result = strategic_indicators._norm_text("Información")
+        result = strategic_indicators_utils._norm_text("Información")
         assert result == "informacion"
 
     def test_norm_text_mayusculas(self):
         """Debe convertir a minúsculas."""
-        result = strategic_indicators._norm_text("HELLO")
+        result = strategic_indicators_utils._norm_text("HELLO")
         assert result == "hello"
 
     def test_norm_text_espacios(self):
         """Debe mantener espacios (solo quita acentos y minúsculas)."""
-        result = strategic_indicators._norm_text("  hello  world  ")
+        result = strategic_indicators_utils._norm_text("  hello  world  ")
         # La función strip() inicial quita espacios al inicio/final, pero mantiene internos
         assert result == "hello  world"
 
     def test_norm_text_vacio(self):
         """String vacío → string vacío."""
-        result = strategic_indicators._norm_text("")
+        result = strategic_indicators_utils._norm_text("")
         assert result == ""
 
 
@@ -49,22 +50,22 @@ class TestIdLimpio(unittest.TestCase):
 
     def test_id_limpio_float(self):
         """Float → string."""
-        result = strategic_indicators._id_limpio(45.0)
+        result = strategic_indicators_utils._id_limpio(45.0)
         assert result == "45"
 
     def test_id_limpio_string(self):
         """String → string sin cambios."""
-        result = strategic_indicators._id_limpio("ID-123")
+        result = strategic_indicators_utils._id_limpio("ID-123")
         assert result == "ID-123"
 
     def test_id_limpio_int(self):
         """Int → string."""
-        result = strategic_indicators._id_limpio(10)
+        result = strategic_indicators_utils._id_limpio(10)
         assert result == "10"
 
     def test_id_limpio_nan(self):
         """NaN → string vacío o manejo especial."""
-        result = strategic_indicators._id_limpio(np.nan)
+        result = strategic_indicators_utils._id_limpio(np.nan)
         # NaN generalmente se convierte a string vacío
         assert isinstance(result, str)
 
@@ -133,19 +134,19 @@ class TestFindCol(unittest.TestCase):
     def test_find_col_primera_opcion(self):
         """Debe retornar la primera columna que existe."""
         df = pd.DataFrame({"Indicador": ["A", "B"], "Nombre": ["X", "Y"]})
-        result = strategic_indicators._find_col(df, ["Indicador", "Nombre"])
+        result = strategic_indicators_utils._find_col(df, ["Indicador", "Nombre"])
         assert result == "Indicador"
 
     def test_find_col_segunda_opcion(self):
         """Si primera no existe, buscar segunda."""
         df = pd.DataFrame({"Nombre": ["X", "Y"], "Titulo": ["A", "B"]})
-        result = strategic_indicators._find_col(df, ["Indicador", "Nombre"])
+        result = strategic_indicators_utils._find_col(df, ["Indicador", "Nombre"])
         assert result == "Nombre"
 
     def test_find_col_ninguna(self):
         """Si no existe ninguna → None."""
         df = pd.DataFrame({"Otro": ["X", "Y"]})
-        result = strategic_indicators._find_col(df, ["Indicador", "Nombre"])
+        result = strategic_indicators_utils._find_col(df, ["Indicador", "Nombre"])
         assert result is None
 
 
@@ -154,32 +155,32 @@ class TestCacheOperations(unittest.TestCase):
 
     def setUp(self):
         """Limpiar caché antes de cada test."""
-        strategic_indicators._CACHE_MANUAL.clear()
+        strategic_indicators_utils._CACHE_MANUAL.clear()
 
     def test_set_y_get_cached(self):
         """Guardar y recuperar del caché."""
         df = pd.DataFrame({"A": [1, 2, 3]})
-        strategic_indicators._set_cached("test_key", df)
+        strategic_indicators_utils._set_cached("test_key", df)
 
-        result = strategic_indicators._get_cached("test_key")
+        result = strategic_indicators_utils._get_cached("test_key")
         assert result is not None
         pd.testing.assert_frame_equal(result, df)
 
     def test_get_cached_no_existe(self):
         """Clave inexistente → None."""
-        result = strategic_indicators._get_cached("nonexistent")
+        result = strategic_indicators_utils._get_cached("no_existe")
         assert result is None
 
     def test_validate_cached_result_vacio(self):
         """DataFrame vacío → False."""
         df = pd.DataFrame()
-        result = strategic_indicators._validate_cached_result(df, "test")
+        result = strategic_indicators_utils._validate_cached_result(df, "test")
         assert result is False
 
     def test_validate_cached_result_valido(self):
         """DataFrame con datos → True."""
-        df = pd.DataFrame({"A": [1, 2, 3]})
-        result = strategic_indicators._validate_cached_result(df, "test")
+        df = pd.DataFrame({"Col": [1, 2, 3]})
+        result = strategic_indicators_utils._validate_cached_result(df, "test")
         assert result is True
 
 
