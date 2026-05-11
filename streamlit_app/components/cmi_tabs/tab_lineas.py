@@ -6,6 +6,9 @@ import plotly.express as px
 import unicodedata
 from streamlit_app.utils.cmi_helpers import linea_color
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from streamlit_app.services.strategic_indicators import load_cierres
 
 

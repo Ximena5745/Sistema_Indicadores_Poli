@@ -118,6 +118,12 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_c
         df = _ensure_nivel_cumplimiento(df)
         nivel_col = "Nivel de cumplimiento"
 
+    # Deduplicar por ID para evitar contar el mismo indicador múltiples veces
+    # Mantener el último registro (más reciente) por ID y Línea
+    if unique_count_col and unique_count_col in df.columns:
+        df = df.sort_values([unique_count_col, "Linea", "Fecha"] if "Fecha" in df.columns else [unique_count_col, "Linea"], na_position="last")
+        df = df.drop_duplicates(subset=[unique_count_col, "Linea"], keep="last")
+
     if unique_count_col and unique_count_col in df.columns:
         count_agg = (unique_count_col, lambda s: s.dropna().astype(str).str.strip().replace("", pd.NA).dropna().nunique())
     else:
@@ -1233,14 +1239,31 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if current.empty or previous.empty:
         return [], []
+    
+    # Determinar qué columna usar para el nombre (Indicador, Nombre, o Id como fallback)
+    name_col = None
+    if "Indicador" in current.columns:
+        name_col = "Indicador"
+    elif "Nombre" in current.columns:
+        name_col = "Nombre"
+    else:
+        name_col = "Id"
+    
     # Incluir Linea si existe para mostrarla en tablas
     extra_cols = [c for c in ["Linea"] if c in current.columns]
+    cols_to_select = ["Id", name_col, "cumplimiento_pct"] + extra_cols
+    cols_to_select = [c for c in cols_to_select if c in current.columns]  # Solo columnas que existan
+    
     cur = (
-        current[["Id", "Indicador", "cumplimiento_pct"] + extra_cols]
+        current[cols_to_select]
         .dropna(subset=["cumplimiento_pct"])
         .copy()
     )
     prev = previous[["Id", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
+    
+    if cur.empty or prev.empty:
+        return [], []
+    
     merged = cur.merge(prev, on="Id", suffixes=("", "_prev"))
     if merged.empty:
         return [], []
@@ -1250,7 +1273,7 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     return (
         [
             {
-                "name": str(row["Indicador"]),
+                "name": str(row[name_col]) if name_col in row.index else str(row["Id"]),
                 "change": float(row["variation"]),
                 "linea": str(row["Linea"]) if "Linea" in merged.columns else "",
             }
@@ -1258,7 +1281,7 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
         ],
         [
             {
-                "name": str(row["Indicador"]),
+                "name": str(row[name_col]) if name_col in row.index else str(row["Id"]),
                 "change": float(row["variation"]),
                 "linea": str(row["Linea"]) if "Linea" in merged.columns else "",
             }
@@ -2234,54 +2257,43 @@ def render():
                 historico_df = None
                 
         elif category == "Proyectos":
-            # Para proyectos, filtrar cierres por IDs de proyectos del CMI
-            # Llave: ID que cruza Indicadores por CMI (Proyecto=1) con Consolidado Cierres
-            def _norm_id(v) -> str:
-                if pd.isna(v):
-                    return ""
-                text = str(v).strip()
-                try:
-                    num = float(text)
-                    if num.is_integer():
-                        return str(int(num))
-                except Exception:
-                    pass
-                return text
-
-            cierres = load_cierres()
-            ids_proy = {_norm_id(x) for x in _get_proyectos_ids()}
-            if not cierres.empty and ids_proy:
-                cierres = cierres.copy()
-                cierres["Id"] = cierres["Id"].apply(_norm_id)
-                cierres_proy = cierres[cierres["Id"].isin(ids_proy)].copy()
-                
-                # Filtrar por años
-                if use_all_years:
-                    cierres_proy = cierres_proy[cierres_proy["Anio"].isin(years_to_load)]
-                else:
-                    cierres_proy = cierres_proy[cierres_proy["Anio"] == int(year)]
-                
-                # Obtener último registro por proyecto
-                if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
-                    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
-
-                # Agregar Línea y Objetivo desde worksheet
-                base = load_worksheet_flags()
-                if not base.empty:
-                    base_norm = base.copy()
-                    base_norm["Id"] = base_norm["Id"].apply(_norm_id)
-                    cols_to_merge = ["Id", "Linea", "Objetivo"]
-                    base_cols = [c for c in cols_to_merge if c in base_norm.columns]
-                    cierres_proy = cierres_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
-                
-                pdi_estrategico = cierres_proy
-            else:
-                pdi_estrategico = pd.DataFrame()
+            # Proyectos: Carga dinámica de cierres filtrados por IDs marcados como Proyecto==1 en CMI
+            # Dinámico: si se agregan/quitan IDs en CMI, se actualizan automáticamente
+            pdi_proy = pd.DataFrame()
+            ids_proy = _get_proyectos_ids()
             
-            linea_summary = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
-            cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
-            objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
-            pdi_base_df = pdi_estrategico.copy()
+            if ids_proy:
+                # Cargar cierres y filtrar por IDs de proyectos
+                from services.strategic_indicators import load_cierres
+                cierres = load_cierres()
+                
+                if not cierres.empty and "Id" in cierres.columns:
+                    cierres["Id"] = cierres["Id"].astype(str)
+                    pdi_proy = cierres[cierres["Id"].isin(ids_proy)].copy()
+                    
+                    # Normalizar para que tengan Linea/Objetivo si existen en CMI
+                    if not pdi_proy.empty:
+                        base = load_worksheet_flags()
+                        if not base.empty:
+                            base_norm = base.copy()
+                            base_norm["Id"] = base_norm["Id"].astype(str)
+                            cols_to_merge = ["Id", "Linea", "Objetivo"]
+                            base_cols = [c for c in cols_to_merge if c in base_norm.columns]
+                            pdi_proy = pdi_proy.merge(base_norm[base_cols].drop_duplicates(subset=["Id"]), on="Id", how="left")
+                        
+                        # Calcular cumplimiento_pct si no existe
+                        if "cumplimiento_pct" not in pdi_proy.columns and "Ejecucion" in pdi_proy.columns and "Meta" in pdi_proy.columns:
+                            pdi_proy["cumplimiento_pct"] = pdi_proy.apply(
+                                lambda r: (r["Ejecucion"] / r["Meta"] * 100) if r.get("Meta") and r["Meta"] != 0 else 0, axis=1
+                            )
+                        
+                        # Deduplicar por ID
+                        pdi_proy = pdi_proy.drop_duplicates(subset=["Id"], keep="last")
+            
+            linea_summary = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
+            cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
+            objetivo_df = pdi_proy[cols].copy() if cols else pd.DataFrame()
+            pdi_base_df = pdi_proy.copy()
                 
         elif category == "Plan de Retos":
             linea_df = pd.DataFrame()
@@ -2385,7 +2397,7 @@ def render():
         return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
     
     # --- Carga de datos usando función unificada ---
-    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico)
+    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
     
     linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
 
@@ -2395,13 +2407,28 @@ def render():
         
         if category == "Indicadores":
             # Configuración original para indicadores
-            total = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            # Contar indicadores únicos por estado (no sumar conteos por línea)
+            total = 0
             counts = {
-                "Sobrecumplimiento": int(linea_summary["Sobrecumplimiento"].sum()) if not linea_summary.empty else 0,
-                "Cumplimiento": int(linea_summary["Cumplimiento"].sum()) if not linea_summary.empty else 0,
-                "Alerta": int(linea_summary["Alerta"].sum()) if not linea_summary.empty else 0,
-                "Peligro": int(linea_summary["Peligro"].sum()) if not linea_summary.empty else 0,
+                "Sobrecumplimiento": 0,
+                "Cumplimiento": 0,
+                "Alerta": 0,
+                "Peligro": 0,
             }
+            
+            if not pdi_estrategico.empty:
+                # Deduplicar por ID para contar indicadores únicos
+                df_unique = pdi_estrategico.copy()
+                if "Id" in df_unique.columns:
+                    df_unique = df_unique.drop_duplicates(subset=["Id"], keep="last")
+                
+                total = len(df_unique)
+                if "Nivel de cumplimiento" in df_unique.columns:
+                    counts["Sobrecumplimiento"] = (df_unique["Nivel de cumplimiento"] == "Sobrecumplimiento").sum()
+                    counts["Cumplimiento"] = (df_unique["Nivel de cumplimiento"] == "Cumplimiento").sum()
+                    counts["Alerta"] = (df_unique["Nivel de cumplimiento"] == "Alerta").sum()
+                    counts["Peligro"] = (df_unique["Nivel de cumplimiento"] == "Peligro").sum()
+            
             return [
                 (total, "Total", "#0B5FFF"),
                 (counts["Sobrecumplimiento"], "Sobrecumplimiento", "#173D66"),
@@ -2412,21 +2439,27 @@ def render():
         
         elif category == "Proyectos":
             # Proyectos: Total, Cerrados (100%), Ejecución (<100%), Planeación (0%)
-            total_proy = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
-            
+            # Contar proyectos únicos por ID
+            total_proy = 0
             cerrados = 0
             en_ejecucion = 0
             en_planeacion = 0
             
-            if not pdi_estrategico.empty and "cumplimiento_pct" in pdi_estrategico.columns:
-                for _, row in pdi_estrategico.iterrows():
-                    cumplimiento = row.get("cumplimiento_pct")
-                    if pd.isna(cumplimiento) or cumplimiento == 0:
-                        en_planeacion += 1
-                    elif cumplimiento >= 100:
-                        cerrados += 1
-                    else:
-                        en_ejecucion += 1
+            if not pdi_estrategico.empty and "Id" in pdi_estrategico.columns:
+                # Deduplicar por ID para contar proyectos únicos
+                df_unique = pdi_estrategico.copy()
+                df_unique = df_unique.drop_duplicates(subset=["Id"], keep="last")
+                total_proy = len(df_unique)
+                
+                if "cumplimiento_pct" in df_unique.columns:
+                    for _, row in df_unique.iterrows():
+                        cumplimiento = row.get("cumplimiento_pct")
+                        if pd.isna(cumplimiento) or cumplimiento == 0:
+                            en_planeacion += 1
+                        elif cumplimiento >= 100:
+                            cerrados += 1
+                        else:
+                            en_ejecucion += 1
             
             return [
                 (total_proy, "Total Proyectos", "#0B5FFF"),
@@ -2454,7 +2487,12 @@ def render():
         
         elif category == "Consolidado":
             avg_cumpl = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty and "Cumpl_Promedio" in linea_summary.columns else 0
-            total_ind = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty and "N_Indicadores" in linea_summary.columns else 0
+            
+            # Contar indicadores únicos (no sumar por línea para evitar duplicados)
+            total_ind = 0
+            if not pdi_estrategico.empty and "Id" in pdi_estrategico.columns:
+                total_ind = pdi_estrategico["Id"].nunique()
+            
             total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
             total_retos = int(linea_summary["N_Retos"].sum()) if not linea_summary.empty and "N_Retos" in linea_summary.columns else 0
             if total_retos == 0:

@@ -10,11 +10,15 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from streamlit_app.components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
-from streamlit_app.services.cmi_filters import filter_df_for_procesos
-from streamlit_app.core.proceso_types import TIPOS_PROCESO, get_tipo_color
+from services.cmi_filters.filters import filter_df_for_procesos
+from core.proceso_types import TIPOS_PROCESO, get_tipo_color
 from streamlit_app.styles.design_system import get_strategic_palette
 from streamlit_app.utils.cmi_styles import inject_cmi_premium_css
 from streamlit_app.components.dashboard_components import (

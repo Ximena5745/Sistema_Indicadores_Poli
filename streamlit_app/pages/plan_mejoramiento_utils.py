@@ -4,6 +4,9 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from streamlit_app.services.strategic_indicators import NIVEL_COLOR_EXT, load_cna_catalog
 from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 from streamlit_app.pages.plan_mejoramiento_config import (

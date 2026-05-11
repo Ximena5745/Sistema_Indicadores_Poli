@@ -1,31 +1,22 @@
+import io
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import sys
 from pathlib import Path
+from openpyxl.styles import PatternFill, Font
 
 # Agregar raíz del proyecto al path para importaciones
 _root = Path(__file__).resolve().parents[2]
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
-try:
-    from ..services.data_service import DataService
-    from ..styles.design_system import COLORS, get_vivid_palette
-    from core.config import COLOR_CATEGORIA
-    from utils.formatting import formatear_meta_ejecucion_df
-except ImportError:
-    try:
-        from streamlit_app.services.data_service import DataService
-        from streamlit_app.styles.design_system import COLORS, get_vivid_palette
-        from core.config import COLOR_CATEGORIA
-        from utils.formatting import formatear_meta_ejecucion_df
-    except ImportError:
-        from services.data_service import DataService
-        from styles.design_system import COLORS, get_vivid_palette
-        from core.config import COLOR_CATEGORIA
-        from utils.formatting import formatear_meta_ejecucion_df
+# Importaciones siguiendo el orden correcto desde la raíz
+from streamlit_app.services.data_service import DataService
+from streamlit_app.styles.design_system import COLORS, get_vivid_palette
+from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+from core.config import COLOR_CATEGORIA
 
 # Alias para compatibilidad interna — fuente única en core/config.py
 COLOR_CAT = COLOR_CATEGORIA
@@ -303,3 +294,18 @@ def tabla_historica_indicador(df_ind: pd.DataFrame) -> pd.DataFrame:
         df_t["Cumplimiento_norm"] = df_t["Cumplimiento_norm"].apply(_fmt_cumpl)
         df_t.rename(columns={"Cumplimiento_norm": "Cumplimiento%"}, inplace=True)
     return df_t
+
+
+def exportar_excel(df: pd.DataFrame, nombre_hoja: str = "Datos") -> bytes:
+    """Retorna bytes xlsx con formato institucional para st.download_button."""
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=nombre_hoja)
+        ws = writer.sheets[nombre_hoja]
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="1A3A5C")
+        for col in ws.columns:
+            max_len = max(len(str(c.value or "")) for c in col)
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 50)
+    return output.getvalue()

@@ -7,6 +7,9 @@ from urllib.parse import quote
 from plotly import graph_objects as go
 from streamlit_app.components.interactive_cards import render_metric_card
 from streamlit_app.utils.cmi_helpers import calcular_kpis
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from streamlit_app.services.strategic_indicators import NIVEL_COLOR_EXT
 try:
     from core.config import COLORES, COLOR_CATEGORIA

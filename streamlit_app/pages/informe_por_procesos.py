@@ -4,6 +4,9 @@ import pandas as pd
 import streamlit as st
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from streamlit_app.components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
@@ -21,7 +24,7 @@ from streamlit_app.pages.resumen_por_proceso import (
     _render_indicadores_subproceso_cards,
     _to_float,
 )
-from streamlit_app.services.cmi_filters import filter_df_for_procesos
+from services.cmi_filters.filters import filter_df_for_procesos
 
 MESES_OPCIONES = [
     "Enero",

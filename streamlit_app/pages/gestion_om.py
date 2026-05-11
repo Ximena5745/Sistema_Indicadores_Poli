@@ -5,7 +5,10 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from streamlit_app.core.semantica import (
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from core.semantica import (
     categorizar_cumplimiento,
     obtener_icono_categoria,
     obtener_color_categoria,

@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date as _date
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from streamlit_app.services.cmi_filters import filter_df_for_cmi_estrategico
+from services.cmi_filters.filters import filter_df_for_cmi_estrategico
 from streamlit_app.services.strategic_indicators import (
     load_pdi_catalog,
     preparar_pdi_con_cierre,

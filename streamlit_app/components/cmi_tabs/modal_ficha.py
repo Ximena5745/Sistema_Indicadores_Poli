@@ -17,7 +17,10 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from typing import Optional
-from streamlit_app.core.config import COLOR_CATEGORIA, COLOR_CATEGORIA_CLARO, COLORES
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from core.config import COLOR_CATEGORIA, COLOR_CATEGORIA_CLARO, COLORES
 from streamlit_app.services.strategic_indicators import load_cierres
 from streamlit_app.utils.formatting import (
     ejecucion_his_signo,

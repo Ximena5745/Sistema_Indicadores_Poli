@@ -1,14 +1,16 @@
 from datetime import date
 from pathlib import Path
+import sys
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from streamlit_app.components.charts import exportar_excel
 from streamlit_app.utils.formatting import id_limpio
-from streamlit_app.core.config import CACHE_TTL
+from core.config import CACHE_TTL
 from streamlit_app.components.filter_panel import render_filter_panel, build_active_summary
 
 RUTA_SEGUIMIENTO = (
