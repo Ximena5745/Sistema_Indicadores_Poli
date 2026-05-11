@@ -3,7 +3,7 @@ Utility functions for pdi_acreditacion page.
 """
 
 import pandas as pd
-from core.semantica import normalizar_y_categorizar
+from streamlit_app.core.semantica import normalizar_y_categorizar
 
 
 def calcular_brecha(row):

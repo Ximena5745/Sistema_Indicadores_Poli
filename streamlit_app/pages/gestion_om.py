@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from core.semantica import (
+from streamlit_app.core.semantica import (
     categorizar_cumplimiento,
     obtener_icono_categoria,
     obtener_color_categoria,

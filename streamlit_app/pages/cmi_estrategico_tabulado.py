@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import date as _date
 
-from services.cmi_filters import filter_df_for_cmi_estrategico
-from services.strategic_indicators import (
+from streamlit_app.services.cmi_filters import filter_df_for_cmi_estrategico
+from streamlit_app.services.strategic_indicators import (
     load_pdi_catalog,
     preparar_pdi_con_cierre,
     load_cierres,

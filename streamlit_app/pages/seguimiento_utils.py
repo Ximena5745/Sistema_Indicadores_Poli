@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from core.config import CACHE_TTL
+from streamlit_app.core.config import CACHE_TTL
 from streamlit_app.utils.formatting import id_limpio
 from .seguimiento_config import RUTA_SEGUIMIENTO, VENTANA_MESES, MESES_OPCIONES
 

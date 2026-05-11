@@ -6,7 +6,7 @@ import plotly.express as px
 import unicodedata
 from streamlit_app.utils.cmi_helpers import linea_color
 from streamlit_app.components.cmi_tabs.modal_ficha import render_modal_ficha
-from services.strategic_indicators import load_cierres
+from streamlit_app.services.strategic_indicators import load_cierres
 
 
 def _normalize_linea_key(linea):

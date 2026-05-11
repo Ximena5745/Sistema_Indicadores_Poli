@@ -14,7 +14,7 @@ from streamlit_app.pages.resumen_por_proceso import (
     _norm_text,
     _prepare_tracking,
 )
-from services.cmi_filters import filter_df_for_procesos
+from streamlit_app.services.cmi_filters import filter_df_for_procesos
 
 
 def load_propuestas(proceso_actual: str = "Todos", subproceso_actual: str = "Todos") -> tuple[pd.DataFrame, str | None]:
