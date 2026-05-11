@@ -31,6 +31,15 @@ from core.db.connection_manager import (
     _init_postgres,
 )
 
+from core.db.operations import (
+    guardar_registro_om,
+    leer_registros_om,
+    registros_om_como_dict,
+    guardar_acciones_bulk,
+    leer_acciones,
+    borrar_acciones_por_marker,
+)
+
 __all__ = [
     # Config provider
     "DB_PATH",
@@ -53,4 +62,11 @@ __all__ = [
     "_notify_streamlit",
     "_init_sqlite",
     "_init_postgres",
+    # Operations
+    "guardar_registro_om",
+    "leer_registros_om",
+    "registros_om_como_dict",
+    "guardar_acciones_bulk",
+    "leer_acciones",
+    "borrar_acciones_por_marker",
 ]
