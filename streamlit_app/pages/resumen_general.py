@@ -1646,7 +1646,11 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
 
 
 def _build_gantt_for_proyectos(pdi_estrategico, linea_summary):
-    """Construye visualización tipo Gantt para proyectos (2022-2025)."""
+    """Construye visualización tipo Gantt para proyectos (2022-2025).
+    
+    Filtra cierres por IDs de proyectos del CMI.
+    Llave: ID que cruza Indicadores por CMI (Proyecto=1) con Consolidado Cierres.
+    """
     if pdi_estrategico.empty or "cumplimiento_pct" not in pdi_estrategico.columns:
         return None
     
@@ -2230,7 +2234,8 @@ def render():
                 historico_df = None
                 
         elif category == "Proyectos":
-            # Para proyectos, usamos load_cierres directamente (no filtrado por CMI estratégico)
+            # Para proyectos, filtrar cierres por IDs de proyectos del CMI
+            # Llave: ID que cruza Indicadores por CMI (Proyecto=1) con Consolidado Cierres
             def _norm_id(v) -> str:
                 if pd.isna(v):
                     return ""
@@ -2256,14 +2261,10 @@ def render():
                 else:
                     cierres_proy = cierres_proy[cierres_proy["Anio"] == int(year)]
                 
-                # Obtener último registro por proyecto (de todos los años si use_all_years)
+                # Obtener último registro por proyecto
                 if not cierres_proy.empty and "Fecha" in cierres_proy.columns:
                     cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
 
-                # Normalizar Id para merge robusto con base (evita pérdida de Línea/Objetivo por tipos mixtos)
-                if "Id" in cierres_proy.columns:
-                    cierres_proy["Id"] = cierres_proy["Id"].apply(_norm_id)
-                
                 # Agregar Línea y Objetivo desde worksheet
                 base = load_worksheet_flags()
                 if not base.empty:
@@ -2281,29 +2282,6 @@ def render():
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento", "cumplimiento_pct"] if c in pdi_estrategico.columns]
             objetivo_df = pdi_estrategico[cols].copy() if cols else pd.DataFrame()
             pdi_base_df = pdi_estrategico.copy()
-            
-            try:
-                cierres = load_cierres()
-                if not cierres.empty:
-                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
-                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
-                    df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
-                    if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
-                        cierres = cierres.copy()
-                        cierres["Id"] = cierres["Id"].astype(str)
-                        df_cmi["Id"] = df_cmi["Id"].astype(str)
-                        id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
-                        cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
-                    else:
-                        cierres_con_linea = cierres
-                    cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
-                    if "cumplimiento_pct" not in cierres_con_linea.columns:
-                        cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
-                            lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
-                        )
-                    historico_df = cierres_con_linea
-            except Exception:
-                historico_df = None
                 
         elif category == "Plan de Retos":
             linea_df = pd.DataFrame()
@@ -2334,6 +2312,7 @@ def render():
             linea_df = pd.DataFrame()
             obj_df = pd.DataFrame()
             planes_df = pd.DataFrame()
+            # Cargar proyectos usando ID como llave
             ids_proy = _get_proyectos_ids()
 
             for y in years_to_load:
@@ -2344,7 +2323,8 @@ def render():
                 if not pdi_year.empty:
                     pdi_estrategico = pd.concat([pdi_estrategico, pdi_year], ignore_index=True) if not pdi_estrategico.empty else pdi_year
 
-                if ids_proy and (not use_all_years or pdi_proy.empty):
+                # Filtrar proyectos por ID (llave: Id desde CMI a Cierres)
+                if ids_proy:
                     def _norm_id(v) -> str:
                         if pd.isna(v):
                             return ""
