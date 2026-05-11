@@ -18,15 +18,6 @@ menu = render_sidebar_navigation()
 
 # Enrutar al módulo seleccionado
 router(menu)
-        cmi_estrategico_tabulado.render()
-
-    elif menu == "CMI por Procesos":
-        from streamlit_app.pages import resumen_por_proceso
-        resumen_por_proceso.render()
-
-    elif menu == "Informe por Procesos":
-        from streamlit_app.pages import informe_por_procesos
-        informe_por_procesos.render()
 
     elif menu == "Plan de Mejoramiento":
         plan_mejoramiento.render()
