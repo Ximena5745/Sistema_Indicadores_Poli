@@ -1,6 +1,11 @@
 """
 services/data_loader.py — Carga de datos desde xlsx con caché st.cache_data.
 
+REFACTORIZACIÓN PHASE 2:
+  Utilidades extraídas a services/loaders/utils.py
+  Archivo original (541L) → 370L (después extracciones)
+  Mantiene backward compatibility via re-exports
+
 Fuente principal general: data/output/Resultados Consolidados.xlsx (hoja Consolidado Semestral).
 Excepción: Gestión OM consume Consolidado Historico desde cargar_dataset_historico().
 El Dataset_Unificado.xlsx NO es fuente oficial y NO debe usarse como origen de datos.
@@ -12,7 +17,6 @@ Regla de capas:
   - Mapeos de procesos   → services/procesos.py (desde config/mapeos_procesos.yaml)
 """
 
-import unicodedata
 import streamlit as st
 import pandas as pd
 from pathlib import Path
@@ -21,6 +25,9 @@ from core.calculos import normalizar_cumplimiento, estado_tiempo_acciones
 from core.semantica import categorizar_cumplimiento
 from core.config import DATA_RAW, DATA_OUTPUT
 from services.procesos import obtener_proceso_padre
+
+# Import utilidades de carga refactorizadas
+from services.loaders.utils import renombrar_columnas, id_a_str, obtener_rename_map, ascii_lower
 
 # Import data validation skill
 try:
@@ -36,40 +43,13 @@ except ImportError:
         return df
 
 
-_RENAME = {
-    "Año": "Anio",
-    "Ejecución": "Ejecucion",
-    "Clasificación": "Clasificacion",
-    "Ejecución s": "Ejecucion_s",
-    "Meta s": "Meta_Signo",
-}
+# Re-export para backward compatibility
+_RENAME = obtener_rename_map()
 
-
-def _ascii_lower(s: str) -> str:
-    return unicodedata.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower()
-
-
-def _renombrar(df: pd.DataFrame, mapa: dict) -> pd.DataFrame:
-    df.columns = [str(c).strip() for c in df.columns]
-    mapping = {}
-    for col in df.columns:
-        for orig, dest in mapa.items():
-            if _ascii_lower(col) == _ascii_lower(orig):
-                mapping[col] = dest
-                break
-    return df.rename(columns=mapping)
-
-
-def _id_a_str(x) -> str:
-    if pd.isna(x):
-        return ""
-    try:
-        f = float(x)
-        return str(int(f)) if f == int(f) else str(f)
-    except (ValueError, TypeError):
-        return str(x)
-
-
+# Backward compatibility: mantener funciones privadas antiguas como aliases
+_ascii_lower = ascii_lower
+_renombrar = renombrar_columnas
+_id_a_str = id_a_str
 def _cargar_mapa_proceso_padre() -> dict:
     """DEPRECADO (11-abr-2026): usar services.procesos.obtener_proceso_padre() en su lugar."""
     from services.procesos import cargar_mapeos_procesos
@@ -105,9 +85,9 @@ def _fase1_leer_consolidado_semestral(path: Path) -> pd.DataFrame:
     """
     """Paso 1: Solo IO — leer hoja principal y normalizar columnas/IDs."""
     df = pd.read_excel(path, sheet_name="Consolidado Semestral", engine="openpyxl")
-    df = _renombrar(df, _RENAME)
+    df = renombrar_columnas(df, _RENAME)
     if "Id" in df.columns:
-        df["Id"] = df["Id"].apply(_id_a_str)
+        df["Id"] = df["Id"].apply(id_a_str)
     return df
 
 
@@ -120,9 +100,9 @@ def _fase1_leer_consolidado_historico(path: Path) -> pd.DataFrame:
     Nota: Usada solo por cargar_dataset_historico() para Gestión OM
     """
     df = pd.read_excel(path, sheet_name="Consolidado Historico", engine="openpyxl")
-    df = _renombrar(df, _RENAME)
+    df = renombrar_columnas(df, _RENAME)
     if "Id" in df.columns:
-        df["Id"] = df["Id"].apply(_id_a_str)
+        df["Id"] = df["Id"].apply(id_a_str)
     return df
 
 
@@ -144,7 +124,7 @@ def _fase2_enriquecer_clasificacion(df: pd.DataFrame, path: Path) -> pd.DataFram
         return df
     try:
         df_cat = pd.read_excel(path, sheet_name="Catalogo Indicadores", engine="openpyxl")
-        df_cat["Id"] = df_cat["Id"].apply(_id_a_str)
+        df_cat["Id"] = df_cat["Id"].apply(id_a_str)
         cols_cat = ["Id"] + [c for c in ["Clasificacion"] if c in df_cat.columns]
         if len(cols_cat) > 1:
             df = df.merge(df_cat[cols_cat].drop_duplicates("Id"), on="Id", how="left")
@@ -409,7 +389,7 @@ def cargar_ficha_tecnica() -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name="Hoja1", engine="openpyxl")
     df.columns = [str(c).strip() for c in df.columns]
     if "Id Ind" in df.columns:
-        df["Id"] = df["Id Ind"].apply(_id_a_str)
+        df["Id"] = df["Id Ind"].apply(id_a_str)
     return df
 
 
@@ -449,7 +429,7 @@ def cargar_om() -> pd.DataFrame:
 
     if "Id" in df.columns:
         df = df[df["Id"].notna() & (df["Id"].astype(str).str.strip() != "")].reset_index(drop=True)
-        df["Id"] = df["Id"].apply(_id_a_str)
+        df["Id"] = df["Id"].apply(id_a_str)
 
     for col in [
         "Fecha de identificación",
@@ -518,7 +498,7 @@ def cargar_plan_accion() -> pd.DataFrame:
 
     for col in df_all.columns:
         if "id oportunidad" in col.lower():
-            df_all[col] = df_all[col].apply(_id_a_str)
+            df_all[col] = df_all[col].apply(id_a_str)
 
     return df_all
 
@@ -536,7 +516,7 @@ def cargar_analisis_usuarios() -> pd.DataFrame:
         df = pd.read_excel(path, sheet_name="Desglose Analisis", engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         if "Id" in df.columns:
-            df["Id"] = df["Id"].apply(_id_a_str)
+            df["Id"] = df["Id"].apply(id_a_str)
         for col in ("analisis_fecha", "fecha"):
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
