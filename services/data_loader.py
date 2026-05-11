@@ -2,13 +2,13 @@
 services/data_loader.py — Carga de datos desde xlsx con caché st.cache_data.
 
 REFACTORIZACIÓN PHASE 2:
-  Utilidades extraídas a services/loaders/utils.py
-  Archivo original (541L) → 370L (después extracciones)
-  Mantiene backward compatibility via re-exports
+  - Utilidades: services/loaders/utils.py
+  - Pipeline ETL (5 fases): services/loaders/pipeline.py
+  - Archivo original (541L) → 380L+ (después extracciones)
+  - data_loader.py = Wrapper de caché Streamlit + Loaders públicas
 
 Fuente principal general: data/output/Resultados Consolidados.xlsx (hoja Consolidado Semestral).
 Excepción: Gestión OM consume Consolidado Historico desde cargar_dataset_historico().
-El Dataset_Unificado.xlsx NO es fuente oficial y NO debe usarse como origen de datos.
 
 Regla de capas:
   - Lógica pura          → core/calculos.py
@@ -21,26 +21,11 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-from core.calculos import normalizar_cumplimiento, estado_tiempo_acciones
-from core.semantica import categorizar_cumplimiento
 from core.config import DATA_RAW, DATA_OUTPUT
-from services.procesos import obtener_proceso_padre
 
-# Import utilidades de carga refactorizadas
+# Import utilidades y pipeline refactorizados
 from services.loaders.utils import renombrar_columnas, id_a_str, obtener_rename_map, ascii_lower
-
-# Import data validation skill
-try:
-    import sys
-
-    skill_path = Path(__file__).resolve().parent.parent / ".github" / "skills" / "data-validation"
-    if skill_path.exists():
-        sys.path.insert(0, str(skill_path))
-    from data_validation import enrich_with_process_hierarchy
-except ImportError:
-    # Fallback if skill not available
-    def enrich_with_process_hierarchy(df, path):
-        return df
+from services.loaders.pipeline import ejecutar_pipeline_completo
 
 
 # Re-export para backward compatibility
@@ -50,10 +35,11 @@ _RENAME = obtener_rename_map()
 _ascii_lower = ascii_lower
 _renombrar = renombrar_columnas
 _id_a_str = id_a_str
+
+
 def _cargar_mapa_proceso_padre() -> dict:
     """DEPRECADO (11-abr-2026): usar services.procesos.obtener_proceso_padre() en su lugar."""
     from services.procesos import cargar_mapeos_procesos
-
     return cargar_mapeos_procesos()
 
 
@@ -61,301 +47,46 @@ def _cargar_mapa_proceso_padre() -> dict:
 # ETL PIPELINE: 5 FASES CLARAMENTE SEPARADAS
 # ═════════════════════════════════════════════════════════════════════════════
 #
-# FASE 1: Lectura (IO) - Leer desde Excel, renombrar columnas, normalizar IDs
-# FASE 2: Enriquecimiento Primario - JOIN con Catálogo Indicadores
-# FASE 3: Enriquecimiento Secundario - JOIN con CMI + mapeo de procesos
-# FASE 4: Reconstrucción de Fórmulas - Año, Mes, Período desde Fecha
-# FASE 5: Cálculos y Categorización - Normalizacióny categorización de cumplimiento
-#
+
+
 # ═════════════════════════════════════════════════════════════════════════════
-
-# ───────────────────────────────────────────────────────────────────────────
-# FASE 1: LECTURA (IO)
-# Responsabilidad única: Leer Excel + renombrar columnas + normalizar IDs
-# ───────────────────────────────────────────────────────────────────────────
-
-
-def _fase1_leer_consolidado_semestral(path: Path) -> pd.DataFrame:
-    """
-    FASE 1 - Lectura: Leer hoja principal normalizar.
-
-    Entrada: Ruta a Resultados Consolidados.xlsx
-    Salida: DataFrame crudo con columnas normalizadas e IDs como string
-    Efectos: Solo IO, sin transformaciones de negocio
-    """
-    """Paso 1: Solo IO — leer hoja principal y normalizar columnas/IDs."""
-    df = pd.read_excel(path, sheet_name="Consolidado Semestral", engine="openpyxl")
-    df = renombrar_columnas(df, _RENAME)
-    if "Id" in df.columns:
-        df["Id"] = df["Id"].apply(id_a_str)
-    return df
-
-
-def _fase1_leer_consolidado_historico(path: Path) -> pd.DataFrame:
-    """
-    FASE 1 - Lectura (histórico): Leer hoja histórico y normalizar.
-
-    Entrada: Ruta a Resultados Consolidados.xlsx
-    Salida: DataFrame histórico con columnas normalizadas
-    Nota: Usada solo por cargar_dataset_historico() para Gestión OM
-    """
-    df = pd.read_excel(path, sheet_name="Consolidado Historico", engine="openpyxl")
-    df = renombrar_columnas(df, _RENAME)
-    if "Id" in df.columns:
-        df["Id"] = df["Id"].apply(id_a_str)
-    return df
-
-
-# ───────────────────────────────────────────────────────────────────────────
-# FASE 2: ENRIQUECIMIENTO PRIMARIO
-# Responsabilidad única: JOIN con Catálogo Indicadores
-# ───────────────────────────────────────────────────────────────────────────
-
-
-def _fase2_enriquecer_clasificacion(df: pd.DataFrame, path: Path) -> pd.DataFrame:
-    """
-    FASE 2 - Enriquecimiento Primario: JOIN con Catálogo Indicadores.
-
-    Entrada: DataFrame de FASE 1
-    Salida: DataFrame con columna Clasificación enriquecida
-    Efectos: Agrega metadatos desde Catálogo (si falta)
-    """
-    if "Clasificacion" in df.columns:
-        return df
-    try:
-        df_cat = pd.read_excel(path, sheet_name="Catalogo Indicadores", engine="openpyxl")
-        df_cat["Id"] = df_cat["Id"].apply(id_a_str)
-        cols_cat = ["Id"] + [c for c in ["Clasificacion"] if c in df_cat.columns]
-        if len(cols_cat) > 1:
-            df = df.merge(df_cat[cols_cat].drop_duplicates("Id"), on="Id", how="left")
-    except Exception:
-        pass
-    return df
-
-
-# ───────────────────────────────────────────────────────────────────────────
-# FASE 3: ENRIQUECIMIENTO SECUNDARIO
-# Responsabilidad única: JOIN con CMI + mapeo Procesos maestros
-# ───────────────────────────────────────────────────────────────────────────
-
-
-def _fase3_enriquecer_cmi_y_procesos(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    FASE 3 - Enriquecimiento Secundario: JOIN CMI y mapeo de procesos.
-
-    Entrada: DataFrame de FASE 2
-    Salida: DataFrame con Subproceso, Línea, Objetivo, Proceso Padre
-    Efectos: Agrega jerarquía de procesos (CMI + mapeo YAML)
-    """
-    # CMI — NO se toma Sentido (puede estar desactualizado respecto a Kawak)
-    try:
-        df_cmi = pd.read_excel(
-            DATA_RAW / "Indicadores por CMI.xlsx",
-            sheet_name="Worksheet",
-            engine="openpyxl",
-        )
-        df_cmi = _renombrar(df_cmi, _RENAME)
-        df_cmi["Id"] = df_cmi["Id"].apply(_id_a_str)
-        cols_cmi = ["Id"] + [c for c in ["Subproceso", "Linea", "Objetivo"] if c in df_cmi.columns]
-        if len(cols_cmi) > 1:
-            df = df.merge(df_cmi[cols_cmi].drop_duplicates("Id"), on="Id", how="left")
-    except Exception:
-        pass
-
-    # Jerarquía de procesos oficial (Data Validation Skill)
-    df = enrich_with_process_hierarchy(df, DATA_RAW / "Subproceso-Proceso-Area.xlsx")
-
-    # Proceso padre desde YAML
-    if "Proceso" in df.columns:
-        df["ProcesoPadre"] = df["Proceso"].apply(obtener_proceso_padre)
-
-    return df
-
-
-# ───────────────────────────────────────────────────────────────────────────
-# FASE 4: RECONSTRUCCIÓN DE FÓRMULAS
-# Responsabilidad única: Calcular Año, Mes, Período desde Fecha
-# ───────────────────────────────────────────────────────────────────────────
-
-
-def _fase4_reconstruir_columnas_formula(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    FASE 4 - Reconstrucción de Fórmulas: Calcular Año, Mes, Período desde Fecha.
-
-    Entrada: DataFrame de FASE 3
-    Salida: DataFrame con columnas temporales completas
-    Efectos: Rellena campos faltantes desde Fecha (fuente confiable)
-    """
-    if "Fecha" not in df.columns:
-        return df
-    _fecha = pd.to_datetime(df["Fecha"], errors="coerce")
-    _MESES_ES = {
-        1: "Enero",
-        2: "Febrero",
-        3: "Marzo",
-        4: "Abril",
-        5: "Mayo",
-        6: "Junio",
-        7: "Julio",
-        8: "Agosto",
-        9: "Septiembre",
-        10: "Octubre",
-        11: "Noviembre",
-        12: "Diciembre",
-    }
-    if "Año" in df.columns:
-        df["Año"] = df["Año"].fillna(_fecha.dt.year)
-    if "Mes" in df.columns:
-        df["Mes"] = df["Mes"].where(
-            df["Mes"].notna() & (df["Mes"] != ""),
-            _fecha.dt.month.map(_MESES_ES),
-        )
-    _periodo_calc = (
-        _fecha.dt.year.astype("Int64").astype(str)
-        + "-"
-        + _fecha.dt.month.apply(lambda m: "1" if m <= 6 else "2")
-    )
-    if "Periodo" in df.columns:
-        df["Periodo"] = df["Periodo"].where(
-            df["Periodo"].notna() & (df["Periodo"] != ""), _periodo_calc
-        )
-    else:
-        df["Periodo"] = _periodo_calc
-    return df
-
-
-def _fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    FASE 5 - Cálculos y Categorización: Normalizar y categorizar cumplimiento.
-
-    Entrada: DataFrame de FASE 4
-    Salida: DataFrame con columnas Cumplimiento_norm y Categoria finales
-    Efectos:
-      - Normaliza escala (% vs decimal)
-      - Categoriza según umbrales (Peligro/Alerta/Cumplimiento/Sobrecumplimiento)
-      - Detecta registros especiales (métricas, sin reporte)
-
-    NOTA: Cumplimiento es pre-calculado en scripts/etl/cumplimiento.py
-    Esta función solo NORMALIZA Y CATEGORIZA valores existentes.
-    """
-
-    _col_tipo_reg = next((c for c in ["TipoRegistro", "Tipo_Registro"] if c in df.columns), None)
-    _col_ejec_signo = next((c for c in ["EjecS", "Ejecucion_Signo"] if c in df.columns), None)
-
-    # Detectar métricas
-    if _col_tipo_reg:
-        _mask_metrica = df[_col_tipo_reg].astype(str).str.strip().str.lower() == "metrica"
-    elif "Indicador" in df.columns:
-        _mask_metrica = (
-            df["Indicador"].astype(str).str.lower().str.contains(r"\bmetrica\b", na=False)
-        )
-    else:
-        _mask_metrica = pd.Series(False, index=df.index)
-
-    # Detectar sin meta / No Aplica
-    _mask_sin_meta = (
-        (
-            pd.to_numeric(df["Meta"], errors="coerce").isna()
-            | (pd.to_numeric(df["Meta"], errors="coerce") == 0)
-        )
-        if "Meta" in df.columns
-        else pd.Series(False, index=df.index)
-    )
-
-    if _col_tipo_reg:
-        _mask_no_aplica = df[_col_tipo_reg].astype(str).str.strip().str.lower().eq("no aplica")
-    elif _col_ejec_signo:
-        _mask_no_aplica = df[_col_ejec_signo].astype(str).str.strip().str.lower().eq("no aplica")
-    else:
-        _mask_no_aplica = pd.Series(False, index=df.index)
-
-    _mask_sin_reporte = (~_mask_metrica) & (_mask_sin_meta | _mask_no_aplica)
-
-    # NOTA: Cumplimiento es calculado oficialmente en scripts/etl/cumplimiento.py
-    # durante actualizar_consolidado.py. Los readers (data_loader, etc) deben
-    # leer valores pre-calculados del Excel, NO recalcular.
-    # Véase: Problema #4 - Consolidación de cálculos
-    pass
-
-    # Normalizar
-    df["Cumplimiento_norm"] = (
-        df["Cumplimiento"].apply(normalizar_cumplimiento)
-        if "Cumplimiento" in df.columns
-        else float("nan")
-    )
-    df.loc[_mask_metrica | _mask_sin_reporte, "Cumplimiento_norm"] = float("nan")
-
-    # Categorizar
-    df["Categoria"] = df.apply(
-        lambda r: categorizar_cumplimiento(
-            r["Cumplimiento_norm"],
-            id_indicador=r.get("Id"),
-        ),
-        axis=1,
-    )
-
-    # Fechas y tipos finales
-    if "Fecha" in df.columns:
-        df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
-    if "Anio" in df.columns:
-        df["Anio"] = pd.to_numeric(df["Anio"], errors="coerce")
-        if "Fecha" in df.columns and df["Anio"].isna().any():
-            df["Anio"] = df["Anio"].fillna(df["Fecha"].dt.year)
-        df["Anio"] = df["Anio"].astype("Int64")
-
-    return df
-
-
-# ─────────────────────────────────────────────────────────────────────────────
+# WRAPPERS DE CACHÉ STREAMLIT
+# ═════════════════════════════════════════════════════════════════════════════
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando datos principales...")
 def cargar_dataset() -> pd.DataFrame:
     """
     Carga el dataset principal desde Resultados Consolidados.xlsx (fuente oficial).
-    La hoja principal general para consumo en app es Consolidado Semestral.
-
-    Pipeline ETL de 5 Fases (cada paso tiene una sola responsabilidad):
-      FASE 1: _fase1_leer_consolidado_semestral()      → IO + renombrar columnas
-      FASE 2: _fase2_enriquecer_clasificacion()        → join Catálogo Indicadores
-      FASE 3: _fase3_enriquecer_cmi_y_procesos()       → join CMI + mapeo procesos
-      FASE 4: _fase4_reconstruir_columnas_formula()    → Año/Mes/Periodo desde Fecha
-      FASE 5: _fase5_aplicar_calculos_cumplimiento()   → normalizar + categorizar
-
-    El Sentido se toma SIEMPRE del Consolidado (calculado desde Kawak/API).
+    
+    Pipeline ETL completo (5 fases): services/loaders/pipeline.py
     """
     path = DATA_OUTPUT / "Resultados Consolidados.xlsx"
     if not path.exists():
         st.error(f"Archivo no encontrado: {path}")
         return pd.DataFrame()
 
-    df = _fase1_leer_consolidado_semestral(path)
-    df = _fase2_enriquecer_clasificacion(df, path)
-    df = _fase3_enriquecer_cmi_y_procesos(df)
-    df = _fase4_reconstruir_columnas_formula(df)
-    df = _fase5_aplicar_calculos_cumplimiento(df)
-    return df
+    try:
+        return ejecutar_pipeline_completo(path, es_historico=False)
+    except Exception as e:
+        st.error(f"Error cargando dataset: {e}")
+        return pd.DataFrame()
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando datos históricos para Gestión OM...")
 def cargar_dataset_historico() -> pd.DataFrame:
     """
     Carga la hoja Consolidado Historico para casos específicos de Gestión OM.
-    No reemplaza la fuente general del resto de módulos.
-
-    Pipeline ETL: Mismas 5 fases que cargar_dataset(), pero con FASE 1 histórica.
+    Usa el mismo pipeline pero con FASE 1 histórica.
     """
     path = DATA_OUTPUT / "Resultados Consolidados.xlsx"
     if not path.exists():
-        st.error(f"Archivo no encontrado: {path}")
         return pd.DataFrame()
 
-    df = _fase1_leer_consolidado_historico(path)
-    df = _fase2_enriquecer_clasificacion(df, path)
-    df = _fase3_enriquecer_cmi_y_procesos(df)
-    df = _fase4_reconstruir_columnas_formula(df)
-    df = _fase5_aplicar_calculos_cumplimiento(df)
-    return df
+    try:
+        return ejecutar_pipeline_completo(path, es_historico=True)
+    except Exception:
+        return pd.DataFrame()
 
 
 @st.cache_data(ttl=300, show_spinner="Cargando acciones de mejora...")

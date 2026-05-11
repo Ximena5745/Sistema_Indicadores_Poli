@@ -21,12 +21,12 @@ import time
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from services.data_loader import (
-    _fase1_leer_consolidado_semestral,
-    _fase2_enriquecer_clasificacion,
-    _fase3_enriquecer_cmi_y_procesos,
-    _fase4_reconstruir_columnas_formula,
-    _fase5_aplicar_calculos_cumplimiento,
+from services.loaders.pipeline import (
+    fase1_leer_consolidado_semestral,
+    fase2_enriquecer_clasificacion,
+    fase3_enriquecer_cmi_y_procesos,
+    fase4_reconstruir_columnas_formula,
+    fase5_aplicar_calculos_cumplimiento,
 )
 from core.semantica import categorizar_cumplimiento, CategoriaCumplimiento
 from core.config import (

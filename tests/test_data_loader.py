@@ -14,6 +14,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from services import data_loader
+from services.loaders import pipeline
 
 
 class TestIdAStr:
@@ -99,7 +100,7 @@ class TestAplicarCalculosCumplimiento:
             }
         )
 
-        result = data_loader._fase5_aplicar_calculos_cumplimiento(df)
+        result = pipeline.fase5_aplicar_calculos_cumplimiento(df)
 
         # Debe tener columnas nuevas
         assert "Cumplimiento_norm" in result.columns
@@ -120,7 +121,7 @@ class TestAplicarCalculosCumplimiento:
         )
 
         # No debe crashear
-        result = data_loader._fase5_aplicar_calculos_cumplimiento(df)
+        result = pipeline.fase5_aplicar_calculos_cumplimiento(df)
         assert (
             "Cumplimiento_norm" in result.columns or result.shape[0] > 0
         )  # Debe mantener estructura
@@ -136,7 +137,7 @@ class TestLeerConsolidadoSemestral:
             {"Año": [2026], "Ejecución": [0.80], "Id": [373.0], "Indicador": ["Test"]}
         )
 
-        result = data_loader._fase1_leer_consolidado_semestral(None)
+        result = pipeline.fase1_leer_consolidado_semestral(None)
 
         # Verificar que read_excel fue llamado correctamente
         mock_read_excel.assert_called_once()
@@ -159,7 +160,7 @@ class TestLeerConsolidadoHistorico:
             {"Año": [2025, 2026], "Id": [373.0, 390.0], "Cumplimiento": [0.70, 0.90]}
         )
 
-        result = data_loader._fase1_leer_consolidado_historico(None)
+        result = pipeline.fase1_leer_consolidado_historico(None)
 
         mock_read_excel.assert_called_once()
         assert "Anio" in result.columns
@@ -236,10 +237,10 @@ class TestConstruirOpcionesIndicadores:
 class TestCargarDataset:
     """Validar cargar_dataset() - función pública principal."""
 
-    @patch("services.data_loader._fase1_leer_consolidado_semestral")
-    @patch("services.data_loader._fase2_enriquecer_clasificacion")
-    @patch("services.data_loader._fase3_enriquecer_cmi_y_procesos")
-    @patch("services.data_loader._fase5_aplicar_calculos_cumplimiento")
+    @patch("services.loaders.pipeline.fase1_leer_consolidado_semestral")
+    @patch("services.loaders.pipeline.fase2_enriquecer_clasificacion")
+    @patch("services.loaders.pipeline.fase3_enriquecer_cmi_y_procesos")
+    @patch("services.loaders.pipeline.fase5_aplicar_calculos_cumplimiento")
     def test_cargar_dataset_flujo_completo(self, mock_calculos, mock_cmi, mock_clasif, mock_leer):
         """Debe ejecutar pipeline completo de transformaciones."""
         df_base = pd.DataFrame({"Id": ["373"], "Indicador": ["Test"], "Cumplimiento_raw": [0.95]})
@@ -260,8 +261,8 @@ class TestCargarDataset:
 class TestCargarDatasetHistorico:
     """Validar cargar_dataset_historico()."""
 
-    @patch("services.data_loader._fase1_leer_consolidado_historico")
-    @patch("services.data_loader._fase3_enriquecer_cmi_y_procesos")
+    @patch("services.loaders.pipeline.fase1_leer_consolidado_historico")
+    @patch("services.loaders.pipeline.fase3_enriquecer_cmi_y_procesos")
     def test_cargar_dataset_historico_flujo(self, mock_cmi, mock_leer):
         """Debe leer histórico y enriquecer CMI."""
         df_base = pd.DataFrame({"Id": ["373"], "Periodo": ["2026-01"], "Cumplimiento_norm": [0.90]})
