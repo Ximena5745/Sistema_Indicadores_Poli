@@ -423,3 +423,40 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame) -> tuple:
     declines = []
     
     return improvements, declines
+
+
+def _merge_consolidado_summaries(s1: pd.DataFrame, s2: pd.DataFrame, s3: pd.DataFrame,
+                                 o1: pd.DataFrame, o2: pd.DataFrame, o3: pd.DataFrame) -> tuple:
+    """Merge summaries from three data sources (PDI, Cierres, Retos).
+    
+    Args:
+        s1, s2, s3: Line summaries from PDI Catalog, Cierres, and Retos
+        o1, o2, o3: Objective data from same sources
+    
+    Returns:
+        Tuple of (merged_linea_summary, merged_objetivo_df)
+    """
+    # Merge line summaries
+    linea_summary = pd.DataFrame()
+    
+    # Concatenate all summaries
+    summaries = [s for s in [s1, s2, s3] if not s.empty]
+    if summaries:
+        linea_summary = pd.concat(summaries, ignore_index=True)
+        # Group by Linea if present
+        if "Linea" in linea_summary.columns:
+            linea_summary = linea_summary.groupby("Linea", as_index=False).agg({
+                col: "sum" if pd.api.types.is_numeric_dtype(linea_summary[col]) else "first"
+                for col in linea_summary.columns if col != "Linea"
+            })
+    
+    # Merge objectives
+    objetivo_df = pd.DataFrame()
+    objetivos = [o for o in [o1, o2, o3] if not o.empty]
+    if objetivos:
+        objetivo_df = pd.concat(objetivos, ignore_index=True)
+        # Remove duplicates keeping first
+        if "Objetivo" in objetivo_df.columns:
+            objetivo_df = objetivo_df.drop_duplicates(subset=["Objetivo"], keep="first")
+    
+    return linea_summary, objetivo_df

@@ -8,6 +8,14 @@ CORTE_SEMESTRAL = {
     "Diciembre": 12,
 }
 
+# Tab names for CMI Estratégico
+TAB_NAMES = [
+    "Resumen",
+    "Listado",
+    "Líneas Estratégicas",
+    "Alertas",
+]
+
 # Strategic line colors
 LINEA_COLORS = {
     "Expansión": "#FBAF17",

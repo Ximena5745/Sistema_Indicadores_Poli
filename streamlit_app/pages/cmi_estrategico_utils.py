@@ -209,3 +209,42 @@ def render_indicator_table_html(df_obj: pd.DataFrame) -> str:
         html.append("</tr>")
     html.append("</table>")
     return "".join(html)
+
+
+# Wrapper functions for backward compatibility and aliases
+def default_anio(anios: list[int]) -> int:
+    """Get default year (wrapper for get_default_anio from config)."""
+    from streamlit_app.pages.cmi_estrategico_config import get_default_anio
+    return get_default_anio(anios)
+
+
+def default_corte(anio: int | None) -> str:
+    """Get default semester (wrapper for get_default_corte from config)."""
+    from streamlit_app.pages.cmi_estrategico_config import get_default_corte
+    return get_default_corte(anio)
+
+
+def prepare_cmi_data(anio: int, mes: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Prepare CMI data for the selected year and month.
+    
+    Args:
+        anio: Year
+        mes: Month number
+    
+    Returns:
+        Tuple of (filtered_cierres_df, pdi_catalog)
+    """
+    from services.strategic_indicators import load_cierres, load_pdi_catalog
+    
+    # Load base data
+    cierres = load_cierres()
+    pdi_catalog = load_pdi_catalog()
+    
+    # Filter by year and month
+    if not cierres.empty:
+        cierres = cierres[
+            (pd.to_numeric(cierres.get("Anio", cierres.get("Año", pd.Series())), errors="coerce") == anio) &
+            (pd.to_numeric(cierres.get("Mes_num", cierres.get("Mes", pd.Series())), errors="coerce") == mes)
+        ]
+    
+    return cierres, pdi_catalog
