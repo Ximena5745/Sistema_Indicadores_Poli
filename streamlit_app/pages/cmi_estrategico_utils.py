@@ -1,120 +1,211 @@
-"""
-Utility functions for cmi_estrategico_tabulado page.
-"""
+"""Utilities for cmi_estrategico page."""
 
-from datetime import date as _date
 import pandas as pd
+import streamlit as st
+import unicodedata
+from html import escape
+
+from streamlit_app.pages.cmi_estrategico_config import (
+    NIVEL_FLAG_COLORS,
+    NIVEL_ICONS_CMI,
+    LINEA_COLORS,
+)
 
 
-def default_anio(anios: list[int]) -> int:
-    """
-    Get default year for CMI page.
+def get_sin_gestion_df() -> pd.DataFrame:
+    """Load CMI worksheet and return indicators with Plan anual == 3.
     
-    Prefers 2025 if available, else most recent year, else current year.
+    Returns:
+        DataFrame with id, indicator name, and strategic line
+    """
+    from services.cmi_filters import load_cmi_worksheet
+
+    df = load_cmi_worksheet()
+    if df.empty or "Plan anual" not in df.columns:
+        return pd.DataFrame()
+    sin_gestion = df[df["Plan anual"] == 3].copy()
+    cols = [c for c in ["Id", "Indicador", "Linea"] if c in sin_gestion.columns]
+    return sin_gestion[cols] if cols else sin_gestion
+
+
+def linea_color(linea: str) -> str:
+    """Get color for strategic line with fallback logic.
     
     Args:
-        anios: List of available years
-        
-    Returns:
-        Default year as integer
-    """
-    if 2025 in anios:
-        return 2025
-    if anios:
-        return anios[-1]
-    return _date.today().year
-
-
-def default_corte(anio: int | None) -> str:
-    """
-    Get default corte (semester) for CMI page.
+        linea: Line name
     
-    Logic:
-    - If anio < current year: return "Diciembre" (full year)
-    - If anio == current year:
-      - If today > July 20: return "Junio"
-      - Else: return "Diciembre"
-    
-    Args:
-        anio: Year to calculate corte for
-        
     Returns:
-        Corte as string ("Junio" or "Diciembre")
+        Hex color code
     """
-    if anio is None:
-        return "Diciembre"
-    today = _date.today()
-    if int(anio) < today.year:
-        return "Diciembre"
-    if today > _date(today.year, 7, 20):
-        return "Junio"
-    return "Diciembre"
+    # Try direct lookup first
+    if linea in LINEA_COLORS:
+        return LINEA_COLORS[linea]
+    
+    # Fallback: normalize and match by keyword
+    txt = str(linea or "").strip().lower()
+    txt = unicodedata.normalize("NFD", txt)
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+    
+    if "expansi" in txt:
+        return "#FBAF17"
+    if "transform" in txt:
+        return "#42F2F2"
+    if "calidad" in txt:
+        return "#EC0677"
+    if "experien" in txt:
+        return "#1FB2DE"
+    if "sostenib" in txt or "sustentab" in txt:
+        return "#A6CE38"
+    if "educaci" in txt or "toda la vida" in txt:
+        return "#0F385A"
+    return "#1A3A5C"
 
 
-def prepare_cmi_data(
-    anio: int,
-    mes: int,
-    pdi_catalog: pd.DataFrame | None = None
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Prepare CMI data for rendering.
+def apply_cmi_filters(df: pd.DataFrame, linea_sel: str, objetivo_sel: str, nombre_q: str) -> tuple[pd.DataFrame, list]:
+    """Apply strategic line/objective/name filters to PDI DataFrame.
     
     Args:
-        anio: Year to prepare data for
-        mes: Month to prepare data for
-        pdi_catalog: Optional PDI catalog dataframe
-        
+        df: PDI indicators DataFrame
+        linea_sel: Selected line or "Todas"
+        objetivo_sel: Selected objective or "Todos"
+        nombre_q: Search query for indicator name
+    
     Returns:
-        Tuple of (prepared_df, pdi_catalog)
+        Tuple of (filtered_df, active_filters_list)
     """
-    from services.strategic_indicators import (
-        preparar_pdi_con_cierre,
-        load_pdi_catalog,
+    if linea_sel != "Todas":
+        df = df[df["Linea"] == linea_sel]
+    if objetivo_sel != "Todos":
+        df = df[df["Objetivo"] == objetivo_sel]
+    if nombre_q.strip():
+        df = df[df["Indicador"].astype(str).str.contains(nombre_q.strip(), case=False, na=False)]
+    
+    activos = []
+    if linea_sel != "Todas":
+        activos.append(f"Línea: {linea_sel}")
+    if objetivo_sel != "Todos":
+        activos.append(f"Objetivo: {objetivo_sel}")
+    if nombre_q.strip():
+        activos.append(f"Indicador contiene: {nombre_q.strip()}")
+    
+    return df, activos
+
+
+def build_metrics_summary(df: pd.DataFrame, pdi_catalog: pd.DataFrame) -> dict:
+    """Build summary metrics for the page.
+    
+    Args:
+        df: Filtered PDI data
+        pdi_catalog: PDI catalog
+    
+    Returns:
+        Dictionary with summary metrics
+    """
+    total = len(df)
+    con_dato = int(df["cumplimiento_pct"].notna().sum())
+    promedio = float(df["cumplimiento_pct"].mean()) if con_dato else 0.0
+    top_nivel = df["Nivel de cumplimiento"].value_counts().idxmax() if total else "Sin dato"
+    n_lineas_vis = int(df["Linea"].nunique())
+    n_obj_vis = int(df["Objetivo"].nunique())
+    n_lineas_cat = int(pdi_catalog["Linea"].nunique()) if not pdi_catalog.empty else n_lineas_vis
+    n_obj_cat = int(pdi_catalog["Objetivo"].nunique()) if not pdi_catalog.empty else n_obj_vis
+    
+    return {
+        "total": total,
+        "con_dato": con_dato,
+        "promedio": promedio,
+        "top_nivel": top_nivel,
+        "n_lineas_vis": n_lineas_vis,
+        "n_obj_vis": n_obj_vis,
+        "n_lineas_cat": n_lineas_cat,
+        "n_obj_cat": n_obj_cat,
+    }
+
+
+def get_pdi_lines_and_objectives(pdi_catalog: pd.DataFrame, df: pd.DataFrame, linea_sel: str) -> tuple[list, list]:
+    """Get available strategic lines and objectives.
+    
+    Args:
+        pdi_catalog: PDI catalog DataFrame
+        df: PDI data DataFrame
+        linea_sel: Selected line or "Todas"
+    
+    Returns:
+        Tuple of (lines_list, objectives_list)
+    """
+    if not pdi_catalog.empty:
+        lineas = sorted(pdi_catalog["Linea"].dropna().astype(str).unique().tolist())
+        obj_pool = (
+            pdi_catalog if linea_sel == "Todas"
+            else pdi_catalog[pdi_catalog["Linea"] == linea_sel]
+        )
+        objetivos = sorted(obj_pool["Objetivo"].dropna().astype(str).unique().tolist())
+    else:
+        lineas = sorted(df["Linea"].dropna().astype(str).unique().tolist())
+        df_obj = df if linea_sel == "Todas" else df[df["Linea"] == linea_sel]
+        objetivos = sorted(df_obj["Objetivo"].dropna().astype(str).unique().tolist())
+    
+    return lineas, objetivos
+
+
+def render_indicator_table_html(df_obj: pd.DataFrame) -> str:
+    """Render PDI indicators as HTML table with formatted cells.
+    
+    Args:
+        df_obj: DataFrame with indicators for one objective
+    
+    Returns:
+        HTML string representation of table
+    """
+    cols = [c for c in ["Indicador", "Meta", "Ejecución", "Cumplimiento (%)"] if c in df_obj.columns]
+    if df_obj.empty:
+        return "<div style='padding:8px'>No hay indicadores para este objetivo.</div>"
+
+    def _nivel_limpio(raw) -> str:
+        txt = str(raw or "").strip()
+        if not txt:
+            return ""
+        # Remove icon prefix if present
+        parts = txt.split(" ", 1)
+        if len(parts) == 2 and parts[0] in {"🔴", "🟡", "🟢", "🔵", "⚫", "⚪", "🚩", "⚑", "🏁", "🎌", "🏴", "🏳️"}:
+            return parts[1].strip()
+        return txt
+
+    def _cumplimiento_display(row) -> str:
+        val = pd.to_numeric(row.get("Cumplimiento (%)"), errors="coerce")
+        nivel = _nivel_limpio(row.get("Nivel", ""))
+        color = NIVEL_FLAG_COLORS.get(nivel, "#9E9E9E")
+        icon = f"<span style='color:{color};font-weight:700'>⚑</span>"
+        if pd.isna(val):
+            return f"{icon} -".strip()
+        return f"{icon} {float(val):.1f}%".strip()
+
+    html = ["<table style='width:100%;border-collapse:collapse;font-size:0.9rem'>"]
+    # Header
+    html.append(
+        "<tr style='background:#e9f7fb;color:#033;'><th style='padding:8px;border:1px solid #d0e9ef;text-align:left'>Indicador</th>"
     )
-    from services.cmi_filters import filter_df_for_cmi_estrategico
-    from services.data_loader import cargar_ficha_tecnica as _cft
-
-    # Prepare and filter data
-    df = preparar_pdi_con_cierre(int(anio), int(mes))
-    df = filter_df_for_cmi_estrategico(df, id_column="Id")
-
-    if df.empty:
-        return df, pdi_catalog or pd.DataFrame()
-
-    # Load PDI catalog if not provided
-    if pdi_catalog is None or pdi_catalog.empty:
-        pdi_catalog = load_pdi_catalog(include_ids=True)
-
-    df_filtrado = df.copy()
-
-    # Enrich with metadata from Ficha Técnica
-    try:
-        _ft = _cft()
-        if not _ft.empty and "Id" in _ft.columns:
-            # Find description column (case-insensitive, handles encoding issues)
-            _desc_col = next(
-                (c for c in _ft.columns if "descripci" in c.lower()),
-                None,
+    for c in cols[1:]:
+        html.append(
+            f"<th style='padding:8px;border:1px solid #d0e9ef;text-align:center'>{c}</th>"
+        )
+    html.append("</tr>")
+    # Rows
+    for _, r in df_obj.iterrows():
+        html.append("<tr>")
+        html.append(
+            f"<td style='padding:8px;border:1px solid #eef7fb'>{escape(str(r.get('Indicador','')))}</td>"
+        )
+        for c in cols[1:]:
+            if c == "Cumplimiento (%)":
+                display = _cumplimiento_display(r)
+            else:
+                val = r.get(c, "")
+                display = f"{val}" if pd.notna(val) else ""
+            align = "center"
+            html.append(
+                f"<td style='padding:8px;border:1px solid #eef7fb;text-align:{align}'>{display}</td>"
             )
-            _wanted = [
-                c for c in [
-                    _desc_col,
-                    "Responsable del calculo",
-                    "Fuente V1",
-                    "Formula",
-                    "Frecuencia",
-                ]
-                if c and c in _ft.columns
-            ]
-            _ft_sub = _ft[["Id"] + _wanted].drop_duplicates(subset="Id", keep="first").copy()
-            if _desc_col and _desc_col in _ft_sub.columns:
-                _ft_sub = _ft_sub.rename(columns={_desc_col: "Descripcion"})
-
-            # Normalize keys to string for join
-            df_filtrado["Id"] = df_filtrado["Id"].astype(str)
-            _ft_sub["Id"] = _ft_sub["Id"].astype(str)
-            df_filtrado = df_filtrado.merge(_ft_sub, on="Id", how="left")
-    except Exception:
-        pass  # If join fails, render with available fields
-
-    return df_filtrado, pdi_catalog or pd.DataFrame()
+        html.append("</tr>")
+    html.append("</table>")
+    return "".join(html)
