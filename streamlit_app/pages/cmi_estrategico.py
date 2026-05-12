@@ -1,5 +1,4 @@
 from datetime import date as _date
-import unicodedata
 
 import pandas as pd
 import plotly.express as px
@@ -13,6 +12,7 @@ try:
         preparar_pdi_con_cierre,
         load_cierres,
     )
+    from ..utils.formatting import formatear_meta_ejecucion_df
 except (ImportError, ModuleNotFoundError):
     import sys
 
@@ -24,6 +24,7 @@ except (ImportError, ModuleNotFoundError):
         load_cierres,
     )
     from services.cmi_filters import filter_df_for_cmi_estrategico
+    from utils.formatting import formatear_meta_ejecucion_df
 
 
 def _get_sin_gestion_df():
@@ -403,7 +404,9 @@ def render():
             lambda n: f'{_NIVEL_ICONS_CMI.get(str(n), "")} {n}' if pd.notna(n) else n
         )
     if "Linea" in tabla.columns:
-        tabla["Color Línea"] = tabla["Linea"].apply(lambda l: _linea_color(str(l or "")))
+        tabla["Color Línea"] = tabla["Linea"].apply(
+            lambda linea_val: _linea_color(str(linea_val or ""))
+        )
 
     _cfg_pdi = {
         "Id": st.column_config.TextColumn("ID", width="small"),
@@ -503,8 +506,8 @@ def render():
         return "".join(html)
 
     # Ordenar líneas según catálogo (asegurar las seis líneas ordenadas)
-    ordered_lineas = [l for l in LINEA_COLORS.keys() if l in tabla["Linea"].unique()] + [
-        l for l in tabla["Linea"].unique() if l not in LINEA_COLORS.keys()
+    ordered_lineas = [linea for linea in LINEA_COLORS.keys() if linea in tabla["Linea"].unique()] + [
+        linea for linea in tabla["Linea"].unique() if linea not in LINEA_COLORS.keys()
     ]
     from html import escape as _escape
 

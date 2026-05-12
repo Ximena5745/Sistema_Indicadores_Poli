@@ -184,3 +184,19 @@ cython_debug/
 .env
 data/db/
 .streamlit/secrets.toml
+
+# Limpieza técnica no destructiva (tmp/debug/respaldos locales)
+debug_*
+tmp_*
+__tmp*
+*_backup*
+*_old*
+*.bak
+
+# Excepción: conservar trazabilidad de archivos archivados
+!scripts/_archived/tmp_debug/
+!scripts/_archived/tmp_debug/**
+
+# Artefactos binarios de diagnóstico regenerables
+artifacts/consolidado_*.xlsx
+artifacts/sunburst_*.xlsx

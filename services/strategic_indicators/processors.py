@@ -19,6 +19,7 @@ from .loaders import (
     load_cna_catalog,
     load_cierres,
 )
+from .utils import PENDIENTE
 
 
 def cierre_por_corte(df_cierres: pd.DataFrame, anio: int, mes: int) -> pd.DataFrame:
@@ -160,8 +161,19 @@ def _preparar_indicadores_con_cierre(
 
     # Merge con cierres
     result = indicators[["Id", "Indicador"] + catalog_merge_cols].merge(
-        cierres_cut, on="Id", how="left"
+        cierres_cut,
+        on="Id",
+        how="left",
+        suffixes=("", "_cierre"),
     )
+
+    # Mantener una sola columna canónica de nombre de indicador.
+    if "Indicador_cierre" in result.columns:
+        result["Indicador"] = result["Indicador"].where(
+            result["Indicador"].notna() & (result["Indicador"].astype(str).str.strip() != ""),
+            result["Indicador_cierre"],
+        )
+        result = result.drop(columns=["Indicador_cierre"])
 
     # Merge con catálogo si existen las columnas necesarias
     if not catalog.empty and all(col in result.columns for col in catalog_merge_cols):
@@ -170,6 +182,10 @@ def _preparar_indicadores_con_cierre(
             on=catalog_merge_cols,
             how="left",
         )
+
+    # Los indicadores sin cierre quedan explícitamente pendientes.
+    if "Nivel de cumplimiento" in result.columns:
+        result["Nivel de cumplimiento"] = result["Nivel de cumplimiento"].fillna(PENDIENTE)
 
     return result.reset_index(drop=True)
 

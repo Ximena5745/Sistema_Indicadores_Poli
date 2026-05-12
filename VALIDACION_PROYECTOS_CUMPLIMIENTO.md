@@ -302,7 +302,7 @@ Solapamiento de IDs: 0 exactos
 
 ## Evidencias
 
-- tmp_proyectos_diagnostic.py: Confirma 44 proyectos en worksheet, 0 en cierres por ID
-- tmp_ids_mismatch.py: Demuestra 0 overlap entre IDs
+- scripts/_archived/tmp_debug/tmp_proyectos_diagnostic.py: Confirma 44 proyectos en worksheet, 0 en cierres por ID
+- scripts/_archived/tmp_debug/tmp_ids_mismatch.py: Demuestra 0 overlap entre IDs
 - AGENT1_Data_Source_Audit: Documenta fuentes oficiales
 - 03_Modelo_Datos.md: Define uso de Consolidado Cierres

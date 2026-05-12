@@ -22,6 +22,7 @@ import pandas as pd
 from pathlib import Path
 
 from core.config import DATA_RAW, DATA_OUTPUT
+from core.calculos import estado_tiempo_acciones
 
 # Import utilidades y pipeline refactorizados
 from services.loaders.utils import renombrar_columnas, id_a_str, obtener_rename_map, ascii_lower

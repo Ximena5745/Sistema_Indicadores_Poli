@@ -118,7 +118,7 @@ if not base.empty and "Proyecto" in base.columns:
 ### 4.1 Prueba: Carga de Proyectos
 
 ```python
-# Ejecutado: tmp_test_new_proyectos.py
+# Ejecutado: scripts/_archived/tmp_debug/tmp_test_new_proyectos.py
 
 Resultado:
   [1] Proyectos cargados: 44 ✅ (Esperado: 44)
@@ -244,5 +244,5 @@ RECOMENDACIÓN: Agregar apartado en 03_Modelo_Datos.md
 - VALIDACION_PROYECTOS_CUMPLIMIENTO.md (This file)
 
 **Tests:**
-- tmp_test_new_proyectos.py ✅ PASSED
-- tmp_test_proyectos_fix.py ✅ PASSED
+- scripts/_archived/tmp_debug/tmp_test_new_proyectos.py ✅ PASSED
+- scripts/_archived/tmp_debug/tmp_test_proyectos_fix.py ✅ PASSED

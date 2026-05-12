@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def test_smtp_config():
+def _check_smtp_config() -> bool:
     """Validar que la configuración SMTP es correcta y que se puede enviar un email de prueba."""
     logger.info("=" * 60)
     logger.info("🔌 PRUEBA SMTP")
@@ -77,7 +77,7 @@ def test_smtp_config():
         return False
 
 
-def test_slack_config():
+def _check_slack_config() -> bool:
     """Validar que la configuración Slack es correcta y que se puede enviar un mensaje de prueba."""
     logger.info("\n" + "=" * 60)
     logger.info("🔔 PRUEBA SLACK")
@@ -117,6 +117,16 @@ def test_slack_config():
     except Exception as e:
         logger.error(f"❌ Error en configuración Slack: {e}")
         return False
+
+
+def test_smtp_config():
+    """Prueba pytest: no debe retornar valores."""
+    _check_smtp_config()
+
+
+def test_slack_config():
+    """Prueba pytest: no debe retornar valores."""
+    _check_slack_config()
 
 
 def main():
@@ -163,10 +173,10 @@ Ejemplos:
     results = {}
 
     if test_smtp_only or test_both:
-        results["SMTP"] = test_smtp_config()
+        results["SMTP"] = _check_smtp_config()
 
     if test_slack_only or test_both:
-        results["Slack"] = test_slack_config()
+        results["Slack"] = _check_slack_config()
 
     # Resumen
     logger.info("\n" + "=" * 60)

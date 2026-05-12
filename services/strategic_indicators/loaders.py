@@ -19,8 +19,6 @@ from core.semantica import categorizar_cumplimiento, recalcular_cumplimiento_fal
 from .utils import (
     _get_cached,
     _set_cached,
-    _validate_cached_result,
-    _norm_text,
     _find_col,
     _id_limpio,
     NO_APLICA,
@@ -33,6 +31,17 @@ from .utils import (
 ROOT = Path(__file__).resolve().parents[2]
 RAW_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
 OUT_XLSX = ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
+
+
+def _resolve_out_xlsx_path() -> Path:
+    """Permite override de OUT_XLSX desde la API pública para tests de compatibilidad."""
+    try:
+        import services.strategic_indicators as public_api
+
+        candidate = getattr(public_api, "OUT_XLSX", OUT_XLSX)
+        return Path(candidate)
+    except Exception:
+        return OUT_XLSX
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
@@ -185,7 +194,7 @@ def load_worksheet_flags() -> pd.DataFrame:
 
     try:
         df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
-    except Exception as e:
+    except Exception:
         return pd.DataFrame()
 
     df.columns = [str(c).strip() for c in df.columns]
@@ -272,11 +281,12 @@ def load_cierres() -> pd.DataFrame:
     if cached is not None and not cached.empty:
         return cached
 
-    if not OUT_XLSX.exists():
+    out_xlsx = _resolve_out_xlsx_path()
+    if not out_xlsx.exists():
         return pd.DataFrame()
 
     try:
-        xl = pd.ExcelFile(OUT_XLSX, engine="openpyxl")
+        xl = pd.ExcelFile(out_xlsx, engine="openpyxl")
     except Exception:
         return pd.DataFrame()
 
@@ -348,7 +358,47 @@ def load_cierres() -> pd.DataFrame:
 
     out = out[out["Id"] != ""].copy()
 
-    return out.reset_index(drop=True)
+    # Completar Año/Mes desde Fecha cuando no estén informados.
+    if "Fecha" in out.columns:
+        out.loc[out["Anio"].isna(), "Anio"] = out.loc[out["Anio"].isna(), "Fecha"].dt.year
+        out.loc[out["Mes"].isna(), "Mes"] = out.loc[out["Mes"].isna(), "Fecha"].dt.month
+
+    # Leer cumplimiento pre-calculado del Excel.
+    c_cumpl = _find_col(df, ["Cumplimiento", "cumplimiento_dec"])
+    c_cumpl_real = _find_col(df, ["CumplReal", "Cumplimiento Real", "cumplimiento_real"])
+
+    out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
+    out["cumplimiento_real"] = (
+        pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
+    )
+
+    # Si el Excel no trae cumplimiento, reconstruirlo desde Meta/Ejecucion.
+    calcular_mask = out["cumplimiento_dec"].isna() & out["Meta"].notna() & out["Ejecucion"].notna()
+    if calcular_mask.any():
+        out.loc[calcular_mask, "cumplimiento_dec"] = out.loc[calcular_mask].apply(
+            lambda row: recalcular_cumplimiento_faltante(
+                row["Meta"],
+                row["Ejecucion"],
+                row.get("Sentido", "Positivo"),
+                row.get("Id"),
+            ),
+            axis=1,
+        )
+
+    out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
+
+    # Clasificación de nivel centralizada y consistente con Plan Anual.
+    es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
+    out["Nivel de cumplimiento"] = out.apply(
+        lambda row: categorizar_cumplimiento(row["cumplimiento_dec"], id_indicador=row.get("Id")),
+        axis=1,
+    )
+    out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
+    out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
+
+    result = out.reset_index(drop=True)
+    _set_cached("cierres", result)
+    return result
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
@@ -364,11 +414,12 @@ def load_proyectos_consolidados() -> pd.DataFrame:
         DataFrame con todos los registros de Consolidado Cierres,
         listo para filtrar por proyectos en la capa de presentación.
     """
-    if not OUT_XLSX.exists():
+    out_xlsx = _resolve_out_xlsx_path()
+    if not out_xlsx.exists():
         return pd.DataFrame()
     
     try:
-        xl = pd.ExcelFile(OUT_XLSX, engine="openpyxl")
+        xl = pd.ExcelFile(out_xlsx, engine="openpyxl")
     except Exception:
         return pd.DataFrame()
     
@@ -460,58 +511,4 @@ def load_proyectos_consolidados() -> pd.DataFrame:
     out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
     
     out = out[out["Id"] != ""].copy()
-    
     return out.reset_index(drop=True)
-
-    out = out[out["Id"] != ""].copy()
-
-    # Completar Año/Mes desde Fecha
-    if "Fecha" in out.columns:
-        out.loc[out["Anio"].isna(), "Anio"] = out.loc[out["Anio"].isna(), "Fecha"].dt.year
-        out.loc[out["Mes"].isna(), "Mes"] = out.loc[out["Mes"].isna(), "Fecha"].dt.month
-
-    # Leer cumplimiento pre-calculado del Excel
-    c_cumpl = _find_col(df, ["Cumplimiento", "cumplimiento_dec"])
-    c_cumpl_real = _find_col(df, ["CumplReal", "cumplimiento_real"])
-
-    out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
-    out["cumplimiento_real"] = (
-        pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
-    )
-
-    # Fallback: si no hay cumplimiento, reconstruirlo desde Meta/Ejecucion
-    calcular_mask = (
-        out["cumplimiento_dec"].isna()
-        & out["Meta"].notna()
-        & out["Ejecucion"].notna()
-    )
-    if calcular_mask.any():
-        out.loc[calcular_mask, "cumplimiento_dec"] = out.loc[calcular_mask].apply(
-            lambda row: recalcular_cumplimiento_faltante(
-                row["Meta"],
-                row["Ejecucion"],
-                row.get("Sentido", "Positivo"),
-                row.get("Id"),
-            ),
-            axis=1,
-        )
-
-    out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
-
-    # Detectar si es métrica para establecer "Nivel de cumplimiento"
-    es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
-
-    # Usar categorizar_cumplimiento (que considera Plan Anual)
-    out["Nivel de cumplimiento"] = out.apply(
-        lambda row: categorizar_cumplimiento(row["cumplimiento_dec"], id_indicador=row.get("Id")),
-        axis=1,
-    )
-    out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
-    out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
-
-    result = out.reset_index(drop=True)
-
-    # Guardar en caché manual
-    _set_cached("cierres", result)
-
-    return result

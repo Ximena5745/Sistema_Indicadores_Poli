@@ -45,6 +45,21 @@ NIVEL_BG = {
     "sin dato": "#F5F5F5",
 }
 
+MESES_OPCIONES = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+]
+
 
 # ── Helpers internos ──────────────────────────────────────────────────────────
 

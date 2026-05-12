@@ -7,17 +7,23 @@ functions from the refactored auth_modules package.
 For new code, import directly from auth_modules:
     from auth_modules import require_auth, init_auth_session
 """
-from auth_modules import init_auth_session, require_auth, get_allowed_emails, get_provider_config
+import streamlit as st
+
+from auth_modules import (
+    init_auth_session as _init_auth_session,
+    require_auth,
+    get_allowed_emails,
+    get_provider_config,
+)
 
 __all__ = [
     "init_auth_session",
     "require_auth",
     "get_allowed_emails",
     "get_provider_config",
+    "check_auth_state",
+    "get_current_user",
 ]
-
-
-        st.warning("Cierra sesión y contacta al administrador si necesitas ayuda.")
 
 
 def check_auth_state() -> bool:
@@ -51,9 +57,4 @@ def init_auth_session():
     Inicializa las variables de sesión necesarias para autenticación.
     Debe llamarse al inicio de la aplicación principal.
     """
-    if "user_authenticated" not in st.session_state:
-        st.session_state["user_authenticated"] = False
-    if "user_email" not in st.session_state:
-        st.session_state["user_email"] = None
-    if "user_authorized" not in st.session_state:
-        st.session_state["user_authorized"] = False
+    _init_auth_session()

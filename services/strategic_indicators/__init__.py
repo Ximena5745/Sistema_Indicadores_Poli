@@ -12,7 +12,6 @@ Responsabilidad única de cada módulo:
   - utils: Normalización, caché manual, búsqueda de columnas
 """
 
-from pathlib import Path
 from core.config import NIVEL_COLOR
 
 # Re-export para backward compatibility
@@ -35,6 +34,7 @@ from .utils import (
     PENDIENTE,
     METRICA,
     SOBRECUMPLIMIENTO,
+    _CACHE_MANUAL,
 )
 
 # Mapeo de colores extendido
@@ -60,4 +60,5 @@ __all__ = [
     "SOBRECUMPLIMIENTO",
     "RAW_XLSX",
     "OUT_XLSX",
+    "_CACHE_MANUAL",
 ]

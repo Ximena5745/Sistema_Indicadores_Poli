@@ -1,0 +1,7 @@
+extend-exclude = [
+  "debug_*.py",
+  "tmp_*.py",
+  "**/*_backup*.py",
+  "**/*_old*.py",
+  "scripts/_archived/**",
+]

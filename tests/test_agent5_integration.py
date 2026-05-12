@@ -14,9 +14,9 @@ if str(_ROOT) not in sys.path:
 from etl.agent5_corrections import AGENT5Corrections
 
 
-def test_agent5_corrections():
-    """Test de aplicación de correcciones AGENT 5"""
-    
+def _run_agent5_corrections_check() -> bool:
+    """Ejecuta la validación de correcciones AGENT 5 y retorna éxito/fallo."""
+
     # Crear DataFrame de prueba con valores problemáticos
     df_test = pd.DataFrame({
         'Id': ['IND001', 'IND002', 'IND003', 'IND004'],
@@ -60,14 +60,19 @@ def test_agent5_corrections():
     # Verificar que ejecución está correcta
     if df_corregido['Ejecucion'].max() <= 1.3 and df_corregido['Meta'].max() <= 1.0:
         print("\n✓ TODAS las correcciones críticas aplicadas correctamente")
-        return 0
+        return True
     else:
         print("\n✗ Validación de correcciones falló")
-        return 1
+        return False
+
+
+def test_agent5_corrections():
+    """Test de aplicación de correcciones AGENT 5."""
+    assert _run_agent5_corrections_check(), "Validación de correcciones AGENT 5 falló"
 
 
 if __name__ == "__main__":
-    exit_code = test_agent5_corrections()
+    exit_code = 0 if _run_agent5_corrections_check() else 1
     print("\n" + "=" * 70)
     if exit_code == 0:
         print("✅ TEST EXITOSO")

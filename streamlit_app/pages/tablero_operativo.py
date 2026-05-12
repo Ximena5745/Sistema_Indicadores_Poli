@@ -297,10 +297,10 @@ def _option_donut(df: pd.DataFrame) -> dict:
                 "data": [
                     {
                         "value": v,
-                        "name": l,
-                        "itemStyle": {"color": _NIVEL_COLOR_EXT.get(l, "#BDBDBD")},
+                        "name": label,
+                        "itemStyle": {"color": _NIVEL_COLOR_EXT.get(label, "#BDBDBD")},
                     }
-                    for v, l in zip(values, labels)
+                    for v, label in zip(values, labels)
                 ],
             }
         ],
@@ -355,6 +355,49 @@ def _fig_proceso(df: pd.DataFrame) -> go.Figure:
         legend=dict(orientation="h", y=-0.12),
     )
     return fig
+
+
+def _option_proceso(df: pd.DataFrame) -> dict:
+    col = (
+        "ProcesoPadre"
+        if "ProcesoPadre" in df.columns
+        else ("Proceso" if "Proceso" in df.columns else None)
+    )
+    if not col or df.empty or "Categoria" not in df.columns:
+        return {}
+
+    cats = [c for c, *_ in _KANBAN_COLS]
+    stats = df.groupby([col, "Categoria"], dropna=False).size().unstack(fill_value=0).reset_index()
+    for c in cats:
+        if c not in stats.columns:
+            stats[c] = 0
+
+    stats["_crit"] = stats.get("Peligro", 0) + stats.get("Alerta", 0)
+    stats = stats.sort_values("_crit", ascending=False).head(16)
+    procs = stats[col].astype(str).tolist()
+    h = max(320, len(procs) * 32 + 70)
+
+    series = []
+    for cat in cats:
+        series.append(
+            {
+                "name": cat,
+                "type": "bar",
+                "stack": "total",
+                "data": [int(v) for v in stats[cat].tolist()],
+                "itemStyle": {"color": _NIVEL_COLOR_EXT.get(cat, "#BDBDBD")},
+            }
+        )
+
+    option = {
+        "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+        "legend": {"bottom": 0},
+        "grid": {"left": 180, "right": 20, "top": 10, "bottom": 40},
+        "xAxis": {"type": "value"},
+        "yAxis": {"type": "category", "data": procs, "inverse": True},
+        "series": series,
+    }
+    return {"option": option, "height": h}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -735,7 +778,6 @@ def render() -> None:
             t_exit = sum(a["resumen"].get("exitosos", 0) for a in ingesta_arts)
             t_fall = sum(a["resumen"].get("fallidos", 0) for a in ingesta_arts)
             t_reg = sum(a["resumen"].get("total_registros", 0) for a in ingesta_arts)
-            t_val = sum(a["resumen"].get("total_validaciones", 0) for a in ingesta_arts)
 
             qa1, qa2, qa3, qa4, qa5 = st.columns(5)
             qa1.metric("Ejecuciones", len(ingesta_arts))

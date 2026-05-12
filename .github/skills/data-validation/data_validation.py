@@ -7,7 +7,7 @@ particularly Subproceso-Proceso-Area.xlsx as the master source for process hiera
 
 import unicodedata
 from pathlib import Path
-from typing import Dict, Set
+from typing import Dict
 
 import pandas as pd
 import streamlit as st
@@ -67,6 +67,12 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
         )
         df = df.merge(ref_cols, on="Subproceso_norm", how="left")
 
+        # Proceso oficial del maestro tiene prioridad cuando hay match por Subproceso.
+        if "Proceso" in df.columns:
+            df["Proceso"] = df["Proceso_ref"].fillna(df["Proceso"])
+        else:
+            df["Proceso"] = df["Proceso_ref"].fillna("")
+
         # Use Excel data if available, otherwise keep existing
         if "Unidad" in df.columns:
             unidad_series = df["Unidad"].astype(object)
@@ -99,7 +105,19 @@ def enrich_with_process_hierarchy(df: pd.DataFrame, excel_path: Path) -> pd.Data
         df["Tipo de proceso"] = df["Tipo de proceso"].fillna(df["Proceso_norm"].map(tipo_map_by_sub))
 
         # Clean up temporary columns
-        df = df.drop(columns=["Subproceso_norm", "Proceso_norm", "Proceso_excel", "Unidad_excel", "Tipo de proceso_excel"], errors="ignore")
+        df = df.drop(
+            columns=[
+                "Subproceso_norm",
+                "Proceso_norm",
+                "Proceso_ref",
+                "Unidad_ref",
+                "Tipo de proceso_ref",
+                "Proceso_excel",
+                "Unidad_excel",
+                "Tipo de proceso_excel",
+            ],
+            errors="ignore",
+        )
 
         
 
