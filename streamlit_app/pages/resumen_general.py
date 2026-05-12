@@ -80,7 +80,7 @@ try:
     from core.domain import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
-    from streamlit_app.components.filter_panel import render_filter_panel
+    from streamlit_app.components.filter_panel import build_active_summary, render_filter_panel
 except (ImportError, ModuleNotFoundError):
     import sys
 
@@ -93,7 +93,7 @@ except (ImportError, ModuleNotFoundError):
     from core.domain import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
-    from streamlit_app.components.filter_panel import render_filter_panel
+    from streamlit_app.components.filter_panel import build_active_summary, render_filter_panel
 
 import numpy as np
 
@@ -2312,6 +2312,16 @@ def render():
     )
     year_estrategico = _rg_sels["anio"] or years[-1]
     categoria = _rg_sels["vista"] or "Indicadores"
+
+    active_filters_text = build_active_summary(
+        _rg_sels,
+        [
+            {"key": "anio", "label": "Año", "include_all": False},
+            {"key": "vista", "label": "Vista", "include_all": False},
+        ],
+    )
+    if active_filters_text:
+        st.caption(f"Filtros activos: {active_filters_text}")
 
     safe_year_estrategico = int(year_estrategico)
 

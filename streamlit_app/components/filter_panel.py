@@ -153,35 +153,38 @@ html body div[data-baseweb="segmented-control"] {
     border-radius: 10px !important;
     padding: 2px !important;
 }
-html body [data-testid="stSegmentedControl"] button {
+html body [data-testid="stSegmentedControl"] button,
+html body div[data-baseweb="segmented-control"] button,
+html body [role="radiogroup"] button {
     font-size: 0.8rem !important;
     font-weight: 700 !important;
     border-radius: 7px !important;
     border: 1px solid transparent !important;
-    background: transparent !important;
+    background: #F4F8FD !important;
     color: var(--fp-accent-a) !important;
     transition: all 0.15s ease !important;
+    min-height: 34px !important;
+    padding: 0.35rem 0.85rem !important;
 }
-html body [data-testid="stSegmentedControl"] button > div,
-html body [data-testid="stSegmentedControl"] button > span,
-html body div[data-baseweb="segmented-control"] button > div,
-html body div[data-baseweb="segmented-control"] button > span {
-    color: inherit !important;
-}
-html body [data-testid="stSegmentedControl"] button:hover {
+html body [data-testid="stSegmentedControl"] button:hover,
+html body div[data-baseweb="segmented-control"] button:hover,
+html body [role="radiogroup"] button:hover {
     color: var(--fp-primary) !important;
     background: var(--fp-primary-soft) !important;
 }
 html body [data-testid="stSegmentedControl"] button[aria-pressed="true"],
 html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"],
 html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"],
+html body div[data-baseweb="segmented-control"] button[aria-pressed="true"],
+html body div[data-baseweb="segmented-control"] button[kind="segmented_controlActive"],
+html body div[data-baseweb="segmented-control"] button[data-testid="stBaseButton-segmented_controlActive"],
+html body [role="radiogroup"] button[aria-pressed="true"],
 html body [role="radiogroup"] button[kind="segmented_controlActive"],
-html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"],
-html body [role="radiogroup"] button[aria-pressed="true"] {
+html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] {
     background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
     border-color: var(--fp-sel-border) !important;
-    box-shadow: 0 3px 10px rgba(0,119,204,0.40) !important;
+    box-shadow: 0 3px 10px rgba(0,119,204,0.28) !important;
     font-weight: 800 !important;
 }
 html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > div,
@@ -198,15 +201,9 @@ html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_control
 html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] > span {
     color: #FFFFFF !important;
 }
-
-/* Fallback radiogroup */
 html body [role="radiogroup"] button {
-    background: transparent !important;
-    color: var(--fp-accent-a) !important;
-    border: 1px solid transparent !important;
+    box-shadow: none !important;
 }
-html body [role="radiogroup"] button > div,
-html body [role="radiogroup"] button > span { color: inherit !important; }
 
 html body [data-testid="stSegmentedControl"],
 html body [data-testid="stPills"],
