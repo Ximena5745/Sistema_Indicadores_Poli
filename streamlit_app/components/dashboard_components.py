@@ -778,7 +778,7 @@ def render_analisis_unidad(df: pd.DataFrame, pct_col: str | None = None) -> None
             .reset_index()
             .sort_values("cumplimiento", ascending=False)
         )
-    ranking["cumplimiento"] = ranking["cumplimiento"].round(1)
+    ranking["cumplimiento"] = pd.to_numeric(ranking["cumplimiento"], errors="coerce").round(1)
     ranking["Estado"] = ranking["cumplimiento"].apply(
         lambda v: "🟢 Saludable"
         if v >= 100

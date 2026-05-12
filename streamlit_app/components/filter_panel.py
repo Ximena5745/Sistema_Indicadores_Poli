@@ -12,18 +12,43 @@ import streamlit as st
 # ──────────────────────────────────────────────────────────────────────────────
 
 _FILTER_CSS = """<style>
-/* ── Tokens de paleta institucional para filtros ───────────────── */
+/* ── Tokens ─────────────────────────────────────────────────────── */
 :root {
-    --fp-primary: #0F3A6D;
-    --fp-primary-hover: #1D4A86;
-    --fp-selected-start: #00B4FF;
-    --fp-selected-end: #0096E6;
-    --fp-selected-border: #0096E6;
-    --fp-primary-soft: #E9F1FB;
-    --fp-border: #B9CCE4;
-    --fp-text: #0F2137;
-    --fp-text-muted: #546D88;
-    --fp-surface: #FFFFFF;
+    --fp-primary:        #0F3A6D;
+    --fp-primary-hover:  #1D4A86;
+    --fp-accent-a:       #0077CC;
+    --fp-accent-b:       #00B4FF;
+    --fp-sel-start:      #0077CC;
+    --fp-sel-end:        #00B4FF;
+    --fp-sel-border:     #0077CC;
+    --fp-primary-soft:   #E2EEF9;
+    --fp-border:         #A8C4E0;
+    --fp-input-bg:       #F0F6FF;
+    --fp-text:           #0C1A2E;
+    --fp-text-muted:     #4A6580;
+    --fp-surface:        #FFFFFF;
+    --fp-container-bg:   linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 60%, #EEF4FB 100%);
+    --fp-container-bdr:  #93C5FD;
+    --fp-shadow:         0 4px 18px rgba(15,58,109,0.10), 0 1px 4px rgba(15,58,109,0.06);
+}
+
+/* ── Contenedor principal: gradiente + sombra suave ─────────────── */
+html body [data-testid="stContainer"] {
+    background: var(--fp-container-bg) !important;
+    border: 1.5px solid var(--fp-container-bdr) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--fp-shadow) !important;
+    padding: 10px 14px 8px 14px !important;
+}
+
+/* ── Caption "Filtros activos" ───────────────────────────────────── */
+html body [data-testid="stContainer"] [data-testid="stCaptionContainer"] p {
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    color: var(--fp-accent-a) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    margin-bottom: 4px !important;
 }
 
 /* ── Labels ─────────────────────────────────────────────────────── */
@@ -32,110 +57,109 @@ html body [data-testid="stWidgetLabel"] label,
 html body [data-testid="stWidgetLabel"] > div > p,
 html body .stSelectbox label,
 html body .stMultiSelect label {
-    font-size: 0.72rem !important;
-    font-weight: 700 !important;
-    color: var(--fp-primary) !important;
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    color: var(--fp-accent-a) !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.07em !important;
-    margin-bottom: 3px !important;
-    line-height: 1.3 !important;
+    letter-spacing: 0.08em !important;
+    margin-bottom: 2px !important;
+    line-height: 1.25 !important;
 }
 
-/* ── Selectbox: borde teal ──────────────────────────────────────── */
+/* ── Selectbox / Multiselect ─────────────────────────────────────── */
 html body [data-baseweb="select"] > div {
-    border-width: 1.5px !important;
-    border-style: solid !important;
-    border-color: var(--fp-border) !important;
-    border-radius: 8px !important;
-    background-color: #FFFFFF !important;
-    min-height: 38px !important;
-    box-shadow: none !important;
+    border: 1.5px solid var(--fp-border) !important;
+    border-left: 3px solid var(--fp-accent-a) !important;
+    border-radius: 9px !important;
+    background: var(--fp-input-bg) !important;
+    min-height: 36px !important;
+    box-shadow: 0 1px 4px rgba(15,58,109,0.07) !important;
     transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 html body [data-baseweb="select"] > div:focus-within {
-    border-color: var(--fp-primary) !important;
-    box-shadow: 0 0 0 3px rgba(15, 58, 109, 0.18) !important;
+    border-color: var(--fp-accent-a) !important;
+    border-left-color: var(--fp-accent-b) !important;
+    box-shadow: 0 0 0 3px rgba(0,119,204,0.18) !important;
 }
-
-/* ── Texto dentro del selectbox ─────────────────────────────────── */
 html body [data-baseweb="select"] span {
-    font-size: 0.88rem !important;
+    font-size: 0.87rem !important;
+    font-weight: 500 !important;
     color: var(--fp-text) !important;
 }
-
-/* ── Multiselect ────────────────────────────────────────────────── */
 html body [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
-    border-width: 1.5px !important;
-    border-style: solid !important;
-    border-color: var(--fp-border) !important;
-    border-radius: 8px !important;
-    background-color: #FFFFFF !important;
+    border: 1.5px solid var(--fp-border) !important;
+    border-left: 3px solid var(--fp-accent-a) !important;
+    border-radius: 9px !important;
+    background: var(--fp-input-bg) !important;
 }
 
 /* ── Text input ─────────────────────────────────────────────────── */
 html body [data-testid="stTextInput"] input,
 html body .stTextInput input {
     border: 1.5px solid var(--fp-border) !important;
-    border-radius: 8px !important;
-    background: #FFFFFF !important;
-    min-height: 38px !important;
-    font-size: 0.88rem !important;
+    border-left: 3px solid var(--fp-accent-a) !important;
+    border-radius: 9px !important;
+    background: var(--fp-input-bg) !important;
+    min-height: 36px !important;
+    font-size: 0.87rem !important;
     transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 html body [data-testid="stTextInput"] input:focus {
-    border-color: var(--fp-primary) !important;
-    box-shadow: 0 0 0 3px rgba(15, 58, 109, 0.18) !important;
+    border-color: var(--fp-accent-a) !important;
+    box-shadow: 0 0 0 3px rgba(0,119,204,0.18) !important;
     outline: none !important;
 }
 
 /* ── Dropdown popup ─────────────────────────────────────────────── */
 html body [data-baseweb="popover"] [data-baseweb="menu"],
 html body [data-baseweb="popover"] ul {
-    border-radius: 8px !important;
-    border: 1.5px solid var(--fp-primary) !important;
-    box-shadow: 0 4px 16px rgba(15,58,109,0.15) !important;
+    border-radius: 10px !important;
+    border: 1.5px solid var(--fp-accent-a) !important;
+    box-shadow: 0 6px 24px rgba(15,58,109,0.16) !important;
 }
 html body [data-baseweb="option"]:hover,
 html body [data-baseweb="option"][aria-selected="true"] {
-    background: rgba(15,58,109,0.10) !important;
+    background: rgba(0,119,204,0.10) !important;
     color: var(--fp-primary) !important;
 }
 
 /* ── Pills ──────────────────────────────────────────────────────── */
 html body [data-testid="stPillsOption"],
 html body button[data-testid="stPillsOption"] {
-    font-size: 0.82rem !important;
-    font-weight: 600 !important;
-    padding: 4px 14px !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    padding: 3px 13px !important;
     border-radius: 999px !important;
     border: 1.5px solid var(--fp-border) !important;
-    background: var(--fp-surface) !important;
-    color: var(--fp-text-muted) !important;
+    background: #DBEAFE !important;
+    color: var(--fp-accent-a) !important;
     transition: all 0.15s ease !important;
+    box-shadow: 0 1px 3px rgba(0,119,204,0.10) !important;
 }
 html body [data-testid="stPillsOption"][aria-pressed="true"],
 html body button[data-testid="stPillsOption"][aria-pressed="true"] {
-    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
+    background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
-    border-color: var(--fp-selected-border) !important;
-    box-shadow: 0 2px 6px rgba(0,150,230,0.32) !important;
+    border-color: var(--fp-sel-border) !important;
+    box-shadow: 0 3px 10px rgba(0,119,204,0.40) !important;
+    font-weight: 800 !important;
 }
 
 /* ── Segmented control ──────────────────────────────────────────── */
 html body [data-testid="stSegmentedControl"] > div,
 html body div[data-baseweb="segmented-control"] {
-    background: #F4F8FD !important;
+    background: #DBEAFE !important;
     border: 1.5px solid var(--fp-border) !important;
     border-radius: 10px !important;
     padding: 2px !important;
 }
 html body [data-testid="stSegmentedControl"] button {
-    font-size: 0.82rem !important;
-    font-weight: 600 !important;
-    border-radius: 6px !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    border-radius: 7px !important;
     border: 1px solid transparent !important;
     background: transparent !important;
-    color: var(--fp-text-muted) !important;
+    color: var(--fp-accent-a) !important;
     transition: all 0.15s ease !important;
 }
 html body [data-testid="stSegmentedControl"] button > div,
@@ -148,33 +172,26 @@ html body [data-testid="stSegmentedControl"] button:hover {
     color: var(--fp-primary) !important;
     background: var(--fp-primary-soft) !important;
 }
-html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
-    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
-    color: #FFFFFF !important;
-    border-color: var(--fp-selected-border) !important;
-    box-shadow: 0 2px 8px rgba(0,150,230,0.35) !important;
-    font-weight: 700 !important;
-}
+html body [data-testid="stSegmentedControl"] button[aria-pressed="true"],
 html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"],
 html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"],
 html body [role="radiogroup"] button[kind="segmented_controlActive"],
-html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] {
-    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
+html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"],
+html body [role="radiogroup"] button[aria-pressed="true"] {
+    background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
-    border-color: var(--fp-selected-border) !important;
-    box-shadow: 0 2px 8px rgba(0,150,230,0.35) !important;
-    font-weight: 700 !important;
+    border-color: var(--fp-sel-border) !important;
+    box-shadow: 0 3px 10px rgba(0,119,204,0.40) !important;
+    font-weight: 800 !important;
 }
 html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > div,
 html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > span,
-html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > div,
-html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > span {
-    color: #FFFFFF !important;
-}
 html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] > div,
 html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] > span,
 html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] > div,
 html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] > span,
+html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > div,
+html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > span,
 html body [role="radiogroup"] button[kind="segmented_controlActive"] > div,
 html body [role="radiogroup"] button[kind="segmented_controlActive"] > span,
 html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] > div,
@@ -182,23 +199,15 @@ html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_control
     color: #FFFFFF !important;
 }
 
-/* Fallback para variantes internas de Streamlit que no usan data-testid estable */
+/* Fallback radiogroup */
 html body [role="radiogroup"] button {
     background: transparent !important;
-    color: var(--fp-text-muted) !important;
+    color: var(--fp-accent-a) !important;
     border: 1px solid transparent !important;
 }
-html body [role="radiogroup"] button[aria-pressed="true"] {
-    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
-    color: #FFFFFF !important;
-    border-color: var(--fp-selected-border) !important;
-}
 html body [role="radiogroup"] button > div,
-html body [role="radiogroup"] button > span {
-    color: inherit !important;
-}
+html body [role="radiogroup"] button > span { color: inherit !important; }
 
-/* Streamlit suele tomar este token para estados activos (evita acento rojo por defecto) */
 html body [data-testid="stSegmentedControl"],
 html body [data-testid="stPills"],
 html body [role="radiogroup"] {
@@ -216,19 +225,13 @@ html body [data-testid="stSegmentedControl"] {
     padding-bottom: 0 !important;
     padding-top: 0 !important;
 }
-
 html body .stContainer [data-testid="stVerticalBlock"] {
     gap: 0.08rem !important;
     margin: 0 !important;
     padding: 0 !important;
 }
-html body .stContainer [data-testid="stVerticalBlock"] > div {
-    gap: 0.08rem !important;
-}
-html body .stContainer [data-testid="stBlock"] {
-    margin-bottom: 0.08rem !important;
-    padding: 0 !important;
-}
+html body .stContainer [data-testid="stVerticalBlock"] > div { gap: 0.08rem !important; }
+html body .stContainer [data-testid="stBlock"] { margin-bottom: 0.08rem !important; padding: 0 !important; }
 html body .stContainer .stSelectbox,
 html body .stContainer .stTextInput,
 html body .stContainer [data-testid="stPills"],
@@ -236,31 +239,28 @@ html body .stContainer [data-testid="stSegmentedControl"] {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
 }
-html body .stColumns {
-    gap: 0.08rem !important;
-}
-html body .stColumn {
-    padding: 0 !important;
-}
+html body .stColumns { gap: 0.08rem !important; }
+html body .stColumn { padding: 0 !important; }
 
-/* ── Botón de reset ─────────────────────────────────────────────── */
+/* ── Botón reset ─────────────────────────────────────────────────── */
 html body [data-testid="stButton"] > button {
+    border: 1.5px solid var(--fp-border) !important;
+    background: var(--fp-input-bg) !important;
+    color: var(--fp-accent-a) !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
     transition: all 0.15s ease !important;
 }
 html body [data-testid="stButton"] > button:hover {
-    border-color: var(--fp-primary) !important;
+    border-color: var(--fp-accent-a) !important;
+    background: var(--fp-primary-soft) !important;
     color: var(--fp-primary) !important;
-    background: rgba(15,58,109,0.06) !important;
-}
-/* ── Compactar contenedor de filtros ──────────────────────────── */
-html body [data-testid="stContainer"] [data-testid="stVerticalBlock"],
-html body .stColumn {
-    gap: 0 !important;
+    box-shadow: 0 2px 8px rgba(0,119,204,0.18) !important;
 }
 
-html body [data-testid="stVerticalBlock"] {
-    gap: 0.3rem !important;
-}
+html body [data-testid="stContainer"] [data-testid="stVerticalBlock"],
+html body .stColumn { gap: 0 !important; }
+html body [data-testid="stVerticalBlock"] { gap: 0.3rem !important; }
 </style>"""
 
 
