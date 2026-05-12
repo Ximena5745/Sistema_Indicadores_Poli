@@ -1949,8 +1949,7 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
                 </tr>
                 """
             
-            st.markdown(f"""
-            <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:1.5rem;">
+            tabla_html = """<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:1.5rem;">
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr style="background:#F3F4F6;">
@@ -1960,12 +1959,11 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
                             <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Cumplimiento</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {rows_html}
-                    </tbody>
+                    <tbody>""" + rows_html + """</tbody>
                 </table>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>"""
+            
+            st.markdown(tabla_html, unsafe_allow_html=True)
     
     elif category == "Plan de Retos":
         # Tabla por línea para retos
