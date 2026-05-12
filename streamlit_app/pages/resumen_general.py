@@ -2363,8 +2363,13 @@ def render():
                     consolidado["Id"] = consolidado["Id"].astype(str)
                     pdi_proy = consolidado[consolidado["Id"].isin(ids_proy)].copy()
                     
-                    # Asegurar que tengan Línea/Objetivo
-                    if not pdi_proy.empty and ("Linea" not in pdi_proy.columns or pdi_proy["Linea"].isna().all()):
+                    # Asegurar que tengan Línea/Objetivo (también si están vacíos)
+                    linea_vacia = (
+                        "Linea" not in pdi_proy.columns 
+                        or pdi_proy["Linea"].isna().all() 
+                        or (pdi_proy["Linea"].astype(str).str.strip() == "").all()
+                    )
+                    if not pdi_proy.empty and linea_vacia:
                         base = load_worksheet_flags()
                         if not base.empty:
                             base_norm = base.copy()
@@ -2374,12 +2379,14 @@ def render():
                                 base_to_merge = base_norm[["Id"] + merge_cols].drop_duplicates(subset=["Id"])
                                 pdi_proy = pdi_proy.merge(base_to_merge, on="Id", how="left", suffixes=("", "_cmi"))
                                 
-                                # Resolver sufijos de merge
+                                # Resolver sufijos de merge -也需要填充空字符串
                                 for col in pdi_proy.columns:
                                     if col.endswith("_cmi"):
                                         base_col = col[:-4]
                                         if base_col in pdi_proy.columns:
-                                            pdi_proy[base_col] = pdi_proy[base_col].fillna(pdi_proy[col])
+                                            # Rellenar tanto NaN como strings vacíos
+                                            mask_vacio = (pdi_proy[base_col].astype(str).str.strip() == "") | pdi_proy[base_col].isna()
+                                            pdi_proy.loc[mask_vacio, base_col] = pdi_proy.loc[mask_vacio, col]
                                         pdi_proy = pdi_proy.drop(col, axis=1)
                     
                     # Deduplicar por Id (mantener último)
