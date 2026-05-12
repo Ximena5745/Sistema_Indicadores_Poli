@@ -1963,7 +1963,7 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
                 </table>
             </div>"""
             
-            st.markdown(tabla_html, unsafe_allow_html=True)
+            st.html(tabla_html)
     
     elif category == "Plan de Retos":
         # Tabla por línea para retos
