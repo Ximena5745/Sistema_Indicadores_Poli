@@ -38,7 +38,7 @@ html body [data-testid="stContainer"] {
     border: 1.5px solid var(--fp-container-bdr) !important;
     border-radius: 14px !important;
     box-shadow: var(--fp-shadow) !important;
-    padding: 10px 14px 8px 14px !important;
+    padding: 8px 12px 6px 12px !important;
 }
 
 /* ── Caption "Filtros activos" ───────────────────────────────────── */
@@ -48,7 +48,7 @@ html body [data-testid="stContainer"] [data-testid="stCaptionContainer"] p {
     color: var(--fp-accent-a) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
-    margin-bottom: 4px !important;
+    margin-bottom: 2px !important;
 }
 
 /* ── Labels ─────────────────────────────────────────────────────── */
@@ -72,7 +72,7 @@ html body [data-baseweb="select"] > div {
     border-left: 3px solid var(--fp-accent-a) !important;
     border-radius: 9px !important;
     background: var(--fp-input-bg) !important;
-    min-height: 36px !important;
+    min-height: 34px !important;
     box-shadow: 0 1px 4px rgba(15,58,109,0.07) !important;
     transition: border-color 0.15s, box-shadow 0.15s !important;
 }
@@ -226,12 +226,12 @@ html body [data-testid="stSegmentedControl"] {
     padding-top: 0 !important;
 }
 html body .stContainer [data-testid="stVerticalBlock"] {
-    gap: 0.08rem !important;
+    gap: 0.04rem !important;
     margin: 0 !important;
     padding: 0 !important;
 }
-html body .stContainer [data-testid="stVerticalBlock"] > div { gap: 0.08rem !important; }
-html body .stContainer [data-testid="stBlock"] { margin-bottom: 0.08rem !important; padding: 0 !important; }
+html body .stContainer [data-testid="stVerticalBlock"] > div { gap: 0.04rem !important; }
+html body .stContainer [data-testid="stBlock"] { margin-bottom: 0.04rem !important; padding: 0 !important; }
 html body .stContainer .stSelectbox,
 html body .stContainer .stTextInput,
 html body .stContainer [data-testid="stPills"],
@@ -395,7 +395,7 @@ def render_filter_panel(
                 # Filas intermedias SIN botón
                 row_col_widths = [1] * actual_n_cols
             
-            row_cols = st.columns(row_col_widths, gap="none")
+            row_cols = st.columns(row_col_widths, gap="xxsmall")
             for col_i, filt in enumerate(row_filters):
                 with row_cols[col_i]:
                     selections[filt["key"]] = _render_widget(filt, key_prefix)
