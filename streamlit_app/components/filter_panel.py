@@ -125,7 +125,9 @@ html body [data-baseweb="option"][aria-selected="true"] {
 
 /* ── Pills ──────────────────────────────────────────────────────── */
 html body [data-testid="stPillsOption"],
-html body button[data-testid="stPillsOption"] {
+html body button[data-testid="stPillsOption"],
+html body [data-testid="stPills"] button,
+html body div[data-baseweb="pills"] button {
     font-size: 0.8rem !important;
     font-weight: 700 !important;
     padding: 3px 13px !important;
@@ -137,12 +139,20 @@ html body button[data-testid="stPillsOption"] {
     box-shadow: 0 1px 3px rgba(0,119,204,0.10) !important;
 }
 html body [data-testid="stPillsOption"][aria-pressed="true"],
-html body button[data-testid="stPillsOption"][aria-pressed="true"] {
+html body button[data-testid="stPillsOption"][aria-pressed="true"],
+html body [data-testid="stPills"] button[aria-pressed="true"],
+html body div[data-baseweb="pills"] button[aria-pressed="true"] {
     background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
     border-color: var(--fp-sel-border) !important;
     box-shadow: 0 3px 10px rgba(0,119,204,0.40) !important;
     font-weight: 800 !important;
+}
+html body [data-testid="stPills"] button[aria-pressed="true"] > div,
+html body [data-testid="stPills"] button[aria-pressed="true"] > span,
+html body div[data-baseweb="pills"] button[aria-pressed="true"] > div,
+html body div[data-baseweb="pills"] button[aria-pressed="true"] > span {
+    color: #FFFFFF !important;
 }
 
 /* ── Segmented control ──────────────────────────────────────────── */

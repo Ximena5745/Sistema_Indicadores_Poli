@@ -29,7 +29,7 @@ from streamlit_app.components.dashboard_components import (
     render_analisis_unidad,
     render_historico_tab,
 )
-from streamlit_app.components.filter_panel import render_filter_panel
+from streamlit_app.components.filter_panel import build_active_summary, render_filter_panel
 from streamlit_app.components.cmi_tabs.tab_alertas import render_tab_alertas
 from streamlit_app.components.cmi_tabs import render_modal_ficha, render_tab_listado
 
@@ -3379,6 +3379,21 @@ def render() -> None:
             key_prefix="filter",
             n_cols=4,
         )
+        active_filter_text = build_active_summary(
+            sels_filters,
+            [
+                {"key": "anio", "label": "Año", "include_all": False},
+                {"key": "mes", "label": "Mes", "include_all": False},
+                {"key": "clasificacion", "label": "Clasificación", "include_all": True},
+                {"key": "frecuencia", "label": "Frecuencia", "include_all": True},
+                {"key": "unidad", "label": "Unidad", "include_all": True},
+                {"key": "proceso", "label": "Proceso", "include_all": True},
+                {"key": "subproceso", "label": "Subproceso", "include_all": True},
+            ],
+        )
+        if active_filter_text:
+            st.caption(f"Filtros activos: {active_filter_text}")
+
         anio_raw = sels_filters["anio"]
         anio = int(anio_raw) if anio_raw is not None else None
         mes = sels_filters["mes"] or default_month
