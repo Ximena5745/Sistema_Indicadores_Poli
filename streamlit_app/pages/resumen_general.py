@@ -2941,6 +2941,32 @@ def render():
         return "", "#6B7280", "📊"
     
     pdi_for_narrative = pdi_base_df if categoria == "Proyectos" else pdi_estrategico
+    # Si pdi_base_df está vacío para proyectos, recargar datos
+    if categoria == "Proyectos" and (pdi_for_narrative.empty or "cumplimiento_pct" not in pdi_for_narrative.columns):
+        from services.cmi_filters.loaders import load_cmi_worksheet
+        from services.strategic_indicators import load_proyectos_consolidados, load_worksheet_flags
+        cmi = load_cmi_worksheet()
+        ids_proy = set(str(x).strip() for x in cmi[cmi['Proyecto']==1]['Id'].dropna())
+        consolidado = load_proyectos_consolidados()
+        if not consolidado.empty and "Id" in consolidado.columns:
+            consolidado["Id"] = consolidado["Id"].astype(str)
+            pdi_proy = consolidado[consolidado["Id"].isin(ids_proy)].copy()
+            if not pdi_proy.empty:
+                base = load_worksheet_flags()
+                if not base.empty:
+                    base["Id"] = base["Id"].astype(str)
+                    base_to_merge = base[["Id","Linea","Objetivo"]].drop_duplicates(subset=["Id"])
+                    pdi_proy = pdi_proy.merge(base_to_merge, on="Id", how="left", suffixes=("","_cmi"))
+                    for col in pdi_proy.columns:
+                        if col.endswith("_cmi"):
+                            base_col = col[:-4]
+                            if base_col in pdi_proy.columns:
+                                mask_vacio = (pdi_proy[base_col].astype(str).str.strip() == "") | pdi_proy[base_col].isna()
+                                pdi_proy.loc[mask_vacio, base_col] = pdi_proy.loc[mask_vacio, col]
+                            pdi_proy = pdi_proy.drop(col, axis=1)
+                pdi_proy = pdi_proy.sort_values("Id", na_position="last").drop_duplicates(subset=["Id"], keep="last")
+                pdi_for_narrative = pdi_proy
+    
     narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_for_narrative, historico_df, counts_e, count_total_e, health_rate_e)
 
     # ── Narrativa ejecutiva (antes de gráficas y fichas) ───────────────────────
@@ -2967,6 +2993,32 @@ def render():
 
     # --- FASE 4: Tablas según categoría ---
     pdi_for_tables = pdi_base_df if categoria == "Proyectos" else pdi_estrategico
+    # Si pdi_base_df está vacío para proyectos, recargar datos
+    if categoria == "Proyectos" and (pdi_for_tables.empty or "cumplimiento_pct" not in pdi_for_tables.columns):
+        from services.cmi_filters.loaders import load_cmi_worksheet
+        from services.strategic_indicators import load_proyectos_consolidados, load_worksheet_flags
+        cmi = load_cmi_worksheet()
+        ids_proy = set(str(x).strip() for x in cmi[cmi['Proyecto']==1]['Id'].dropna())
+        consolidado = load_proyectos_consolidados()
+        if not consolidado.empty and "Id" in consolidado.columns:
+            consolidado["Id"] = consolidado["Id"].astype(str)
+            pdi_proy = consolidado[consolidado["Id"].isin(ids_proy)].copy()
+            if not pdi_proy.empty:
+                base = load_worksheet_flags()
+                if not base.empty:
+                    base["Id"] = base["Id"].astype(str)
+                    base_to_merge = base[["Id","Linea","Objetivo"]].drop_duplicates(subset=["Id"])
+                    pdi_proy = pdi_proy.merge(base_to_merge, on="Id", how="left", suffixes=("","_cmi"))
+                    for col in pdi_proy.columns:
+                        if col.endswith("_cmi"):
+                            base_col = col[:-4]
+                            if base_col in pdi_proy.columns:
+                                mask_vacio = (pdi_proy[base_col].astype(str).str.strip() == "") | pdi_proy[base_col].isna()
+                                pdi_proy.loc[mask_vacio, base_col] = pdi_proy.loc[mask_vacio, col]
+                            pdi_proy = pdi_proy.drop(col, axis=1)
+                pdi_proy = pdi_proy.sort_values("Id", na_position="last").drop_duplicates(subset=["Id"], keep="last")
+                pdi_for_tables = pdi_proy
+    
     _render_tables_by_category(categoria, pdi_for_tables, linea_summary, best_improvements_e, worst_declines_e, _periodo_txt)
 
     st.markdown("</div>", unsafe_allow_html=True)
