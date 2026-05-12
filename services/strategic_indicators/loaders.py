@@ -348,6 +348,123 @@ def load_cierres() -> pd.DataFrame:
 
     out = out[out["Id"] != ""].copy()
 
+    return out.reset_index(drop=True)
+
+
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
+def load_proyectos_consolidados() -> pd.DataFrame:
+    """
+    Cargador específico para Proyectos desde 'Consolidado Cierres'.
+    
+    Fuente: data/output/Resultados Consolidados.xlsx → Hoja 'Consolidado Cierres'
+    Esta es la fuente oficial actualizada que contiene datos de los 44 proyectos 
+    marcados con Proyecto==1 en el CMI.
+    
+    Retorna:
+        DataFrame con todos los registros de Consolidado Cierres,
+        listo para filtrar por proyectos en la capa de presentación.
+    """
+    if not OUT_XLSX.exists():
+        return pd.DataFrame()
+    
+    try:
+        xl = pd.ExcelFile(OUT_XLSX, engine="openpyxl")
+    except Exception:
+        return pd.DataFrame()
+    
+    # Usar "Consolidado Cierres" (fuente oficial actualizada con proyectos)
+    if "Consolidado Cierres" not in xl.sheet_names:
+        return pd.DataFrame()
+    
+    try:
+        df = xl.parse("Consolidado Cierres")
+    except Exception:
+        return pd.DataFrame()
+    
+    df.columns = [str(c).strip() for c in df.columns]
+    
+    # Mapear columnas de Consolidado Cierres
+    c_id = _find_col(df, ["Id", "ID"])
+    c_ind = _find_col(df, ["Indicador"])
+    c_linea = _find_col(df, ["Linea", "Línea", "LINEA", "LÍNEA"])
+    c_obj = _find_col(df, ["Objetivo", "OBJETIVO"])
+    c_fecha = _find_col(df, ["Fecha"])
+    c_anio = _find_col(df, ["Año", "Anio", "AÑO"])
+    c_mes = _find_col(df, ["Mes"])
+    c_periodo = _find_col(df, ["Periodo"])
+    c_meta = _find_col(df, ["Meta"])
+    c_ejec = _find_col(df, ["Ejecucion", "Ejecución"])
+    c_cumpl = _find_col(df, ["Cumplimiento", "cumplimiento_dec"])
+    c_cumpl_real = _find_col(df, ["Cumplimiento Real", "CumplReal", "cumplimiento_real"])
+    c_sentido = _find_col(df, ["Sentido"])
+    c_tipo = _find_col(df, ["Tipo_Registro", "Tipo Registro"])
+    c_meta_s = _find_col(df, ["Meta_Signo", "Meta Signo", "Meta s"])
+    c_ejec_s = _find_col(df, ["Ejecucion_Signo", "Ejecución_Signo", "Ejecucion s"])
+    c_dec_meta = _find_col(df, ["Decimales_Meta", "Decimales", "DecMeta"])
+    c_dec_ejec = _find_col(df, ["Decimales_Ejecucion", "DecimalesEje", "DecEjec"])
+    
+    if not c_id:
+        return pd.DataFrame()
+    
+    # Construir DataFrame de salida
+    out = pd.DataFrame()
+    out["Id"] = df[c_id].apply(_id_limpio)
+    out["Indicador"] = df[c_ind].astype(str).str.strip() if c_ind else None
+    out["Linea"] = df[c_linea].astype(str).str.strip() if c_linea else ""
+    out["Objetivo"] = df[c_obj].astype(str).str.strip() if c_obj else ""
+    out["Fecha"] = pd.to_datetime(df[c_fecha], errors="coerce") if c_fecha else pd.NaT
+    out["Anio"] = pd.to_numeric(df[c_anio], errors="coerce") if c_anio else pd.NA
+    out["Mes"] = pd.to_numeric(df[c_mes], errors="coerce") if c_mes else pd.NA
+    out["Periodo"] = df[c_periodo].astype(str).str.strip() if c_periodo else None
+    out["Meta"] = pd.to_numeric(df[c_meta], errors="coerce") if c_meta else pd.NA
+    out["Ejecucion"] = pd.to_numeric(df[c_ejec], errors="coerce") if c_ejec else pd.NA
+    out["Sentido"] = df[c_sentido].astype(str).str.strip() if c_sentido else "Positivo"
+    out["Tipo_Registro"] = df[c_tipo].astype(str).str.strip() if c_tipo else ""
+    out["Meta_Signo"] = df[c_meta_s].astype(str).str.strip() if c_meta_s else ""
+    out["Ejecucion_Signo"] = df[c_ejec_s].astype(str).str.strip() if c_ejec_s else ""
+    out["Decimales_Meta"] = pd.to_numeric(df[c_dec_meta], errors="coerce") if c_dec_meta else 0
+    out["Decimales_Ejecucion"] = pd.to_numeric(df[c_dec_ejec], errors="coerce") if c_dec_ejec else 0
+    out["Decimales"] = out["Decimales_Meta"]
+    out["DecimalesEje"] = out["Decimales_Ejecucion"]
+    
+    # Cumplimiento
+    out["cumplimiento_dec"] = pd.to_numeric(df[c_cumpl], errors="coerce") if c_cumpl else pd.NA
+    out["cumplimiento_real"] = pd.to_numeric(df[c_cumpl_real], errors="coerce") if c_cumpl_real else pd.NA
+    
+    # Recalcular si falta
+    calcular_mask = (
+        out["cumplimiento_dec"].isna()
+        & out["Meta"].notna()
+        & out["Ejecucion"].notna()
+    )
+    if calcular_mask.any():
+        out.loc[calcular_mask, "cumplimiento_dec"] = out.loc[calcular_mask].apply(
+            lambda row: recalcular_cumplimiento_faltante(
+                row["Meta"],
+                row["Ejecucion"],
+                row.get("Sentido", "Positivo"),
+                row.get("Id"),
+            ),
+            axis=1,
+        )
+    
+    out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
+    
+    # Nivel de cumplimiento
+    es_metrica = out["Tipo_Registro"].str.lower() == METRICA.lower()
+    out["Nivel de cumplimiento"] = out.apply(
+        lambda row: categorizar_cumplimiento(row["cumplimiento_dec"], id_indicador=row.get("Id")),
+        axis=1,
+    )
+    out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
+    out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
+    
+    out = out[out["Id"] != ""].copy()
+    
+    return out.reset_index(drop=True)
+
+    out = out[out["Id"] != ""].copy()
+
     # Completar Año/Mes desde Fecha
     if "Fecha" in out.columns:
         out.loc[out["Anio"].isna(), "Anio"] = out.loc[out["Anio"].isna(), "Fecha"].dt.year

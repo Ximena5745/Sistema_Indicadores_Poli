@@ -21,6 +21,7 @@ from .loaders import (
     load_cna_catalog,
     load_worksheet_flags,
     load_cierres,
+    load_proyectos_consolidados,
     RAW_XLSX,
     OUT_XLSX,
 )
@@ -48,6 +49,7 @@ __all__ = [
     "load_cna_catalog",
     "load_worksheet_flags",
     "load_cierres",
+    "load_proyectos_consolidados",
     "cierre_por_corte",
     "preparar_pdi_con_cierre",
     "preparar_cna_con_cierre",
