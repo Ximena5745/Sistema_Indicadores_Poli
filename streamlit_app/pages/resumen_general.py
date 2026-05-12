@@ -2613,7 +2613,9 @@ def render():
         return []
     
     chip_summary = linea_summary
-    _chip_cfg = _get_chip_config(categoria, chip_summary, pdi_estrategico)
+    # Para proyectos, usar pdi_base_df que contiene los datos de proyectos
+    pdi_for_chips = pdi_base_df if categoria == "Proyectos" else pdi_estrategico
+    _chip_cfg = _get_chip_config(categoria, chip_summary, pdi_for_chips)
     if _chip_cfg:  # Only render if we have chip configuration
         _chip_cols = st.columns(len(_chip_cfg))
         for _cc, (_cv, _cl, _co) in zip(_chip_cols, _chip_cfg):
