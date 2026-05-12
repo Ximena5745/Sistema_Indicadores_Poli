@@ -6,8 +6,8 @@ textColor = "#1F2937"
 font = "sans serif"
 
 [server]
-port = 8000
-enableCORS = false
+port = 8501
+enableCORS = true
 headless = true
 
 [browser]
