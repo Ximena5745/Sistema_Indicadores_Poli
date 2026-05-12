@@ -2568,7 +2568,8 @@ def render():
         
         elif category == "Plan de Retos":
             # Retos: Plan de Retos, % Meta esperada, % Ejecución real, Cumplimiento
-            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            ret_count_col = "N_Retos" if "N_Retos" in linea_summary.columns else "N_Indicadores"
+            total_retos = int(linea_summary[ret_count_col].sum()) if not linea_summary.empty and ret_count_col in linea_summary.columns else 0
             if total_retos == 0:
                 total_retos = _load_plan_retos_area_count(int(year_estrategico))
 
@@ -2775,7 +2776,8 @@ def render():
     # Para Plan de Retos y Consolidado, no hay variación por Id
 
     # --- Chips de salud y narrativa ejecutiva ---
-    count_total_e = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+    count_col = "N_Proyectos" if categoria == "Proyectos" else "N_Indicadores"
+    count_total_e = int(linea_summary[count_col].sum()) if not linea_summary.empty and count_col in linea_summary.columns else 0
     counts_e = {
         "Sobrecumplimiento": int(linea_summary["Sobrecumplimiento"].sum()) if not linea_summary.empty else 0,
         "Cumplimiento": int(linea_summary["Cumplimiento"].sum()) if not linea_summary.empty else 0,
@@ -2848,7 +2850,8 @@ def render():
         
         elif category == "Proyectos":
             # Narrativa centrada en proyectos
-            total_proy = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            proy_count_col = "N_Proyectos" if "N_Proyectos" in linea_summary.columns else "N_Indicadores"
+            total_proy = int(linea_summary[proy_count_col].sum()) if not linea_summary.empty and proy_count_col in linea_summary.columns else 0
             
             cerrados = 0
             en_ejecucion = 0
@@ -2895,7 +2898,8 @@ def render():
         
         elif category == "Plan de Retos":
             # Narrativa centrada en retos
-            total_retos = int(linea_summary["N_Indicadores"].sum()) if not linea_summary.empty else 0
+            ret_count_col = "N_Retos" if "N_Retos" in linea_summary.columns else "N_Indicadores"
+            total_retos = int(linea_summary[ret_count_col].sum()) if not linea_summary.empty and ret_count_col in linea_summary.columns else 0
             cumplimiento_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
             
             if cumplimiento_prom >= 100:
