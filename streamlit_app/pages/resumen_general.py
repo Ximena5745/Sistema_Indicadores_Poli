@@ -96,7 +96,20 @@ except (ImportError, ModuleNotFoundError):
     from streamlit_app.components.filter_panel import render_filter_panel
 
 import numpy as np
+
 # Limpiar caché corrupto si es necesario (defensa para st stub en tests)
+def _clean_duplicates(df: pd.DataFrame) -> pd.DataFrame:
+    """Elimina TODAS las columnas duplicadas, manteniendo solo la primera ocurrencia de cada nombre.
+    
+    Usa .iloc por índice para evitar que pandas interprete incorrectamente nombres duplicados.
+    """
+    if df.empty or not df.columns.duplicated().any():
+        return df
+    
+    # Obtener índices de columnas a mantener (primera ocurrencia de cada nombre)
+    keep_idx = ~df.columns.duplicated(keep='first')
+    return df.iloc[:, keep_idx].copy()
+
 def _get_proyectos_ids():
     """Retorna set de IDs de indicadores marcados como Proyecto==1 en CMI xlsx."""
     from services.cmi_filters import load_cmi_worksheet
@@ -1252,9 +1265,10 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if current.empty or previous.empty:
         return [], []
     
-    # Limpiar columnas duplicadas (CRÍTICO: hacerlo primero y verificar que tenga "Id")
-    current = current.loc[:, ~current.columns.duplicated()].copy()
-    previous = previous.loc[:, ~previous.columns.duplicated()].copy()
+    # DEFENSA CRÍTICA: Limpiar columnas duplicadas de forma completa
+    # Necesario porque pandas puede mantener referencias duplicadas
+    current = _clean_duplicates(current)
+    previous = _clean_duplicates(previous)
     
     # Verificar que ambos tengan columna 'Id' después de limpiar duplicados
     if "Id" not in current.columns or "Id" not in previous.columns:
@@ -1275,9 +1289,12 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     # Remover duplicados manteniendo orden Y verificar que todas existan
     cols_to_select = list(dict.fromkeys([c for c in cols_to_select if c in current.columns]))
     
-    # Defensiva: asegurar que "Id" y "cumplimiento_pct" existan
+    # Defensiva: asegurar que "Id" y "cumplimiento_pct" existan en cols_to_select
     if "Id" not in cols_to_select or "cumplimiento_pct" not in cols_to_select:
         return [], []
+    
+    # CRÍTICO: Asegurar que `current` está completamente limpio antes de seleccionar
+    current = _clean_duplicates(current)
     
     cur = (
         current[cols_to_select]
@@ -1285,6 +1302,9 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
         .drop_duplicates(subset=["Id"], keep="first")
         .copy()
     )
+    
+    # CRÍTICO: Limpiar `cur` después de crearlo, por si acaso
+    cur = _clean_duplicates(cur)
     prev = (
         previous[["Id", "cumplimiento_pct"]]
         .dropna(subset=["cumplimiento_pct"])
@@ -1295,10 +1315,14 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if cur.empty or prev.empty:
         return [], []
     
-    # Defensa adicional: verificar que No haya columnas duplicadas antes del merge
-    if cur.columns.duplicated().any() or prev.columns.duplicated().any():
-        cur = cur.loc[:, ~cur.columns.duplicated()].copy()
-        prev = prev.loc[:, ~prev.columns.duplicated()].copy()
+    # DEFENSA FINAL CRÍTICA: Resetear columnas completamente antes del merge
+    # Esto previene CUALQUIER duplicado residual
+    cur = _clean_duplicates(cur)
+    prev = _clean_duplicates(prev)
+    
+    # Verificación final: asegurar que "Id" existe en ambos
+    if "Id" not in cur.columns or "Id" not in prev.columns:
+        return [], []
     
     merged = cur.merge(prev, on="Id", suffixes=("", "_prev"))
     if merged.empty:
@@ -2331,9 +2355,8 @@ def render():
                     # Deduplicar por Id (mantener último)
                     pdi_proy = pdi_proy.sort_values("Id", na_position="last").drop_duplicates(subset=["Id"], keep="last")
             
-            # Defensiva: limpiar cualquier columna duplicada antes de retornar
-            if pdi_proy.columns.duplicated().any():
-                pdi_proy = pdi_proy.loc[:, ~pdi_proy.columns.duplicated()].copy()
+            # Defensiva CRÍTICA: limpiar columnas duplicadas antes de retornar
+            pdi_proy = _clean_duplicates(pdi_proy)
             
             linea_summary = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
@@ -2700,9 +2723,8 @@ def render():
             else:
                 prev_df = pd.DataFrame()
         
-        # Defensiva: limpiar columnas duplicadas de prev_df antes de pasar a _compute_trends
-        if not prev_df.empty and prev_df.columns.duplicated().any():
-            prev_df = prev_df.loc[:, ~prev_df.columns.duplicated()].copy()
+        # Defensiva CRÍTICA: limpiar columnas duplicadas antes de pasar a _compute_trends
+        prev_df = _clean_duplicates(prev_df)
         
         best_improvements_e, worst_declines_e = _compute_trends(pdi_base_df, prev_df)
     # Para Plan de Retos y Consolidado, no hay variación por Id
