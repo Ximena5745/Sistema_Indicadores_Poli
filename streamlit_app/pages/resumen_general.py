@@ -2768,6 +2768,13 @@ def render():
                 pass
 
         with ficha_cols[idx % 6]:
+            # Para consolidado, obtener número de áreas con retos
+            retos_value = None
+            if categoria == "Consolidado":
+                retos_value = _load_plan_retos_area_count(int(year_estrategico)) if 'year_estrategico' in dir() else 0
+            elif categoria == "Plan de Retos":
+                retos_value = n_retos
+            
             _render_strategy_card(
                 title=card_def["label"],
                 count=count,
@@ -2779,8 +2786,8 @@ def render():
                 indicators=n_ind,
                 indicators_label="Indicadores",
                 projects=n_proy if categoria in ["Consolidado", "Proyectos"] else None,
-                retos=None if categoria in ["Consolidado", "Plan de Retos"] else n_retos,
-                retos_label="Plan de Retos" if categoria == "Consolidado" else "Retos",
+                retos=retos_value,
+                retos_label="Áreas" if categoria == "Consolidado" else "Retos",
             )
 
     # --- Sunburst ---
