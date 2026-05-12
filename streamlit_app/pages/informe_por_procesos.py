@@ -22,6 +22,8 @@ from streamlit_app.pages.resumen_por_proceso import (
     _render_auditoria_tab,
     _render_calidad_kpis_cards,
     _render_indicadores_subproceso_cards,
+    _render_resumen_banner,
+    _render_resumen_overview_cards,
     _to_float,
 )
 from services.cmi_filters.filters import filter_df_for_procesos
@@ -272,6 +274,229 @@ def _prepare_filters(tracking_df: pd.DataFrame, map_df: pd.DataFrame, anio: int,
     return full_work_df, snapshot_df
 
 
+def _month_value_to_num(value: object) -> int | None:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    text = str(value).strip()
+    if text.isdigit():
+        num = int(text)
+        return num if 1 <= num <= 12 else None
+    return _mes_to_num(text)
+
+
+def _build_executive_summary(filtered: pd.DataFrame, base_df: pd.DataFrame | None) -> dict[str, object]:
+    pct = pd.to_numeric(filtered.get("Cumplimiento_pct", pd.Series(dtype=float)), errors="coerce")
+    avg = float(pct.mean()) if not pct.dropna().empty else 0.0
+    score = min(100.0, avg)
+    total_indicadores = int(filtered["Indicador"].dropna().astype(str).str.strip().nunique()) if "Indicador" in filtered.columns else 0
+    total_procesos = int(filtered["Proceso_padre"].dropna().astype(str).str.strip().nunique()) if "Proceso_padre" in filtered.columns else 0
+    total_subprocesos = int(filtered["Subproceso_final"].dropna().astype(str).str.strip().nunique()) if "Subproceso_final" in filtered.columns else 0
+    cumple = int((pct >= 100).sum())
+    alerta = int(((pct >= 80) & (pct < 100)).sum())
+    peligro = int((pct < 80).sum())
+    sin_dato = int(pct.isna().sum())
+    delta = None
+    if base_df is not None and not base_df.empty:
+        base_pct = pd.to_numeric(base_df.get("Cumplimiento_pct", pd.Series(dtype=float)), errors="coerce")
+        if not base_pct.dropna().empty:
+            delta = float(avg - float(base_pct.mean()))
+    return {
+        "avg": avg,
+        "score": score,
+        "label": "Saludable" if score >= 95 else "Estable" if score >= 80 else "En riesgo",
+        "total_indicadores": total_indicadores,
+        "total_procesos": total_procesos,
+        "total_subprocesos": total_subprocesos,
+        "cumple": cumple,
+        "alerta": alerta,
+        "peligro": peligro,
+        "sin_dato": sin_dato,
+        "delta": delta,
+    }
+
+
+def _format_delta(delta: float | None) -> str:
+    if delta is None:
+        return "Sin cambio"
+    sign = "+" if delta >= 0 else ""
+    return f"{sign}{delta:.1f}% respecto al año anterior"
+
+
+def _render_executive_cards(summary: dict[str, object]) -> None:
+    delta_label = _format_delta(summary["delta"])
+    st.markdown(
+        f"""
+        <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:0 0 18px;'>
+            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
+                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Score de Salud</div>
+                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["score"]:.1f}</div>
+                <div style='font-size:0.85rem;color:#15803d;font-weight:700;margin-top:10px;'>{summary["label"]}</div>
+                <div style='font-size:0.78rem;color:#64748b;margin-top:10px;'>{delta_label}</div>
+            </div>
+            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
+                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Cumplimiento Global</div>
+                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["avg"]:.1f}%</div>
+                <div style='font-size:0.85rem;color:#64748b;margin-top:10px;'>Meta: 100%</div>
+            </div>
+            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
+                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Indicadores evaluados</div>
+                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["total_indicadores"]}</div>
+                <div style='font-size:0.85rem;color:#64748b;margin-top:10px;'>{summary["total_indicadores"]} activos en el periodo</div>
+            </div>
+            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
+                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Estado de alertas</div>
+                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["alerta"] + summary["peligro"]}</div>
+                <div style='font-size:0.85rem;color:#64748b;margin-top:10px;'>{summary["alerta"]} alertas · {summary["peligro"]} críticos</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int) -> None:
+    if historic_base.empty or "Anio" not in historic_base.columns:
+        return
+
+    df = historic_base.copy()
+    if "Mes" in df.columns:
+        df["Mes_num"] = df["Mes"].map(lambda x: _month_value_to_num(x))
+        df = df[df["Mes_num"] == selected_month_num]
+
+    df["Anio"] = pd.to_numeric(df["Anio"], errors="coerce")
+    df = df.dropna(subset=["Anio"])
+    if df.empty:
+        return
+
+    summary = (
+        df.groupby(df["Anio"].astype(int), dropna=False)["Cumplimiento_pct"]
+        .agg(lambda s: pd.to_numeric(s, errors="coerce").mean())
+        .reset_index(name="promedio")
+        .sort_values("Anio")
+    )
+    if summary.empty:
+        return
+
+    rows = []
+    for _, row in summary.tail(4).iterrows():
+        ano = int(row["Anio"])
+        prom = float(row["promedio"]) if pd.notna(row["promedio"]) else 0.0
+        rows.append((ano, prom))
+
+    cards_html = ""
+    for ano, prom in rows:
+        cards_html += f"""
+            <div style='padding:18px;border-radius:18px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 10px 24px rgba(15,23,42,0.06);'>
+                <div style='font-size:0.85rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>Año {ano}</div>
+                <div style='font-size:2.4rem;font-weight:800;color:#0f172a;'>{prom:.1f}%</div>
+                <div style='font-size:0.82rem;color:#64748b;margin-top:10px;'>Cumplimiento promedio</div>
+            </div>
+        """
+    st.markdown(
+        f"""
+        <div style='margin:22px 0 12px;font-size:1rem;font-weight:700;color:#0f172a;'>Evolución comparativa interanual</div>
+        <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:22px;'>{cards_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    figure = go.Figure(
+        data=[
+            go.Bar(
+                x=[ano for ano, _ in rows],
+                y=[prom for _, prom in rows],
+                marker_color="#2563eb",
+                text=[f"{prom:.1f}%" for _, prom in rows],
+                textposition="outside",
+                hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
+            )
+        ]
+    )
+    figure.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=320,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(248,250,252,0.8)",
+        xaxis=dict(showgrid=False, tickfont=dict(size=12, color="#0f172a")),
+        yaxis=dict(showgrid=True, gridcolor="rgba(15,23,42,0.08)", tickfont=dict(size=12, color="#0f172a"), ticksuffix="%"),
+    )
+    st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
+
+
+def _render_critical_indicators(filtered: pd.DataFrame) -> None:
+    if filtered.empty:
+        return
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in filtered.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in filtered.columns else None
+    )
+    if pct_col is None:
+        return
+    work = filtered.copy()
+    work[pct_col] = pd.to_numeric(work[pct_col], errors="coerce")
+    work = work.dropna(subset=[pct_col])
+    if work.empty:
+        return
+    critical = work[work[pct_col] < 80].copy()
+    if critical.empty:
+        st.success("No hay indicadores críticos en este corte.")
+        return
+    critical = critical.sort_values(pct_col).head(3)
+    items = ""
+    for _, row in critical.iterrows():
+        indicador = str(row.get("Indicador", "Sin nombre"))
+        proceso = str(row.get("Proceso_padre", "Sin proceso"))
+        valor = float(row[pct_col])
+        items += f"<div style='margin-bottom:12px;padding:16px;border-radius:18px;background:#fff7ed;border:1px solid #fcd9b6;'>"
+        items += f"<div style='font-weight:700;color:#b45309;margin-bottom:6px;'>{indicador}</div>"
+        items += f"<div style='font-size:0.88rem;color:#475569;margin-bottom:4px;'>Proceso: {proceso}</div>"
+        items += f"<div style='font-size:1rem;font-weight:700;color:#991b1b;'>Cumplimiento: {valor:.1f}%</div>"
+        items += "</div>"
+    st.markdown(
+        f"""
+        <div style='margin-top:20px;'>
+            <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:12px;'>Indicadores críticos</div>
+            {items}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_distribution_cards(filtered: pd.DataFrame) -> None:
+    pct_col = "Cumplimiento_pct" if "Cumplimiento_pct" in filtered.columns else (
+        "cumplimiento_pct" if "cumplimiento_pct" in filtered.columns else None
+    )
+    if pct_col is None:
+        return
+    work = filtered.copy()
+    work[pct_col] = pd.to_numeric(work[pct_col], errors="coerce")
+    cumple = int((work[pct_col] >= 100).sum())
+    alerta = int(((work[pct_col] >= 80) & (work[pct_col] < 100)).sum())
+    critico = int((work[pct_col] < 80).sum())
+    sin_dato = int(work[pct_col].isna().sum())
+    cards = [
+        ("Cumple", cumple, "#ECFDF5", "#166534"),
+        ("Alerta", alerta, "#FEF3C7", "#98660E"),
+        ("Crítico", critico, "#FEF2F2", "#991B1B"),
+        ("Sin dato", sin_dato, "#F8FAFC", "#475569"),
+    ]
+    cells = ""
+    for title, value, bg, color in cards:
+        cells += f"<div style='padding:18px;border-radius:18px;background:{bg};border:1px solid rgba(15,23,42,0.08);'>"
+        cells += f"<div style='font-size:0.78rem;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>{title}</div>"
+        cells += f"<div style='font-size:2rem;font-weight:800;color:#0f172a;'>{value}</div>"
+        cells += "</div>"
+    st.markdown(
+        f"""
+        <div style='margin-top:22px;'>
+            <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:12px;'>Distribución por Estado</div>
+            <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;'>{cells}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render() -> None:
     st.title("Informe por Procesos")
 
@@ -365,6 +590,13 @@ def render() -> None:
     selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
 
+    prev_year = int(anio) - 1 if int(anio) - 1 in years else None
+    base_df = None
+    if prev_year is not None:
+        _, prev_snapshot_df = _prepare_filters(tracking_df, map_df, int(prev_year), selected_month_num)
+        if not prev_snapshot_df.empty:
+            base_df = prev_snapshot_df
+
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":
         filtered = filtered[filtered["Proceso_padre"].astype(str) == proceso_sel]
@@ -387,9 +619,9 @@ def render() -> None:
 
     tabs = st.tabs(
         [
-            "Resumen",
+            "Resumen Ejecutivo",
             "Indicadores",
-            "Calidad",
+            "Calidad de Datos",
             "Auditoría",
             "Propuestas",
             "Análisis IA",
@@ -397,30 +629,15 @@ def render() -> None:
     )
 
     with tabs[0]:
-        st.markdown("### Resumen")
+        st.markdown("### Resumen Ejecutivo")
         if filtered.empty:
             st.info("No hay datos disponibles.")
         else:
-            total_indicadores = int(filtered["Indicador"].nunique()) if "Indicador" in filtered.columns else 0
-            total_procesos = int(filtered["Proceso_padre"].nunique()) if "Proceso_padre" in filtered.columns else 0
-            total_subprocesos = int(filtered["Subproceso_final"].nunique()) if "Subproceso_final" in filtered.columns else 0
-            cumplimiento_avg = pd.to_numeric(filtered.get("Cumplimiento_pct", pd.Series(dtype=float)), errors="coerce").mean()
-            cumplimiento_label = f"{cumplimiento_avg:.1f}%" if pd.notna(cumplimiento_avg) else "—"
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Indicadores", total_indicadores)
-            c2.metric("Procesos", total_procesos)
-            c3.metric("Subprocesos", total_subprocesos)
-            c4.metric("Cumplimiento medio", cumplimiento_label)
-
-            frecuencia = _build_frequency_summary(filtered)
-            if not frecuencia.empty:
-                st.markdown("#### Resumen por frecuencia")
-                st.dataframe(frecuencia, use_container_width=True, hide_index=True)
-
-            clasificacion = _build_classification_summary(filtered)
-            if not clasificacion.empty:
-                st.markdown("#### Resumen por clasificación")
-                st.dataframe(clasificacion, use_container_width=True, hide_index=True)
+            summary = _build_executive_summary(filtered, base_df)
+            _render_executive_cards(summary)
+            _render_year_comparison(historic_base, selected_month_num)
+            _render_critical_indicators(filtered)
+            _render_distribution_cards(filtered)
 
     with tabs[1]:
         st.markdown("### Indicadores")
