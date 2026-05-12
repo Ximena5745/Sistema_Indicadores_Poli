@@ -212,7 +212,9 @@ html body .stMultiSelect,
 html body [data-testid="stPills"],
 html body [data-testid="stSegmentedControl"] {
     margin-bottom: 0 !important;
+    margin-top: 0 !important;
     padding-bottom: 0 !important;
+    padding-top: 0 !important;
 }
 
 /* ── Botón de reset ─────────────────────────────────────────────── */
@@ -223,6 +225,15 @@ html body [data-testid="stButton"] > button:hover {
     border-color: var(--fp-primary) !important;
     color: var(--fp-primary) !important;
     background: rgba(15,58,109,0.06) !important;
+}
+/* ── Compactar contenedor de filtros ──────────────────────────── */
+html body [data-testid="stContainer"] [data-testid="stVerticalBlock"],
+html body .stColumn {
+    gap: 0 !important;
+}
+
+html body [data-testid="stVerticalBlock"] {
+    gap: 0.3rem !important;
 }
 </style>"""
 

@@ -1540,11 +1540,11 @@ def _inject_dashboard_styles():
         """
         <style>
         .rg-header {
-            background: linear-gradient(120deg, #0A1F3D 0%, #0D2B52 55%, #133A6B 100%);
+            background: linear-gradient(120deg, #1A3A5C 0%, #2E5C8A 55%, #1A3A5C 100%);
             border: none;
             border-radius: 16px;
             padding: 1.4rem 1.6rem;
-            box-shadow: 0 8px 28px rgba(8, 34, 75, 0.22);
+            box-shadow: 0 8px 28px rgba(26, 58, 92, 0.15);
             margin-bottom: 1rem;
             position: relative;
             overflow: hidden;
@@ -1671,26 +1671,28 @@ def _inject_dashboard_styles():
             font-weight: 600;
         }
         .rg-ia {
-            background: linear-gradient(135deg, #050E1F 0%, #0A1B3A 55%, #102A50 100%);
-            border: 1px solid #2D4D79;
+            background: linear-gradient(135deg, #E9F1FB 0%, #F5F9FE 55%, #EEF5FB 100%);
+            border: 1px solid #D0DFF2;
             border-radius: 14px;
             padding: 0.9rem;
-            color: #F2F8FF;
+            color: #1A3A5C;
             min-height: 220px;
-            box-shadow: inset 0 0 0 1px rgba(110, 174, 255, 0.12);
+            box-shadow: 0 4px 12px rgba(26, 58, 92, 0.08);
         }
         .rg-ia h4 {
             margin: 0 0 0.6rem 0;
             font-size: 1rem;
-            color: #E8F3FF;
+            color: #1A3A5C;
+            font-weight: 700;
         }
-        .rg-bubble {
-            border: 1px solid rgba(120, 192, 255, 0.55);
+        .rg-bubble {#2E5C8A;
             border-radius: 14px;
             padding: 0.55rem 0.7rem;
             margin-bottom: 0.5rem;
-            background: rgba(63, 121, 198, 0.22);
+            background: rgba(46, 92, 138, 0.10);
             font-size: 0.8rem;
+            color: #1A3A5C;
+            font-weight: 600rem;
             color: #F3F9FF;
         }
         .rg-ia-table {
@@ -1699,17 +1701,18 @@ def _inject_dashboard_styles():
             margin-top: 0.45rem;
             font-size: 0.78rem;
         }
-        .rg-ia-table th, .rg-ia-table td {
-            border-bottom: 1px solid rgba(128, 179, 230, 0.3);
+        .rg-ia-table th, .rg-ia-table#D0DFF2;
             padding: 0.35rem 0.2rem;
             text-align: left;
-            color: #F4F9FF;
+            color: #2A425D;
         }
         .rg-ia-table th {
-            color: #D2E7FF;
+            color: #1A3A5C;
             font-size: 0.74rem;
             font-weight: 700;
-        }
+            background: #F5F9FEem;
+            font-weight: 700;
+        }1A3A5C
         .rg-ia-inline-title {
             color: #C8E4FF;
             font-size: 0.78rem;

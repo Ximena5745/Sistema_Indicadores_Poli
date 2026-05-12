@@ -2048,7 +2048,7 @@ def _render_calidad_kpis_cards(df: pd.DataFrame) -> None:
     st.markdown(
         f"""
         <div style='display:grid;grid-template-columns:minmax(260px,420px);gap:10px;margin:8px 0 14px 0;'>
-            <div style='background:linear-gradient(135deg,#0d47a1,#1565c0);color:#fff;border-radius:12px;padding:12px;border:1px solid #0b3c8a;'>
+            <div style='background:linear-gradient(135deg,#1A3A5C,#2E5C8A);color:#fff;border-radius:12px;padding:12px;border:1px solid #1A3A5C;'>
                 <div style='font-size:0.8rem;opacity:0.9;'>General</div>
                 <div style='font-size:1.6rem;font-weight:700;line-height:1.2;'>{avg:.1f}%</div>
                 <div style='font-size:0.78rem;opacity:0.9;'>Calidad promedio | {total_sub} subprocesos</div>
