@@ -889,6 +889,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     # Si no hay datos válidos, crear un nodo dummy con 0%
     if df.empty:
         labels = ["Sin datos"]
+        ids = ["sin_datos"]
         parents = [""]
         values = [1]
         customdata = [[0]]
@@ -967,6 +968,7 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
 
         if df.empty:
             labels = ["Sin datos"]
+            ids = ["sin_datos"]
             parents = [""]
             values = [1]
             customdata = [[0]]
