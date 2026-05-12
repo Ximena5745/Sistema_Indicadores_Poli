@@ -118,14 +118,20 @@ def _get_proyectos_ids():
         return set()
     return set(str(int(x)) if isinstance(x, float) else str(x).strip() for x in df.loc[df["Proyecto"] == 1, "Id"].dropna())
 
-def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_count_col: str | None = None):
-    """Construye resumen por línea: N_Indicadores, Cumpl_Promedio, conteos por nivel.
+def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_count_col: str | None = None, count_col_name: str | None = None):
+    """Construye resumen por línea: N_Indicadores (o N_Proyectos), Cumpl_Promedio, conteos por nivel.
 
     Si unique_count_col se provee y existe en el dataframe, se cuenta valores únicos
     de esa columna por línea en lugar de contar filas repetidas en diferentes años.
+    
+    Args:
+        count_col_name: Nombre de la columna de conteo. Si es "N_Proyectos", usará ese nombre en lugar de N_Indicadores.
     """
     if df.empty or "Linea" not in df.columns:
-        return pd.DataFrame(columns=["Linea","N_Indicadores","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"])
+        cols = ["Linea","Cumpl_Promedio","Sobrecumplimiento","Cumplimiento","Alerta","Peligro"]
+        count_col = count_col_name if count_col_name else "N_Indicadores"
+        cols.insert(1, count_col)
+        return pd.DataFrame(columns=cols)
     df = df.copy()
     if nivel_col not in df.columns:
         df = _ensure_nivel_cumplimiento(df)
@@ -153,11 +159,13 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_c
         count_agg = (unique_count_col, lambda s: s.dropna().astype(str).str.strip().replace("", pd.NA).dropna().nunique())
     else:
         count_agg = ("Indicador", "count") if "Indicador" in df.columns else (df.columns[0], "size")
+    
+    count_col = count_col_name if count_col_name else "N_Indicadores"
 
     resumen = (
         df.groupby("Linea", dropna=False)
         .agg(
-            N_Indicadores=count_agg,
+            **{count_col: count_agg},
             Cumpl_Promedio=("cumplimiento_pct", "mean"),
             Sobrecumplimiento=(nivel_col, lambda s: (s=="Sobrecumplimiento").sum()),
             Cumplimiento=(nivel_col, lambda s: (s=="Cumplimiento").sum()),
@@ -2380,7 +2388,7 @@ def render():
             # Defensiva CRÍTICA: limpiar columnas duplicadas antes de retornar
             pdi_proy = _clean_duplicates(pdi_proy)
             
-            linea_summary = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
+            linea_summary = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id", count_col_name="N_Proyectos")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             objetivo_df = pdi_proy[cols].copy() if cols else pd.DataFrame()
             pdi_base_df = pdi_proy.copy()
@@ -2475,7 +2483,7 @@ def render():
             s1 = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_estrategico.columns]
             o1 = pdi_estrategico[cols].copy()
-            s2 = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
+            s2 = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id", count_col_name="N_Proyectos")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             o2 = pdi_proy[cols].copy()
             s3 = _build_linea_summary_from_retos(linea_df, obj_df, planes_df=planes_df)
@@ -2680,7 +2688,14 @@ def render():
             except (ValueError, TypeError):
                 cumpl = 0.0
             try:
-                count = int(float(row.get("N_Planes", row.get("N_Indicadores", 0))))
+                if categoria == "Proyectos":
+                    count = int(float(row.get("N_Proyectos", 0)))
+                elif categoria == "Consolidado":
+                    count = int(float(row.get("N_Planes", row.get("N_Indicadores", 0))))
+                elif categoria == "Plan de Retos":
+                    count = int(float(row.get("N_Retos", 0)))
+                else:
+                    count = int(float(row.get("N_Indicadores", 0)))
             except (ValueError, TypeError):
                 count = n_ind
         else:
@@ -2716,7 +2731,7 @@ def render():
                 unit_label=unit_label,
                 indicators=n_ind,
                 indicators_label="Indicadores",
-                projects=n_proy if categoria == "Consolidado" else None,
+                projects=n_proy if categoria in ["Consolidado", "Proyectos"] else None,
                 retos=None if categoria in ["Consolidado", "Plan de Retos"] else n_retos,
                 retos_label="Plan de Retos" if categoria == "Consolidado" else "Retos",
             )
