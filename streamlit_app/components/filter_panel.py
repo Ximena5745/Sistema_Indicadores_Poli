@@ -217,6 +217,16 @@ html body [data-testid="stSegmentedControl"] {
     padding-top: 0 !important;
 }
 
+html body .stContainer [data-testid="stVerticalBlock"] {
+    gap: 0.25rem !important;
+}
+html body .stContainer [data-testid="stVerticalBlock"] > div {
+    gap: 0.25rem !important;
+}
+html body .stContainer [data-testid="stBlock"] {
+    margin-bottom: 0 !important;
+}
+
 /* ── Botón de reset ─────────────────────────────────────────────── */
 html body [data-testid="stButton"] > button {
     transition: all 0.15s ease !important;

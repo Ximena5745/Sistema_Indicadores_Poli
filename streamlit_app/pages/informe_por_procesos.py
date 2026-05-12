@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from streamlit_app.components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
+from streamlit_app.styles.design_system import COLORS, GRADIENTS
 from streamlit_app.pages.resumen_por_proceso import (
     _mes_to_num,
     _get_prev_month_for_year,
@@ -324,30 +325,46 @@ def _format_delta(delta: float | None) -> str:
 
 def _render_executive_cards(summary: dict[str, object]) -> None:
     delta_label = _format_delta(summary["delta"])
+    card_styles = [
+        (COLORS["primary"], COLORS["primary_light"]),
+        (COLORS["success"], COLORS["success_light"]),
+        (COLORS["info"], COLORS["info_light"]),
+        (COLORS["warning"], COLORS["warning_light"]),
+    ]
+    card_html = ""
+    titles = [
+        "Score de Salud",
+        "Cumplimiento Global",
+        "Indicadores evaluados",
+        "Estado de alertas",
+    ]
+    values = [
+        f"{summary['score']:.1f}",
+        f"{summary['avg']:.1f}%",
+        f"{summary['total_indicadores']}",
+        f"{summary['alerta'] + summary['peligro']}",
+    ]
+    descriptions = [
+        f"{summary['label']} · {delta_label}",
+        "Meta: 100%",
+        f"{summary['total_indicadores']} activos en el periodo",
+        f"{summary['alerta']} alertas · {summary['peligro']} críticos",
+    ]
+
+    for index, (title, value, description) in enumerate(zip(titles, values, descriptions)):
+        border_color, accent_color = card_styles[index]
+        card_html += f"""
+            <div style='padding:20px;border-radius:18px;background:{COLORS['surface']};border:1px solid #E2E8F0;box-shadow:0 10px 24px rgba(15,23,42,0.06);border-top:4px solid {accent_color};'>
+                <div style='font-size:0.78rem;font-weight:700;color:{COLORS['text_secondary']};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>{title}</div>
+                <div style='font-size:2.8rem;font-weight:800;color:{COLORS['text_primary']};'>{value}</div>
+                <div style='font-size:0.9rem;color:{COLORS['gray_600']};margin-top:12px;'>{description}</div>
+            </div>
+        """
+
     st.markdown(
         f"""
         <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:0 0 18px;'>
-            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#0f172a,#1e40af);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
-                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Score de Salud</div>
-                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["score"]:.1f}</div>
-                <div style='font-size:0.9rem;color:#dbeafe;font-weight:700;margin-top:12px;'>{summary["label"]}</div>
-                <div style='font-size:0.82rem;color:rgba(255,255,255,0.8);margin-top:10px;'>{delta_label}</div>
-            </div>
-            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#047857,#10b981);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
-                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Cumplimiento Global</div>
-                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["avg"]:.1f}%</div>
-                <div style='font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:12px;'>Meta: 100%</div>
-            </div>
-            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
-                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Indicadores evaluados</div>
-                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["total_indicadores"]}</div>
-                <div style='font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:12px;'>{summary["total_indicadores"]} activos en el periodo</div>
-            </div>
-            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
-                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Estado de alertas</div>
-                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["alerta"] + summary["peligro"]}</div>
-                <div style='font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:12px;'>{summary["alerta"]} alertas · {summary["peligro"]} críticos</div>
-            </div>
+            {card_html}
         </div>
         """,
         unsafe_allow_html=True,
@@ -385,18 +402,18 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
 
     cards_html = ""
     palettes = [
-        ("#eff6ff", "#1d4ed8", "#2563eb"),
-        ("#f0f9ff", "#2563eb", "#1d4ed8"),
-        ("#eef2ff", "#4338ca", "#3730a3"),
-        ("#fff7ed", "#ea580c", "#c2410c"),
+        (COLORS['primary'], COLORS['primary_light']),
+        (COLORS['success'], COLORS['success_light']),
+        (COLORS['info'], COLORS['info_light']),
+        (COLORS['warning'], COLORS['warning_light']),
     ]
     for index, (ano, prom) in enumerate(rows):
-        bg, text, accent = palettes[index % len(palettes)]
+        border_color, accent_color = palettes[index % len(palettes)]
         cards_html += f"""
-            <div style='padding:20px;border-radius:20px;background:{bg};border:1px solid rgba(15,23,42,0.08);box-shadow:0 12px 30px rgba(15,23,42,0.08);'>
-                <div style='font-size:0.82rem;font-weight:700;color:{accent};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>Año {ano}</div>
-                <div style='font-size:2.5rem;font-weight:800;color:{text};'>{prom:.1f}%</div>
-                <div style='font-size:0.84rem;color:#475569;margin-top:10px;'>Cumplimiento promedio</div>
+            <div style='padding:20px;border-radius:18px;background:{COLORS['surface']};border:1px solid #E2E8F0;box-shadow:0 10px 24px rgba(15,23,42,0.06);border-left:4px solid {accent_color};'>
+                <div style='font-size:0.82rem;font-weight:700;color:{border_color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>Año {ano}</div>
+                <div style='font-size:2.4rem;font-weight:800;color:{COLORS['text_primary']};'>{prom:.1f}%</div>
+                <div style='font-size:0.84rem;color:{COLORS['text_secondary']};margin-top:10px;'>Cumplimiento promedio</div>
             </div>
         """
     st.markdown(
@@ -453,15 +470,15 @@ def _render_critical_indicators(filtered: pd.DataFrame) -> None:
         indicador = str(row.get("Indicador", "Sin nombre"))
         proceso = str(row.get("Proceso_padre", "Sin proceso"))
         valor = float(row[pct_col])
-        items += f"<div style='margin-bottom:12px;padding:18px;border-radius:22px;background:#fef2f2;border:1px solid rgba(219,39,119,0.16);box-shadow:0 10px 24px rgba(219,39,119,0.06);'>"
-        items += f"<div style='font-weight:700;color:#b91c1c;margin-bottom:6px;font-size:1rem;'>{indicador}</div>"
-        items += f"<div style='font-size:0.88rem;color:#475569;margin-bottom:6px;'>Proceso: {proceso}</div>"
-        items += f"<div style='font-size:1.05rem;font-weight:700;color:#7f1d1d;'>Cumplimiento: {valor:.1f}%</div>"
+        items += f"<div style='margin-bottom:12px;padding:18px;border-radius:18px;background:#FEF2F2;border:1px solid rgba(211,47,47,0.16);box-shadow:0 10px 24px rgba(15,23,42,0.06);'>"
+        items += f"<div style='font-weight:700;color:{COLORS['danger']};margin-bottom:6px;font-size:1rem;'>{indicador}</div>"
+        items += f"<div style='font-size:0.88rem;color:{COLORS['text_secondary']};margin-bottom:6px;'>Proceso: {proceso}</div>"
+        items += f"<div style='font-size:1.05rem;font-weight:700;color:{COLORS['danger_dark']};'>Cumplimiento: {valor:.1f}%</div>"
         items += "</div>"
     st.markdown(
         f"""
         <div style='margin-top:20px;'>
-            <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:12px;'>Indicadores críticos</div>
+            <div style='font-size:1rem;font-weight:700;color:{COLORS['text_primary']};margin-bottom:12px;'>Indicadores críticos</div>
             {items}
         </div>
         """,
@@ -482,21 +499,21 @@ def _render_distribution_cards(filtered: pd.DataFrame) -> None:
     critico = int((work[pct_col] < 80).sum())
     sin_dato = int(work[pct_col].isna().sum())
     cards = [
-        ("Cumple", cumple, "#d1fae5", "#166534"),
-        ("Alerta", alerta, "#fef3c7", "#92400e"),
-        ("Crítico", critico, "#fee2e2", "#991b1b"),
-        ("Sin dato", sin_dato, "#e2e8f0", "#0f172a"),
+        ("Cumple", cumple, "#ECFDF5", COLORS['success']),
+        ("Alerta", alerta, "#FEF3C7", COLORS['warning']),
+        ("Crítico", critico, "#FEE2E2", COLORS['danger']),
+        ("Sin dato", sin_dato, COLORS['surface_variant'], COLORS['text_secondary']),
     ]
     cells = ""
     for title, value, bg, color in cards:
-        cells += f"<div style='padding:22px;border-radius:22px;background:{bg};border:1px solid rgba(15,23,42,0.08);box-shadow:0 14px 30px rgba(15,23,42,0.05);'>"
+        cells += f"<div style='padding:20px;border-radius:18px;background:{bg};border:1px solid #E2E8F0;box-shadow:0 10px 24px rgba(15,23,42,0.06);'>"
         cells += f"<div style='font-size:0.8rem;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>{title}</div>"
-        cells += f"<div style='font-size:2.2rem;font-weight:800;color:#0f172a;'>{value}</div>"
+        cells += f"<div style='font-size:2.2rem;font-weight:800;color:{COLORS['text_primary']};'>{value}</div>"
         cells += "</div>"
     st.markdown(
         f"""
-        <div style='margin-top:22px;padding:20px;border-radius:24px;background:linear-gradient(90deg,rgba(236,246,255,0.9),rgba(248,250,252,0.95));border:1px solid rgba(59,130,246,0.12);'>
-            <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:18px;'>Distribución por Estado</div>
+        <div style='margin-top:22px;'>
+            <div style='font-size:1rem;font-weight:700;color:{COLORS['text_primary']};margin-bottom:18px;'>Distribución por Estado</div>
             <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;'>{cells}</div>
         </div>
         """,
@@ -552,36 +569,78 @@ def render() -> None:
     _, initial_snapshot_df = _prepare_filters(tracking_df, map_df, int(initial_year), initial_month_num)
 
     procesos = sorted(initial_snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+    unidad_options_base = sorted(initial_snapshot_df["Unidad"].dropna().astype(str).unique().tolist()) if "Unidad" in initial_snapshot_df.columns else []
+
+    unidad_sel_cur = st.session_state.get("filter_unidad", "Todos")
     proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
-    subproceso_options_base: list[str] = []
+
+    proceso_df_base = initial_snapshot_df.copy()
+    if unidad_sel_cur != "Todos" and "Unidad" in proceso_df_base.columns:
+        proceso_df_base = proceso_df_base[proceso_df_base["Unidad"].astype(str) == unidad_sel_cur]
+    proceso_options_base = sorted(proceso_df_base["Proceso_padre"].dropna().astype(str).unique().tolist())
+
+    sub_df_base = initial_snapshot_df.copy()
+    if unidad_sel_cur != "Todos" and "Unidad" in sub_df_base.columns:
+        sub_df_base = sub_df_base[sub_df_base["Unidad"].astype(str) == unidad_sel_cur]
     if proceso_sel_cur != "Todos":
-        subproceso_options_base = sorted(
-            initial_snapshot_df[initial_snapshot_df["Proceso_padre"].astype(str) == proceso_sel_cur][
-                "Subproceso_final"
-            ].dropna().astype(str).unique().tolist()
-        )
+        sub_df_base = sub_df_base[sub_df_base["Proceso_padre"].astype(str) == proceso_sel_cur]
+    subproceso_options_base = sorted(sub_df_base["Subproceso_final"].dropna().astype(str).unique().tolist())
+
+    clasificacion_options_base = sorted(initial_snapshot_df["Clasificacion"].dropna().astype(str).unique().tolist()) if "Clasificacion" in initial_snapshot_df.columns else sorted(initial_snapshot_df["Clasificación"].dropna().astype(str).unique().tolist()) if "Clasificación" in initial_snapshot_df.columns else []
+    frecuencia_options_base = sorted(initial_snapshot_df["Periodicidad"].dropna().astype(str).unique().tolist()) if "Periodicidad" in initial_snapshot_df.columns else sorted(initial_snapshot_df["Frecuencia"].dropna().astype(str).unique().tolist()) if "Frecuencia" in initial_snapshot_df.columns else sorted(initial_snapshot_df["Frecuencia de Medición"].dropna().astype(str).unique().tolist()) if "Frecuencia de Medición" in initial_snapshot_df.columns else []
 
     sels_filters = render_filter_panel(
         filters=[
             {
-                "key": "anio", "label": "Año",
+                "key": "anio",
+                "label": "Año",
                 "type": "selectbox",
-                "options": years, "default": initial_year, "include_all": False,
+                "options": years,
+                "default": initial_year,
+                "include_all": False,
             },
             {
-                "key": "mes", "label": "Mes",
+                "key": "mes",
+                "label": "Mes",
                 "type": "selectbox",
-                "options": MESES_OPCIONES, "default": initial_month, "include_all": False,
+                "options": MESES_OPCIONES,
+                "default": initial_month,
+                "include_all": False,
             },
             {
-                "key": "proceso", "label": "Proceso",
+                "key": "clasificacion",
+                "label": "Clasificación",
                 "type": "selectbox",
-                "options": procesos, "include_all": True,
+                "options": clasificacion_options_base,
+                "include_all": True,
             },
             {
-                "key": "subproceso", "label": "Subproceso",
+                "key": "frecuencia",
+                "label": "Frecuencia",
                 "type": "selectbox",
-                "options": subproceso_options_base, "include_all": True,
+                "options": frecuencia_options_base,
+                "include_all": True,
+            },
+            {
+                "key": "unidad",
+                "label": "Unidad",
+                "type": "selectbox",
+                "options": unidad_options_base,
+                "include_all": True,
+            },
+            {
+                "key": "proceso",
+                "label": "Proceso",
+                "type": "selectbox",
+                "options": proceso_options_base,
+                "include_all": True,
+            },
+            {
+                "key": "subproceso",
+                "label": "Subproceso",
+                "type": "selectbox",
+                "options": subproceso_options_base,
+                "include_all": True,
             },
         ],
         title="Filtros oficiales",
@@ -591,11 +650,29 @@ def render() -> None:
 
     anio = int(topbar_year) if topbar_year is not None else sels_filters["anio"] or default_year
     mes = str(topbar_month) if topbar_year is not None else sels_filters["mes"] or default_month
+    clasificacion_sel = sels_filters["clasificacion"] or "Todos"
+    frecuencia_sel = sels_filters["frecuencia"] or "Todos"
+    unidad_sel = sels_filters["unidad"] or "Todos"
     proceso_sel = sels_filters["proceso"] or "Todos"
     subproceso_sel = sels_filters["subproceso"] or "Todos"
 
     selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
     full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+
+    if clasificacion_sel != "Todos":
+        if "Clasificacion" in snapshot_df.columns:
+            snapshot_df = snapshot_df[snapshot_df["Clasificacion"].astype(str) == clasificacion_sel]
+        elif "Clasificación" in snapshot_df.columns:
+            snapshot_df = snapshot_df[snapshot_df["Clasificación"].astype(str) == clasificacion_sel]
+    if frecuencia_sel != "Todos":
+        if "Periodicidad" in snapshot_df.columns:
+            snapshot_df = snapshot_df[snapshot_df["Periodicidad"].astype(str) == frecuencia_sel]
+        elif "Frecuencia" in snapshot_df.columns:
+            snapshot_df = snapshot_df[snapshot_df["Frecuencia"].astype(str) == frecuencia_sel]
+        elif "Frecuencia de Medición" in snapshot_df.columns:
+            snapshot_df = snapshot_df[snapshot_df["Frecuencia de Medición"].astype(str) == frecuencia_sel]
+    if unidad_sel != "Todos" and "Unidad" in snapshot_df.columns:
+        snapshot_df = snapshot_df[snapshot_df["Unidad"].astype(str) == unidad_sel]
 
     prev_year = int(anio) - 1 if int(anio) - 1 in years else None
     base_df = None
