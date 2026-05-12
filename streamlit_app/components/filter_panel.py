@@ -127,7 +127,9 @@ html body [data-baseweb="option"][aria-selected="true"] {
 html body [data-testid="stPillsOption"],
 html body button[data-testid="stPillsOption"],
 html body [data-testid="stPills"] button,
-html body div[data-baseweb="pills"] button {
+html body div[data-baseweb="pills"] button,
+html body .stContainer [data-testid="stPills"] button,
+html body .stContainer div[data-baseweb="pills"] button {
     font-size: 0.8rem !important;
     font-weight: 700 !important;
     padding: 3px 13px !important;
@@ -141,7 +143,9 @@ html body div[data-baseweb="pills"] button {
 html body [data-testid="stPillsOption"][aria-pressed="true"],
 html body button[data-testid="stPillsOption"][aria-pressed="true"],
 html body [data-testid="stPills"] button[aria-pressed="true"],
-html body div[data-baseweb="pills"] button[aria-pressed="true"] {
+html body div[data-baseweb="pills"] button[aria-pressed="true"],
+html body .stContainer [data-testid="stPills"] button[aria-pressed="true"],
+html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] {
     background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
     border-color: var(--fp-sel-border) !important;
