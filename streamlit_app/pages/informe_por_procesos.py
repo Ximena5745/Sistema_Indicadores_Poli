@@ -327,26 +327,26 @@ def _render_executive_cards(summary: dict[str, object]) -> None:
     st.markdown(
         f"""
         <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:0 0 18px;'>
-            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
-                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Score de Salud</div>
-                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["score"]:.1f}</div>
-                <div style='font-size:0.85rem;color:#15803d;font-weight:700;margin-top:10px;'>{summary["label"]}</div>
-                <div style='font-size:0.78rem;color:#64748b;margin-top:10px;'>{delta_label}</div>
+            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#0f172a,#1e40af);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
+                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Score de Salud</div>
+                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["score"]:.1f}</div>
+                <div style='font-size:0.9rem;color:#dbeafe;font-weight:700;margin-top:12px;'>{summary["label"]}</div>
+                <div style='font-size:0.82rem;color:rgba(255,255,255,0.8);margin-top:10px;'>{delta_label}</div>
             </div>
-            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
-                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Cumplimiento Global</div>
-                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["avg"]:.1f}%</div>
-                <div style='font-size:0.85rem;color:#64748b;margin-top:10px;'>Meta: 100%</div>
+            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#047857,#10b981);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
+                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Cumplimiento Global</div>
+                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["avg"]:.1f}%</div>
+                <div style='font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:12px;'>Meta: 100%</div>
             </div>
-            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
-                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Indicadores evaluados</div>
-                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["total_indicadores"]}</div>
-                <div style='font-size:0.85rem;color:#64748b;margin-top:10px;'>{summary["total_indicadores"]} activos en el periodo</div>
+            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
+                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Indicadores evaluados</div>
+                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["total_indicadores"]}</div>
+                <div style='font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:12px;'>{summary["total_indicadores"]} activos en el periodo</div>
             </div>
-            <div style='padding:20px;border-radius:20px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.06);'>
-                <div style='font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Estado de alertas</div>
-                <div style='font-size:2.8rem;font-weight:800;color:#0f172a;'>{summary["alerta"] + summary["peligro"]}</div>
-                <div style='font-size:0.85rem;color:#64748b;margin-top:10px;'>{summary["alerta"]} alertas · {summary["peligro"]} críticos</div>
+            <div style='padding:24px;border-radius:24px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#ffffff;box-shadow:0 24px 50px rgba(15,23,42,0.15);'>
+                <div style='font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Estado de alertas</div>
+                <div style='font-size:3rem;font-weight:800;line-height:1.03;'>{summary["alerta"] + summary["peligro"]}</div>
+                <div style='font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:12px;'>{summary["alerta"]} alertas · {summary["peligro"]} críticos</div>
             </div>
         </div>
         """,
@@ -384,12 +384,19 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
         rows.append((ano, prom))
 
     cards_html = ""
-    for ano, prom in rows:
+    palettes = [
+        ("#eff6ff", "#1d4ed8", "#2563eb"),
+        ("#f0f9ff", "#2563eb", "#1d4ed8"),
+        ("#eef2ff", "#4338ca", "#3730a3"),
+        ("#fff7ed", "#ea580c", "#c2410c"),
+    ]
+    for index, (ano, prom) in enumerate(rows):
+        bg, text, accent = palettes[index % len(palettes)]
         cards_html += f"""
-            <div style='padding:18px;border-radius:18px;background:#ffffff;border:1px solid rgba(15,23,42,0.08);box-shadow:0 10px 24px rgba(15,23,42,0.06);'>
-                <div style='font-size:0.85rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>Año {ano}</div>
-                <div style='font-size:2.4rem;font-weight:800;color:#0f172a;'>{prom:.1f}%</div>
-                <div style='font-size:0.82rem;color:#64748b;margin-top:10px;'>Cumplimiento promedio</div>
+            <div style='padding:20px;border-radius:20px;background:{bg};border:1px solid rgba(15,23,42,0.08);box-shadow:0 12px 30px rgba(15,23,42,0.08);'>
+                <div style='font-size:0.82rem;font-weight:700;color:{accent};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>Año {ano}</div>
+                <div style='font-size:2.5rem;font-weight:800;color:{text};'>{prom:.1f}%</div>
+                <div style='font-size:0.84rem;color:#475569;margin-top:10px;'>Cumplimiento promedio</div>
             </div>
         """
     st.markdown(
@@ -446,10 +453,10 @@ def _render_critical_indicators(filtered: pd.DataFrame) -> None:
         indicador = str(row.get("Indicador", "Sin nombre"))
         proceso = str(row.get("Proceso_padre", "Sin proceso"))
         valor = float(row[pct_col])
-        items += f"<div style='margin-bottom:12px;padding:16px;border-radius:18px;background:#fff7ed;border:1px solid #fcd9b6;'>"
-        items += f"<div style='font-weight:700;color:#b45309;margin-bottom:6px;'>{indicador}</div>"
-        items += f"<div style='font-size:0.88rem;color:#475569;margin-bottom:4px;'>Proceso: {proceso}</div>"
-        items += f"<div style='font-size:1rem;font-weight:700;color:#991b1b;'>Cumplimiento: {valor:.1f}%</div>"
+        items += f"<div style='margin-bottom:12px;padding:18px;border-radius:22px;background:#fef2f2;border:1px solid rgba(219,39,119,0.16);box-shadow:0 10px 24px rgba(219,39,119,0.06);'>"
+        items += f"<div style='font-weight:700;color:#b91c1c;margin-bottom:6px;font-size:1rem;'>{indicador}</div>"
+        items += f"<div style='font-size:0.88rem;color:#475569;margin-bottom:6px;'>Proceso: {proceso}</div>"
+        items += f"<div style='font-size:1.05rem;font-weight:700;color:#7f1d1d;'>Cumplimiento: {valor:.1f}%</div>"
         items += "</div>"
     st.markdown(
         f"""
@@ -475,21 +482,21 @@ def _render_distribution_cards(filtered: pd.DataFrame) -> None:
     critico = int((work[pct_col] < 80).sum())
     sin_dato = int(work[pct_col].isna().sum())
     cards = [
-        ("Cumple", cumple, "#ECFDF5", "#166534"),
-        ("Alerta", alerta, "#FEF3C7", "#98660E"),
-        ("Crítico", critico, "#FEF2F2", "#991B1B"),
-        ("Sin dato", sin_dato, "#F8FAFC", "#475569"),
+        ("Cumple", cumple, "#d1fae5", "#166534"),
+        ("Alerta", alerta, "#fef3c7", "#92400e"),
+        ("Crítico", critico, "#fee2e2", "#991b1b"),
+        ("Sin dato", sin_dato, "#e2e8f0", "#0f172a"),
     ]
     cells = ""
     for title, value, bg, color in cards:
-        cells += f"<div style='padding:18px;border-radius:18px;background:{bg};border:1px solid rgba(15,23,42,0.08);'>"
-        cells += f"<div style='font-size:0.78rem;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>{title}</div>"
-        cells += f"<div style='font-size:2rem;font-weight:800;color:#0f172a;'>{value}</div>"
+        cells += f"<div style='padding:22px;border-radius:22px;background:{bg};border:1px solid rgba(15,23,42,0.08);box-shadow:0 14px 30px rgba(15,23,42,0.05);'>"
+        cells += f"<div style='font-size:0.8rem;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>{title}</div>"
+        cells += f"<div style='font-size:2.2rem;font-weight:800;color:#0f172a;'>{value}</div>"
         cells += "</div>"
     st.markdown(
         f"""
-        <div style='margin-top:22px;'>
-            <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:12px;'>Distribución por Estado</div>
+        <div style='margin-top:22px;padding:20px;border-radius:24px;background:linear-gradient(90deg,rgba(236,246,255,0.9),rgba(248,250,252,0.95));border:1px solid rgba(59,130,246,0.12);'>
+            <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:18px;'>Distribución por Estado</div>
             <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;'>{cells}</div>
         </div>
         """,
