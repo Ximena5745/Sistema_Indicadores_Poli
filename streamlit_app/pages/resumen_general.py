@@ -118,6 +118,18 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_c
         df = _ensure_nivel_cumplimiento(df)
         nivel_col = "Nivel de cumplimiento"
 
+    # Asegurar que cumplimiento_pct existe
+    if "cumplimiento_pct" not in df.columns:
+        # Si no existe, intentar calcularla desde otras columnas si es posible
+        if "Ejecucion" in df.columns and "Meta" in df.columns:
+            df["cumplimiento_pct"] = df.apply(
+                lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None,
+                axis=1
+            )
+        else:
+            # Si no se puede calcular, crear una columna con NaN
+            df["cumplimiento_pct"] = None
+
     # Deduplicar por ID para evitar contar el mismo indicador múltiples veces
     # Mantener el último registro (más reciente) por ID y Línea
     if unique_count_col and unique_count_col in df.columns:
@@ -1240,9 +1252,13 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     if current.empty or previous.empty:
         return [], []
     
-    # Limpiar columnas duplicadas
+    # Limpiar columnas duplicadas (CRÍTICO: hacerlo primero y verificar que tenga "Id")
     current = current.loc[:, ~current.columns.duplicated()].copy()
     previous = previous.loc[:, ~previous.columns.duplicated()].copy()
+    
+    # Verificar que ambos tengan columna 'Id' después de limpiar duplicados
+    if "Id" not in current.columns or "Id" not in previous.columns:
+        return [], []
     
     # Determinar qué columna usar para el nombre (Indicador, Nombre, o Id como fallback)
     name_col = None
@@ -1256,17 +1272,33 @@ def _compute_trends(current: pd.DataFrame, previous: pd.DataFrame):
     # Incluir Linea si existe para mostrarla en tablas
     extra_cols = [c for c in ["Linea"] if c in current.columns]
     cols_to_select = ["Id"] + ([name_col] if name_col != "Id" else []) + ["cumplimiento_pct"] + extra_cols
-    cols_to_select = list(dict.fromkeys([c for c in cols_to_select if c in current.columns]))  # Remover duplicados manteniendo orden
+    # Remover duplicados manteniendo orden Y verificar que todas existan
+    cols_to_select = list(dict.fromkeys([c for c in cols_to_select if c in current.columns]))
+    
+    # Defensiva: asegurar que "Id" y "cumplimiento_pct" existan
+    if "Id" not in cols_to_select or "cumplimiento_pct" not in cols_to_select:
+        return [], []
     
     cur = (
         current[cols_to_select]
         .dropna(subset=["cumplimiento_pct"])
+        .drop_duplicates(subset=["Id"], keep="first")
         .copy()
     )
-    prev = previous[["Id", "cumplimiento_pct"]].dropna(subset=["cumplimiento_pct"]).copy()
+    prev = (
+        previous[["Id", "cumplimiento_pct"]]
+        .dropna(subset=["cumplimiento_pct"])
+        .drop_duplicates(subset=["Id"], keep="first")
+        .copy()
+    )
     
     if cur.empty or prev.empty:
         return [], []
+    
+    # Defensa adicional: verificar que No haya columnas duplicadas antes del merge
+    if cur.columns.duplicated().any() or prev.columns.duplicated().any():
+        cur = cur.loc[:, ~cur.columns.duplicated()].copy()
+        prev = prev.loc[:, ~prev.columns.duplicated()].copy()
     
     merged = cur.merge(prev, on="Id", suffixes=("", "_prev"))
     if merged.empty:
@@ -2299,6 +2331,10 @@ def render():
                     # Deduplicar por Id (mantener último)
                     pdi_proy = pdi_proy.sort_values("Id", na_position="last").drop_duplicates(subset=["Id"], keep="last")
             
+            # Defensiva: limpiar cualquier columna duplicada antes de retornar
+            if pdi_proy.columns.duplicated().any():
+                pdi_proy = pdi_proy.loc[:, ~pdi_proy.columns.duplicated()].copy()
+            
             linea_summary = _build_linea_summary_from_df(pdi_proy, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             objetivo_df = pdi_proy[cols].copy() if cols else pd.DataFrame()
@@ -2663,6 +2699,11 @@ def render():
                 prev_df = prev_df[prev_df["Id"].astype(str).isin(ids_proy)].copy()
             else:
                 prev_df = pd.DataFrame()
+        
+        # Defensiva: limpiar columnas duplicadas de prev_df antes de pasar a _compute_trends
+        if not prev_df.empty and prev_df.columns.duplicated().any():
+            prev_df = prev_df.loc[:, ~prev_df.columns.duplicated()].copy()
+        
         best_improvements_e, worst_declines_e = _compute_trends(pdi_base_df, prev_df)
     # Para Plan de Retos y Consolidado, no hay variación por Id
 
