@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import sys
@@ -361,13 +362,14 @@ def _render_executive_cards(summary: dict[str, object]) -> None:
             </div>
         """
 
-    st.markdown(
+    components.html(
         f"""
         <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:0 0 18px;'>
             {card_html}
         </div>
         """,
-        unsafe_allow_html=True,
+        height=260,
+        scrolling=False,
     )
 
 
@@ -416,12 +418,13 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
                 <div style='font-size:0.84rem;color:{COLORS['text_secondary']};margin-top:10px;'>Cumplimiento promedio</div>
             </div>
         """
-    st.markdown(
+    components.html(
         f"""
         <div style='margin:22px 0 12px;font-size:1rem;font-weight:700;color:#0f172a;'>Evolución comparativa interanual</div>
         <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:22px;'>{cards_html}</div>
         """,
-        unsafe_allow_html=True,
+        height=260,
+        scrolling=False,
     )
 
     figure = go.Figure(
@@ -475,14 +478,15 @@ def _render_critical_indicators(filtered: pd.DataFrame) -> None:
         items += f"<div style='font-size:0.88rem;color:{COLORS['text_secondary']};margin-bottom:6px;'>Proceso: {proceso}</div>"
         items += f"<div style='font-size:1.05rem;font-weight:700;color:{COLORS['danger_dark']};'>Cumplimiento: {valor:.1f}%</div>"
         items += "</div>"
-    st.markdown(
+    components.html(
         f"""
         <div style='margin-top:20px;'>
             <div style='font-size:1rem;font-weight:700;color:{COLORS['text_primary']};margin-bottom:12px;'>Indicadores críticos</div>
             {items}
         </div>
         """,
-        unsafe_allow_html=True,
+        height=280,
+        scrolling=False,
     )
 
 
@@ -510,14 +514,15 @@ def _render_distribution_cards(filtered: pd.DataFrame) -> None:
         cells += f"<div style='font-size:0.8rem;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>{title}</div>"
         cells += f"<div style='font-size:2.2rem;font-weight:800;color:{COLORS['text_primary']};'>{value}</div>"
         cells += "</div>"
-    st.markdown(
+    components.html(
         f"""
         <div style='margin-top:22px;'>
             <div style='font-size:1rem;font-weight:700;color:{COLORS['text_primary']};margin-bottom:18px;'>Distribución por Estado</div>
             <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;'>{cells}</div>
         </div>
         """,
-        unsafe_allow_html=True,
+        height=260,
+        scrolling=False,
     )
 
 

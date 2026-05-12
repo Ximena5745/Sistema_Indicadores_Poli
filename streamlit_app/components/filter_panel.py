@@ -218,13 +218,29 @@ html body [data-testid="stSegmentedControl"] {
 }
 
 html body .stContainer [data-testid="stVerticalBlock"] {
-    gap: 0.25rem !important;
+    gap: 0.08rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 html body .stContainer [data-testid="stVerticalBlock"] > div {
-    gap: 0.25rem !important;
+    gap: 0.08rem !important;
 }
 html body .stContainer [data-testid="stBlock"] {
+    margin-bottom: 0.08rem !important;
+    padding: 0 !important;
+}
+html body .stContainer .stSelectbox,
+html body .stContainer .stTextInput,
+html body .stContainer [data-testid="stPills"],
+html body .stContainer [data-testid="stSegmentedControl"] {
+    margin-top: 0 !important;
     margin-bottom: 0 !important;
+}
+html body .stColumns {
+    gap: 0.08rem !important;
+}
+html body .stColumn {
+    padding: 0 !important;
 }
 
 /* ── Botón de reset ─────────────────────────────────────────────── */
@@ -379,7 +395,7 @@ def render_filter_panel(
                 # Filas intermedias SIN botón
                 row_col_widths = [1] * actual_n_cols
             
-            row_cols = st.columns(row_col_widths, gap="small")
+            row_cols = st.columns(row_col_widths, gap="none")
             for col_i, filt in enumerate(row_filters):
                 with row_cols[col_i]:
                     selections[filt["key"]] = _render_widget(filt, key_prefix)
