@@ -2291,6 +2291,8 @@ def render():
         
         Returns: (linea_summary_df, objetivo_df, pdi_base_df, historico_df, pdi_estrategico_df)
         """
+        from services.strategic_indicators import load_worksheet_flags
+        
         linea_summary = pd.DataFrame()
         objetivo_df = pd.DataFrame()
         pdi_base_df = pd.DataFrame()
