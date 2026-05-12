@@ -871,7 +871,27 @@ def _build_sunburst(pdi_df: pd.DataFrame) -> go.Figure:
     for col in ["Linea", "Objetivo"]:
         if col in df.columns:
             df = df[df[col].notnull() & (df[col].astype(str).str.strip() != "")]
-    
+
+    # Verificar que df tenga las columnas mínimas necesarias
+    required_cols = ["Linea", "Objetivo", "cumplimiento_pct"]
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        labels = ["Sin datos"]
+        ids = ["sin_datos"]
+        parents = [""]
+        values = [1]
+        customdata = [[0]]
+        colors = ["#6B728E"]
+        text = ["Sin datos\n0.0%"]
+        fig = go.Figure()
+        fig.add_trace(go.Sunburst(
+            ids=ids, labels=labels, parents=parents, values=values,
+            branchvalues="remainder", marker=dict(colors=colors),
+            customdata=customdata, text=text, textinfo="text",
+            hovertemplate="<b>%{label}</b><br>Promedio cumplimiento: %{customdata[0]:.0f}%<extra></extra>",
+        ))
+        return fig
+
     if "cumplimiento_pct" in df.columns:
         df = df[df["cumplimiento_pct"].notna()]
     
@@ -2702,10 +2722,18 @@ def render():
             )
 
     # --- Sunburst ---
-    if not objetivo_df.empty:
+    try:
+        objetivo_df_available = objetivo_df is not None and hasattr(objetivo_df, 'empty') and not objetivo_df.empty
+    except Exception:
+        objetivo_df_available = False
+
+    if objetivo_df_available:
         st.markdown("<div style='margin-top:1.5rem;'><b>Alineación de Objetivos Estratégicos</b></div>", unsafe_allow_html=True)
-        sunburst = _build_sunburst(objetivo_df)
-        st.plotly_chart(sunburst, use_container_width=True)
+        try:
+            sunburst = _build_sunburst(objetivo_df)
+            st.plotly_chart(sunburst, use_container_width=True)
+        except Exception as e:
+            st.warning(f"No se pudo generar el gráfico Sunburst: {str(e)[:100]}")
 
     # --- Tablas de variación (solo para Indicadores y Proyectos, no para Consolidado) ---
     best_improvements_e = []
