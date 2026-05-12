@@ -1899,46 +1899,73 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
             if proyectos_linea.empty:
                 continue
             
-            proyectos_linea = proyectos_linea.sort_values(["Anio_int", "Indicador"])
+            proyectos_linea = proyectos_linea.sort_values("Indicador")
             
-            st.markdown(f"**{def_linea['label']}** ({len(proyectos_linea)} proyectos)")
+            st.markdown(f"### {def_linea['label']} ({len(proyectos_linea)} proyectos)")
             
-            cols = st.columns(3)
-            for idx, (_, row) in enumerate(proyectos_linea.iterrows()):
-                proyecto = row.get("Indicador", "Sin nombre")[:40]
-                anio = int(row.get("Anio_int", 0)) if pd.notna(row.get("Anio")) else "-"
+            # Construir tabla HTML
+            rows_html = ""
+            for _, row in proyectos_linea.iterrows():
+                proyecto = str(row.get("Indicador", "Sin nombre"))[:50]
+                meta = row.get("Meta", 0)
+                ejec = row.get("Ejecucion", 0)
                 cumplimiento = row.get("cumplimiento_pct", 0)
                 
+                # Calcular % Avance Esperado y Real
+                if pd.notna(meta) and meta > 0:
+                    pct_esperado = 100  # Asumimos que al final del período debe meta completa
+                    pct_real = min((ejec / meta * 100) if meta > 0 else 0, 100)
+                else:
+                    pct_esperado = "-"
+                    pct_real = "-"
+                
+                # Cumplimiento con tope de 100%
+                cumplimiento_tope = min(cumplimiento if pd.notna(cumplimiento) else 0, 100)
+                
+                # Color según cumplimiento
                 if pd.isna(cumplimiento) or cumplimiento == 0:
-                    color_bar = "#F59E0B"
+                    color_cumpl = "#F59E0B"
                     estado = "Planeación"
                 elif cumplimiento >= 100:
-                    color_bar = "#16A34A"
-                    estado = "Finalizado"
+                    color_cumpl = "#16A34A"
+                    estado = "Cerrado"
+                elif cumplimiento >= 50:
+                    color_cumpl = "#3B82F6"
+                    estado = "En proceso"
                 else:
-                    color_bar = "#3B82F6"
-                    estado = "En Proceso"
+                    color_cumpl = "#DC2626"
+                    estado = "En riesgo"
                 
-                pct_display = min(cumplimiento if cumplimiento else 0, 100)
-                
-                with cols[idx % 3]:
-                    st.markdown(
-                        f"""
-                        <div style='background:#FAFAFA;border-radius:8px;padding:10px;margin-bottom:8px;border-left:4px solid {color_bar};'>
-                            <div style='font-weight:600;color:#1F2937;font-size:0.85rem;line-height:1.2;'>{proyecto}</div>
-                            <div style='font-size:0.7rem;color:#6B7280;margin-top:2px;'>Año: {anio}</div>
-                            <div style='margin-top:6px;'>
-                                <div style='background:#E5E7EB;border-radius:4px;height:6px;width:100%;'>
-                                    <div style='background:{color_bar};border-radius:4px;height:6px;width:{pct_display}%;'></div>
-                                </div>
-                                <div style='text-align:right;font-size:0.7rem;margin-top:2px;color:#6B7280;'>{cumplimiento:.1f}% - {estado}</div>
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+                rows_html += f"""
+                <tr>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;font-size:0.85rem;color:#1F2937;">{proyecto}</td>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:0.85rem;color:#6B7280;">{pct_esperado if pct_esperado == '-' else f'{pct_esperado:.0f}%'}</td>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:0.85rem;color:#6B7280;">{pct_real if pct_real == '-' else f'{pct_real:.1f}%'}</td>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;">
+                        <span style="background:{color_cumpl};color:white;padding:4px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">
+                            {cumplimiento_tope:.1f}%
+                        </span>
+                    </td>
+                </tr>
+                """
             
-            st.markdown("")
+            st.markdown(f"""
+            <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:1.5rem;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#F3F4F6;">
+                            <th style="padding:12px 10px;text-align:left;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">Proyecto</th>
+                            <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Avance Esperado</th>
+                            <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Avance Real</th>
+                            <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Cumplimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html}
+                    </tbody>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
     
     elif category == "Plan de Retos":
         # Tabla por línea para retos
