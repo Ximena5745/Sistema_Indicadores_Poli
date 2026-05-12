@@ -393,9 +393,19 @@ def _merge_consolidado_summaries(s1, s2, s3, o1, o2, o3):
     out["N_Indicadores"] = 0
     out["N_Proyectos"] = 0
     out["N_Retos"] = 0
-    for name, summary in [("N_Indicadores", s1n), ("N_Proyectos", s2n), ("N_Retos", s3n)]:
-        if "Linea_norm" in summary.columns and "N_Indicadores" in summary.columns:
-            out[name] = pd.to_numeric(summary.set_index("Linea_norm")["N_Indicadores"], errors="coerce")
+    
+    # Indicadores (s1)
+    if "Linea_norm" in s1n.columns and "N_Indicadores" in s1n.columns:
+        out["N_Indicadores"] = pd.to_numeric(s1n.set_index("Linea_norm")["N_Indicadores"], errors="coerce")
+    
+    # Proyectos (s2)
+    if "Linea_norm" in s2n.columns and "N_Proyectos" in s2n.columns:
+        out["N_Proyectos"] = pd.to_numeric(s2n.set_index("Linea_norm")["N_Proyectos"], errors="coerce")
+    
+    # Retos (s3)
+    if "Linea_norm" in s3n.columns and "N_Indicadores" in s3n.columns:
+        out["N_Retos"] = pd.to_numeric(s3n.set_index("Linea_norm")["N_Indicadores"], errors="coerce")
+    
     out["N_Indicadores"] = out["N_Indicadores"].fillna(0).astype(int)
     out["N_Proyectos"] = out["N_Proyectos"].fillna(0).astype(int)
     out["N_Retos"] = out["N_Retos"].fillna(0).astype(int)
