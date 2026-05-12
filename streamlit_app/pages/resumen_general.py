@@ -166,7 +166,7 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_c
         df.groupby("Linea", dropna=False)
         .agg(
             **{count_col: count_agg},
-            Cumpl_Promedio=("cumplimiento_pct", "mean"),
+            Cumpl_Promedio=("cumplimiento_pct", lambda x: x[x > 0].mean() if (x > 0).any() else pd.NA),
             Sobrecumplimiento=(nivel_col, lambda s: (s=="Sobrecumplimiento").sum()),
             Cumplimiento=(nivel_col, lambda s: (s=="Cumplimiento").sum()),
             Alerta=(nivel_col, lambda s: (s=="Alerta").sum()),
