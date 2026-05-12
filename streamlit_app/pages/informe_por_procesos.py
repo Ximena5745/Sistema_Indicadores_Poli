@@ -311,49 +311,36 @@ def render() -> None:
 
     topbar_year = st.session_state.get("topbar_year")
     topbar_month = st.session_state.get("topbar_month")
-
-    # Año y mes pueden venir del topbar o del filtro local
     if topbar_year is not None:
-        anio = int(topbar_year)
-        mes = str(topbar_month) if topbar_month is not None else default_month
-        st.info(f"Filtro activo desde barra global: {mes} {anio}")
-    else:
-        # Renderizar filtros de tiempo primero (año y mes)
-        sels_time = render_filter_panel(
-            filters=[
-                {
-                    "key": "anio", "label": "Año",
-                    "type": "selectbox",
-                    "options": years, "default": default_year, "include_all": False,
-                },
-                {
-                    "key": "mes", "label": "Mes",
-                    "type": "selectbox",
-                    "options": MESES_OPCIONES, "default": default_month, "include_all": False,
-                },
-            ],
-            title="",
-            key_prefix="filter",
-            n_cols=2,
-        )
-        anio = sels_time["anio"] or default_year
-        mes = sels_time["mes"] or default_month
+        st.info(f"Filtro activo desde barra global: {str(topbar_month) if topbar_month is not None else default_month} {topbar_year}")
 
-    selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
-    full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
+    initial_year = int(topbar_year) if topbar_year is not None else default_year
+    initial_month = str(topbar_month) if topbar_month is not None else default_month
+    initial_month_num = MESES_OPCIONES.index(initial_month) + 1 if initial_month in MESES_OPCIONES else default_month_num
+    _, initial_snapshot_df = _prepare_filters(tracking_df, map_df, int(initial_year), initial_month_num)
 
-    procesos = sorted(snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
+    procesos = sorted(initial_snapshot_df["Proceso_padre"].dropna().astype(str).unique().tolist())
     proceso_sel_cur = st.session_state.get("filter_proceso", "Todos")
     subproceso_options_base: list[str] = []
     if proceso_sel_cur != "Todos":
         subproceso_options_base = sorted(
-            snapshot_df[snapshot_df["Proceso_padre"].astype(str) == proceso_sel_cur][
+            initial_snapshot_df[initial_snapshot_df["Proceso_padre"].astype(str) == proceso_sel_cur][
                 "Subproceso_final"
             ].dropna().astype(str).unique().tolist()
         )
 
-    sels_proc = render_filter_panel(
+    sels_filters = render_filter_panel(
         filters=[
+            {
+                "key": "anio", "label": "Año",
+                "type": "selectbox",
+                "options": years, "default": initial_year, "include_all": False,
+            },
+            {
+                "key": "mes", "label": "Mes",
+                "type": "selectbox",
+                "options": MESES_OPCIONES, "default": initial_month, "include_all": False,
+            },
             {
                 "key": "proceso", "label": "Proceso",
                 "type": "selectbox",
@@ -367,10 +354,16 @@ def render() -> None:
         ],
         title="Filtros oficiales",
         key_prefix="filter",
-        n_cols=2,
+        n_cols=4,
     )
-    proceso_sel = sels_proc["proceso"] or "Todos"
-    subproceso_sel = sels_proc["subproceso"] or "Todos"
+
+    anio = int(topbar_year) if topbar_year is not None else sels_filters["anio"] or default_year
+    mes = str(topbar_month) if topbar_year is not None else sels_filters["mes"] or default_month
+    proceso_sel = sels_filters["proceso"] or "Todos"
+    subproceso_sel = sels_filters["subproceso"] or "Todos"
+
+    selected_month_num = MESES_OPCIONES.index(mes) + 1 if mes in MESES_OPCIONES else default_month_num
+    full_work_df, snapshot_df = _prepare_filters(tracking_df, map_df, int(anio), selected_month_num)
 
     filtered = snapshot_df.copy()
     if proceso_sel != "Todos":
@@ -394,8 +387,8 @@ def render() -> None:
 
     tabs = st.tabs(
         [
+            "Resumen",
             "Indicadores",
-            "Evolución",
             "Calidad",
             "Auditoría",
             "Propuestas",
@@ -404,36 +397,37 @@ def render() -> None:
     )
 
     with tabs[0]:
+        st.markdown("### Resumen")
+        if filtered.empty:
+            st.info("No hay datos disponibles.")
+        else:
+            total_indicadores = int(filtered["Indicador"].nunique()) if "Indicador" in filtered.columns else 0
+            total_procesos = int(filtered["Proceso_padre"].nunique()) if "Proceso_padre" in filtered.columns else 0
+            total_subprocesos = int(filtered["Subproceso_final"].nunique()) if "Subproceso_final" in filtered.columns else 0
+            cumplimiento_avg = pd.to_numeric(filtered.get("Cumplimiento_pct", pd.Series(dtype=float)), errors="coerce").mean()
+            cumplimiento_label = f"{cumplimiento_avg:.1f}%" if pd.notna(cumplimiento_avg) else "—"
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Indicadores", total_indicadores)
+            c2.metric("Procesos", total_procesos)
+            c3.metric("Subprocesos", total_subprocesos)
+            c4.metric("Cumplimiento medio", cumplimiento_label)
+
+            frecuencia = _build_frequency_summary(filtered)
+            if not frecuencia.empty:
+                st.markdown("#### Resumen por frecuencia")
+                st.dataframe(frecuencia, use_container_width=True, hide_index=True)
+
+            clasificacion = _build_classification_summary(filtered)
+            if not clasificacion.empty:
+                st.markdown("#### Resumen por clasificación")
+                st.dataframe(clasificacion, use_container_width=True, hide_index=True)
+
+    with tabs[1]:
         st.markdown("### Indicadores")
         if filtered.empty:
             st.info("No hay datos disponibles.")
         else:
             _render_indicadores_subproceso_cards(filtered, historic_base, int(anio), selected_month_num, map_df, proceso_sel)
-
-    with tabs[1]:
-        st.markdown("### Evolución")
-        if filtered.empty:
-            st.info("No hay datos disponibles.")
-        else:
-            indicador_options = sorted(latest["Indicador"].dropna().astype(str).unique().tolist())
-            if not indicador_options:
-                st.info("No hay indicadores disponibles para evolución.")
-            else:
-                selected_indicator = st.selectbox("Indicador para evolución", options=indicador_options, index=0)
-                hist_df = _build_indicator_history(full_work_df, selected_indicator)
-                if hist_df.empty:
-                    st.info("No hay histórico disponible para el indicador seleccionado.")
-                else:
-                    st.plotly_chart(
-                        grafico_historico_indicador(hist_df, titulo=f"Evolución de {selected_indicator}"),
-                        use_container_width=True,
-                    )
-                    hist_table = tabla_historica_indicador(hist_df)
-                    if hist_table.empty:
-                        st.info("No hay registros históricos con cumplimiento calculado.")
-                    else:
-                        st.markdown("#### Detalle histórico")
-                        st.dataframe(hist_table, use_container_width=True, hide_index=True)
 
     with tabs[2]:
         st.markdown("### Calidad")
