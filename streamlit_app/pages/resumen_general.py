@@ -1871,7 +1871,7 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
             st.info("Los proyectos no tienen información de Línea.")
             return
         
-        pdi_estrategico["Anio_int"] = pdi_estrategico["Anio"].astype(int)
+        pdi_estrategico["Anio_int"] = pd.to_numeric(pdi_estrategico["Anio"], errors="coerce").fillna(0).astype(int)
         
         st.markdown("### Proyectos por Línea Estratégica")
         
