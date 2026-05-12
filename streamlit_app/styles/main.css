@@ -220,9 +220,18 @@ div[data-testid="stSegmentedControl"] button:not([aria-pressed="true"]):hover {
 }
 
 div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
-    background-color: #022457 !important;
-    color: white !important;
-    box-shadow: 0 2px 6px rgba(2, 36, 87, 0.2) !important;
+    background: linear-gradient(135deg, #00B4FF 0%, #0096E6 100%) !important;
+    color: #ffffff !important;
+    border-color: #0096E6 !important;
+    box-shadow: 0 2px 8px rgba(0, 150, 230, 0.35) !important;
+}
+
+div[data-testid="stSegmentedControl"] button[kind="segmented_controlActive"],
+div[data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] {
+    background: linear-gradient(135deg, #00B4FF 0%, #0096E6 100%) !important;
+    color: #ffffff !important;
+    border-color: #0096E6 !important;
+    box-shadow: 0 2px 8px rgba(0, 150, 230, 0.35) !important;
 }
 
 /* ===== SIDEBAR v2 (estilo imagen 2) ===== */

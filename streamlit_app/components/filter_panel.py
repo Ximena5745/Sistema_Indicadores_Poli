@@ -12,6 +12,20 @@ import streamlit as st
 # ──────────────────────────────────────────────────────────────────────────────
 
 _FILTER_CSS = """<style>
+/* ── Tokens de paleta institucional para filtros ───────────────── */
+:root {
+    --fp-primary: #0F3A6D;
+    --fp-primary-hover: #1D4A86;
+    --fp-selected-start: #00B4FF;
+    --fp-selected-end: #0096E6;
+    --fp-selected-border: #0096E6;
+    --fp-primary-soft: #E9F1FB;
+    --fp-border: #B9CCE4;
+    --fp-text: #0F2137;
+    --fp-text-muted: #546D88;
+    --fp-surface: #FFFFFF;
+}
+
 /* ── Labels ─────────────────────────────────────────────────────── */
 html body [data-testid="stWidgetLabel"] p,
 html body [data-testid="stWidgetLabel"] label,
@@ -20,7 +34,7 @@ html body .stSelectbox label,
 html body .stMultiSelect label {
     font-size: 0.72rem !important;
     font-weight: 700 !important;
-    color: #0E7490 !important;
+    color: var(--fp-primary) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.07em !important;
     margin-bottom: 3px !important;
@@ -31,7 +45,7 @@ html body .stMultiSelect label {
 html body [data-baseweb="select"] > div {
     border-width: 1.5px !important;
     border-style: solid !important;
-    border-color: #0E7490 !important;
+    border-color: var(--fp-border) !important;
     border-radius: 8px !important;
     background-color: #FFFFFF !important;
     min-height: 38px !important;
@@ -39,21 +53,21 @@ html body [data-baseweb="select"] > div {
     transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 html body [data-baseweb="select"] > div:focus-within {
-    border-color: #0E7490 !important;
-    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.18) !important;
+    border-color: var(--fp-primary) !important;
+    box-shadow: 0 0 0 3px rgba(15, 58, 109, 0.18) !important;
 }
 
 /* ── Texto dentro del selectbox ─────────────────────────────────── */
 html body [data-baseweb="select"] span {
     font-size: 0.88rem !important;
-    color: #0F2137 !important;
+    color: var(--fp-text) !important;
 }
 
 /* ── Multiselect ────────────────────────────────────────────────── */
 html body [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
     border-width: 1.5px !important;
     border-style: solid !important;
-    border-color: #0E7490 !important;
+    border-color: var(--fp-border) !important;
     border-radius: 8px !important;
     background-color: #FFFFFF !important;
 }
@@ -61,7 +75,7 @@ html body [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
 /* ── Text input ─────────────────────────────────────────────────── */
 html body [data-testid="stTextInput"] input,
 html body .stTextInput input {
-    border: 1.5px solid #0E7490 !important;
+    border: 1.5px solid var(--fp-border) !important;
     border-radius: 8px !important;
     background: #FFFFFF !important;
     min-height: 38px !important;
@@ -69,8 +83,8 @@ html body .stTextInput input {
     transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 html body [data-testid="stTextInput"] input:focus {
-    border-color: #0E7490 !important;
-    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.18) !important;
+    border-color: var(--fp-primary) !important;
+    box-shadow: 0 0 0 3px rgba(15, 58, 109, 0.18) !important;
     outline: none !important;
 }
 
@@ -78,13 +92,13 @@ html body [data-testid="stTextInput"] input:focus {
 html body [data-baseweb="popover"] [data-baseweb="menu"],
 html body [data-baseweb="popover"] ul {
     border-radius: 8px !important;
-    border: 1.5px solid #0E7490 !important;
-    box-shadow: 0 4px 16px rgba(14,116,144,0.15) !important;
+    border: 1.5px solid var(--fp-primary) !important;
+    box-shadow: 0 4px 16px rgba(15,58,109,0.15) !important;
 }
 html body [data-baseweb="option"]:hover,
 html body [data-baseweb="option"][aria-selected="true"] {
-    background: rgba(14,116,144,0.10) !important;
-    color: #0E7490 !important;
+    background: rgba(15,58,109,0.10) !important;
+    color: var(--fp-primary) !important;
 }
 
 /* ── Pills ──────────────────────────────────────────────────────── */
@@ -94,32 +108,101 @@ html body button[data-testid="stPillsOption"] {
     font-weight: 600 !important;
     padding: 4px 14px !important;
     border-radius: 999px !important;
-    border: 1.5px solid #0E7490 !important;
-    background: #FFFFFF !important;
-    color: #0E7490 !important;
+    border: 1.5px solid var(--fp-border) !important;
+    background: var(--fp-surface) !important;
+    color: var(--fp-text-muted) !important;
     transition: all 0.15s ease !important;
 }
 html body [data-testid="stPillsOption"][aria-pressed="true"],
 html body button[data-testid="stPillsOption"][aria-pressed="true"] {
-    background: #0E7490 !important;
+    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
     color: #FFFFFF !important;
-    border-color: #0E7490 !important;
-    box-shadow: 0 2px 6px rgba(14,116,144,0.30) !important;
+    border-color: var(--fp-selected-border) !important;
+    box-shadow: 0 2px 6px rgba(0,150,230,0.32) !important;
 }
 
 /* ── Segmented control ──────────────────────────────────────────── */
+html body [data-testid="stSegmentedControl"] > div,
+html body div[data-baseweb="segmented-control"] {
+    background: #F4F8FD !important;
+    border: 1.5px solid var(--fp-border) !important;
+    border-radius: 10px !important;
+    padding: 2px !important;
+}
 html body [data-testid="stSegmentedControl"] button {
     font-size: 0.82rem !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     border-radius: 6px !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--fp-text-muted) !important;
     transition: all 0.15s ease !important;
 }
+html body [data-testid="stSegmentedControl"] button > div,
+html body [data-testid="stSegmentedControl"] button > span,
+html body div[data-baseweb="segmented-control"] button > div,
+html body div[data-baseweb="segmented-control"] button > span {
+    color: inherit !important;
+}
+html body [data-testid="stSegmentedControl"] button:hover {
+    color: var(--fp-primary) !important;
+    background: var(--fp-primary-soft) !important;
+}
 html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
-    background: linear-gradient(135deg, #0E7490 0%, #06B6D4 100%) !important;
+    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
     color: #FFFFFF !important;
-    border-color: transparent !important;
-    box-shadow: 0 2px 8px rgba(14,116,144,0.30) !important;
+    border-color: var(--fp-selected-border) !important;
+    box-shadow: 0 2px 8px rgba(0,150,230,0.35) !important;
     font-weight: 700 !important;
+}
+html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"],
+html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"],
+html body [role="radiogroup"] button[kind="segmented_controlActive"],
+html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] {
+    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
+    color: #FFFFFF !important;
+    border-color: var(--fp-selected-border) !important;
+    box-shadow: 0 2px 8px rgba(0,150,230,0.35) !important;
+    font-weight: 700 !important;
+}
+html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > div,
+html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > span,
+html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > div,
+html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > span {
+    color: #FFFFFF !important;
+}
+html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] > div,
+html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] > span,
+html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] > div,
+html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] > span,
+html body [role="radiogroup"] button[kind="segmented_controlActive"] > div,
+html body [role="radiogroup"] button[kind="segmented_controlActive"] > span,
+html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] > div,
+html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] > span {
+    color: #FFFFFF !important;
+}
+
+/* Fallback para variantes internas de Streamlit que no usan data-testid estable */
+html body [role="radiogroup"] button {
+    background: transparent !important;
+    color: var(--fp-text-muted) !important;
+    border: 1px solid transparent !important;
+}
+html body [role="radiogroup"] button[aria-pressed="true"] {
+    background: linear-gradient(135deg, var(--fp-selected-start) 0%, var(--fp-selected-end) 100%) !important;
+    color: #FFFFFF !important;
+    border-color: var(--fp-selected-border) !important;
+}
+html body [role="radiogroup"] button > div,
+html body [role="radiogroup"] button > span {
+    color: inherit !important;
+}
+
+/* Streamlit suele tomar este token para estados activos (evita acento rojo por defecto) */
+html body [data-testid="stSegmentedControl"],
+html body [data-testid="stPills"],
+html body [role="radiogroup"] {
+    --primary-color: var(--fp-primary) !important;
 }
 
 /* ── Compactar widgets ──────────────────────────────────────────── */
@@ -137,9 +220,9 @@ html body [data-testid="stButton"] > button {
     transition: all 0.15s ease !important;
 }
 html body [data-testid="stButton"] > button:hover {
-    border-color: #0E7490 !important;
-    color: #0E7490 !important;
-    background: rgba(14,116,144,0.06) !important;
+    border-color: var(--fp-primary) !important;
+    color: var(--fp-primary) !important;
+    background: rgba(15,58,109,0.06) !important;
 }
 </style>"""
 

@@ -124,19 +124,6 @@ def render():
         st.error("No hay años disponibles en consolidado de cierres.")
         return
 
-    # ── Estilos neon-azul para segmented_control seleccionado ────────────────
-    st.markdown(
-        """<style>
-        [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
-            background: linear-gradient(135deg,#00B4FF 0%,#0066FF 100%) !important;
-            color:#FFFFFF !important;
-            border-color:#00B4FF !important;
-            box-shadow:0 0 10px rgba(0,180,255,.55),0 0 3px rgba(0,180,255,.25) !important;
-        }
-        </style>""",
-        unsafe_allow_html=True,
-    )
-
     try:
         from streamlit_app.components.filter_panel import render_filter_panel
     except ImportError:

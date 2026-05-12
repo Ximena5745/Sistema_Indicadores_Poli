@@ -46,13 +46,13 @@ NIVEL_FLAG_COLORS = {
     "Pendiente de reporte": "#9E9E9E",
 }
 
-# Neon-blue style for segmented control
-NEON_BLUE_STYLE = """<style>
+# Institutional style for segmented control
+INSTITUTIONAL_SEGMENTED_STYLE = """<style>
 [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
-    background: linear-gradient(135deg,#00B4FF 0%,#0066FF 100%) !important;
+    background: linear-gradient(135deg,#00B4FF 0%,#0096E6 100%) !important;
     color:#FFFFFF !important;
-    border-color:#00B4FF !important;
-    box-shadow:0 0 10px rgba(0,180,255,.55),0 0 3px rgba(0,180,255,.25) !important;
+    border-color:#0096E6 !important;
+    box-shadow:0 2px 8px rgba(0,150,230,0.35) !important;
 }
 </style>"""
 
