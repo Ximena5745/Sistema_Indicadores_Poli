@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 import pytest
 import pandas as pd
-from core.semantica import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento
 from core.config import IDS_PLAN_ANUAL
 from services.strategic_indicators import load_cierres
 

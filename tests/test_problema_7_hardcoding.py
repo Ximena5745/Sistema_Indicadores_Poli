@@ -24,7 +24,7 @@ import pandas as pd
 import numpy as np
 from streamlit_app.pages.resumen_general_real import _ensure_nivel_cumplimiento
 from streamlit_app.pages.pdi_acreditacion import _clasificar_estado
-from core.semantica import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento
 from core.config import IDS_PLAN_ANUAL
 
 

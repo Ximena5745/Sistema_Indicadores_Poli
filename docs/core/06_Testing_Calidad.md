@@ -11,13 +11,15 @@
 
 | Métrica | Valor | Estado |
 |---------|-------|--------|
-| **Tests Totales** | 573 | ✅ |
-| **Tests Pasando** | 573 | ✅ 100% |
-| **Coverage Global** | 18% | 🔴 |
+| **Tests Totales** | 696 | ✅ |
+| **Tests Pasando** | 696 | ✅ 100% |
+| **Coverage Global** | 18%* | 🔴 |
 | **Coverage core/** | 100% | ✅ |
 | **Coverage services/** | 35% | 🟡 |
 | **Coverage scripts/** | 12% | 🔴 |
-| **Fase** | FASE 3 (MEDIA) | ⏳ |
+| **Fase** | FASE 3 (MEDIA) | ⏳ En ejecución |
+
+\* Última medición histórica registrada. En este entorno, `pytest-cov` no está disponible actualmente en la instalación de pytest activa.
 
 ---
 

@@ -8,13 +8,12 @@ import streamlit as st
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from core.semantica import (
+from core.domain import (
     categorizar_cumplimiento,
-    obtener_icono_categoria,
-    obtener_color_categoria,
     normalizar_valor_a_porcentaje,
     normalizar_y_categorizar,
 )
+from core.presentation import obtener_icono_categoria, obtener_color_categoria
 
 _RUTA_KPI_DIAG = (
     Path(__file__).resolve().parents[2] / "data" / "output" / "artifacts" / "kpi_diagnostico.json"

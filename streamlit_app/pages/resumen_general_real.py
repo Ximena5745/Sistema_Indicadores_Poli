@@ -153,7 +153,7 @@ def _load_consolidado_cierres() -> pd.DataFrame:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
 
     if "cumplimiento_pct" not in df.columns and {"Meta", "Ejecucion"}.issubset(df.columns):
-        from core.semantica import recalcular_cumplimiento_faltante
+        from core.domain import recalcular_cumplimiento_faltante
 
         df["cumplimiento_pct"] = df.apply(
             lambda row: 100 * recalcular_cumplimiento_faltante(
@@ -167,7 +167,7 @@ def _load_consolidado_cierres() -> pd.DataFrame:
             axis=1,
         )
     elif "cumplimiento_pct" in df.columns and {"Meta", "Ejecucion"}.issubset(df.columns):
-        from core.semantica import recalcular_cumplimiento_faltante
+        from core.domain import recalcular_cumplimiento_faltante
 
         mask_missing = (
             df["cumplimiento_pct"].isna()
@@ -205,11 +205,11 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
         df = df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
     if "cumplimiento_pct" in df.columns:
         # Importar aquí para evitar circular imports
-        from core.semantica import normalizar_y_categorizar
+        from core.domain import normalizar_y_categorizar
 
         def _map_level_v2(row):
             """
-            Usa core.semantica para categorizar (SINGLE SOURCE).
+            Usa core.domain para categorizar (SINGLE SOURCE).
             Problema #7: Eliminación de hardcoding 105/100/80.
             Los valores en cumplimiento_pct están en porcentaje (0-100 o 0-130).
             """

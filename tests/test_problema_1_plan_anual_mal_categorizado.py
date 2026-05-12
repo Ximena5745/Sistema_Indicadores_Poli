@@ -17,7 +17,7 @@ COBERTURA:
 import pytest
 import pandas as pd
 import numpy as np
-from core.semantica import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento
 from core.config import (
     UMBRAL_PELIGRO,
     UMBRAL_ALERTA,

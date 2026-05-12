@@ -28,7 +28,7 @@ from services.loaders.pipeline import (
     fase4_reconstruir_columnas_formula,
     fase5_aplicar_calculos_cumplimiento,
 )
-from core.semantica import categorizar_cumplimiento, CategoriaCumplimiento
+from core.domain import categorizar_cumplimiento, CategoriaCumplimiento
 from core.config import (
     UMBRAL_PELIGRO,
     UMBRAL_ALERTA,

@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.semantica import normalizar_valor_a_porcentaje
+from core.domain import normalizar_valor_a_porcentaje
 
 
 class TestNormalizarValorP9Simple:

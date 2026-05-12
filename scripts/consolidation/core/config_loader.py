@@ -5,6 +5,7 @@ Carga de configuración externa YAML/JSON
 
 import json
 import logging
+import copy
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -86,18 +87,27 @@ class ConfigLoader:
         Returns:
             Dict con configuración validada
         """
+        if not isinstance(config, dict):
+            raise ValueError("La configuración debe ser un diccionario")
+
         validated = {}
         
         # Validar sección de archivos
         if 'input' in config:
+            if not isinstance(config['input'], dict):
+                raise ValueError("La sección 'input' debe ser un diccionario")
             validated['input'] = InputConfig(**config['input'])
         
         # Validar sección de procesamiento
         if 'processing' in config:
+            if not isinstance(config['processing'], dict):
+                raise ValueError("La sección 'processing' debe ser un diccionario")
             validated['processing'] = ProcessingConfig(**config['processing'])
         
         # Validar extracciones
         if 'extractions' in config:
+            if not isinstance(config['extractions'], dict):
+                raise ValueError("La sección 'extractions' debe ser un diccionario")
             validated['extractions'] = {
                 k: ExtractionConfig(id=k, **v) 
                 for k, v in config['extractions'].items()
@@ -130,7 +140,7 @@ DEFAULT_CONFIG = {
 
 def get_default_config() -> Dict:
     """Retorna configuración por defecto."""
-    return DEFAULT_CONFIG.copy()
+    return copy.deepcopy(DEFAULT_CONFIG)
 
 
 def merge_configs(base: Dict, override: Dict) -> Dict:

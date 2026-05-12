@@ -251,6 +251,12 @@ def generate_report(result, format, output_path):
         import yaml
         with open(output_path, 'w', encoding='utf-8') as f:
             yaml.dump(metrics, f, allow_unicode=True)
+
+    else:
+        raise ValueError(
+            f"Formato de reporte no implementado: {format}. "
+            "Use 'json' o 'yaml'."
+        )
     
     logging.getLogger(__name__).info(f"Reporte guardado: {output_path}")
 

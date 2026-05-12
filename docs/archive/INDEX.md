@@ -10,6 +10,11 @@
 ## 🗂️ ESTRUCTURA DE DOCUMENTACIÓN TÉCNICA
 
 ```
+
+## 📌 Documentos Operativos Recientes
+
+- [PHASE2_LEGACY_WRAPPERS_INVENTORY_20260511.md](PHASE2_LEGACY_WRAPPERS_INVENTORY_20260511.md) — Inventario de wrappers legacy en runtime productivo (mantener/deprecar/eliminar).
+- [PHASE2_CIERRE_EJECUCION_20260511.md](PHASE2_CIERRE_EJECUCION_20260511.md) — Cierre operativo de FASE 2 con métricas de validación, excepciones legacy y criterio de continuidad.
 docs/
 ├── 📊 INDEX.md                  ← Estás aquí (mapa de docs/)
 │

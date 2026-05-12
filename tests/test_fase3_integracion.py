@@ -15,7 +15,7 @@ from pathlib import Path
 # Agregar proyecto a path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.semantica import (
+from core.domain import (
     normalizar_y_categorizar,
     categorizar_cumplimiento,
     normalizar_valor_a_porcentaje,

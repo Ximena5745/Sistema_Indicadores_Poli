@@ -15,7 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from core.config import CACHE_TTL
-from core.semantica import categorizar_cumplimiento, recalcular_cumplimiento_faltante
+from core.domain import categorizar_cumplimiento, recalcular_cumplimiento_faltante
 from .utils import (
     _get_cached,
     _set_cached,

@@ -1478,10 +1478,10 @@ def _cumplimiento_pct(df: pd.DataFrame) -> pd.Series:
     """
     Normaliza valores de cumplimiento a porcentaje (0-100 o 0-130).
 
-    Problema #8 FIX: Usa normalizar_valor_a_porcentaje() de core/semantica.
+    Problema #8 FIX: Usa normalizar_valor_a_porcentaje() de core/domain.
     Elimina hardcoding de heurística "si max_abs <= 2".
     """
-    from core.semantica import normalizar_valor_a_porcentaje, recalcular_cumplimiento_faltante
+    from core.domain import normalizar_valor_a_porcentaje, recalcular_cumplimiento_faltante
 
     # Caso 1: Cumplimiento_norm (ya normalizado en DECIMAL [0-1.3], convertir a PORCENTAJE)
     if "Cumplimiento_norm" in df.columns:

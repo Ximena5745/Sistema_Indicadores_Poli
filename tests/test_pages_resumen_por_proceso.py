@@ -19,7 +19,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.semantica import normalizar_valor_a_porcentaje
+from core.domain import normalizar_valor_a_porcentaje
 
 
 class TestResumenPorProcesoNormalizacion:

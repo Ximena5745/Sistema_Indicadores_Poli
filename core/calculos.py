@@ -15,7 +15,7 @@ from core.config import (
     UMBRAL_ALERTA_PA,
     UMBRAL_SOBRECUMPLIMIENTO_PA,
 )
-from core.semantica import categorizar_cumplimiento as _categorizar_cumplimiento_oficial
+from core.domain import categorizar_cumplimiento as _categorizar_cumplimiento_oficial
 
 
 def normalizar_cumplimiento(valor):
@@ -75,9 +75,9 @@ def normalizar_cumplimiento(valor):
 
 
 def categorizar_cumplimiento(cumplimiento, sentido="Positivo", id_indicador=None):
-    """Wrapper de compatibilidad (delegación directa a core.semantica).
+    """Wrapper de compatibilidad (delegación directa a core.domain).
 
-    FUENTE ÚNICA OFICIAL: core/semantica.py
+    FUENTE ÚNICA OFICIAL: core/domain
     El parámetro `sentido` se ignora (se mantiene solo por compatibilidad hacia atrás).
     La categorización depende SOLO del valor numérico y del tipo de indicador.
 

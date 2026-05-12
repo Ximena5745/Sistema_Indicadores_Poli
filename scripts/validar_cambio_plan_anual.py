@@ -46,7 +46,7 @@ from core.config import (
     UMBRAL_PELIGRO, UMBRAL_ALERTA, UMBRAL_SOBRECUMPLIMIENTO,
     UMBRAL_ALERTA_PA, UMBRAL_SOBRECUMPLIMIENTO_PA,
 )
-from core.semantica import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento
 
 
 def categorizar_antigua_defectuosa(cumplimiento):

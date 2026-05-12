@@ -77,7 +77,7 @@ try:
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
-    from core.semantica import categorizar_cumplimiento
+    from core.domain import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
     from streamlit_app.components.filter_panel import render_filter_panel
@@ -90,7 +90,7 @@ except (ImportError, ModuleNotFoundError):
     from core.config import DATA_OUTPUT
     from core.proceso_types import TIPOS_PROCESO, get_tipo_color
     from core.calculos import simple_categoria_desde_porcentaje
-    from core.semantica import categorizar_cumplimiento
+    from core.domain import categorizar_cumplimiento
     from streamlit_app.services.data_service import DataService
     from services.cmi_filters import filter_df_for_cmi_estrategico, filter_df_for_cmi_procesos
     from streamlit_app.components.filter_panel import render_filter_panel
@@ -720,7 +720,7 @@ def _ensure_nivel_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
                 return "Pendiente de reporte"
 
             # MEJORA FASE 2: Usar wrapper centralizado
-            from core.semantica import normalizar_y_categorizar
+            from core.domain import normalizar_y_categorizar
 
             id_indicador = row.get("Id", None)
             categoria = normalizar_y_categorizar(pct, es_porcentaje=True, id_indicador=id_indicador)

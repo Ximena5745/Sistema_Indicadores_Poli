@@ -18,16 +18,12 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.semantica import (
-    categorizar_cumplimiento,
-    obtener_icono_categoria,
-    obtener_color_categoria,
-    CategoriaCumplimiento,
-)
+from core.domain import categorizar_cumplimiento, CategoriaCumplimiento
+from core.presentation import obtener_icono_categoria, obtener_color_categoria
 
 
 class TestGestionOMImports:
-    """Test that gestion_om.py correctly imports from core.semantica"""
+    """Test that gestion_om.py correctly imports from canonical modules."""
 
     def test_categorizar_cumplimiento_available(self):
         """Test categorizar_cumplimiento is importable"""

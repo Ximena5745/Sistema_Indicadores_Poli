@@ -13,7 +13,7 @@ NOTA: IDs Plan Anual válidos: '1', '2', '3', ... '925' (cargados del Excel)
 import pytest
 import pandas as pd
 import numpy as np
-from core.semantica import normalizar_y_categorizar
+from core.domain import normalizar_y_categorizar
 
 
 class TestNormalizarYCategorizar:

@@ -18,7 +18,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.semantica import categorizar_cumplimiento, CategoriaCumplimiento, normalizar_y_categorizar
+from core.domain import categorizar_cumplimiento, CategoriaCumplimiento, normalizar_y_categorizar
 
 
 class TestResumenGeneralMapLevel:

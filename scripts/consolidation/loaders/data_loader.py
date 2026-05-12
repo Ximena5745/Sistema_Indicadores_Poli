@@ -46,8 +46,20 @@ class DataLoader:
         
         logger.info(f"Cargando API consolidada: {path}")
         df = pd.read_excel(path)
+
+        has_id = ('ID' in df.columns) or ('Id' in df.columns)
+        missing = []
+        if 'fecha' not in df.columns:
+            missing.append('fecha')
+        if not has_id:
+            missing.append('ID/Id')
+        if missing:
+            raise ValueError(
+                f"Columnas requeridas faltantes en API consolidada: {sorted(missing)}"
+            )
+
+        df['fecha'] = pd.to_datetime(df['fecha'], errors='coerce')
         df = df.dropna(subset=['fecha'])
-        df['fecha'] = pd.to_datetime(df['fecha'])
         
         if 'clasificacion' in df.columns:
             df['clasificacion'] = df['clasificacion'].apply(limpiar_clasificacion)
@@ -56,6 +68,11 @@ class DataLoader:
             'ID': 'Id', 'nombre': 'Indicador', 'proceso': 'Proceso',
             'frecuencia': 'Periodicidad', 'sentido': 'Sentido',
         })
+
+        # Normalizar IDs heterogéneos (float, string, alfanumérico)
+        df['Id'] = df['Id'].apply(id_str)
+        ids_raw = df['Id'].astype(str).str.strip()
+        df = df[~ids_raw.isin(['', 'nan', 'None'])]
         
         # Vectorizado: generar llaves
         df['LLAVE'] = (
@@ -86,11 +103,30 @@ class DataLoader:
         
         logger.info(f"Cargando Kawak 2025: {path}")
         df = pd.read_excel(path)
+
+        has_id = ('Id' in df.columns) or ('ID' in df.columns)
+        missing = []
+        if 'fecha' not in df.columns:
+            missing.append('fecha')
+        if not has_id:
+            missing.append('Id/ID')
+        if missing:
+            raise ValueError(
+                f"Columnas requeridas faltantes en Kawak 2025: {sorted(missing)}"
+            )
+
+        if 'ID' in df.columns and 'Id' not in df.columns:
+            df = df.rename(columns={'ID': 'Id'})
+
         df['fecha'] = pd.to_datetime(df['fecha'], errors='coerce')
         df = df.dropna(subset=['fecha'])
+        df['Id'] = df['Id'].apply(id_str)
+        ids_raw = df['Id'].astype(str).str.strip()
+        df = df[~ids_raw.isin(['', 'nan', 'None'])]
         df['LLAVE'] = df.apply(
             lambda r: make_llave(r['Id'], r['fecha']), axis=1
         )
+        df = df.dropna(subset=['LLAVE'])
         
         logger.info(f"  Kawak 2025: {len(df):,} registros")
         return df

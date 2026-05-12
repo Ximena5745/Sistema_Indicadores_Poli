@@ -42,7 +42,7 @@ class ParallelProcessor:
         
         # Dividir en chunks
         n_chunks = max(1, len(df) // self.chunk_size)
-        chunks = np.array_split(df, n_chunks)
+        chunks = self._split_dataframe(df, n_chunks)
         
         logger.info(f"Procesando {len(df):,} filas en {len(chunks)} chunks con {self.max_workers} workers")
         
@@ -73,13 +73,22 @@ class ParallelProcessor:
         def process_chunk(chunk):
             return chunk.apply(func, axis=axis)
         
-        chunks = np.array_split(df, self.max_workers)
+        chunks = self._split_dataframe(df, self.max_workers)
         
         results = Parallel(n_jobs=self.max_workers)(
             delayed(process_chunk)(chunk) for chunk in chunks
         )
         
         return pd.concat(results)
+
+    def _split_dataframe(self, df: pd.DataFrame, n_chunks: int) -> List[pd.DataFrame]:
+        """Divide DataFrame en n chunks preservando tipo DataFrame."""
+        n = len(df)
+        if n == 0:
+            return [df]
+        n_chunks = max(1, min(n_chunks, n))
+        chunk_size = (n + n_chunks - 1) // n_chunks
+        return [df.iloc[i:i + chunk_size] for i in range(0, n, chunk_size)]
     
     def parallel_file_read(self, file_paths: List[str]) -> Dict[str, Any]:
         """

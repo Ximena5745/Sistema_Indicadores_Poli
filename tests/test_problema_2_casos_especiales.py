@@ -13,7 +13,7 @@ Valida que:
 import pytest
 import pandas as pd
 import numpy as np
-from core.semantica import recalcular_cumplimiento_faltante
+from core.domain import recalcular_cumplimiento_faltante
 
 
 class TestCasosEspeciales:

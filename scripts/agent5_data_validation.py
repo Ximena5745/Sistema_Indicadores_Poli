@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import IDS_PLAN_ANUAL, UMBRAL_ALERTA_PA, IDS_TOPE_100
-from core.semantica import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento
 
 class DataValidationAgent:
     """AGENT 5 — Especialista en validación de datos"""

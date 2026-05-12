@@ -5,14 +5,14 @@ from pathlib import Path
 
 # Importes desde root
 try:
-    from core.config import NIVEL_COLOR, NIVEL_BG, UMBRAL_PELIGRO, UMBRAL_ALERTA
-    from services.data_loader import cargar_dataset, cargar_acciones_mejora
+    from core.config import NIVEL_COLOR
+    from services.data_loader import cargar_dataset
 except (ImportError, ModuleNotFoundError):
     import sys
 
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from core.config import NIVEL_COLOR, NIVEL_BG, UMBRAL_PELIGRO, UMBRAL_ALERTA
-    from services.data_loader import cargar_dataset, cargar_acciones_mejora
+    from core.config import NIVEL_COLOR
+    from services.data_loader import cargar_dataset
 
 # Importes desde streamlit_app
 try:
@@ -55,7 +55,7 @@ def _clasificar_estado(cumpl, id_indicador=None):
         return "Sin dato"
 
     # MEJORA FASE 2: Usar wrapper centralizado
-    from core.semantica import normalizar_y_categorizar
+    from core.domain import normalizar_y_categorizar
 
     return normalizar_y_categorizar(cumpl_pct, es_porcentaje=True, id_indicador=id_indicador)
 

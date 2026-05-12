@@ -30,8 +30,8 @@ import pandas as pd
 from pathlib import Path
 
 from core.calculos import normalizar_cumplimiento
-from core.semantica import categorizar_cumplimiento
-from core.config import DATA_RAW, DATA_OUTPUT
+from core.domain import categorizar_cumplimiento
+from core.config import DATA_RAW
 from services.procesos import obtener_proceso_padre
 from services.loaders.utils import renombrar_columnas, id_a_str, obtener_rename_map
 

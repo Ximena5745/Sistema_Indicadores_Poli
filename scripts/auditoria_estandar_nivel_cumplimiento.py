@@ -230,8 +230,8 @@ class AuditoriaEstandarCumplimiento:
             contenido = archivo.read_text(encoding="utf-8")
 
             # Validar que importa de lugar correcto
-            if "from core.semantica import categorizar_cumplimiento" in contenido:
-                self.successes.append(f"✅ {archivo_rel} importa de semantica.py")
+            if "from core.domain import categorizar_cumplimiento" in contenido:
+                self.successes.append(f"✅ {archivo_rel} importa de core.domain")
             elif "categorizar_cumplimiento" in contenido:
                 self.warnings.append(
                     f"⚠️  {archivo_rel} usa categorizar_cumplimiento pero import podría estar mal"

@@ -205,10 +205,11 @@ class ProgressReporter:
     def finish(self):
         """Finaliza reporte."""
         elapsed = time.time() - self.start_time
+        rate = (self.current / elapsed) if elapsed > 0 else 0.0
         logger.info(
             f"{self.description}: Completado {self.current:,} items "
             f"en {elapsed:.1f}s "
-            f"({self.current/elapsed:.1f} items/s)"
+            f"({rate:.1f} items/s)"
         )
 
 

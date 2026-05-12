@@ -55,7 +55,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 # Importar lógica centralizada de categorización (FUENTE ÚNICA OFICIAL)
-from core.semantica import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -122,8 +122,7 @@ PROCESOS_NO_APLICA_SIN_REPORTE: List[str] = [
 # ── Fuente de cierres históricos ──────────────────────────────────────────────
 RUTA_CONSOLIDADOS = os.path.join(BASE_DIR, "data", "output", "Resultados Consolidados.xlsx")
 
-# Lógica de categorización: usar core.semantica directamente (FUENTE ÚNICA OFICIAL)
-from core.semantica import categorizar_cumplimiento
+# Lógica de categorización: usar core.domain directamente (FUENTE ÚNICA OFICIAL)
 
 # ── Paleta de colores ──────────────────────────────────────────────────────────
 C_HEADER    = "1F4E79"

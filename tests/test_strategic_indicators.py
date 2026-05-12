@@ -79,28 +79,28 @@ class TestNivelDesdeCumplimiento(unittest.TestCase):
 
     def test_nivel_cumplimiento_bajo(self):
         """0.4 (40%) → Peligro."""
-        from core.semantica import categorizar_cumplimiento
+        from core.domain import categorizar_cumplimiento
 
         result = categorizar_cumplimiento(0.4)
         assert result == "Peligro"
 
     def test_nivel_cumplimiento_alerta(self):
         """0.8 (80%) → Alerta."""
-        from core.semantica import categorizar_cumplimiento
+        from core.domain import categorizar_cumplimiento
 
         result = categorizar_cumplimiento(0.8)
         assert result == "Alerta"
 
     def test_nivel_cumplimiento_ok(self):
         """1.0 (100%) → Cumplimiento (Regular)."""
-        from core.semantica import categorizar_cumplimiento
+        from core.domain import categorizar_cumplimiento
 
         result = categorizar_cumplimiento(1.0)
         assert result == "Cumplimiento"
 
     def test_nivel_cumplimiento_sobre(self):
         """1.2 (120%) → Sobrecumplimiento (Regular)."""
-        from core.semantica import categorizar_cumplimiento
+        from core.domain import categorizar_cumplimiento
 
         result = categorizar_cumplimiento(1.2)
         assert result == "Sobrecumplimiento"
@@ -111,7 +111,7 @@ class TestNivelDesdeCumplimiento(unittest.TestCase):
         Problema #5: La función anterior (_nivel_desde_cumplimiento) ignoraba PA.
         Ahora categorizar_cumplimiento() SÍ lo considera.
         """
-        from core.semantica import categorizar_cumplimiento
+        from core.domain import categorizar_cumplimiento
         from core.config import IDS_PLAN_ANUAL
 
         # ID 45 debería estar en IDS_PLAN_ANUAL

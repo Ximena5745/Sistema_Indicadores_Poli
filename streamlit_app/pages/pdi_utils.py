@@ -6,7 +6,7 @@ import pandas as pd
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from core.semantica import normalizar_y_categorizar
+from core.domain import normalizar_y_categorizar
 
 
 def calcular_brecha(row):
@@ -29,7 +29,7 @@ def clasificar_estado(cumpl, id_indicador=None):
     """
     Classify compliance status.
     
-    Uses centralizado wrapper from core.semantica.
+    Uses centralized wrapper from core.domain.
     
     Args:
         cumpl: Compliance percentage (0-100 or 0-130)

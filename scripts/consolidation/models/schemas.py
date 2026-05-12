@@ -6,7 +6,7 @@ Validación de datos con Pydantic
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class InputConfig(BaseModel):
@@ -16,7 +16,8 @@ class InputConfig(BaseModel):
     kawak_catalog: str = Field(..., description="Catálogo de indicadores Kawak")
     lmi_report: Optional[str] = Field(None, description="Reporte LMI (opcional)")
     
-    @validator('input_file', 'api_consolidated', 'kawak_catalog')
+    @field_validator('input_file', 'api_consolidated', 'kawak_catalog')
+    @classmethod
     def path_must_exist(cls, v):
         from pathlib import Path
         if not Path(v).exists():
@@ -27,12 +28,11 @@ class InputConfig(BaseModel):
 class ExtractionConfig(BaseModel):
     """Configuración de extracción para un indicador."""
     id: str = Field(..., description="ID del indicador")
-    patron: str = Field(default='LAST', regex='^(LAST|VARIABLES|SUM_SER|AVG|SUM)$')
+    patron: str = Field(default='LAST', pattern='^(LAST|VARIABLES|SUM_SER|AVG|SUM)$')
     simbolo_ejec: Optional[str] = Field(None, description="Símbolo de ejecución")
     simbolo_meta: Optional[str] = Field(None, description="Símbolo de meta")
     
-    class Config:
-        extra = 'allow'
+    model_config = ConfigDict(extra='allow')
 
 
 class ProcessingConfig(BaseModel):
@@ -50,7 +50,7 @@ class SourceRow(BaseModel):
     Indicador: Optional[str] = None
     Proceso: Optional[str] = None
     Periodicidad: str = Field(default='Mensual')
-    Sentido: str = Field(default='Positivo', regex='^(Positivo|Negativo)$')
+    Sentido: str = Field(default='Positivo', pattern='^(Positivo|Negativo)$')
     fecha: datetime
     resultado: Optional[float] = None
     meta: Optional[float] = None
@@ -68,7 +68,7 @@ class ProcessedRecord(BaseModel):
     Ejecucion: Optional[float] = None
     Cumplimiento: Optional[float] = Field(None, ge=0, le=1.3)
     LLAVE: str
-    fuente: str = Field(..., regex='^(api_directo|variables|variables_simbolo|series_sum|na_record|skip|sin_resultado)$')
+    fuente: str = Field(..., pattern='^(api_directo|variables|variables_simbolo|series_sum|na_record|skip|sin_resultado)$')
     es_na: bool = False
 
 

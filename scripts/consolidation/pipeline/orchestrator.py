@@ -123,6 +123,30 @@ class ConsolidationOrchestrator:
         logger.info("=" * 60)
         
         df_api = sources['api_consolidated']
+
+        if not isinstance(df_api, pd.DataFrame):
+            raise ValidationError("La fuente 'api_consolidated' debe ser un DataFrame")
+
+        if df_api.empty:
+            processed = {
+                'historico': [],
+                'semestral': [],
+                'cierres': [],
+                'na_count': 0,
+                'skip_count': 0
+            }
+            self.metrics['records_processed'] = 0
+            self.metrics['records_na'] = 0
+            self.metrics['records_skipped'] = 0
+            logger.info("API consolidada vacía, no hay registros para procesar")
+            return processed
+
+        required_cols = {'Id', 'fecha', 'LLAVE'}
+        missing_cols = required_cols - set(df_api.columns)
+        if missing_cols:
+            raise ValidationError(
+                f"Columnas requeridas faltantes en API consolidada: {sorted(missing_cols)}"
+            )
         
         # Preparar configuraciones
         extraction_configs = self._load_extraction_configs()
