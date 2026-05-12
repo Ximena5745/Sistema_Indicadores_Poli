@@ -3272,13 +3272,6 @@ def render() -> None:
     clasificacion_col = _first_col(snapshot_df, ["Clasificación", "Clasificacion", "Categoria"])
     tipo_indicador_col = _first_col(snapshot_df, ["Tipo de indicador", "Tipo indicador", "Tipo", "tipo_indicador"])
 
-    try:
-        from streamlit_app.components.filter_panel import render_filter_panel
-    except ImportError:
-        import sys
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from streamlit_app.components.filter_panel import render_filter_panel
-
     # Preparar opciones de clasificación y frecuencia antes de renderizar filtros
     clasificacion_options_base: list[str] = []
     if clasificacion_col and clasificacion_col in snapshot_df.columns:
@@ -3318,76 +3311,78 @@ def render() -> None:
     if topbar_year is not None:
         anio = int(topbar_year)
         mes = str(topbar_month) if topbar_month is not None else default_month
+        clasificacion_sel = "Todos"
+        frecuencia_sel = "Todos"
+        unidad_sel = "Todos"
+        proceso_sel = "Todos"
+        subproceso_sel = "Todos"
     else:
         year_options = [str(y) for y in years] if years else [str(default_year)]
         default_year_label = str(2025 if 2025 in years else years[-1] if years else default_year)
 
-        sels_filters = render_filter_panel(
-            filters=[
-                {
-                    "key": "anio",
-                    "label": "Año",
-                    "type": "pills",
-                    "options": year_options,
-                    "default": default_year_label if default_year_label in year_options else year_options[0],
-                    "include_all": False,
-                },
-                {
-                    "key": "mes",
-                    "label": "Mes",
-                    "type": "selectbox",
-                    "options": MESES_OPCIONES,
-                    "default": default_month,
-                    "include_all": False,
-                },
-                {
-                    "key": "clasificacion",
-                    "label": "Clasificación",
-                    "type": "pills",
-                    "options": clasificacion_options_base,
-                    "include_all": True,
-                },
-                {
-                    "key": "frecuencia",
-                    "label": "Frecuencia",
-                    "type": "selectbox",
-                    "options": frecuencia_options_base,
-                    "include_all": True,
-                },
-                {
-                    "key": "unidad",
-                    "label": "Unidad",
-                    "type": "selectbox",
-                    "options": unidad_options_base,
-                    "include_all": True,
-                },
-                {
-                    "key": "proceso",
-                    "label": "Proceso",
-                    "type": "selectbox",
-                    "options": proceso_options_base,
-                    "include_all": True,
-                },
-                {
-                    "key": "subproceso",
-                    "label": "Subproceso",
-                    "type": "selectbox",
-                    "options": subproceso_options_base,
-                    "include_all": True,
-                },
-            ],
-            title="",
-            key_prefix="filter",
-            n_cols=4,
-        )
-        anio_raw = sels_filters["anio"]
+        options_clasificacion = clasificacion_options_base or ["Todos"]
+        options_frecuencia = frecuencia_options_base or ["Todos"]
+        options_unidad = unidad_options_base or ["Todos"]
+        options_proceso = proceso_options_base or ["Todos"]
+        options_subproceso = subproceso_options_base or ["Todos"]
+
+        with st.container(border=True):
+            st.caption("Filtros activos")
+            first_row = st.columns(4, gap="small")
+            selections = {}
+            selections["anio"] = first_row[0].pills(
+                "Año",
+                options=year_options,
+                default=default_year_label if default_year_label in year_options else year_options[0],
+                key="filter_anio",
+            )
+            selections["mes"] = first_row[1].selectbox(
+                "Mes",
+                options=MESES_OPCIONES,
+                index=MESES_OPCIONES.index(default_month) if default_month in MESES_OPCIONES else 0,
+                key="filter_mes",
+            )
+            selections["clasificacion"] = first_row[2].pills(
+                "Clasificación",
+                options=options_clasificacion,
+                default="Todos" if "Todos" in options_clasificacion else options_clasificacion[0],
+                key="filter_clasificacion",
+            )
+            selections["frecuencia"] = first_row[3].selectbox(
+                "Frecuencia",
+                options=options_frecuencia,
+                index=0,
+                key="filter_frecuencia",
+            )
+
+            second_row = st.columns(3, gap="small")
+            selections["unidad"] = second_row[0].selectbox(
+                "Unidad",
+                options=options_unidad,
+                index=0,
+                key="filter_unidad",
+            )
+            selections["proceso"] = second_row[1].selectbox(
+                "Proceso",
+                options=options_proceso,
+                index=0,
+                key="filter_proceso",
+            )
+            selections["subproceso"] = second_row[2].selectbox(
+                "Subproceso",
+                options=options_subproceso,
+                index=0,
+                key="filter_subproceso",
+            )
+
+        anio_raw = selections["anio"]
         anio = int(anio_raw) if anio_raw is not None else None
-        mes = sels_filters["mes"] or default_month
-        clasificacion_sel = sels_filters["clasificacion"] or "Todos"
-        frecuencia_sel = sels_filters["frecuencia"] or "Todos"
-        unidad_sel = sels_filters["unidad"] or "Todos"
-        proceso_sel = sels_filters["proceso"] or "Todos"
-        subproceso_sel = sels_filters["subproceso"] or "Todos"
+        mes = selections["mes"] or default_month
+        clasificacion_sel = selections["clasificacion"] or "Todos"
+        frecuencia_sel = selections["frecuencia"] or "Todos"
+        unidad_sel = selections["unidad"] or "Todos"
+        proceso_sel = selections["proceso"] or "Todos"
+        subproceso_sel = selections["subproceso"] or "Todos"
 
     # Recalcular datos del corte según mes y año seleccionados para que Meta/Ejecución/Cumplimiento respondan a los filtros
     selected_month_num = (
