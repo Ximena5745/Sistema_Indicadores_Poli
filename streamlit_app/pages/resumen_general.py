@@ -2940,7 +2940,8 @@ def render():
         
         return "", "#6B7280", "📊"
     
-    narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_estrategico, historico_df, counts_e, count_total_e, health_rate_e)
+    pdi_for_narrative = pdi_base_df if categoria == "Proyectos" else pdi_estrategico
+    narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_for_narrative, historico_df, counts_e, count_total_e, health_rate_e)
 
     # ── Narrativa ejecutiva (antes de gráficas y fichas) ───────────────────────
     st.markdown(
@@ -2965,7 +2966,8 @@ def render():
     )
 
     # --- FASE 4: Tablas según categoría ---
-    _render_tables_by_category(categoria, pdi_estrategico, linea_summary, best_improvements_e, worst_declines_e, _periodo_txt)
+    pdi_for_tables = pdi_base_df if categoria == "Proyectos" else pdi_estrategico
+    _render_tables_by_category(categoria, pdi_for_tables, linea_summary, best_improvements_e, worst_declines_e, _periodo_txt)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
