@@ -569,7 +569,8 @@ def _compute_calidad_scores(df: pd.DataFrame) -> pd.DataFrame:
         else:
             work[dim_name] = None
     score_cols = [d for d in _DIM_MAP if d in work.columns]
-    work["Score Total"] = work[score_cols].mean(axis=1, skipna=True).round(0).astype("Int64")
+    numeric_scores = work[score_cols].apply(pd.to_numeric, errors="coerce")
+    work["Score Total"] = numeric_scores.mean(axis=1, skipna=True).round(0).astype("Int64")
     return work[["Indicador"] + list(_DIM_MAP.keys()) + ["Score Total"]].copy()
 
 
