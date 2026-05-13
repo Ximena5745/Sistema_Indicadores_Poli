@@ -282,12 +282,12 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
             side="left",
         ),
         yaxis2=dict(
-            title="% Cumpl.",
+            title="",
             overlaying="y",
             side="right",
             showgrid=False,
-            tickfont=dict(size=9),
-            ticksuffix="%",
+            showticklabels=False,
+            visible=False,
         ),
         font=dict(family="Inter, sans-serif"),
     )
