@@ -402,12 +402,12 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
         prom = float(row["promedio"]) if pd.notna(row["promedio"]) else 0.0
         rows.append((ano, prom))
 
-    # Paleta de colores diferenciados por año
+    # Paleta institucional del proyecto (COLORS de design_system.py)
     year_colors = [
-        ("#2563eb", "#dbeafe"),  # azul
-        ("#16a34a", "#dcfce7"),  # verde
-        ("#d97706", "#fef3c7"),  # ámbar
-        ("#7c3aed", "#ede9fe"),  # violeta
+        (COLORS["primary"],        COLORS["surface_variant"]),   # azul institucional
+        (COLORS["success"],        COLORS["gray_100"]),           # verde cumplimiento
+        (COLORS["warning"],        COLORS["gray_100"]),           # amarillo alerta
+        (COLORS["sobrecumplimiento"], COLORS["gray_100"]),        # azul sobrecumplimiento
     ]
     cards_html = ""
     bar_colors = []
@@ -417,22 +417,22 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
         cards_html += f"""
             <div style='padding:12px 16px;border-radius:14px;background:{bg_color};border:1px solid {accent_color}33;box-shadow:0 4px 12px rgba(15,23,42,0.06);border-left:4px solid {accent_color};'>
                 <div style='font-size:0.75rem;font-weight:700;color:{accent_color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;'>Año {ano}</div>
-                <div style='font-size:1.9rem;font-weight:800;color:#0f172a;line-height:1.1;'>{prom:.1f}%</div>
-                <div style='font-size:0.76rem;color:#64748b;margin-top:4px;'>Cumplimiento promedio</div>
+                <div style='font-size:1.9rem;font-weight:800;color:{COLORS["text_primary"]};line-height:1.1;'>{prom:.1f}%</div>
+                <div style='font-size:0.76rem;color:{COLORS["text_secondary"]};margin-top:4px;'>Cumplimiento promedio</div>
             </div>
         """
+    year_labels = [str(ano) for ano, _ in rows]
+    year_values = [prom for _, prom in rows]
+    max_val = max(year_values) if year_values else 100
+
     components.html(
         f"""
-        <div style='margin:16px 0 8px;font-size:0.95rem;font-weight:700;color:#0f172a;'>Evolución comparativa interanual</div>
+        <div style='margin:16px 0 8px;font-size:0.95rem;font-weight:700;color:{COLORS["text_primary"]};'>Evolución comparativa interanual</div>
         <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;'>{cards_html}</div>
         """,
         height=160,
         scrolling=False,
     )
-
-    year_labels = [str(ano) for ano, _ in rows]
-    year_values = [prom for _, prom in rows]
-    max_val = max(year_values) if year_values else 100
 
     figure = go.Figure(
         data=[
@@ -442,7 +442,7 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
                 marker=dict(color=bar_colors),
                 text=[f"{prom:.1f}%" for prom in year_values],
                 textposition="outside",
-                textfont=dict(size=12, color="#0f172a", family="Inter, sans-serif"),
+                textfont=dict(size=12, color=COLORS["text_primary"], family="Inter, sans-serif"),
                 hovertemplate="Año %{x}: %{y:.1f}%<extra></extra>",
             )
         ]
@@ -451,16 +451,16 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
         margin=dict(l=0, r=0, t=20, b=0),
         height=220,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(248,250,252,0.6)",
+        plot_bgcolor=COLORS["surface_variant"],
         xaxis=dict(
             type="category",
             showgrid=False,
-            tickfont=dict(size=13, color="#0f172a"),
+            tickfont=dict(size=13, color=COLORS["text_primary"]),
         ),
         yaxis=dict(
             showgrid=True,
-            gridcolor="rgba(15,23,42,0.07)",
-            tickfont=dict(size=11, color="#64748b"),
+            gridcolor=COLORS["gray_200"],
+            tickfont=dict(size=11, color=COLORS["text_secondary"]),
             ticksuffix="%",
             range=[0, max_val * 1.20],
         ),
