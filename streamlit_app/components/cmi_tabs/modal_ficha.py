@@ -342,9 +342,9 @@ def render_modal_ficha(ind_data: pd.Series):
 
     meta_val = ind_data.get("Meta", "—")
     ejec_val = ind_data.get("Ejecucion", "—")
-    cump_raw = ind_data.get("cumplimiento_pct", 0)
+    cump_raw = ind_data.get("Cumplimiento_pct", ind_data.get("cumplimiento_pct", 0))
     cump     = float(cump_raw) if pd.notna(cump_raw) else 0.0
-    nivel    = str(ind_data.get("Nivel de cumplimiento", "Sin dato"))
+    nivel    = str(ind_data.get("Nivel de cumplimiento", ind_data.get("Categoria", "Sin dato")))
 
     formatted_meta = meta_his_signo(ind_data.to_dict()) if not ind_data.empty else "—"
     formatted_ejec = ejecucion_his_signo(ind_data.to_dict()) if not ind_data.empty else "—"

@@ -1612,10 +1612,15 @@ def _inject_dashboard_styles():
             border-radius: 12px;
             border: 1px solid #D6E2F0;
             background: #FFFFFF;
-            overflow: hidden;
+            overflow: hidden !important;
+            position: relative;
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        }
+        .rg-card svg {
+            display: block;
+            overflow: hidden;
         }
         .rg-card-head {
             display: flex;
@@ -2075,14 +2080,16 @@ def _render_strategy_card(
                 if max_v == min_v:
                     max_v = min_v + 20
                 
-                # Generar puntos
+                # Generar puntos con padding vertical para evitar que círculos salgan del área SVG
+                pad = 4
+                y_range = height - 2 * pad
                 points = []
                 for i, v in enumerate(valores):
                     if len(anos) == 1:
                         x = width / 2
                     else:
                         x = (i / (len(anos) - 1)) * width
-                    y = height - ((v - min_v) / (max_v - min_v)) * height
+                    y = pad + y_range - ((v - min_v) / (max_v - min_v)) * y_range
                     points.append(f"{x:.1f},{y:.1f}")
                 
                 path_d = "M" + " L".join(points)
@@ -2090,9 +2097,9 @@ def _render_strategy_card(
                 # Tooltip
                 tooltip = " - ".join([f"{a}:{v:.0f}%" for a, v in zip(anos, valores)])
                 
-                # Construir SVG manualmente
+                # Construir SVG manualmente con overflow=hidden para clipping estricto
                 svg_parts = []
-                svg_parts.append(f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto;">')
+                svg_parts.append(f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" overflow="hidden" style="display:block;margin:0 auto;">')
                 svg_parts.append(f'<line x1="0" y1="{height/2}" x2="{width}" y2="{height/2}" stroke="#ddd" stroke-width="1" stroke-dasharray="3"/>')
                 svg_parts.append(f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2"/>')
                 for p in points:
@@ -2107,7 +2114,7 @@ def _render_strategy_card(
             sparkline = f"<!-- Error: {str(e)} -->"
 
     # Construir HTML de la tarjeta con orden: icono, valor, indicadores, título, gráfico
-    card_html = "<div class='rg-card' style='border-left:4px solid " + color + ";background:linear-gradient(140deg,#fff,#" + color[1:] + "1E);padding:12px;margin:5px 0;border-radius:8px;'>"
+    card_html = "<div class='rg-card' style='border-left:4px solid " + color + ";background:linear-gradient(140deg,#fff,#" + color[1:] + "1E);padding:12px;margin:5px 0;border-radius:8px;overflow:hidden;position:relative;'>"
     card_html += "<div style='display:flex;align-items:center;margin-bottom:8px;'>"
     card_html += "<div style='font-size:28px;margin-right:10px;'>" + icon + "</div>"
     card_html += "<div style='text-align:right;flex:1;'>"
@@ -2128,7 +2135,7 @@ def _render_strategy_card(
     card_html += "<div style='font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;'>" + title + "</div>"
     # Sparkline en contenedor de altura fija para evitar superposición con otros elementos
     if sparkline:
-        card_html += "<div style='overflow:hidden;height:44px;'>" + sparkline + "</div>"
+        card_html += "<div style='overflow:hidden;height:40px;width:100%;'>" + sparkline + "</div>"
     card_html += "</div>"
     
     st.markdown(card_html, unsafe_allow_html=True)
