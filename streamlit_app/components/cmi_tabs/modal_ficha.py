@@ -168,11 +168,19 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
     if "Periodo" not in h.columns:
         h["Periodo"] = h["Anio"].astype(str) + "-" + h["Mes"].astype(str).str.zfill(2)
 
+    _MESES_ES = {
+        1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+        7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic",
+    }
+
+    def _fecha_a_label(dt_val) -> str:
+        return f"{_MESES_ES.get(dt_val.month, dt_val.strftime('%b'))} {dt_val.year}"
+
     h["_Periodo_fecha"] = h["Periodo"].apply(_periodo_a_fecha)
     if h["_Periodo_fecha"].notna().any():
         h = h.sort_values("_Periodo_fecha").tail(12)
-        # Formatear como "Nov 2025" para evitar interpolación de timestamps en Plotly
-        x_values = h["_Periodo_fecha"].dt.strftime("%b %Y")
+        # Formatear como "Nov 2025" (en español) para evitar interpolación en Plotly
+        x_values = h["_Periodo_fecha"].apply(_fecha_a_label)
     else:
         h = h.sort_values("Periodo").tail(12)
         x_values = h["Periodo"]
