@@ -1652,13 +1652,13 @@ def _inject_dashboard_styles():
             margin-top: 0.2rem;
         }
         .rg-chip {
-            border-radius: 12px;
+            border-radius: 10px;
             background: #FFFFFF;
             border: 1px solid #D6E2F0;
-            border-top: 3px solid #0B5FFF;
-            padding: 14px 10px 12px;
+            border-top: 4px solid #0B5FFF;
+            padding: 14px 12px 12px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(11,95,255,0.10);
+            box-shadow: 0 2px 8px rgba(11,95,255,0.10);
         }
         .rg-chip-value {
             font-size: 1.85rem;
@@ -1669,7 +1669,7 @@ def _inject_dashboard_styles():
         .rg-chip-label {
             margin: 5px 0 0;
             color: #4F6781;
-            font-size: 0.73rem;
+            font-size: 0.75rem;
             font-weight: 600;
             letter-spacing: 0.01em;
         }
@@ -2048,109 +2048,89 @@ def _render_strategy_card(
     retos: int | None = None,
     retos_label: str = "Retos",
 ):
-    """Renderiza una tarjeta de estrategia con sparkline contenido - diseño mejorado sin superposición."""
+    """Renderiza una tarjeta de estrategia con mini gráfico de línea."""
     import streamlit as st
-
+    
+    # Usar el unit_label recibido o "indicadores" por defecto
     unit = unit_label if unit_label else "indicadores"
 
-    # ── Sparkline SVG (completamente contenido en sección fija) ─────────────
-    sparkline_svg = ""
+    # Generar mini gráfico de línea SVG si hay datos históricos
+    sparkline = ""
     if historico is not None and not historico.empty and len(historico) >= 1:
         try:
+            # Filtrar solo años hasta 2025
             df_sorted = historico[historico["Año"] <= 2025].sort_values("Año")
             if df_sorted.empty:
                 df_sorted = historico.sort_values("Año")
+            
             anos = [int(a) for a in df_sorted["Año"].values]
             valores = [float(v) for v in df_sorted["Cumplimiento"].values]
+            
             if len(anos) >= 1:
-                w, h = 120, 26
+                # Calcular puntos del gráfico
+                width = 100
+                height = 35
                 min_v = min(valores) * 0.9
                 max_v = max(valores) * 1.1
                 if max_v == min_v:
                     max_v = min_v + 20
+                
+                # Generar puntos
                 points = []
                 for i, v in enumerate(valores):
-                    x = (w / 2) if len(anos) == 1 else (i / (len(anos) - 1)) * w
-                    y = (h - 3) - ((v - min_v) / (max_v - min_v)) * (h - 6) + 3
+                    if len(anos) == 1:
+                        x = width / 2
+                    else:
+                        x = (i / (len(anos) - 1)) * width
+                    y = height - ((v - min_v) / (max_v - min_v)) * height
                     points.append(f"{x:.1f},{y:.1f}")
+                
                 path_d = "M" + " L".join(points)
-                area_close = f" L{w},{h} L0,{h} Z"
-                tooltip = " | ".join([f"{a}: {v:.0f}%" for a, v in zip(anos, valores)])
-                safe_id = title[:4].replace(" ", "_")
-                dots = "".join(
-                    f'<circle cx="{p.split(",")[0]}" cy="{p.split(",")[1]}" r="2.5" fill="{color}" opacity="0.9"/>'
-                    for p in points
-                )
-                sparkline_svg = (
-                    f'<svg width="100%" height="{h}" viewBox="0 0 {w} {h}" '
-                    f'preserveAspectRatio="none" style="display:block;">'
-                    f'<title>{tooltip}</title>'
-                    f'<defs><linearGradient id="sg{safe_id}" x1="0" y1="0" x2="0" y2="1">'
-                    f'<stop offset="0%" stop-color="{color}" stop-opacity="0.28"/>'
-                    f'<stop offset="100%" stop-color="{color}" stop-opacity="0.02"/>'
-                    f'</linearGradient></defs>'
-                    f'<path d="{path_d}{area_close}" fill="url(#sg{safe_id})"/>'
-                    f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
-                    f'{dots}'
-                    f'</svg>'
-                )
-        except Exception:
-            pass
+                
+                # Tooltip
+                tooltip = " - ".join([f"{a}:{v:.0f}%" for a, v in zip(anos, valores)])
+                
+                # Construir SVG manualmente
+                svg_parts = []
+                svg_parts.append(f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" style="display:block;margin:5px auto;">')
+                svg_parts.append(f'<line x1="0" y1="{height/2}" x2="{width}" y2="{height/2}" stroke="#ddd" stroke-width="1" stroke-dasharray="3"/>')
+                svg_parts.append(f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2"/>')
+                for p in points:
+                    xy = p.split(",")
+                    svg_parts.append(f'<circle cx="{xy[0]}" cy="{xy[1]}" r="3" fill="{color}"/>')
+                svg_parts.append(f'<title>{tooltip}</title>')
+                svg_parts.append('</svg>')
+                
+                sparkline = "".join(svg_parts)
+                
+        except Exception as e:
+            sparkline = f"<!-- Error: {str(e)} -->"
 
-    # ── Detail para consolidado ──────────────────────────────────────────────
-    detail_html = ""
+    # Construir HTML de la tarjeta con orden: icono, valor, indicadores, título, gráfico
+    card_html = "<div class='rg-card' style='border-left:4px solid " + color + ";background:linear-gradient(140deg,#fff,#" + color[1:] + "1E);padding:12px;margin:5px 0;border-radius:8px;'>"
+    card_html += "<div style='display:flex;align-items:center;margin-bottom:8px;'>"
+    card_html += "<div style='font-size:28px;margin-right:10px;'>" + icon + "</div>"
+    card_html += "<div style='text-align:right;flex:1;'>"
+    card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
+    card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
     if projects is not None or retos is not None:
         detail_indicators = indicators if indicators is not None else count
         detail_parts = [f"{indicators_label}: {detail_indicators}"]
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
+            # Evitar duplicar el mismo valor si la unidad ya es el label de retos
             if str(retos_label).strip().lower() != str(unit).strip().lower():
                 detail_parts.append(f"{retos_label}: {retos}")
-        detail_html = (
-            f"<div style='font-size:9.5px;color:{color}BB;margin-top:3px;"
-            f"white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>"
-            + " · ".join(detail_parts) + "</div>"
-        )
-
-    # ── Sección sparkline con altura fija y overflow:hidden ─────────────────
-    spark_section = (
-        f"<div style='height:38px;box-sizing:border-box;overflow:hidden;"
-        f"border-top:1px solid {color}28;padding:5px 8px 4px;"
-        f"background:linear-gradient(180deg,transparent,{color}08);'>"
-        f"{sparkline_svg}</div>"
-        if sparkline_svg
-        else f"<div style='height:38px;border-top:1px solid {color}28;'></div>"
-    )
-
-    # ── HTML de la tarjeta (flex-column, overflow:hidden) ────────────────────
-    card_html = (
-        f"<div style='"
-        f"border-left:4px solid {color};"
-        f"background:linear-gradient(145deg,#ffffff 55%,{color}12 100%);"
-        f"border:1px solid {color}38;"
-        f"border-left:4px solid {color};"
-        f"border-radius:12px;"
-        f"box-shadow:0 2px 12px {color}28,0 1px 3px rgba(0,0,0,0.06);"
-        f"overflow:hidden;"
-        f"display:flex;flex-direction:column;"
-        f"margin:4px 0;"
-        f"'>"
-        # Área de contenido
-        f"<div style='padding:11px 12px 8px;flex:1;'>"
-        f"<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;'>"
-        f"<div style='font-size:22px;line-height:1;'>{icon}</div>"
-        f"<div style='text-align:right;'>"
-        f"<div style='font-size:20px;font-weight:800;color:{color};line-height:1;letter-spacing:-0.02em;'>{cumplimiento:.1f}%</div>"
-        f"<div style='font-size:10px;color:#6B7A90;margin-top:2px;font-weight:500;'>{count} {unit}</div>"
-        f"{detail_html}"
-        f"</div></div>"
-        f"<div style='font-size:11.5px;font-weight:700;color:#1E3A5F;letter-spacing:0.01em;line-height:1.3;'>{title}</div>"
-        f"</div>"
-        + spark_section
-        + "</div>"
-    )
-
+        detail_text = " · ".join(detail_parts)
+        card_html += "<div style='font-size:11px;color:#444;margin-top:4px;'>" + detail_text + "</div>"
+    card_html += "</div></div>"
+    card_html += "<div style='font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;'>" + title + "</div>"
+    # Sparkline en contenedor de altura fija para evitar superposición con otros elementos
+    if sparkline:
+        card_html += "<div style='overflow:hidden;height:44px;'>" + sparkline + "</div>"
+    card_html += "</div>"
+    
     st.markdown(card_html, unsafe_allow_html=True)
 
 
@@ -2158,16 +2138,16 @@ def _render_chip(value: int, label: str, color: str):
     st.markdown(
         f"""
         <div style='
-            background:linear-gradient(145deg,{color}18 0%,{color}06 100%);
-            border:1px solid {color}44;
-            border-top:3px solid {color};
-            border-radius:12px;
-            padding:14px 10px 12px;
+            background:linear-gradient(180deg,{color}14 0%,{color}05 100%);
+            border:1px solid {color}30;
+            border-top:4px solid {color};
+            border-radius:10px;
+            padding:14px 12px 12px;
             text-align:center;
-            box-shadow:0 2px 10px {color}22;
+            box-shadow:0 2px 8px {color}1A;
         '>
             <div style='font-size:1.85rem;font-weight:800;color:{color};line-height:1;'>{value}</div>
-            <div style='font-size:0.73rem;color:#4F6781;font-weight:600;margin-top:5px;letter-spacing:0.01em;'>{label}</div>
+            <div style='font-size:0.75rem;color:#4F6781;font-weight:600;margin-top:5px;letter-spacing:0.01em;'>{label}</div>
         </div>
         """,
         unsafe_allow_html=True,
