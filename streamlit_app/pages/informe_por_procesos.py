@@ -547,11 +547,11 @@ def _cat_to_score(val: object) -> float | None:
     t = _norm_text(val)
     if not t:
         return None
-    if "parcial" in t:
+    if "PARCIAL" in t:
         return 50.0
-    if "no cumple" in t:
+    if "NO CUMPLE" in t:
         return 0.0
-    if "cumple" in t:
+    if "CUMPLE" in t:
         return 100.0
     return None
 
