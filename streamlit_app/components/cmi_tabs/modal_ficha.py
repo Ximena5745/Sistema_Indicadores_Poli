@@ -480,7 +480,8 @@ def render_modal_ficha(ind_data: pd.Series):
             "margin-bottom:10px'>Ficha de Identidad</p>",
             unsafe_allow_html=True,
         )
-        _card_field("👤 RESPONSABLE", responsable)
+        _card_field("� ID INDICADOR", id_ind)
+        _card_field("�👤 RESPONSABLE", responsable)
         _card_field("🗄 FUENTE DE DATOS", fuente)
         _card_field("ƒ FÓRMULA DE CÁLCULO", formula, monospace=True)
         _card_field("📅 PERIODICIDAD", periodicidad)
