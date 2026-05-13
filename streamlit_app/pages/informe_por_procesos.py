@@ -430,40 +430,41 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
         scrolling=False,
     )
 
+    year_labels = [str(ano) for ano, _ in rows]
+    year_values = [prom for _, prom in rows]
+    max_val = max(year_values) if year_values else 100
+
     figure = go.Figure(
         data=[
             go.Bar(
-                x=[str(ano) for ano, _ in rows],
-                y=[prom for _, prom in rows],
-                marker_color=bar_colors,
-                marker_line=dict(color=[c + "cc" for c in bar_colors], width=1.5),
-                text=[f"{prom:.1f}%" for _, prom in rows],
+                x=year_labels,
+                y=year_values,
+                marker=dict(color=bar_colors),
+                text=[f"{prom:.1f}%" for prom in year_values],
                 textposition="outside",
                 textfont=dict(size=12, color="#0f172a", family="Inter, sans-serif"),
                 hovertemplate="Año %{x}: %{y:.1f}%<extra></extra>",
-                width=0.55,
             )
         ]
     )
     figure.update_layout(
-        margin=dict(l=0, r=0, t=10, b=0),
+        margin=dict(l=0, r=0, t=20, b=0),
         height=220,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(248,250,252,0.6)",
         xaxis=dict(
+            type="category",
             showgrid=False,
-            tickfont=dict(size=12, color="#0f172a"),
-            tickmode="array",
-            tickvals=[str(ano) for ano, _ in rows],
+            tickfont=dict(size=13, color="#0f172a"),
         ),
         yaxis=dict(
             showgrid=True,
             gridcolor="rgba(15,23,42,0.07)",
             tickfont=dict(size=11, color="#64748b"),
             ticksuffix="%",
-            range=[0, max(prom for _, prom in rows) * 1.18],
+            range=[0, max_val * 1.20],
         ),
-        bargap=0.35,
+        bargap=0.4,
     )
     st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
 
