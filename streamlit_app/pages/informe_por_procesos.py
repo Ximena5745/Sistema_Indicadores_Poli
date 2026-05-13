@@ -615,7 +615,8 @@ def _render_calidad_header(score_global: float) -> None:
 
 
 def _render_calidad_gauge_dims(score_global: float, dim_scores: dict[str, float]) -> None:
-    col_gauge, col_dims = st.columns([1, 2])
+    col_gauge, col_dims, col_radar = st.columns([1, 1.4, 1.6])
+
     with col_gauge:
         color = "#66bb6a" if score_global >= 90 else ("#ffa726" if score_global >= 70 else "#ef5350")
         capped = min(score_global, 100.0)
@@ -642,7 +643,7 @@ def _render_calidad_gauge_dims(score_global: float, dim_scores: dict[str, float]
         fig.update_layout(
             margin=dict(t=0, b=0, l=0, r=0),
             showlegend=False,
-            height=200,
+            height=220,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
@@ -650,73 +651,84 @@ def _render_calidad_gauge_dims(score_global: float, dim_scores: dict[str, float]
 
     with col_dims:
         st.markdown(
-            "<div style='font-size:0.8rem;font-weight:600;color:#64748B;"
+            "<div style='font-size:0.78rem;font-weight:600;color:#64748B;"
             "text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;'>"
             "DIMENSIONES DE CALIDAD</div>",
             unsafe_allow_html=True,
         )
-        pairs = list(dim_scores.items())
-        for i in range(0, len(pairs), 2):
-            cols = st.columns(2)
-            for j, (dim, score) in enumerate(pairs[i : i + 2]):
-                clr = _DIM_COLORS.get(dim, "#1A3A5C")
-                bar_w = max(0, min(100, score))
-                with cols[j]:
-                    st.markdown(
-                        f"""
-                        <div style='margin-bottom:8px;'>
-                            <div style='display:flex;justify-content:space-between;
-                                        font-size:0.8rem;font-weight:600;color:#374151;
-                                        margin-bottom:3px;'>
-                                <span>{dim}</span>
-                                <span style='color:{clr};font-weight:700;'>{score:.0f}%</span>
-                            </div>
-                            <div style='background:#E5E7EB;border-radius:6px;height:8px;'>
-                                <div style='background:{clr};width:{bar_w}%;height:8px;
-                                            border-radius:6px;'></div>
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+        for dim, score in dim_scores.items():
+            clr = _DIM_COLORS.get(dim, "#1A3A5C")
+            bar_w = max(0, min(100, score))
+            st.markdown(
+                f"""
+                <div style='margin-bottom:10px;'>
+                    <div style='display:flex;justify-content:space-between;
+                                font-size:0.8rem;font-weight:600;color:#374151;
+                                margin-bottom:3px;'>
+                        <span>{dim}</span>
+                        <span style='color:{clr};font-weight:700;'>{score:.0f}%</span>
+                    </div>
+                    <div style='background:#E5E7EB;border-radius:6px;height:8px;'>
+                        <div style='background:{clr};width:{bar_w}%;height:8px;
+                                    border-radius:6px;'></div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with col_radar:
+        if dim_scores:
+            dims = list(dim_scores.keys())
+            vals = [dim_scores[d] for d in dims]
+            vals_closed = vals + [vals[0]]
+            dims_closed = dims + [dims[0]]
+            fig_r = go.Figure(go.Scatterpolar(
+                r=vals_closed,
+                theta=dims_closed,
+                fill="toself",
+                fillcolor="rgba(66, 165, 245, 0.18)",
+                line=dict(color="#1A3A5C", width=2),
+                marker=dict(color="#1A3A5C", size=5),
+            ))
+            fig_r.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=8)),
+                    angularaxis=dict(tickfont=dict(size=10, color="#374151")),
+                    bgcolor="rgba(0,0,0,0)",
+                ),
+                showlegend=False,
+                height=220,
+                margin=dict(t=10, b=10, l=20, r=20),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+            )
+            st.markdown(
+                "<div style='font-size:0.78rem;font-weight:600;color:#64748B;"
+                "text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;'>"
+                "ANÁLISIS POR DIMENSIÓN</div>",
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(fig_r, use_container_width=True)
 
 
-def _render_calidad_radar(dim_scores: dict[str, float]) -> None:
-    dims = list(dim_scores.keys())
-    vals = [dim_scores[d] for d in dims]
-    vals_closed = vals + [vals[0]]
-    dims_closed = dims + [dims[0]]
-    fig = go.Figure(go.Scatterpolar(
-        r=vals_closed,
-        theta=dims_closed,
-        fill="toself",
-        fillcolor="rgba(66, 165, 245, 0.2)",
-        line=dict(color="#1A3A5C", width=2),
-        marker=dict(color="#1A3A5C", size=6),
-    ))
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=9)),
-            angularaxis=dict(tickfont=dict(size=11, color="#374151")),
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        showlegend=False,
-        height=320,
-        margin=dict(t=20, b=20, l=40, r=40),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
-    st.markdown(
-        "<div style='font-size:1rem;font-weight:700;color:#0f172a;margin:16px 0 4px 0;'>"
-        "📊 Análisis por Dimensión</div>",
-        unsafe_allow_html=True,
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
-def _render_calidad_alertas(dim_scores: dict[str, float]) -> None:
+def _render_calidad_alertas(dim_scores: dict[str, float], df_scored: pd.DataFrame) -> None:
     if not dim_scores:
         return
+
+    # --- Conteos reales por dimensión ---
+    dim_stats: dict[str, dict] = {}
+    for dim in _DIM_MAP:
+        if dim in df_scored.columns:
+            col_data = pd.to_numeric(df_scored[dim], errors="coerce").dropna()
+            n_total = len(col_data)
+            dim_stats[dim] = {
+                "total": n_total,
+                "cumple": int((col_data == 100).sum()),
+                "parcial": int((col_data == 50).sum()),
+                "no_cumple": int((col_data == 0).sum()),
+            }
+
     worst_dim = min(dim_scores, key=dim_scores.get)
     best_dim = max(dim_scores, key=dim_scores.get)
     worst_score = dim_scores[worst_dim]
@@ -727,40 +739,59 @@ def _render_calidad_alertas(dim_scores: dict[str, float]) -> None:
         "⚠️ Alertas de Calidad</div>",
         unsafe_allow_html=True,
     )
-    # Alerta naranja si peor dimensión < 90
+
+    # Alerta naranja: peor dimensión
     if worst_score < 90:
+        ws = dim_stats.get(worst_dim, {})
+        n_nc = ws.get("no_cumple", 0)
+        n_pa = ws.get("parcial", 0)
+        n_tot = ws.get("total", 0)
+        # Indicadores que NO CUMPLE en la dimensión peor
+        ind_nc_list: list[str] = []
+        if n_tot > 0 and worst_dim in df_scored.columns:
+            mask = pd.to_numeric(df_scored[worst_dim], errors="coerce") == 0
+            ind_nc_list = [str(v) for v in df_scored.loc[mask, "Indicador"].tolist() if str(v) not in ("nan", "")]
+        ind_nc_html = (
+            "<ul style='margin:4px 0 0 0;padding-left:18px;'>"
+            + "".join(f"<li style='font-size:0.8rem;color:#78350f;'>{i}</li>" for i in ind_nc_list[:5])
+            + ("</ul>" if ind_nc_list else "")
+        )
+        det_nc = f"{n_nc} NO CUMPLE" + (f", {n_pa} CUMPLE PARCIALMENTE" if n_pa else "") + (f" de {n_tot} indicadores" if n_tot else "")
         st.markdown(
             f"""
             <div style='background:#fff8e1;border:1px solid #ffa726;border-radius:10px;
                         padding:12px 16px;margin-bottom:8px;'>
                 <div style='font-weight:700;color:#e65100;margin-bottom:4px;'>
-                    ⏱ Oportunidad Mejorable
+                    ⏱ Dimensión Crítica: {worst_dim} ({worst_score:.0f}/100)
                 </div>
                 <div style='font-size:0.82rem;color:#78350f;'>
-                    <b>Dimensión:</b> {worst_dim} ({worst_score:.0f}/100)<br>
-                    <b>Problema:</b> La dimensión {worst_dim.lower()} presenta el puntaje más bajo del proceso.<br>
-                    <b>Impacto:</b> Limita la confiabilidad global del reporte de calidad.<br>
-                    <b>Recomendación:</b> Revisar indicadores con calificación NO CUMPLE en esta dimensión
-                    y establecer acciones correctivas priorizadas.
+                    <b>Estado:</b> {det_nc}<br>
+                    <b>Impacto:</b> Esta dimensión arrastra el score global hacia abajo.
+                    {ind_nc_html if ind_nc_list else ""}
+                    <b style='display:block;margin-top:4px;'>Acción:</b>
+                    Revisar los indicadores con NO CUMPLE y asignar responsables para corrección.
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-    # Fortaleza verde si mejor dimensión >= 90
+
+    # Fortaleza verde: mejor dimensión
     if best_score >= 90:
+        bs = dim_stats.get(best_dim, {})
+        n_cum = bs.get("cumple", 0)
+        n_tot_b = bs.get("total", 0)
+        pct_ok = f"{n_cum}/{n_tot_b}" if n_tot_b else "—"
         st.markdown(
             f"""
             <div style='background:#e8f5e9;border:1px solid #66bb6a;border-radius:10px;
                         padding:12px 16px;margin-bottom:8px;'>
                 <div style='font-weight:700;color:#1b5e20;margin-bottom:4px;'>
-                    ✓ Fortaleza: {best_dim} Excelente
+                    ✓ Fortaleza: {best_dim} Excelente ({best_score:.0f}/100)
                 </div>
                 <div style='font-size:0.82rem;color:#1b5e20;'>
-                    <b>Dimensión:</b> {best_dim} ({best_score:.0f}/100)<br>
-                    <b>Logro:</b> El {best_score:.0f}% de los indicadores cumplen los criterios de {best_dim.lower()}.<br>
-                    <b>Mantener:</b> Continuar con las prácticas actuales y documentar las mejores prácticas
-                    para replicarlas en otras dimensiones.
+                    <b>Logro:</b> {pct_ok} indicadores CUMPLEN los criterios de {best_dim.lower()}.<br>
+                    <b>Mantener:</b> Documentar las prácticas actuales y replicarlas en las demás dimensiones.
                 </div>
             </div>
             """,
@@ -847,53 +878,105 @@ def _render_calidad_recomendaciones(
         unsafe_allow_html=True,
     )
     recs = []
-    # Alta: indicador con peor score total
+
+    # --- Alta: indicador con peor score total ---
     if not df_scored.empty and "Score Total" in df_scored.columns:
         peores = df_scored.dropna(subset=["Score Total"]).copy()
         peores["Score Total"] = pd.to_numeric(peores["Score Total"], errors="coerce")
         peores = peores.sort_values("Score Total")
         if not peores.empty:
-            worst_ind = str(peores.iloc[0].get("Indicador", ""))
-            worst_score = float(peores.iloc[0]["Score Total"])
-            peores_dims = []
+            worst_row = peores.iloc[0]
+            worst_ind = str(worst_row.get("Indicador", ""))
+            worst_score = float(worst_row["Score Total"])
+            # Dimensiones que fallan para este indicador
+            dims_fallando = []
             for dim in _DIM_MAP:
-                v = _to_float(peores.iloc[0].get(dim))
-                if v is not None and v < 80:
-                    peores_dims.append(dim)
-            acciones = [
-                f"Completar datos faltantes del indicador (score actual: {worst_score:.0f}/100)",
-                "Estandarizar fuente de datos y validar con el responsable del proceso",
-                f"Revisar criterios de {', '.join(peores_dims) if peores_dims else 'calidad'} en este indicador",
+                v = _to_float(worst_row.get(dim))
+                if v is not None and v < 100:
+                    dims_fallando.append(f"{dim} ({v:.0f}%)")
+            acciones_alta = [
+                f"Score actual del indicador: {worst_score:.0f}/100 — meta requerida: 85/100.",
             ]
-            recs.append(("Alta Prioridad", f"Indicador \"{worst_ind}\"", f"Score actual: {worst_score:.0f}/100 — Meta: 85/100", acciones, "#ef5350", "#ffebee"))
+            if dims_fallando:
+                acciones_alta.append(
+                    f"Dimensiones con incumplimiento: {', '.join(dims_fallando)}."
+                )
+            acciones_alta.append(
+                "Convocar al responsable del indicador para validar la fuente de datos y corregir los registros con NO CUMPLE."
+            )
+            recs.append((
+                "Alta Prioridad",
+                f"Indicador con mayor riesgo: «{worst_ind}»",
+                f"Score actual: {worst_score:.0f}/100",
+                acciones_alta,
+                "#ef5350", "#ffebee",
+            ))
 
-    # Media: dimensión con peor score global
+    # --- Media: dimensión con peor score ---
     if dim_scores:
         worst_dim = min(dim_scores, key=dim_scores.get)
         worst_dim_score = dim_scores[worst_dim]
         if worst_dim_score < 90:
+            # Indicadores que fallan en esa dimensión
+            ind_nc: list[str] = []
+            if worst_dim in df_scored.columns:
+                mask = pd.to_numeric(df_scored[worst_dim], errors="coerce") < 100
+                ind_nc = [str(v) for v in df_scored.loc[mask, "Indicador"].tolist() if str(v) not in ("nan", "")]
+            n_nc = len(ind_nc)
             acciones_med = [
-                f"Reducir indicadores con NO CUMPLE en {worst_dim}",
-                "Configurar recordatorios y responsables claros por dimensión",
-                "Capacitar a los responsables de proceso en los criterios de calidad",
+                f"La dimensión {worst_dim} tiene score {worst_dim_score:.0f}/100 — {n_nc} indicador(es) sin CUMPLIMIENTO TOTAL.",
             ]
-            recs.append(("Media Prioridad", f"Mejorar {worst_dim} General", f"Score actual: {worst_dim_score:.0f}/100 — Meta: 90/100", acciones_med, "#ffa726", "#fff8e1"))
+            if ind_nc:
+                listado = ", ".join(f'«{i}»' for i in ind_nc[:3])
+                if len(ind_nc) > 3:
+                    listado += f" y {len(ind_nc) - 3} más"
+                acciones_med.append(f"Indicadores afectados: {listado}.")
+            acciones_med.append(
+                f"Definir plan de acción para llevar {worst_dim} de {worst_dim_score:.0f}% a ≥ 90% antes del próximo corte."
+            )
+            recs.append((
+                "Media Prioridad",
+                f"Fortalecer dimensión: {worst_dim}",
+                f"Score actual: {worst_dim_score:.0f}/100 — Meta: ≥ 90/100",
+                acciones_med,
+                "#ffa726", "#fff8e1",
+            ))
 
-    # Baja: mejor dimensión — mantener
+    # --- Baja: mejor dimensión — mantener ---
     if dim_scores:
         best_dim = max(dim_scores, key=dim_scores.get)
         best_score = dim_scores[best_dim]
+        # Conteo real de indicadores que cumplen al 100%
+        n_ok = 0
+        n_tot = 0
+        if best_dim in df_scored.columns:
+            col_data = pd.to_numeric(df_scored[best_dim], errors="coerce").dropna()
+            n_ok = int((col_data == 100).sum())
+            n_tot = len(col_data)
         acciones_low = [
-            "Auditorías trimestrales de datos cargados",
-            "Documentar mejores prácticas actuales",
-            "Reconocimiento a responsables con mejor desempeño",
+            f"{n_ok} de {n_tot} indicadores CUMPLEN al 100% en la dimensión {best_dim} (score: {best_score:.0f}/100).",
+            "Documentar las prácticas que sostienen este resultado para aplicarlas en otras dimensiones.",
+            "Auditar trimestralmente para asegurar que el estándar se mantenga.",
         ]
-        recs.append(("Baja Prioridad", f"Mantener Estándares de {best_dim}", f"Score actual: {best_score:.0f}/100 — Mantener", acciones_low, "#66bb6a", "#e8f5e9"))
+        recs.append((
+            "Baja Prioridad",
+            f"Mantener estándar en: {best_dim}",
+            f"Score actual: {best_score:.0f}/100 — Mantener",
+            acciones_low,
+            "#66bb6a", "#e8f5e9",
+        ))
 
-    priorities_color = {"Alta Prioridad": "#ef5350", "Media Prioridad": "#ffa726", "Baja Prioridad": "#66bb6a"}
-    for i, (prio, titulo, subtitulo, acciones, dot_color, bg_color) in enumerate(recs):
+    priorities_color = {
+        "Alta Prioridad": "#ef5350",
+        "Media Prioridad": "#ffa726",
+        "Baja Prioridad": "#66bb6a",
+    }
+    for prio, titulo, subtitulo, acciones, dot_color, bg_color in recs:
         pcolor = priorities_color.get(prio, "#64748B")
-        items_html = "".join(f"<li style='font-size:0.82rem;color:#374151;margin-bottom:3px;'>{a}</li>" for a in acciones)
+        items_html = "".join(
+            f"<li style='font-size:0.82rem;color:#374151;margin-bottom:3px;'>{a}</li>"
+            for a in acciones
+        )
         st.markdown(
             f"""
             <div style='display:flex;gap:12px;margin-bottom:10px;'>
@@ -1149,8 +1232,7 @@ def render() -> None:
 
                 _render_calidad_header(score_global)
                 _render_calidad_gauge_dims(score_global, dim_scores)
-                _render_calidad_radar(dim_scores)
-                _render_calidad_alertas(dim_scores)
+                _render_calidad_alertas(dim_scores, df_scored)
                 _render_detalle_indicadores(df_scored)
                 _render_calidad_recomendaciones(dim_scores, df_scored)
 
