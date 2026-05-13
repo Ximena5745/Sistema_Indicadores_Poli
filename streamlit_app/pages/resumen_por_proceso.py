@@ -2958,6 +2958,7 @@ def _render_indicadores_subproceso_cards(
             cols = st.columns(3)
             for idx, (_, row) in enumerate(page_df.iterrows()):
                 indicador = str(row.get("Indicador", "")).strip() or "Indicador sin nombre"
+                ind_id = str(row.get("Id", "")).strip()
                 meta = _fmt_short_value(row.get("Meta"))
                 ejec = _fmt_short_value(row.get("Ejecucion"))
                 cumpl = _to_float(row.get("Cumplimiento_pct"))
@@ -2994,7 +2995,7 @@ def _render_indicadores_subproceso_cards(
                         <div class='informe-card'>
                             <div class='informe-card-header'>
                                 <div>
-                                    <div class='informe-card-title'>{indicador}</div>
+                                    <div class='informe-card-title'>{ind_id + ". " if ind_id else ""}{indicador}</div>
                                     <div class='informe-card-meta'>
                                         <span>Meta: <strong>{meta}</strong></span>
                                         <span>Ejecución: <strong>{ejec}</strong></span>
