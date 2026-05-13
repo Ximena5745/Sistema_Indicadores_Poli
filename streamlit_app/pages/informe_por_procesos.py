@@ -606,7 +606,7 @@ def _render_calidad_header(score_global: float) -> None:
             <div style='background:{bg};color:{fg};border:1px solid {fg};
                         border-radius:20px;padding:4px 14px;font-size:0.82rem;
                         font-weight:700;'>
-                SCORE GLOBAL: {score_global:.0f}/100
+                SCORE GLOBAL: {score_global:.0f}%
             </div>
         </div>
         """,
@@ -629,9 +629,9 @@ def _render_calidad_gauge_dims(score_global: float, dim_scores: dict[str, float]
             sort=False,
         ))
         fig.add_annotation(
-            text=f"<b>{score_global:.0f}</b>",
+            text=f"<b>{score_global:.0f}%</b>",
             x=0.5, y=0.58,
-            font=dict(size=30, color=color, family="Inter, sans-serif"),
+            font=dict(size=28, color=color, family="Inter, sans-serif"),
             showarrow=False, xanchor="center",
         )
         fig.add_annotation(
@@ -906,7 +906,7 @@ def _render_detalle_indicadores(df_scored: pd.DataFrame) -> None:
             _, fg = _score_color(total)
             total_cell = (
                 f"<td style='padding:6px 10px;text-align:center;font-size:0.9rem;"
-                f"font-weight:700;color:{fg};'>{total:.0f}</td>"
+                f"font-weight:700;color:{fg};'>{total:.0f}%</td>"
             )
         rows_html += (
             f"<tr style='border-bottom:1px solid #f1f5f9;'>"
