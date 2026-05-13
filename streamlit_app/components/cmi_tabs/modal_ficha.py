@@ -171,7 +171,8 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
     h["_Periodo_fecha"] = h["Periodo"].apply(_periodo_a_fecha)
     if h["_Periodo_fecha"].notna().any():
         h = h.sort_values("_Periodo_fecha").tail(12)
-        x_values = h["_Periodo_fecha"]
+        # Formatear como "Nov 2025" para evitar interpolación de timestamps en Plotly
+        x_values = h["_Periodo_fecha"].dt.strftime("%b %Y")
     else:
         h = h.sort_values("Periodo").tail(12)
         x_values = h["Periodo"]
@@ -234,7 +235,7 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
                 delta_text = f"+{delta:.1f}pp" if delta >= 0 else f"{delta:.1f}pp"
                 arrow_color = "#16A34A" if delta >= 0 else "#DC2626"
                 fig.add_annotation(
-                    x=h.loc[last_i, "Periodo"],
+                    x=x_values.iloc[list(h.index).index(last_i)] if hasattr(x_values, "iloc") else x_values[last_i],
                     y=float(cump_vals[last_i]),
                     text=f"<b>{delta_text}</b>",
                     showarrow=True,
@@ -266,7 +267,7 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
         bargroupgap=0.08,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                     font=dict(size=10)),
-        xaxis=dict(showgrid=False, tickfont=dict(size=9)),
+        xaxis=dict(type="category", showgrid=False, tickfont=dict(size=9)),
         yaxis=dict(
             title="Valor",
             showgrid=True, gridcolor="#F1F5F9", tickfont=dict(size=9),
