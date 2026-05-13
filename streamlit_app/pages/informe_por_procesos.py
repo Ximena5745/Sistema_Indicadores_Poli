@@ -526,6 +526,396 @@ def _render_distribution_cards(filtered: pd.DataFrame) -> None:
     )
 
 
+# ── Calidad de Datos — funciones auxiliares ───────────────────────────────────
+
+_DIM_MAP = {
+    "Completitud": "II. COMPLETITUD",
+    "Consistencia": "III. CONSISTENCIA",
+    "Oportunidad": "I. OPORTUNIDAD",
+    "Exactitud": "IV. PRECISIÓN",
+}
+
+_DIM_COLORS = {
+    "Completitud": "#42a5f5",
+    "Consistencia": "#66bb6a",
+    "Oportunidad": "#ffa726",
+    "Exactitud": "#ab47bc",
+}
+
+
+def _cat_to_score(val: object) -> float | None:
+    t = _norm_text(val)
+    if not t:
+        return None
+    if "parcial" in t:
+        return 50.0
+    if "no cumple" in t:
+        return 0.0
+    if "cumple" in t:
+        return 100.0
+    return None
+
+
+def _compute_calidad_scores(df: pd.DataFrame) -> pd.DataFrame:
+    """Convierte df de calidad con columnas categóricas a scores numéricos 0-100."""
+    if df.empty:
+        return pd.DataFrame()
+    work = df.copy()
+    indicator_col = "Temática" if "Temática" in work.columns else None
+    work["Indicador"] = work[indicator_col].astype(str).str.strip() if indicator_col else "Sin nombre"
+    for dim_name, src_col in _DIM_MAP.items():
+        if src_col in work.columns:
+            work[dim_name] = work[src_col].apply(_cat_to_score)
+        else:
+            work[dim_name] = None
+    score_cols = [d for d in _DIM_MAP if d in work.columns]
+    work["Score Total"] = work[score_cols].mean(axis=1, skipna=True).round(0).astype("Int64")
+    return work[["Indicador"] + list(_DIM_MAP.keys()) + ["Score Total"]].copy()
+
+
+def _dim_scores_global(df_scored: pd.DataFrame) -> dict[str, float]:
+    out = {}
+    for dim in _DIM_MAP:
+        if dim in df_scored.columns:
+            vals = pd.to_numeric(df_scored[dim], errors="coerce").dropna()
+            out[dim] = round(float(vals.mean()), 1) if not vals.empty else 0.0
+        else:
+            out[dim] = 0.0
+    return out
+
+
+def _score_color(score: float) -> tuple[str, str]:
+    """Retorna (bg, fg) según score."""
+    if score >= 90:
+        return "#e8f5e9", "#1b5e20"
+    if score >= 70:
+        return "#fff8e1", "#e65100"
+    return "#ffebee", "#b71c1c"
+
+
+def _render_calidad_header(score_global: float) -> None:
+    bg, fg = _score_color(score_global)
+    st.markdown(
+        f"""
+        <div style='display:flex;align-items:center;justify-content:space-between;
+                    margin-bottom:16px;'>
+            <div style='font-size:1.25rem;font-weight:700;color:#0f172a;'>
+                ⚡ Evaluación de Calidad de Datos
+            </div>
+            <div style='background:{bg};color:{fg};border:1px solid {fg};
+                        border-radius:20px;padding:4px 14px;font-size:0.82rem;
+                        font-weight:700;'>
+                SCORE GLOBAL: {score_global:.0f}/100
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_calidad_gauge_dims(score_global: float, dim_scores: dict[str, float]) -> None:
+    col_gauge, col_dims = st.columns([1, 2])
+    with col_gauge:
+        color = "#66bb6a" if score_global >= 90 else ("#ffa726" if score_global >= 70 else "#ef5350")
+        capped = min(score_global, 100.0)
+        fig = go.Figure(go.Pie(
+            values=[capped, max(0.0, 100.0 - capped)],
+            hole=0.72,
+            marker=dict(colors=[color, "#E5E7EB"]),
+            textinfo="none",
+            hoverinfo="none",
+            sort=False,
+        ))
+        fig.add_annotation(
+            text=f"<b>{score_global:.0f}</b>",
+            x=0.5, y=0.58,
+            font=dict(size=30, color=color, family="Inter, sans-serif"),
+            showarrow=False, xanchor="center",
+        )
+        fig.add_annotation(
+            text="SCORE TOTAL",
+            x=0.5, y=0.40,
+            font=dict(size=9, color="#64748B", family="Inter, sans-serif"),
+            showarrow=False, xanchor="center",
+        )
+        fig.update_layout(
+            margin=dict(t=0, b=0, l=0, r=0),
+            showlegend=False,
+            height=200,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_dims:
+        st.markdown(
+            "<div style='font-size:0.8rem;font-weight:600;color:#64748B;"
+            "text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;'>"
+            "DIMENSIONES DE CALIDAD</div>",
+            unsafe_allow_html=True,
+        )
+        pairs = list(dim_scores.items())
+        for i in range(0, len(pairs), 2):
+            cols = st.columns(2)
+            for j, (dim, score) in enumerate(pairs[i : i + 2]):
+                clr = _DIM_COLORS.get(dim, "#1A3A5C")
+                bar_w = max(0, min(100, score))
+                with cols[j]:
+                    st.markdown(
+                        f"""
+                        <div style='margin-bottom:8px;'>
+                            <div style='display:flex;justify-content:space-between;
+                                        font-size:0.8rem;font-weight:600;color:#374151;
+                                        margin-bottom:3px;'>
+                                <span>{dim}</span>
+                                <span style='color:{clr};font-weight:700;'>{score:.0f}%</span>
+                            </div>
+                            <div style='background:#E5E7EB;border-radius:6px;height:8px;'>
+                                <div style='background:{clr};width:{bar_w}%;height:8px;
+                                            border-radius:6px;'></div>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+
+def _render_calidad_radar(dim_scores: dict[str, float]) -> None:
+    dims = list(dim_scores.keys())
+    vals = [dim_scores[d] for d in dims]
+    vals_closed = vals + [vals[0]]
+    dims_closed = dims + [dims[0]]
+    fig = go.Figure(go.Scatterpolar(
+        r=vals_closed,
+        theta=dims_closed,
+        fill="toself",
+        fillcolor="rgba(66, 165, 245, 0.2)",
+        line=dict(color="#1A3A5C", width=2),
+        marker=dict(color="#1A3A5C", size=6),
+    ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=9)),
+            angularaxis=dict(tickfont=dict(size=11, color="#374151")),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        showlegend=False,
+        height=320,
+        margin=dict(t=20, b=20, l=40, r=40),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    st.markdown(
+        "<div style='font-size:1rem;font-weight:700;color:#0f172a;margin:16px 0 4px 0;'>"
+        "📊 Análisis por Dimensión</div>",
+        unsafe_allow_html=True,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_calidad_alertas(dim_scores: dict[str, float]) -> None:
+    if not dim_scores:
+        return
+    worst_dim = min(dim_scores, key=dim_scores.get)
+    best_dim = max(dim_scores, key=dim_scores.get)
+    worst_score = dim_scores[worst_dim]
+    best_score = dim_scores[best_dim]
+
+    st.markdown(
+        "<div style='font-size:1rem;font-weight:700;color:#0f172a;margin:16px 0 8px 0;'>"
+        "⚠️ Alertas de Calidad</div>",
+        unsafe_allow_html=True,
+    )
+    # Alerta naranja si peor dimensión < 90
+    if worst_score < 90:
+        st.markdown(
+            f"""
+            <div style='background:#fff8e1;border:1px solid #ffa726;border-radius:10px;
+                        padding:12px 16px;margin-bottom:8px;'>
+                <div style='font-weight:700;color:#e65100;margin-bottom:4px;'>
+                    ⏱ Oportunidad Mejorable
+                </div>
+                <div style='font-size:0.82rem;color:#78350f;'>
+                    <b>Dimensión:</b> {worst_dim} ({worst_score:.0f}/100)<br>
+                    <b>Problema:</b> La dimensión {worst_dim.lower()} presenta el puntaje más bajo del proceso.<br>
+                    <b>Impacto:</b> Limita la confiabilidad global del reporte de calidad.<br>
+                    <b>Recomendación:</b> Revisar indicadores con calificación NO CUMPLE en esta dimensión
+                    y establecer acciones correctivas priorizadas.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    # Fortaleza verde si mejor dimensión >= 90
+    if best_score >= 90:
+        st.markdown(
+            f"""
+            <div style='background:#e8f5e9;border:1px solid #66bb6a;border-radius:10px;
+                        padding:12px 16px;margin-bottom:8px;'>
+                <div style='font-weight:700;color:#1b5e20;margin-bottom:4px;'>
+                    ✓ Fortaleza: {best_dim} Excelente
+                </div>
+                <div style='font-size:0.82rem;color:#1b5e20;'>
+                    <b>Dimensión:</b> {best_dim} ({best_score:.0f}/100)<br>
+                    <b>Logro:</b> El {best_score:.0f}% de los indicadores cumplen los criterios de {best_dim.lower()}.<br>
+                    <b>Mantener:</b> Continuar con las prácticas actuales y documentar las mejores prácticas
+                    para replicarlas en otras dimensiones.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def _render_detalle_indicadores(df_scored: pd.DataFrame) -> None:
+    if df_scored.empty:
+        st.info("Sin datos de detalle.")
+        return
+    st.markdown(
+        "<div style='font-size:1rem;font-weight:700;color:#0f172a;margin:16px 0 8px 0;'>"
+        "📋 Detalle por Indicador</div>",
+        unsafe_allow_html=True,
+    )
+    dims = list(_DIM_MAP.keys())
+    header_cells = "".join(
+        f"<th style='padding:8px 10px;background:#f1f5f9;color:#374151;"
+        f"font-size:0.75rem;font-weight:700;text-transform:uppercase;"
+        f"letter-spacing:0.05em;white-space:nowrap;'>{d.upper()}</th>"
+        for d in dims
+    )
+    header = (
+        "<tr>"
+        "<th style='padding:8px 10px;background:#f1f5f9;color:#374151;"
+        "font-size:0.75rem;font-weight:700;text-transform:uppercase;"
+        "letter-spacing:0.05em;text-align:left;'>INDICADOR</th>"
+        + header_cells
+        + "<th style='padding:8px 10px;background:#f1f5f9;color:#374151;"
+        "font-size:0.75rem;font-weight:700;text-transform:uppercase;"
+        "letter-spacing:0.05em;'>SCORE TOTAL</th>"
+        "</tr>"
+    )
+    rows_html = ""
+    for _, row in df_scored.iterrows():
+        ind = str(row.get("Indicador", ""))
+        dim_cells = ""
+        for dim in dims:
+            val = _to_float(row.get(dim))
+            if val is None:
+                dim_cells += "<td style='padding:6px 10px;text-align:center;'><span style='background:#eceff1;color:#607d8b;border-radius:6px;padding:2px 8px;font-size:0.78rem;'>—</span></td>"
+            else:
+                bg, fg = _score_color(val)
+                dim_cells += (
+                    f"<td style='padding:6px 10px;text-align:center;'>"
+                    f"<span style='background:{bg};color:{fg};border-radius:6px;"
+                    f"padding:2px 8px;font-size:0.78rem;font-weight:600;'>{val:.0f}%</span>"
+                    f"</td>"
+                )
+        total = _to_float(row.get("Score Total"))
+        if total is None:
+            total_cell = "<td style='padding:6px 10px;text-align:center;color:#9ca3af;font-size:0.85rem;'>—</td>"
+        else:
+            _, fg = _score_color(total)
+            total_cell = (
+                f"<td style='padding:6px 10px;text-align:center;font-size:0.9rem;"
+                f"font-weight:700;color:{fg};'>{total:.0f}</td>"
+            )
+        rows_html += (
+            f"<tr style='border-bottom:1px solid #f1f5f9;'>"
+            f"<td style='padding:8px 10px;font-size:0.85rem;color:#0f172a;"
+            f"max-width:280px;line-height:1.3;'>{ind}</td>"
+            + dim_cells
+            + total_cell
+            + "</tr>"
+        )
+    st.markdown(
+        f"<div style='overflow-x:auto;'>"
+        f"<table style='width:100%;border-collapse:collapse;'>"
+        f"<thead>{header}</thead>"
+        f"<tbody>{rows_html}</tbody>"
+        f"</table></div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_calidad_recomendaciones(
+    dim_scores: dict[str, float], df_scored: pd.DataFrame
+) -> None:
+    st.markdown(
+        "<div style='font-size:1rem;font-weight:700;color:#0f172a;margin:16px 0 8px 0;'>"
+        "💡 Recomendaciones Priorizadas</div>",
+        unsafe_allow_html=True,
+    )
+    recs = []
+    # Alta: indicador con peor score total
+    if not df_scored.empty and "Score Total" in df_scored.columns:
+        peores = df_scored.dropna(subset=["Score Total"]).copy()
+        peores["Score Total"] = pd.to_numeric(peores["Score Total"], errors="coerce")
+        peores = peores.sort_values("Score Total")
+        if not peores.empty:
+            worst_ind = str(peores.iloc[0].get("Indicador", ""))
+            worst_score = float(peores.iloc[0]["Score Total"])
+            peores_dims = []
+            for dim in _DIM_MAP:
+                v = _to_float(peores.iloc[0].get(dim))
+                if v is not None and v < 80:
+                    peores_dims.append(dim)
+            acciones = [
+                f"Completar datos faltantes del indicador (score actual: {worst_score:.0f}/100)",
+                "Estandarizar fuente de datos y validar con el responsable del proceso",
+                f"Revisar criterios de {', '.join(peores_dims) if peores_dims else 'calidad'} en este indicador",
+            ]
+            recs.append(("Alta Prioridad", f"Indicador \"{worst_ind}\"", f"Score actual: {worst_score:.0f}/100 — Meta: 85/100", acciones, "#ef5350", "#ffebee"))
+
+    # Media: dimensión con peor score global
+    if dim_scores:
+        worst_dim = min(dim_scores, key=dim_scores.get)
+        worst_dim_score = dim_scores[worst_dim]
+        if worst_dim_score < 90:
+            acciones_med = [
+                f"Reducir indicadores con NO CUMPLE en {worst_dim}",
+                "Configurar recordatorios y responsables claros por dimensión",
+                "Capacitar a los responsables de proceso en los criterios de calidad",
+            ]
+            recs.append(("Media Prioridad", f"Mejorar {worst_dim} General", f"Score actual: {worst_dim_score:.0f}/100 — Meta: 90/100", acciones_med, "#ffa726", "#fff8e1"))
+
+    # Baja: mejor dimensión — mantener
+    if dim_scores:
+        best_dim = max(dim_scores, key=dim_scores.get)
+        best_score = dim_scores[best_dim]
+        acciones_low = [
+            "Auditorías trimestrales de datos cargados",
+            "Documentar mejores prácticas actuales",
+            "Reconocimiento a responsables con mejor desempeño",
+        ]
+        recs.append(("Baja Prioridad", f"Mantener Estándares de {best_dim}", f"Score actual: {best_score:.0f}/100 — Mantener", acciones_low, "#66bb6a", "#e8f5e9"))
+
+    priorities_color = {"Alta Prioridad": "#ef5350", "Media Prioridad": "#ffa726", "Baja Prioridad": "#66bb6a"}
+    for i, (prio, titulo, subtitulo, acciones, dot_color, bg_color) in enumerate(recs):
+        pcolor = priorities_color.get(prio, "#64748B")
+        items_html = "".join(f"<li style='font-size:0.82rem;color:#374151;margin-bottom:3px;'>{a}</li>" for a in acciones)
+        st.markdown(
+            f"""
+            <div style='display:flex;gap:12px;margin-bottom:10px;'>
+                <div style='flex-shrink:0;'>
+                    <div style='width:12px;height:12px;border-radius:50%;
+                                background:{dot_color};margin-top:4px;'></div>
+                </div>
+                <div style='background:{bg_color};border:1px solid {dot_color};
+                            border-radius:10px;padding:12px 14px;flex:1;'>
+                    <div style='font-size:0.75rem;font-weight:700;color:{pcolor};
+                                text-transform:uppercase;margin-bottom:2px;'>{prio}</div>
+                    <div style='font-size:0.9rem;font-weight:700;color:#0f172a;
+                                margin-bottom:2px;'>{titulo}</div>
+                    <div style='font-size:0.78rem;color:#64748B;margin-bottom:6px;'>{subtitulo}</div>
+                    <div style='font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;'>Acciones:</div>
+                    <ul style='margin:0;padding-left:16px;'>{items_html}</ul>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def render() -> None:
     st.title("Informe por Procesos")
 
@@ -736,7 +1126,6 @@ def render() -> None:
             _render_indicadores_subproceso_cards(filtered, historic_base, int(anio), selected_month_num, map_df, proceso_sel)
 
     with tabs[2]:
-        st.markdown("### Calidad")
         calidad_df, calidad_msg = _load_calidad_data()
         if calidad_msg:
             st.warning(calidad_msg)
@@ -753,8 +1142,16 @@ def render() -> None:
             if calidad_df.empty:
                 st.info("Sin datos de calidad para el filtro seleccionado.")
             else:
-                _render_calidad_kpis_cards(calidad_df)
-                st.dataframe(calidad_df.head(100), use_container_width=True)
+                df_scored = _compute_calidad_scores(calidad_df)
+                dim_scores = _dim_scores_global(df_scored)
+                score_global = round(float(pd.Series(list(dim_scores.values())).mean()), 1) if dim_scores else 0.0
+
+                _render_calidad_header(score_global)
+                _render_calidad_gauge_dims(score_global, dim_scores)
+                _render_calidad_radar(dim_scores)
+                _render_calidad_alertas(dim_scores)
+                _render_detalle_indicadores(df_scored)
+                _render_calidad_recomendaciones(dim_scores, df_scored)
 
     with tabs[3]:
         st.markdown("### Auditoría")

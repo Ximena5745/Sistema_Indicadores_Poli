@@ -142,10 +142,16 @@ html body .stContainer div[data-baseweb="pills"] button {
 }
 html body [data-testid="stPillsOption"][aria-pressed="true"],
 html body button[data-testid="stPillsOption"][aria-pressed="true"],
+html body [data-testid="stPillsOption"][aria-selected="true"],
+html body button[data-testid="stPillsOption"][aria-selected="true"],
 html body [data-testid="stPills"] button[aria-pressed="true"],
+html body [data-testid="stPills"] button[aria-selected="true"],
 html body div[data-baseweb="pills"] button[aria-pressed="true"],
+html body div[data-baseweb="pills"] button[aria-selected="true"],
 html body .stContainer [data-testid="stPills"] button[aria-pressed="true"],
-html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] {
+html body .stContainer [data-testid="stPills"] button[aria-selected="true"],
+html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"],
+html body .stContainer div[data-baseweb="pills"] button[aria-selected="true"] {
     background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
     border-color: var(--fp-sel-border) !important;
@@ -153,9 +159,21 @@ html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] {
     font-weight: 800 !important;
 }
 html body [data-testid="stPills"] button[aria-pressed="true"] > div,
+html body [data-testid="stPills"] button[aria-selected="true"] > div,
 html body [data-testid="stPills"] button[aria-pressed="true"] > span,
+html body [data-testid="stPills"] button[aria-selected="true"] > span,
 html body div[data-baseweb="pills"] button[aria-pressed="true"] > div,
-html body div[data-baseweb="pills"] button[aria-pressed="true"] > span {
+html body div[data-baseweb="pills"] button[aria-selected="true"] > div,
+html body div[data-baseweb="pills"] button[aria-pressed="true"] > span,
+html body div[data-baseweb="pills"] button[aria-selected="true"] > span,
+html body .stContainer [data-testid="stPills"] button[aria-pressed="true"] > div,
+html body .stContainer [data-testid="stPills"] button[aria-selected="true"] > div,
+html body .stContainer [data-testid="stPills"] button[aria-pressed="true"] > span,
+html body .stContainer [data-testid="stPills"] button[aria-selected="true"] > span,
+html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] > div,
+html body .stContainer div[data-baseweb="pills"] button[aria-selected="true"] > div,
+html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] > span,
+html body .stContainer div[data-baseweb="pills"] button[aria-selected="true"] > span {
     color: #FFFFFF !important;
 }
 
