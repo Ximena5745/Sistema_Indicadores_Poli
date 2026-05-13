@@ -402,50 +402,68 @@ def _render_year_comparison(historic_base: pd.DataFrame, selected_month_num: int
         prom = float(row["promedio"]) if pd.notna(row["promedio"]) else 0.0
         rows.append((ano, prom))
 
-    cards_html = ""
-    palettes = [
-        (COLORS['primary'], COLORS['primary_light']),
-        (COLORS['success'], COLORS['success_light']),
-        (COLORS['info'], COLORS['info_light']),
-        (COLORS['warning'], COLORS['warning_light']),
+    # Paleta de colores diferenciados por año
+    year_colors = [
+        ("#2563eb", "#dbeafe"),  # azul
+        ("#16a34a", "#dcfce7"),  # verde
+        ("#d97706", "#fef3c7"),  # ámbar
+        ("#7c3aed", "#ede9fe"),  # violeta
     ]
+    cards_html = ""
+    bar_colors = []
     for index, (ano, prom) in enumerate(rows):
-        border_color, accent_color = palettes[index % len(palettes)]
+        accent_color, bg_color = year_colors[index % len(year_colors)]
+        bar_colors.append(accent_color)
         cards_html += f"""
-            <div style='padding:20px;border-radius:18px;background:{COLORS['surface']};border:1px solid #E2E8F0;box-shadow:0 10px 24px rgba(15,23,42,0.06);border-left:4px solid {accent_color};'>
-                <div style='font-size:0.82rem;font-weight:700;color:{border_color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;'>Año {ano}</div>
-                <div style='font-size:2.4rem;font-weight:800;color:{COLORS['text_primary']};'>{prom:.1f}%</div>
-                <div style='font-size:0.84rem;color:{COLORS['text_secondary']};margin-top:10px;'>Cumplimiento promedio</div>
+            <div style='padding:12px 16px;border-radius:14px;background:{bg_color};border:1px solid {accent_color}33;box-shadow:0 4px 12px rgba(15,23,42,0.06);border-left:4px solid {accent_color};'>
+                <div style='font-size:0.75rem;font-weight:700;color:{accent_color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;'>Año {ano}</div>
+                <div style='font-size:1.9rem;font-weight:800;color:#0f172a;line-height:1.1;'>{prom:.1f}%</div>
+                <div style='font-size:0.76rem;color:#64748b;margin-top:4px;'>Cumplimiento promedio</div>
             </div>
         """
     components.html(
         f"""
-        <div style='margin:22px 0 12px;font-size:1rem;font-weight:700;color:#0f172a;'>Evolución comparativa interanual</div>
-        <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:22px;'>{cards_html}</div>
+        <div style='margin:16px 0 8px;font-size:0.95rem;font-weight:700;color:#0f172a;'>Evolución comparativa interanual</div>
+        <div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;'>{cards_html}</div>
         """,
-        height=260,
+        height=160,
         scrolling=False,
     )
 
     figure = go.Figure(
         data=[
             go.Bar(
-                x=[ano for ano, _ in rows],
+                x=[str(ano) for ano, _ in rows],
                 y=[prom for _, prom in rows],
-                marker_color="#2563eb",
+                marker_color=bar_colors,
+                marker_line=dict(color=[c + "cc" for c in bar_colors], width=1.5),
                 text=[f"{prom:.1f}%" for _, prom in rows],
                 textposition="outside",
-                hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
+                textfont=dict(size=12, color="#0f172a", family="Inter, sans-serif"),
+                hovertemplate="Año %{x}: %{y:.1f}%<extra></extra>",
+                width=0.55,
             )
         ]
     )
     figure.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=320,
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=220,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(248,250,252,0.8)",
-        xaxis=dict(showgrid=False, tickfont=dict(size=12, color="#0f172a")),
-        yaxis=dict(showgrid=True, gridcolor="rgba(15,23,42,0.08)", tickfont=dict(size=12, color="#0f172a"), ticksuffix="%"),
+        plot_bgcolor="rgba(248,250,252,0.6)",
+        xaxis=dict(
+            showgrid=False,
+            tickfont=dict(size=12, color="#0f172a"),
+            tickmode="array",
+            tickvals=[str(ano) for ano, _ in rows],
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="rgba(15,23,42,0.07)",
+            tickfont=dict(size=11, color="#64748b"),
+            ticksuffix="%",
+            range=[0, max(prom for _, prom in rows) * 1.18],
+        ),
+        bargap=0.35,
     )
     st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
 
@@ -1119,14 +1137,14 @@ def render() -> None:
 
     with tabs[0]:
         st.markdown("### Resumen Ejecutivo")
-        if filtered.empty:
+        if latest.empty:
             st.info("No hay datos disponibles.")
         else:
-            summary = _build_executive_summary(filtered, base_df)
+            summary = _build_executive_summary(latest, base_df)
             _render_executive_cards(summary)
             _render_year_comparison(historic_base, selected_month_num)
-            _render_critical_indicators(filtered)
-            _render_distribution_cards(filtered)
+            _render_critical_indicators(latest)
+            _render_distribution_cards(latest)
 
     with tabs[1]:
         st.markdown("### Indicadores")
