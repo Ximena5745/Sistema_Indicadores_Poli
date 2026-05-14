@@ -204,13 +204,23 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
             ))
             has_primary = True
 
+    # ── Paleta de colores por año para barras de Ejecución ────────────────────
+    _YEAR_PALETTE = ["#1A3A5C", "#2563EB", "#0EA5E9", "#7C3AED", "#059669", "#D97706", "#DC2626"]
+    _year_list = [
+        int(re.search(r"\d{4}", str(xv)).group()) if re.search(r"\d{4}", str(xv)) else 0
+        for xv in x_values
+    ]
+    _unique_years = sorted(set(y for y in _year_list if y > 0))
+    _year_color_map = {yr: _YEAR_PALETTE[i % len(_YEAR_PALETTE)] for i, yr in enumerate(_unique_years)}
+    _bar_colors = [_year_color_map.get(y, COLORES.get("primario", "#1A3A5C")) for y in _year_list]
+
     # ── Ejecución (barras) ───────────────────────────────────────────────────
     if "Ejecucion" in h.columns:
         ev = pd.to_numeric(h["Ejecucion"], errors="coerce")
         if ev.notna().sum() >= 1:
             fig.add_trace(go.Bar(
                 x=x_values, y=ev, name="Ejecución",
-                marker_color=COLORES.get("primario", "#1A3A5C"),
+                marker_color=_bar_colors,
                 opacity=0.85,
                 yaxis="y1",
                 offsetgroup="ejec",
@@ -382,6 +392,25 @@ def render_modal_ficha(ind_data: pd.Series):
         hist = cierres[cierres["Id"].astype(str) == id_ind].copy()
 
     tend_label, tend_icon = _tendencia_desde_hist(hist)
+
+    # ── Fallback cumplimiento: si ind_data trae 0 pero hist tiene datos reales ──────
+    if cump == 0.0 and not hist.empty:
+        _hcol = _find_cumplimiento_col(hist)
+        if _hcol:
+            _hvals = pd.to_numeric(hist[_hcol], errors="coerce").dropna()
+            if not _hvals.empty:
+                cump = float(_hvals.iloc[-1])
+                if nivel in ("Sin dato", ""):
+                    _last_idx = _hvals.index[-1]
+                    for _cat_col in ("Categoria", "Nivel de cumplimiento"):
+                        if _cat_col in hist.columns:
+                            _cat_val = hist.loc[_last_idx, _cat_col]
+                            if pd.notna(_cat_val) and str(_cat_val) not in ("nan", "None", ""):
+                                nivel = str(_cat_val)
+                                break
+                # Recalcular colores con nivel actualizado
+                nivel_color = COLOR_CATEGORIA.get(nivel, COLORES.get("sin_dato", "#BDBDBD"))
+                nivel_bg    = COLOR_CATEGORIA_CLARO.get(nivel, "#EEEEEE")
 
     # ── SECCIÓN 1: ENCABEZADO + DONUT ────────────────────────────────────────
     col_hdr, col_donut = st.columns([1.75, 1])
