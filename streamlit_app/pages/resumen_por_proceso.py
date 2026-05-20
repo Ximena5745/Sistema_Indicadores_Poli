@@ -2962,6 +2962,19 @@ def _render_indicadores_subproceso_cards(
                 meta = _fmt_short_value(row.get("Meta"))
                 ejec = _fmt_short_value(row.get("Ejecucion"))
                 cumpl = _to_float(row.get("Cumplimiento_pct"))
+                # Fallback: si cumpl es None, buscar el último valor histórico disponible
+                if cumpl is None and not historic_df.empty and ind_id:
+                    _hist_ind = historic_df[historic_df["Id"].astype(str).str.strip() == ind_id]
+                    if not _hist_ind.empty:
+                        _hist_cump = pd.to_numeric(_hist_ind.get("Cumplimiento_pct", pd.Series(dtype=float)), errors="coerce").dropna()
+                        if not _hist_cump.empty:
+                            cumpl = float(_hist_cump.iloc[-1])
+                elif cumpl is None and not historic_df.empty and indicador:
+                    _hist_ind = historic_df[historic_df["Indicador"].astype(str) == indicador]
+                    if not _hist_ind.empty:
+                        _hist_cump = pd.to_numeric(_hist_ind.get("Cumplimiento_pct", pd.Series(dtype=float)), errors="coerce").dropna()
+                        if not _hist_cump.empty:
+                            cumpl = float(_hist_cump.iloc[-1])
                 categoria = _categoria_por_pct(cumpl)
 
                 previo = None
