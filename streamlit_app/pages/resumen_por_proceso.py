@@ -57,6 +57,7 @@ NIVELES_COLORS = {
     "cumplimiento": "#2E7D32",
     "alerta": "#F9A825",
     "peligro": "#C62828",
+    "reportado": "#1976D2",
     "sin dato": "#6E7781",
 }
 
@@ -2976,6 +2977,12 @@ def _render_indicadores_subproceso_cards(
                         if not _hist_cump.empty:
                             cumpl = float(_hist_cump.iloc[-1])
                 categoria = _categoria_por_pct(cumpl)
+                
+                # Si no hay cumplimiento pero hay Ejecución reportada, mostrar "Reportado"
+                if categoria == "Sin dato" and row.get("Ejecucion") is not None:
+                    ejecucion_val = _to_float(row.get("Ejecucion"))
+                    if ejecucion_val is not None and ejecucion_val > 0:
+                        categoria = "Reportado"
 
                 previo = None
                 if anio is not None and "Anio" in historic_df.columns:

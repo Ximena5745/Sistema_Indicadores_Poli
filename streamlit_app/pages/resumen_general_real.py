@@ -540,7 +540,7 @@ def render():
     for col, label, value, color in zip(kpi_cols, labels, values, colors):
         with col:
             st.markdown(
-                f"<div style='background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px;text-align:center;'>"
+                f"<div style='background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:18px;text-align:center;min-height:140px;display:flex;flex-direction:column;justify-content:center;'>"
                 f"<div style='font-size:30px;font-weight:800;color:{color};'>{value}</div>"
                 f"<div style='font-size:12px;color:#64748B;letter-spacing:0.08em;margin-top:8px;'>{label}</div>"
                 f"</div>",
