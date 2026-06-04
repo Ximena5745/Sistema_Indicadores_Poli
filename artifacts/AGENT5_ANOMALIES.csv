@@ -1,0 +1,4 @@
+ID,Type,Severity,Category,Description,Count,Examples,Impact,Solution
+ANOMALY-001,Duplicate,MEDIUM,Duplicates,"181 duplicate (ID, fecha) combinations found",181,ID 122 has 8 records for 2025-01-31,Double counting in aggregations,Add deduplication in consolidar_api.py
+ANOMALY-002,RangeViolation,MEDIUM,Ranges,17 negative resultado values,17,Various IDs with resultado < 0,Negative fulfillment in dashboards,Investigate source or add filter
+ANOMALY-003,RangeViolation,MEDIUM,Ranges,1756 resultado values > 1.3 (130%),1756,Values exceeding 130% fulfillment,Distorted scales in dashboards,Verify agent5_corrections.py capping

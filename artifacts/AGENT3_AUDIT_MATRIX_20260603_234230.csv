@@ -1,0 +1,598 @@
+ID,Nombre,Tipo,Padre,Clasificación,Proceso,Periodicidad,Sentido,Fórmula,Responsable,Fuente
+61,CONSUMO ENERGÍA ELÉCTRICA SEDE CAMPUS,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+62,GESTIÓN DEL AIRE SEDE CAMPUS,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+63,MANTENIMIENTO DISEÑO PAISAJÍSTICO SEDE CAMPUS,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+64,EDUCACIÓN AMBIENTAL,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+65,EFICACIA EN CAPACITACIÓN AMBIENTAL,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+66,CUMPLIMIENTO SGA SEDE CAMPUS,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+67,CONSUMO DE AGUA SEDE CAMPUS,Principal,,✅,✅,✅,❌,✅,✅,Ficha Técnica
+68,Evaluación de desempeño a proveedores críticos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+69,Oportunidad de respuesta solicitudes de compra no ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+73,Tiempo respuesta selección y contratación de colab,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+74,Efectividad en las contrataciones,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+77,Disponibilidad de servicios tecnológicos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+78,Cumplimiento Programa De Auditoría,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+79,Cierre Eficaz De Oportunidades De Mejora De Audito,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+84,Funcionamiento del Copasst,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+85,Plan de Emergencias,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+86,Reporte e Investigación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+87,Autoevaluación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+88,Seguimiento del plan de trabajo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+89,Ejecución plan de capacitación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+90,Ejecución de Simulacros,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+91,Participación en capacitaciones SST,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+92,Evaluación condiciones de salud (Examen Médico),Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+94,Cobertura de colaboradores con Elementos de Protec,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+95,Inspecciones de seguridad,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+96,Inducción Institucional,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+100,Cumplimiento de requisitos legales SST,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+104,Tasa de accidentalidad,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+106,Mortalidad de los accidentes laborales,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+108,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+109,Nivel de satisfacción de los servicios prestados,Principal,,✅,✅,✅,✅,✅,❌,Ficha Técnica
+110,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+111,NIVEL DE SATISFACCIÓN SERVICIOS PRESTADOS,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+112,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+113,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+114,Nivel de satisfacción de los servicios prestados -,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+115,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+116,Nivel de Satisfacción Servicios Prestados - Percep,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+117,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+118,Nivel de Satisfacción del sistema de gestión de ca,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+121,Ejecución presupuestal de la nómina acumulada,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+122,Eficacia en la solicitud documental- por periodo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+124,Indice de Frecuencia de accidentalidad,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+125,Indice de severidad,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+126,Indice de Prevalencia EL Enfermedad laboral,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+127,Indice de Incidencia EL Enfermedad laboral,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+128,Ausentísmo por causa médica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+133,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+136,Ejecución de actividades culturales,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+137,Ejecución de Talleres de formación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+139,Ejecución presupuestal del gasto,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+143,Proyectos de investigación e innovación- Metrica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+144,Productos de investigación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+145,"Semilleros de investigación, innovación y creación",Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+146,Profesores vinculados a investigación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+147,Grupos de investigación reconocidos y categorizado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+148,Estudiantes vinculados a investigación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+150,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+151,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+157,Indexación de bases de datos o sires,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+159,Nivel de Satisfacción Servicios Prestados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+167,Satisfacción actividades plan de bienestar,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+171,ANS documentos operativos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+172,Cumplimiento plan operativo del SGC,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+174,Cumplimiento plan de formación SGC,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+176,Cumplimiento planes de mejora,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+193,Porcentaje de Cumplimiento del Acuerdo de Nivel de,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+194,Índice de satisfacción del estudiante (SSI),Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+195,NPS- Net Promotor Score,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+196,(% de solicitudes procesos Pareto),Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+197,Cumplimiento cronograma Mantenimiento de Equipos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+199,Nivel de cumplimiento de eficacia las capacitacion,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+200,Nivel de efectividad de las capacitaciones,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+202,Great Place to Work,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+203,Cumplimiento de Ingresos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+204,Caja,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+205,Utilidad Neta,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+206,Inversión en CAPEX de la utilidad anterior,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+207,Nivel de Cumplimiento Opex,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+208,Consumo de Agua m3 Mensual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+210,Aporte de los Procesos a los Objetivos de Desarrol,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+213,Cumplimiento del Plan Anual del Sistema de Gestión,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+214,Generación de Residuos Sólidos Mensual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+215,Disminución de la Generación de Residuos per Cápit,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+216,Disposición Ambientalmente Adecuada de Residuos Pe,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+217,Aprovechamiento de Residuos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+218,Consumo de Energía Eléctrica kWh Mensual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+219,Disminución del Consumo de Energía Eléctrica per C,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+220,Disminución del Consumo de Agua per Cápita,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+221,Riesgo de la Calidad del Agua Potable,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+222,Calidad de las Aguas Residuales Domesticas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+223,Registro de Publicidad Exterior Visual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+224,Cumplimiento Nivel de Emisión de Ruido,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+225,Acciones para el Cuidado y Mantenimiento de las Es,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+226,Generación de Gases de Efecto Invernadero,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+227,Generación de  Gases de Efecto Invernadero per Cáp,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+228,Compensación de Gases de Efecto Invernadero,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+230,Ejecución de Eventos de Formación en Materia Ambie,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+231,Asistencia Eventos de Formación en Materia Ambient,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+232,Ejecución de las Comunicaciones en Materia Ambient,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+233,Impacto de las Comunicaciones Correo Electrónico,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+234,Impacto de las Comunicaciones en Materia Ambiental,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+235,Cumplimiento de Requisitos Legales Ambientales Apl,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+236,Actos Administrativos o Decisiones Judiciales Ambi,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+237,Cumplimiento Proyecto nuevo Polisigs,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+238,Cumplimiento de la Protección del Medio Ambiente,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+239,Portafolio De Proyectos - Metrica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+240,Cumplimiento De Gestión De Proyectos Cerrados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+241,Cumplimiento De Gestión De Proyectos Fase Inicio,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+242,Cumplimiento A Cronograma De Proyectos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+243,Cumplimiento De Gestión De Proyectos Control De Ca,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+244,GreenMetric - Nacional,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+245,Tasa de Permanencia Intersemestral,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+246,Satisfacción del proceso de grados presencial,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+247,Solicitud de certificados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+248,Programas Con Reforzamiento Curricular,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+249,Programas Con Matriz De Resultado De Aprendizaje,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+251,Subprocesos Con CMI Estructurado.,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+252,Tasa de Permanencia Intersemestral de Estudiantes ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+253,Oportunidad en la entrega de informes de auditoria,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+254,Áreas con reportes de plan de retos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+255,Informe anual de variación de índice H - Metrica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+256,Publicaciones editadas por la editorial,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+257,N° de publicaciones aprobadas en convocatorias,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+259,Subprocesos con indicadores reportados oportunamen,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+260,CES- Costumer Effort Score del proceso de Rematríc,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+261,CES- Costumer Effort Score del proceso de Saber Pr,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+262,Reducción de número de sentencias condenatorias en,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+263,Oportunidad de respuesta de PQRS,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+264,Eficiencia Emisión De Conceptos Jurídicos (Educaci,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+265,Eficiencia Emisión De Conceptos Jurídicos (Jurídic,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+266,Oportunidad en la elaboración de contratos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+267,Satisfacción procesos de Homologaciones,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+268,Cantidad de usuarios,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+269,N de personas promedio por evento,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+270,N de horas promedio por evento,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+271,N de horas por solicitud,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+272,Proporción de accidentes de trabajo mortales,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+273,Número de programas con condiciones iniciales elab,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+274,Cumplimiento total estudiantes antiguos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+275,Satisfacción Institucional por grupo de interes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+276,Relación Estudiante-Docente Tiempo completo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+277,Relación estudiante docente Tiempo Completo Equiva,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+278,Docentes contratados - Metrica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+279,Docentes tiempo completo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+280,Docentes medio tiempo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+281,Docentes cátedra,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+282,Cobertura de Docentes evaluados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+283,Resultado evaluación docente,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+284,N° Horas semanales docentes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+285,Docentes con plan de trabajo asignado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+286,Total docentes por nivel de estudios,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+287,N° docentes escalafonados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+288,Número docentes escalafonados presentados en convo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+289,Cumplimiento plan de comunicaciones SGC,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+290,Cierre eficaz de las oportunidades de mejora,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+291,Cumplimiento del cronograma de actividades deporti,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+292,Participación en Actividades deportivas presencial,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+293,Cumplimiento del cronograma de actividades cultura,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+294,Participación en actividades culturales presencial,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+295,Cumplimiento Del Cierre Oportuno De Oportunidades ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+296,Cumplimiento de planes de supervisión y monitoreo ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+297,N° de riesgos intervenidos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+298,N° de riesgos materializados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+300,Cumplimiento de Inspecciones de control,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+301,Cumplimiento plan de trabajo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+302,N de solicitudes radicadas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+303,Cumplimiento del cronograma de actividades de salu,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+304,Impacto de Campañas de promoción y prevención,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+305,Cumplimiento del plan anual de mantenimiento de eq,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+306,Seguimiento KPI Plan de Desarrollo Institucional,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+307,Organización de escenarios de visibilidad nacional,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+308,Movilidad Física Entrantes Profesores,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+309,Movilidad Física Profesores Salientes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+310,Movilidad Física Entrante Estudiantes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+311,Movilidad Física Saliente Estudiantes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+312,Clases espejo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+313,Seminarios y cursos internacionales virtuales impa,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+314,N de asignaturas COIL - (Collaborative Online Inte,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+315,Num de programas con convenios de doble titulación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+316,Asignaturas con sesiones en segundo idioma,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+317,Plan De Internacionalización A 7 Años,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+318,"Convenios, alianzas activas con actividades en los",Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+319,Nivel de cumplimiento de la gestión de internacion,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+320,Participación docentes Poli en eventos académicos ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+321,Participación estudiantes Poli en eventos académic,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+323,Número de renovaciones de registro calificado apro,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+324,Número de programas nuevos radicados en el Ministe,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+325,Número de programas nuevos con registro calificado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+326,Número de informes de autoevaluación con fines de ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+327,Número de programas con obtención de acreditación ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+328,Nivel de encuestas obtenidas en el encuentro insti,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+541,Participación de graduados en actividades de emple,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+331,Nivel de empleabilidad del graduado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+332,Índice de rotación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+334,Resultado de la evaluación 360 (evaluación por com,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+335,Cumplimiento de diagnóstico necesidades de capacit,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+336,Materiales bibliográficos en formato físico con es,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+337,Número de programas con renovación de acreditación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+338,Número de programas con condiciones iniciales apro,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+339,Programas acreditables acreditados Sede Bogotá,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+340,Cumplimiento cronograma revisiones locativas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+341,Reducción de costos en gestión de abastecimiento,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+344,Cumplimiento del plan de Inducción institucional,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+345,% de profesores impactados plan de desarrollo doce,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+346,% de profesores impactados en actividades de Biene,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+347,Legalizaciones y anticipos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+348,Cuentas por pagar,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+349,N° de redes de investigación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+350,"Centros de investigación, ciencia y de apoyo a CTI",Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+351,Partidas conciliatorias de bancos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+352,Nivel de facturas generadas con error,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+353,Cobertura de tableros BI en procesos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+354,Plan de formación en analitica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+355,Indice de liquidez,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+356,Indice de Endeudamiento,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+357,Cartera,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+358,"Nivel de acompañamiento a estudiantes en práctica
+",Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+359,Satisfacción Institucional CSAT,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+360,NPS Employer,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+361,Índice de Inclusión,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+362,Aseguramiento de matricula académica presencial,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+363,Seguimiento a la parametrización de aulas master y,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+364,Impacto de actividades de Responsabilidad y proyec,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+365,Seguimiento de asignación docente a NRC Pregrado-P,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+366,Normalización de cobros pecuniarios,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+367,Estudiantes con Becas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+368,Satisfacción de los estudiantes de Educación para ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+369,Participación de POLI- voluntariados (Estudiantes-,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+370,Oportunidades de mejora - Huella Verde,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+371,Recaudación de fondos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+372,Satisfacción de los clientes corporativos Educació,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+373,Cumplimiento de planes anuales por líneas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+374,Disponibilidad de máster modalidad virtual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+375,Disponibilidad de catálogo de asignaturas pregrado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+376,Cumplimiento EBITDA,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+377,CAPEX,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+378,Proyectos Tecnológicos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+379,Total estudiantes nuevos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+380,Ingresos de matriculas de estudiantes nuevos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+381,Cumplimiento de matrículas pregrado presencial nue,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+382,Cumplimiento de matrículas pregrado virtual nuevos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+383,Cumplimiento de matrículas posgrado virtual nuevos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+384,Cumplimiento de matrículas posgrado presencial nue,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+385,Ingresos totales de educación para la vida,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+386,Cumplimiento Meta comercial Educación para toda la,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+387,Programas con reforzamiento curricular por escuela,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+388,Programas con matriz de resultados de aprendizaje ,Principal,,✅,✅,✅,❌,❌,❌,Ficha Técnica
+389,Permanencia por escuela,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+390,Cumplimiento Plan Anual por escuela,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+391,Satisfacción del cliente con campañas integradas d,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+392,Ahorro institucional con base en la monetización d,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+393,Disminución de los tiempos empleados en el desarro,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+394,Publicaciones en medios de comunicación Tier 1 y T,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+395,Publicaciones en medios de comunicación de la regi,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+396,Publicaciones en el Campus Virtual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+397,Gestión de casos del Estudio de Grabación Virtual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+398,Participación en actividades de desarrollo de Cult,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+399,Sesiones de Acompañamiento a emprendedores en crea,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+400,Puesta en marcha de proyectos de emprendimiento,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+401,Producción de nuevos MI-Books,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+402,Informe anual de consulta de MI-Books- Metrica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+403,Número de estudiantes que ha realizado la simulaci,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+404,Casos presentados y solucionados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+405,Proyecto de reingenieria y arquitectura de softwar,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+406,Programas con condiciones iniciales aprobadas por ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+407,Programas 1ra fase de condiciones iniciales radica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+408,Programas nuevos radicados por facultad,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+409,Oportunidad en tiempo de envios,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+410,Solicitudes de gestión documental,Principal,,✅,✅,✅,❌,❌,✅,Ficha Técnica
+411,Cumplimiento Planes De Relacionamiento,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+412,Participación en eventos externos de impacto,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+413,Participación del Poli como sede o patrocinador,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+414,Cumplimiento Plan Anual Rectoría,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+415,Cumplimiento Plan Anual Vicerrectoría del estudian,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+416,Cumplimiento Plan Anual Vicerrectoría de crecimien,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+417,Cumplimiento Plan Anual Vicerrectoría Financiera,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+418,Cumplimiento Plan Anual Vicerrectoría Académica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+420,Cumplimiento Plan Anual Gerencia de estrategia,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+421,Total Leads por canales de captación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+422,Total conversión,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+423,Brand equity,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+424,Conocimiento espontáneo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+425,Cumplimiento Leads Educación para la vida,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+426,Cumplimiento en la respuesta a solicitudes de comu,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+427,Consumo de Agua per Cápita Semestral,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+428,Consumo de Energía Eléctrica per Cápita Semestral,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+429,Generación de Residuos Sólidos per Cápita Semestra,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+430,Cumplimiento ingresos por matriculas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+431,Gestión de casos de salud que impactan a los colab,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+432,Intervención a la gestión del riesgo de los colabo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+433,Generación de Residuos Peligrosos per Cápita Semes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+434,Generación de Residuos Peligrosos Mensual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+435,Disminución de la Generación de Residuos Peligroso,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+436,ANS documentos operativos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+437,Nivel de Satisfacción Servicios Prestados - Riesgo,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+439,Disponibilidad de catálogo de asignaturas pregrado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+440,Aseguramiento de matricula académica virtual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+441,Cumplimiento a cronograma de proyectos 2024.,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+442,Participación de docentes invitados en eventos aca,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+443,Participación de estudiantes invitados en eventos ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+444,CES Proceso de grados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+445,Satisfacción del proceso de grados virtual,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+446,Oportunidad Tiempos de respuesta homologaciones,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+447,Participación en actividades culturales,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+448,Participación en actividades de formación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+449,Cumplimiento en la supervisión y monitoreo a los p,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+450,N° de riesgos materializados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+451,% Participación de publicaciones positiva,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+452,Seguimiento a eventos internos y externos instituc,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+453,Número de cursos diseñados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+454,Satisfacción de la calidad del contenido,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+455,ANS Diseño de contenidos virtuales,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+456,Impacto de campañas de Mailing,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+457,Apertura de enlaces en mensajes de texto,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+458,Visitas a Pagina Web,Principal,,✅,✅,✅,❌,✅,❌,Ficha Técnica
+459,Número de publicaciones e historias,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+460,% de profesores (Contrato Indefinido- Fijo) impact,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+462,Nivel Esfuerzo Editorial,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+463,Cumplimiento de las acciones del Plan de mejoramie,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+464,Impacto en Redes Sociales por Tipo de Red Social,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+465,% de depuración histórico  SNIES,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+466,NPS Estudiantes,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+467,NPS Graduados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+468,CES General,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+469,Cumplimiento Plan Anual Áreas sede Medellín,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+470,Cumplimiento plan anual Secretaria académica y de ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+471,Cumplimiento plan anual Gerencia de Talento Humano,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+472,Cobertura de Recolección de Variables ADA (Arquite,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+473,Programas con planes de estudios definidos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+474,Programas con planes de estudios definidos por esc,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+475,Número de renovaciones de registro calificado radi,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+476,Programas con resultados de aprendizaje definidos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+477,Programas con planes de estudios definidos por esc,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+478,Programas con planes de estudios definidos por esc,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+479,Programas con resultados de aprendizaje definidos ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+480,Programas con resultados de aprendizaje definidos ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+481,Solicitudes de documentación completadas,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+484,Cumplimiento del Programa de la Cultura del Autocu,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+485,Oportunidad en el cierre de acciones,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+486,Número de visitas a la página web,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+487,Impactados Talleres de formación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+488,Oportunidad en el cierre de actividades de los pla,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+490,Nivel de Satisfacción Servicios Prestados - Planea,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+491,Nivel de Satisfacción Servicios Prestados - Gestió,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+492,Nivel de Satisfacción Servicios Prestados - Desemp,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+493,Nivel de Satisfacción Servicios Prestados - Gestió,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+494,Nivel de Satisfacción Servicios Prestados - Admini,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+495,Nivel de Satisfacción Servicios Prestados - Contab,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+496,Nivel de Satisfacción Servicios Prestados - Planea,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+497,Nivel de Satisfacción Servicios Prestados - Tesore,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+498,Nivel de Satisfacción Servicios Prestados - Centro,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+499,Nivel de Satisfacción Servicios Prestados - Datos ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+500,Nivel de Satisfacción Servicios Prestados -Servici,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+501,Nivel de Satisfacción Servicios Prestados -Gestión,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+502,Nivel de Satisfacción Servicios Prestados -Formaci,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+503,Nivel de Satisfacción Servicios Prestados -Gestión,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+504,Nivel de Satisfacción Servicios Prestados - LEI,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+505,Nivel de Satisfacción Servicios Prestados - Mercad,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+506,Nivel de Satisfacción Servicios Prestados - Prácti,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+507,Nivel de Satisfacción Servicios Prestados -Cultura,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+508,Nivel de Satisfacción Servicios Prestados - Diseño,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+98," Productos de investigación, innovación y creación",Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+419,Cumplimiento Plan Anual Áreas sede Medellín,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+438,Seguimiento de asignación docente a NRC Pregrado-P,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+510,Frecuencia de incidentes de riesgos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+511,Eficacia de controles,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+513,Nivel de cumplimiento del plan de seguimiento a co,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+514,Porcentaje de causas con controles implementados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+800,Nivel de Satisfacción estudios internos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+509,Cumplimiento a cronograma de proyectos 2025,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+515,Porcentaje de procesos de control implementados,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+524,Total Leads por canales de captación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+519,Tasa de indicadores PDI con cumplimiento de meta e,Principal,,✅,✅,✅,✅,✅,❌,Ficha Técnica
+537,FCR- Resolución en primer contacto,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+525,Auxilios Educativos - Metrica,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+523,Ingresos totales de educación para la vida,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+522,Asignaturas o módulos con mecanismos de evaluación,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+526,Cumplimiento Politica Polisigs,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+529,Oportunidad en la solución de solicitudes de infra,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+544,Producción de ambientes inmersivos LEI,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+516,Porcentaje de colaboradores formados en cibersegur,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+550,Nivel de satisfacción con las actividades de forma,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+551,Evaluación del desempeño de los mentores,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+530,"Índice de Cumplimiento del Sprint
+
+",Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+531,Eficiencia de capacidad instalada,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+538,Cumplimiento de sesiones de socialización de plane,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+539,Satisfacción en la emisión de certificado,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+518,Cumplimiento Programa De Auditoría,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+540,Nivel de Calidad de los Datos Cargados al SNIES,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+527,Participación de Grupos de Interés en la construcc,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+528,Participación de la comunidad en balance instituci,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+546,Tasa de participación de graduados en instrumentos,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+556,Cumplimiento Plan de formación Intitucional,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+532,Actividades de Cooperación en Internacionalización,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+533,Participación de estudiantes externos invitados a ,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+534,Participación de estudiantes POLI en actividades d,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+535,Participación de profesores externos invitados a a,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+536,Participación de profesores POLI en actividades de,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+967,Coherencia y Pertinencia de la Misión Instituciona,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+552,Nivel de Satisfacción Servicios Prestados -Gestión,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+553,Nivel de Satisfacción Servicios Prestados -Inscrip,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+554,Nivel de Satisfacción Servicios Prestados -Permane,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+555,Nivel de Satisfacción Servicios Prestados -Mercade,Principal,,✅,✅,✅,✅,✅,✅,Ficha Técnica
+969,Oportunidad en tiempos de fase inicio,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+970,Oportunidad en tiempo de fase de cierre,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+972,"
+Seguimiento a ejecución presupuestal de los proye",Principal,,✅,✅,✅,✅,✅,❌,Ficha Técnica
+973,Índice de riesgos materializados en proyectos (Met,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+974,Tiempo promedio de ciclo de un estudio (desde soli,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+975,Nivel de cumplimiento de tamaños muestrales por gr,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+976,Número de visitas al informe se sostenibilidad por,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+977,Índice de oportunidad en el reporte de indicadores,Principal,,✅,✅,✅,✅,✅,❌,Ficha Técnica
+978,Tasa de cancelación de retos estratégicos,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+979,Índice de confiabilidad y consistencia de datos de,Principal,,❌,✅,✅,❌,✅,❌,Ficha Técnica
+329,Participación en actividades diseñadas para gradua,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+82,# de rutas diseñadas / #rutas implementadas,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+83,% de cumplimiento de implementación en cada eje,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+93,% avance plan de implementación,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+1,Innovación curricular,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+2,Plan Talento,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+3,Nuevo POLISIGS,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+4,Certificación SGA sede los Colores,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+5,Equidad de Genero,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+6,Portal Web Universitario,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+7,Data Lake Institucional,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+8,Catalogo de recursos virtuales,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+9,Monarca-Ecosistema Banner,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+10,Acreditación Institucional Sede Bogotá - Fase II -,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+11,Creación del Instituto de Educación para el trabaj,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+12,Creación del colegio de educación media virtual  -,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+13,Diseño del Modelo de Experiencia Institucional - F,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+14,Total Población,Principal,,✅,✅,✅,❌,❌,❌,Indicadores por CMI
+15,Plan anual Escuela De Ciencias Basicas,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+16,Plan anual Escuela De  Diseño,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+17,"Plan anual Escuela De Optimización, Infra Y Auto",Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+18,Plan anual Escuela TIC,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+19,Plan anual Escuela De Administración y competitivi,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+20,Plan anual Escuela De Contabilidad Internacional,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+21,Plan anual Escuela De Negocios Y Desarrollo Intern,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+22,"Plan anual Escuela De Comunicaciones, Artes Visual",Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+23,Plan anual Escuela De Educación E Innovación,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+24,Plan anual Escuela De Derecho Y Gobierno,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+25,Plan anual Escuela De Marketing Y Branding,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+26,"Plan anual Escuela De Psic, Talento Hum Y Soc",Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+27,Plan anual Vicerrectoría de crecimiento,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+28,Plan anual Vicerrectoría del estudiante,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+29,Plan anual Vicerrectoría financiera,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+30,Plan anual Vicerrectoría academica,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+31,Plan anual Gerencia de estrategia,Principal,,✅,❌,✅,✅,❌,❌,Indicadores por CMI
+32,Plan anual Gerencia de talento humano y desarrollo,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+33,Plan anual Gerencia de Medellín,Principal,,✅,❌,✅,✅,❌,❌,Indicadores por CMI
+34,Plan anual Secretaría General,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+415.1,Plan anual Gerencia de operaciones,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.2,Plan anual Gerencia de servicio y permanencia,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.10,Plan anual Gerencia de tecnologÍa e innovación dig,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.3,Plan anual BI y analitica,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.4,Plan anual Facultad registro y control,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.5,Plan anual Dirección de experiencia e inclusión,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.6,Plan anual Direccion bienestar universitario y hue,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+42,Plan anual Gerencia de matriculas,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+43,Plan anual Gerencia de mercadeo,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+44,Plan anual Dirección de contabilidad,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+45,Plan anual Dirección de infraestructura,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+46,Plan anual Dirección planeación financiera y tesor,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+47,Plan anual Dirección de relacionamiento de CSU,Principal,,✅,❌,✅,✅,❌,❌,Indicadores por CMI
+48,Plan anual Jefatura administrativa,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+49,Plan anual Jefatura de compras,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+418.1,Plan anual Dirección aseguramiento de la calidad,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.2,Plan anual Dirección investigación innovación y cr,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.3,Plan anual Dirección relaciones nacionales e inter,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.4,Plan anual Secretaria academica y de extensión,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.5,Plan anual Dirección  de docencia,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.6,Plan anual Dirección de currículo presencial y vir,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.7,Plan anual Facultad ingeniería diseño e innovación,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.8,Plan anual Facultad negocios gestión y sostenibili,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+418.9,Plan anual Facultad sociedad cultura y creatividad,Sub-indicador,418,-,-,-,-,-,-,Indicadores por CMI
+59,Plan anual FNGS-ADMON Y COMP- ADM DE EMPRESAS,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+60,Plan anual FNGS-CONTABILID INTERN-CONTADURIA,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+75,Plan anual COORDINACIÓN COMERCIAL B2G,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+76,Plan anual JEFE DE SERVICIO,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+14.1,Estudiantes Presencial,Sub-indicador,14,-,-,-,-,-,-,Indicadores por CMI
+14.2,Estudiantes Virtual,Sub-indicador,14,-,-,-,-,-,-,Indicadores por CMI
+14.3,Estudiantes Pregrado,Sub-indicador,14,-,-,-,-,-,-,Indicadores por CMI
+14.4,Estudiantes Posgrado,Sub-indicador,14,-,-,-,-,-,-,Indicadores por CMI
+386.1,Total Ingresos B2B,Sub-indicador,386,-,-,-,-,-,-,Indicadores por CMI
+386.2,Total Ingresos B2G,Sub-indicador,386,-,-,-,-,-,-,Indicadores por CMI
+386.3,Otros ingresos (Cursos -Opciones de grado),Sub-indicador,386,-,-,-,-,-,-,Indicadores por CMI
+Med 1,Total Estudiantes  Sede Medellín,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 1.1,Estudiante nuevos presencial pregrado,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 1.2,Estudiante nuevos presencial posgrado,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 1.3,Total estudiantes nuevos presencial Medellin ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 1.4,Estudiantes antiguos presencial Medellin ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 2,Total Estudiantes Pregrado nuevos y antiguos Medel,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 3,Estudiantes Postgrado antiguos,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 4,Total estudiantes Postgrado antiguos y nuevos Mede,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 2.1,Estudiantes virtuales pregrado nuevos ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 4.1,Estudiantes virtuales posgrado nuevos ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 2.2,Estudiantes virtuales pregrado antiguos - Medellín,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 4.2,Estudiantes virtuales posgrado antiguos - Medellín,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 5,Total Estudiantes virtuales antiguos-Antioquia,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 6,Ingresos Educación para la vida,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 7,Satisfacción NPS,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 8,Tasa de permanencia ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 9,Satisfacción SSI ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 10,Total ingresos sede,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 11,EBITDA sede,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 12,Ejecución Presupuestal ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 13,Eficiencia OPEX ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 14,Cumplimiento proyecto Certificación SGA - medellín,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 15,Cumplimiento del Plan Anual,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 16,Convenios con impacto en ingresos adicionales,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Med 17,Medición Clima organizacional Sede - Great Place t,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+10.1,Acreditación Institucional - Fase I,Sub-indicador,10,-,-,-,-,-,-,Indicadores por CMI
+13.1,Diseño del Modelo de Experiencia Institucional - F,Sub-indicador,13,-,-,-,-,-,-,Indicadores por CMI
+97,Lanzamiento de nuevos programas presencial,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+108.1,Nivel de Satisfacción Servicios Prestados - Planea,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.3,Nivel de Satisfacción Servicios Prestados - Servic,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.5,Nivel de Satisfacción Servicios Prestados - Admini,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.6,Nivel de Satisfacción Servicios Prestados - Contab,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.7,Nivel de Satisfacción Servicios Prestados - Tesore,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.8,Nivel de Satisfacción Servicios Prestados - Gestió,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.9,Nivel de Satisfacción Servicios Prestados - Gestió,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.10,Nivel de Satisfacción Servicios Prestados - Centro,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.11,Nivel de Satisfacción Servicios Prestados - Desemp,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.15,Nivel de Satisfacción Servicios Prestados - Datos ,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.12,Nivel de Satisfacción Servicios Prestados - Prácti,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.13,Nivel de Satisfacción Servicios Prestados - Formac,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+108.14,Nivel de Satisfacción Servicios Prestados - Regist,Sub-indicador,108,-,-,-,-,-,-,Indicadores por CMI
+999,Presupuesto nomina docente,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+998,Renovaciones de Registro Calificado Radicadas en e,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+900,Experiencia Institucional - Fase 3- Hub de experie,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+901,Centro de Idiomas Fase I - Stand By,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+902,CREA Centro de Recursos y Experiencias para el apr,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+903,Migración modelo de transporte rotativo,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+904,Ecosistema E3,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+905,Habilidades Poderosas,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+906,Ser PRO,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+907,Cultura de una buena docencia,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+908,Proyecto Silver,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-1,Valor académico agregado ,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-2,Aporte relativo,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-3,N° Programas con nuevo modelo evaluativo implement,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-4,Programas en modalidad virtual y hibrida en 2025,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-5,Número de cursos  con microcertificación,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+11.1,Número de programas registrados en la SED,Sub-indicador,11,-,-,-,-,-,-,Indicadores por CMI
+Prov-7,Número de estudiantes matriculados  IEDTH,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-8,Índice de Permanencia Docente (NPS),Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-9,Índice de Permanencia Administrativos (NPS),Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-10,Diseño del Gobierno de IT,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-11,Arquitectura de Microservicios,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-12,Smart Assistant,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-13,Optimización de procesos del ciclo de vida del est,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-14,Cumplimiento proyecto creación del centro de excel,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-15,ïndice de madurez analítica institucional y  por p,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+Prov-16,Desempeño de Modelos (Machine Learning - IA),Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+420.1,Plan anual SGC,Sub-indicador,420,-,-,-,-,-,-,Indicadores por CMI
+420.2,Plan anual SGA,Sub-indicador,420,-,-,-,-,-,-,Indicadores por CMI
+420.3,Plan anual Riesgos,Sub-indicador,420,-,-,-,-,-,-,Indicadores por CMI
+420.4,Plan anual Auditoría,Sub-indicador,420,-,-,-,-,-,-,Indicadores por CMI
+420.5,Plan anual Direccionamiento estratégico,Sub-indicador,420,-,-,-,-,-,-,Indicadores por CMI
+415.7,Plan anual Director de gobierno digital,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.8,Plan anual Gerente de innovación y producto,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.9,Plan anual Dirección de desarrollo e innovación,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.14,Plan anual Director de operaciones IT,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.11,Plan anual Director de operaciones integrales,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.12,Plan anual Director de permanencia,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+415.13,Plan anual Director de servicio,Sub-indicador,415,-,-,-,-,-,-,Indicadores por CMI
+525.1,Total Ingresos B2B- B2C,Sub-indicador,525,-,-,-,-,-,-,Indicadores por CMI
+525.2,Total Ingresos B2G ,Sub-indicador,525,-,-,-,-,-,-,Indicadores por CMI
+525.3,Total ingresos Opciones de grado,Sub-indicador,525,-,-,-,-,-,-,Indicadores por CMI
+909,Acreditación Institucional  Fase III - Etapa de ev,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+910,"Fortalecimiento de la investigacion, la innovación",Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+911,Fortalecimiento de planta docente,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+912,Plataforma de gestión de la información curricular,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+913,Actualización de TRD y creación del Plan de gestió,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+914,ADN Poli,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+915,Gobierno de datos,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+916,Herramientas de Gestión para el mejoramiento conti,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+917,Ilumno Self Service S&P,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+918,Reingeniería de aplicaciones,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+919,SOPHIA Sistema de optimización y programación hora,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+920,Hubspot CRM,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+921,Prime,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+922,Proyecto de permanencia institucional,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+923,Centro Gastronómico,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+924,Modelo de seguimiento al graduado,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+925,Pricing,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+542,Tasa de cotización del graduado - Metrica,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+547,Nivel de satisfacción del graduado con la instituc,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+543,Tasa de interacción por usuario,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+928,Fortalecimiento del proceso de visibilidad naciona,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+927,Sistema de medición de resultados de aprendizaje,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI
+926,Titulación Autogestionada,Principal,,✅,✅,✅,✅,❌,❌,Indicadores por CMI

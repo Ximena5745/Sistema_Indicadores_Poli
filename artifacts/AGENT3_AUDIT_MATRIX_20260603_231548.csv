@@ -1,0 +1,5 @@
+Indicador,Tipo,Fórmula_Doc,Implementación,Línea_Base,Meta,Responsable,Periodicidad,Fuente_Única,Validado,Actualizado
+Cumplimiento,Base,✅,✅,❌,❌,❌,✅,✅,⚠️,✅
+Categoría de Cumplimiento,Derivado,✅,✅,❌,❌,❌,✅,✅,⚠️,✅
+Salud Institucional,Agregado,✅,⚠️,❌,❌,❌,✅,✅,⚠️,✅
+Tendencia,Derivado,✅,⚠️,❌,❌,❌,✅,✅,⚠️,✅

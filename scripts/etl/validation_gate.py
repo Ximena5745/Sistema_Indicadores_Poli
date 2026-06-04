@@ -64,8 +64,8 @@ def validar_consolidado_api_entrada(
     """
     result = ValidationResult(status="ok")
 
-    # 1. COLUMNAS REQUERIDAS
-    cols_requeridas = {"ID", "fecha", "resultado"}
+    # 1. COLUMNAS REQUERIDAS (notar que ID se renombra a Id en cargar_fuente_consolidada)
+    cols_requeridas = {"Id", "fecha", "resultado"}
     cols_disponibles = set(df.columns)
     cols_faltantes = cols_requeridas - cols_disponibles
 
@@ -75,16 +75,16 @@ def validar_consolidado_api_entrada(
 
     # 2. NULOS EN CRÍTICAS (bloquear si hay)
     if not result.errors:  # solo si pasó validación de columnas
-        for col in ["ID", "fecha"]:
+        for col in ["Id", "fecha"]:
             if col in df.columns:
                 nulos = df[col].isnull().sum()
                 if nulos > 0:
                     result.errors.append(f"{nulos} nulos en columna requerida '{col}'")
                     result.error_count += 1
 
-    # 3. CARDINALIDAD: ID-fecha única (warning, no error)
-    if "ID" in df.columns and "fecha" in df.columns:
-        duplicados = df.groupby(["ID", "fecha"]).size()
+    # 3. CARDINALIDAD: Id-fecha única (warning, no error)
+    if "Id" in df.columns and "fecha" in df.columns:
+        duplicados = df.groupby(["Id", "fecha"]).size()
         dup_count = (duplicados > 1).sum()
         if dup_count > 0:
             result.warnings.append(
@@ -139,6 +139,31 @@ def validar_consolidado_api_entrada(
             if non_numeric > 0:
                 result.warnings.append(f"{non_numeric} valores no numéricos en 'resultado'")
                 result.warning_count += 1
+                
+            # 7. RANGO DE RESULTADOS (0-1.3 según reglas de negocio)
+            numeric_results = pd.to_numeric(df["resultado"], errors="coerce")
+            valid_results = numeric_results[numeric_results.notna()]
+            
+            if len(valid_results) > 0:
+                min_val = valid_results.min()
+                max_val = valid_results.max()
+                
+                # Valores negativos (warning, puede haber datos válidos)
+                negative_count = (valid_results < 0).sum()
+                if negative_count > 0:
+                    result.warnings.append(
+                        f"{negative_count} resultados negativos en 'resultado' (mínimo: {min_val})"
+                    )
+                    result.warning_count += 1
+                
+                # Valores mayores a 1.3 (130%)
+                over_max = (valid_results > 1.3).sum()
+                if over_max > 0:
+                    result.warnings.append(
+                        f"{over_max} resultados > 1.3 (130%) en 'resultado' (máximo: {max_val})"
+                    )
+                    result.warning_count += 1
+                    
         except Exception:
             pass
 
@@ -211,6 +236,43 @@ def validar_consolidado_salida(
     if len(df) < min_rows:
         result.errors.append(f"Consolidado muy pequeño ({len(df)} < {min_rows})")
         result.error_count += 1
+    
+    # 4. RANGOS DE CAMPOS NUMÉRICOS
+    for col in ["Meta", "Ejecucion"]:
+        if col in df.columns:
+            numeric_vals = pd.to_numeric(df[col], errors="coerce")
+            valid_vals = numeric_vals[numeric_vals.notna()]
+            
+            if len(valid_vals) > 0:
+                # Valores negativos
+                negative_count = (valid_vals < 0).sum()
+                if negative_count > 0:
+                    result.warnings.append(
+                        f"{negative_count} valores negativos en '{col}'"
+                    )
+                    result.warning_count += 1
+                
+                # Valores mayores a 1.3 (130%)
+                over_max = (valid_vals > 1.3).sum()
+                if over_max > 0:
+                    result.warnings.append(
+                        f"{over_max} valores > 1.3 (130%) en '{col}'"
+                    )
+                    result.warning_count += 1
+    
+    # 5. CUMPLIMIENTO EN RANGO VÁLIDO (0-1 o vacío)
+    if "Cumplimiento" in df.columns:
+        # El cumplimiento debe ser 0-1 o vacío
+        numeric_cum = pd.to_numeric(df["Cumplimiento"], errors="coerce")
+        valid_cum = numeric_cum[numeric_cum.notna()]
+        
+        if len(valid_cum) > 0:
+            invalid_range = ((valid_cum < 0) | (valid_cum > 1)).sum()
+            if invalid_range > 0:
+                result.warnings.append(
+                    f"{invalid_range} valores fuera de rango [0,1] en 'Cumplimiento'"
+                )
+                result.warning_count += 1
 
     # Determinar status
     if result.error_count > 0:

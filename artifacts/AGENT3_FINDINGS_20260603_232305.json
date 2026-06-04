@@ -1,0 +1,745 @@
+[
+  {
+    "tipo": "Fórmula_Duplicada_Docs",
+    "severidad": "MEDIA",
+    "descripcion": "Múltiples definiciones de fórmula encontradas en docs: 2",
+    "ubicacion": "docs\\core\\02_Logica_Indicadores.md",
+    "recomendación": "Consolidar en una única definición"
+  },
+  {
+    "tipo": "Fórmula_Duplicada_Docs",
+    "severidad": "MEDIA",
+    "descripcion": "Múltiples definiciones de fórmula encontradas en docs: 2",
+    "ubicacion": "docs\\core\\02_Logica_Indicadores.md",
+    "recomendación": "Consolidar en una única definición"
+  },
+  {
+    "tipo": "Delegación_Correcta",
+    "severidad": "OK",
+    "descripcion": "calculos.py delega a domain.categorization (fuente única)",
+    "ubicacion": "core/calculos.py:77-87",
+    "recomendación": "Mantener"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "414",
+    "descripcion": "Indicador 414 (Cumplimiento Plan Anual Rectoría) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "415",
+    "descripcion": "Indicador 415 (Cumplimiento Plan Anual Vicerrectoría del estudiante) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "416",
+    "descripcion": "Indicador 416 (Cumplimiento Plan Anual Vicerrectoría de crecimiento) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "417",
+    "descripcion": "Indicador 417 (Cumplimiento Plan Anual Vicerrectoría Financiera) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "418",
+    "descripcion": "Indicador 418 (Cumplimiento Plan Anual Vicerrectoría Académica) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "14",
+    "descripcion": "Indicador 14 (Total Población) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "31",
+    "descripcion": "Indicador 31 (Plan anual Gerencia de estrategia) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "33",
+    "descripcion": "Indicador 33 (Plan anual Gerencia de Medellín) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "47",
+    "descripcion": "Indicador 47 (Plan anual Dirección de relacionamiento de CSU) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "96",
+    "descripcion": "Indicador 96 (Productos de investigación, innovación y creación) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "415.8",
+    "descripcion": "Indicador 415.8 (Plan anual Gerente de innovación y producto) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "53",
+    "descripcion": "Indicador 53 (Eficacia en planes de acción implementados) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "54",
+    "descripcion": "Indicador 54 (CALIDAD DE AGUA POTABLE SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "56",
+    "descripcion": "Indicador 56 (\t\nCONSUMO DE PAPEL SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "70",
+    "descripcion": "Indicador 70 (Ejecución presupuestal CAPEX Infraestructura) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "70",
+    "descripcion": "Indicador 70 (Ejecución presupuestal CAPEX Infraestructura) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "71",
+    "descripcion": "Indicador 71 (Ejecución presupuestal OPEX infraestructura) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "71",
+    "descripcion": "Indicador 71 (Ejecución presupuestal OPEX infraestructura) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "134",
+    "descripcion": "Indicador 134 (COMPENSACIÓN HUELLA DE CARBONO SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "140",
+    "descripcion": "Indicador 140 (Ejecución presupuestal del CAPEX) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "152",
+    "descripcion": "Indicador 152 (APLICACIÓN EVALUACIÓN DESEMPEÑO PROVEEDORES) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "160",
+    "descripcion": "Indicador 160 (VALORIZACIÓN DE RESIDUOS CONVENCIONALES SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "161",
+    "descripcion": "Indicador 161 (VALORIZACIÓN DE RESIDUOS PELIGROSOS SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "162",
+    "descripcion": "Indicador 162 (GASES EFECTO INVERNADERO SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "175",
+    "descripcion": "Indicador 175 (CUMPLIMIENTO DE CRONOGRAMA GESTIÓN DE RESIDUOS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "177",
+    "descripcion": "Indicador 177 (CUMPLIMIENTO DE REQUISITOS DE LA NORMATIVIDAD AMBIENTAL EN RESIDUOS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "178",
+    "descripcion": "Indicador 178 (CALIDAD DE AGUA POTABLE SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "179",
+    "descripcion": "Indicador 179 (CONSUMO DE PAPEL SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "180",
+    "descripcion": "Indicador 180 (CONSUMO ENERGÍA ELÉCTRICA SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "181",
+    "descripcion": "Indicador 181 (GESTIÓN DEL AIRE SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "182",
+    "descripcion": "Indicador 182 (MANTENIMIENTO DISEÑO PAISAJÍSTICO SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "185",
+    "descripcion": "Indicador 185 (CUMPLIMIENTO SGA SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "186",
+    "descripcion": "Indicador 186 (CONSUMO DE AGUA SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "188",
+    "descripcion": "Indicador 188 (COMPENSACIÓN HUELLA DE CARBONO SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "189",
+    "descripcion": "Indicador 189 (VALORIZACIÓN DE RESIDUOS CONVENCIONALES SEDE CITY  CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "190",
+    "descripcion": "Indicador 190 (VALORIZACIÓN DE RESIDUOS PELIGROSOS SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "191",
+    "descripcion": "Indicador 191 (GASES EFECTO INVERNADERO SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "192",
+    "descripcion": "Indicador 192 (ACTIVIDADES MANEJO INTEGRAL DE RESIDUOS SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "333",
+    "descripcion": "Indicador 333 (Indexación de bases de datos o SIRES) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "99",
+    "descripcion": "Indicador 99 (Nivel de satisfacción del proceso de comunicaciones internas) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "99",
+    "descripcion": "Indicador 99 (Nivel de satisfacción del proceso de comunicaciones internas) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "700",
+    "descripcion": "Indicador 700 (Tasa de exito de creación de programas y renovaciones\nTasa de exito de gestión del portafolio ante el MEN) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "700",
+    "descripcion": "Indicador 700 (Tasa de exito de creación de programas y renovaciones\nTasa de exito de gestión del portafolio ante el MEN) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "521",
+    "descripcion": "Indicador 521 (Nivel de Satisfacción Servicios Prestados -Servicio de Salud) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "521",
+    "descripcion": "Indicador 521 (Nivel de Satisfacción Servicios Prestados -Servicio de Salud) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "823",
+    "descripcion": "Indicador 823 (Total docentes por nivel de estudios (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "823",
+    "descripcion": "Indicador 823 (Total docentes por nivel de estudios (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "603",
+    "descripcion": "Indicador 603 (Percepción de la experiencia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "603",
+    "descripcion": "Indicador 603 (Percepción de la experiencia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "605",
+    "descripcion": "Indicador 605 (Producción de ambientes inmersivos CREA) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "605",
+    "descripcion": "Indicador 605 (Producción de ambientes inmersivos CREA) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Indicadores_Sin_Ficha",
+    "severidad": "MEDIA",
+    "descripcion": "592 indicadores en CMI sin ficha técnica",
+    "ejemplos": [
+      "316",
+      "Prov-12",
+      "108.11",
+      "137",
+      "922",
+      "336",
+      "Med 16",
+      "465",
+      "Prov-10",
+      "418.6"
+    ],
+    "recomendación": "Completar ficha técnica para indicadores faltantes"
+  },
+  {
+    "tipo": "Indicadores_Sin_CMI",
+    "severidad": "MEDIA",
+    "descripcion": "80 indicadores en Ficha Técnica sin registro en CMI",
+    "ejemplos": [
+      "189",
+      "163",
+      "607",
+      "70",
+      "131",
+      "330",
+      "808",
+      "824",
+      "343",
+      "258"
+    ],
+    "recomendación": "Registrar indicadores en CMI o verificar alta"
+  },
+  {
+    "tipo": "Magic_Numbers",
+    "severidad": "MEDIA",
+    "descripcion": "Valores numéricos hardcodeados encontrados: {'1.3', '0.01'}",
+    "ubicacion": "core/calculos.py",
+    "recomendación": "Mover a config/settings.toml o core/config.py"
+  }
+]

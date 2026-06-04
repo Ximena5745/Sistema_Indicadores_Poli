@@ -1,0 +1,166 @@
+{
+  "field_mapping": {
+    "ID": [
+      "TODOS los indicadores"
+    ],
+    "fecha": [
+      "TODOS los indicadores"
+    ],
+    "resultado": [
+      "TODOS los indicadores base"
+    ],
+    "Meta": [
+      "Indicadores que tiene meta definida"
+    ],
+    "Ejecucion": [
+      "TODOS despu\u00e9s de consolidaci\u00f3n"
+    ],
+    "Cumplimiento": [
+      "C\u00e1lculo post-ETL"
+    ],
+    "Categoria": [
+      "Resultado de semaforizaci\u00f3n"
+    ],
+    "analisis": [
+      "Indicadores con an\u00e1lisis cualitativo"
+    ],
+    "variables": [
+      "Indicadores desagregados"
+    ],
+    "Revisado": [
+      "Indicadores auditados"
+    ]
+  },
+  "orphan_fields": [
+    {
+      "campo": "descripcion",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "frecuencia",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "campos_adicionales",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "Tipo",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "a\u00f1o_archivo",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "fecha_corte",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "responsable",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "proceso",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "clasificacion",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "estado",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "series",
+      "filas_con_datos": "738",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "exceso",
+      "filas_con_datos": "1134",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "sentido",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "peligro",
+      "filas_con_datos": "2349",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "nombre",
+      "filas_con_datos": "12703",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "cumplimiento",
+      "filas_con_datos": "2350",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "alerta",
+      "filas_con_datos": "2349",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    },
+    {
+      "campo": "meta",
+      "filas_con_datos": "2362",
+      "recomendaci\u00f3n": "Revisar utilidad o eliminar"
+    }
+  ],
+  "completeness": {
+    "total_per\u00edodos_esperados": 56,
+    "per\u00edodos_encontrados": 50,
+    "cobertura_porcentaje": 89.3,
+    "gaps_detectados": [
+      {
+        "indicador": "68",
+        "datos_disponibles": 8,
+        "faltantes": 4
+      },
+      {
+        "indicador": "73",
+        "datos_disponibles": 8,
+        "faltantes": 4
+      },
+      {
+        "indicador": "74",
+        "datos_disponibles": 8,
+        "faltantes": 4
+      }
+    ]
+  },
+  "sources": {
+    "API_Kawak": {
+      "tipo": "JSON API",
+      "estado": "activo"
+    },
+    "Excel_Local": {
+      "tipo": "Archivo local",
+      "estado": "hist\u00f3rico (migraci\u00f3n a API)"
+    },
+    "LMI_Reporte": {
+      "tipo": "Sistema externo",
+      "estado": "activo (complementario)"
+    },
+    "Supabase_PostgreSQL": {
+      "tipo": "Base de datos",
+      "estado": "activo (backend principal)"
+    }
+  }
+}

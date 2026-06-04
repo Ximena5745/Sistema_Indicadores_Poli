@@ -1,0 +1,23 @@
+campo_fuente,tipo_dato,nulabilidad,indicadores_que_usan,transformacion_etl,status
+ID,string,No,TODOS,_id_str(),Mapeado
+fecha,date,No,TODOS,pd.to_datetime(),Mapeado
+resultado,float,Si (No Aplica),TODOS base,Capping [0 1.3],Mapeado
+meta,float,Si,Con meta definida,Normalizacion a Meta,Mapeado (huérfano script)
+Meta,float,Si,Con meta,Directo,Mapeado
+Ejecucion,float,Si,TODOS post-consolidacion,Desde resultado,Mapeado
+Cumplimiento,float,Calculado,TODOS,core/calculos.py,Mapeado
+Categoria,categorical,Calculado,TODOS,Semaforizacion,Mapeado
+analisis,string,Si,Cualitativos,Deteccion No Aplica,Mapeado
+variables,json/string,Si,Desagregados,Parsing componentes,Mapeado (huérfano script)
+Revisado,boolean,Si,Auditados,Directo,Mapeado
+sentido,categorical,No,TODOS,JOIN catalogo,Usado (falso huérfano)
+proceso,string,No,TODOS,JOIN mapeos_procesos,Usado (falso huérfano)
+clasificacion,categorical,No,TODOS,Metadatos catalogo,Usado (falso huérfano)
+nombre,string,No,TODOS,Metadatos,Usado (falso huérfano)
+series,json/string,Si,Compuestos,Desagregacion,Usado (falso huérfano)
+cumplimiento,float,Precalculado,Origen Kawak,Referencia cruzada,Usado (falso huérfano)
+alerta,boolean,Precalculado,Origen Kawak,Referencia,Usado (falso huérfano)
+peligro,boolean,Precalculado,Origen Kawak,Referencia,Usado (falso huérfano)
+exceso,float,Precalculado,Origen Kawak,Referencia,Usado (falso huérfano)
+año_archivo,integer,No,Trazabilidad,Ingesta por archivo,Usado (falso huérfano)
+fecha_corte,date,No,Trazabilidad,Ingesta,Usado (falso huérfano)

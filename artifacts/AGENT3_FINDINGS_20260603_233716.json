@@ -1,0 +1,3677 @@
+[
+  {
+    "tipo": "Fórmula_Duplicada_Docs",
+    "severidad": "MEDIA",
+    "descripcion": "Múltiples definiciones de fórmula encontradas en docs: 2",
+    "ubicacion": "docs\\core\\02_Logica_Indicadores.md",
+    "recomendación": "Consolidar en una única definición"
+  },
+  {
+    "tipo": "Fórmula_Duplicada_Docs",
+    "severidad": "MEDIA",
+    "descripcion": "Múltiples definiciones de fórmula encontradas en docs: 2",
+    "ubicacion": "docs\\core\\02_Logica_Indicadores.md",
+    "recomendación": "Consolidar en una única definición"
+  },
+  {
+    "tipo": "Delegación_Correcta",
+    "severidad": "OK",
+    "descripcion": "calculos.py delega a domain.categorization (fuente única)",
+    "ubicacion": "core/calculos.py:77-87",
+    "recomendación": "Mantener"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "53",
+    "descripcion": "Indicador 53 (Eficacia en planes de acción implementados) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "54",
+    "descripcion": "Indicador 54 (CALIDAD DE AGUA POTABLE SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "56",
+    "descripcion": "Indicador 56 (\t\nCONSUMO DE PAPEL SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "61",
+    "descripcion": "Indicador 61 (CONSUMO ENERGÍA ELÉCTRICA SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "62",
+    "descripcion": "Indicador 62 (GESTIÓN DEL AIRE SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "63",
+    "descripcion": "Indicador 63 (MANTENIMIENTO DISEÑO PAISAJÍSTICO SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "64",
+    "descripcion": "Indicador 64 (EDUCACIÓN AMBIENTAL) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "65",
+    "descripcion": "Indicador 65 (EFICACIA EN CAPACITACIÓN AMBIENTAL) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "66",
+    "descripcion": "Indicador 66 (CUMPLIMIENTO SGA SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "67",
+    "descripcion": "Indicador 67 (CONSUMO DE AGUA SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "70",
+    "descripcion": "Indicador 70 (Ejecución presupuestal CAPEX Infraestructura) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "70",
+    "descripcion": "Indicador 70 (Ejecución presupuestal CAPEX Infraestructura) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "71",
+    "descripcion": "Indicador 71 (Ejecución presupuestal OPEX infraestructura) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "71",
+    "descripcion": "Indicador 71 (Ejecución presupuestal OPEX infraestructura) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "109",
+    "descripcion": "Indicador 109 (Nivel de satisfacción de los servicios prestados) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "109",
+    "descripcion": "Indicador 109 (Nivel de satisfacción de los servicios prestados) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "134",
+    "descripcion": "Indicador 134 (COMPENSACIÓN HUELLA DE CARBONO SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "140",
+    "descripcion": "Indicador 140 (Ejecución presupuestal del CAPEX) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "152",
+    "descripcion": "Indicador 152 (APLICACIÓN EVALUACIÓN DESEMPEÑO PROVEEDORES) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "160",
+    "descripcion": "Indicador 160 (VALORIZACIÓN DE RESIDUOS CONVENCIONALES SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "161",
+    "descripcion": "Indicador 161 (VALORIZACIÓN DE RESIDUOS PELIGROSOS SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "162",
+    "descripcion": "Indicador 162 (GASES EFECTO INVERNADERO SEDE CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "175",
+    "descripcion": "Indicador 175 (CUMPLIMIENTO DE CRONOGRAMA GESTIÓN DE RESIDUOS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "177",
+    "descripcion": "Indicador 177 (CUMPLIMIENTO DE REQUISITOS DE LA NORMATIVIDAD AMBIENTAL EN RESIDUOS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "178",
+    "descripcion": "Indicador 178 (CALIDAD DE AGUA POTABLE SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "179",
+    "descripcion": "Indicador 179 (CONSUMO DE PAPEL SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "180",
+    "descripcion": "Indicador 180 (CONSUMO ENERGÍA ELÉCTRICA SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "181",
+    "descripcion": "Indicador 181 (GESTIÓN DEL AIRE SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "182",
+    "descripcion": "Indicador 182 (MANTENIMIENTO DISEÑO PAISAJÍSTICO SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "185",
+    "descripcion": "Indicador 185 (CUMPLIMIENTO SGA SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "186",
+    "descripcion": "Indicador 186 (CONSUMO DE AGUA SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "188",
+    "descripcion": "Indicador 188 (COMPENSACIÓN HUELLA DE CARBONO SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "189",
+    "descripcion": "Indicador 189 (VALORIZACIÓN DE RESIDUOS CONVENCIONALES SEDE CITY  CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "190",
+    "descripcion": "Indicador 190 (VALORIZACIÓN DE RESIDUOS PELIGROSOS SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "191",
+    "descripcion": "Indicador 191 (GASES EFECTO INVERNADERO SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "192",
+    "descripcion": "Indicador 192 (ACTIVIDADES MANEJO INTEGRAL DE RESIDUOS SEDE CITY CAMPUS) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "333",
+    "descripcion": "Indicador 333 (Indexación de bases de datos o SIRES) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "388",
+    "descripcion": "Indicador 388 (Programas con matriz de resultados de aprendizaje por escuela) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "388",
+    "descripcion": "Indicador 388 (Programas con matriz de resultados de aprendizaje por escuela) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "388",
+    "descripcion": "Indicador 388 (Programas con matriz de resultados de aprendizaje por escuela) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "388",
+    "descripcion": "Indicador 388 (Programas con matriz de resultados de aprendizaje por escuela) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "410",
+    "descripcion": "Indicador 410 (Solicitudes de gestión documental) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "410",
+    "descripcion": "Indicador 410 (Solicitudes de gestión documental) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "458",
+    "descripcion": "Indicador 458 (Visitas a Pagina Web) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "458",
+    "descripcion": "Indicador 458 (Visitas a Pagina Web) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "458",
+    "descripcion": "Indicador 458 (Visitas a Pagina Web) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "99",
+    "descripcion": "Indicador 99 (Nivel de satisfacción del proceso de comunicaciones internas) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "99",
+    "descripcion": "Indicador 99 (Nivel de satisfacción del proceso de comunicaciones internas) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "700",
+    "descripcion": "Indicador 700 (Tasa de exito de creación de programas y renovaciones\nTasa de exito de gestión del portafolio ante el MEN) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "700",
+    "descripcion": "Indicador 700 (Tasa de exito de creación de programas y renovaciones\nTasa de exito de gestión del portafolio ante el MEN) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "519",
+    "descripcion": "Indicador 519 (Tasa de indicadores PDI con cumplimiento de meta en el período de seguimiento) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "519",
+    "descripcion": "Indicador 519 (Tasa de indicadores PDI con cumplimiento de meta en el período de seguimiento) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "520",
+    "descripcion": "Indicador 520 (Impactos (Salud)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "521",
+    "descripcion": "Indicador 521 (Nivel de Satisfacción Servicios Prestados -Servicio de Salud) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "521",
+    "descripcion": "Indicador 521 (Nivel de Satisfacción Servicios Prestados -Servicio de Salud) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "809",
+    "descripcion": "Indicador 809 (Nivel de Satisfacción Servicios Prestados -Cultura y Deporte) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "808",
+    "descripcion": "Indicador 808 (Percepción de la experiencia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "898",
+    "descripcion": "Indicador 898 (Relación Estudiante-Docente Tiempo completo   (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "826",
+    "descripcion": "Indicador 826 (Relación estudiante docente Tiempo Completo Equivalente (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "825",
+    "descripcion": "Indicador 825 (Docentes contratados  (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "824",
+    "descripcion": "Indicador 824 (Docentes con plan de trabajo asignado (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "823",
+    "descripcion": "Indicador 823 (Total docentes por nivel de estudios (Población AAC/Institucional - Bogotá Virtual)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "823",
+    "descripcion": "Indicador 823 (Total docentes por nivel de estudios (Población AAC/Institucional - Bogotá Virtual)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "966",
+    "descripcion": "Indicador 966 (Tasa de incremento en la resolución de solicitudes de la Gerencia de Planeación) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "603",
+    "descripcion": "Indicador 603 (Percepción de la experiencia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "603",
+    "descripcion": "Indicador 603 (Percepción de la experiencia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "605",
+    "descripcion": "Indicador 605 (Producción de ambientes inmersivos CREA) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "605",
+    "descripcion": "Indicador 605 (Producción de ambientes inmersivos CREA) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "607",
+    "descripcion": "Indicador 607 (Valoración de la experiencia institucional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "969",
+    "descripcion": "Indicador 969 (Oportunidad en tiempos de fase inicio) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "969",
+    "descripcion": "Indicador 969 (Oportunidad en tiempos de fase inicio) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "969",
+    "descripcion": "Indicador 969 (Oportunidad en tiempos de fase inicio) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "969",
+    "descripcion": "Indicador 969 (Oportunidad en tiempos de fase inicio) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "970",
+    "descripcion": "Indicador 970 (Oportunidad en tiempo de fase de cierre) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "970",
+    "descripcion": "Indicador 970 (Oportunidad en tiempo de fase de cierre) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "970",
+    "descripcion": "Indicador 970 (Oportunidad en tiempo de fase de cierre) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "970",
+    "descripcion": "Indicador 970 (Oportunidad en tiempo de fase de cierre) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "971",
+    "descripcion": "Indicador 971 (Cumplimiento a cronograma de proyectos 2026) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "972",
+    "descripcion": "Indicador 972 (\nSeguimiento a ejecución presupuestal de los proyectos (Metrica)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "972",
+    "descripcion": "Indicador 972 (\nSeguimiento a ejecución presupuestal de los proyectos (Metrica)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "973",
+    "descripcion": "Indicador 973 (Índice de riesgos materializados en proyectos (Metrica)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "973",
+    "descripcion": "Indicador 973 (Índice de riesgos materializados en proyectos (Metrica)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "973",
+    "descripcion": "Indicador 973 (Índice de riesgos materializados en proyectos (Metrica)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "973",
+    "descripcion": "Indicador 973 (Índice de riesgos materializados en proyectos (Metrica)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "974",
+    "descripcion": "Indicador 974 (Tiempo promedio de ciclo de un estudio (desde solicitud hasta entrega) - Metrica por actividad) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "974",
+    "descripcion": "Indicador 974 (Tiempo promedio de ciclo de un estudio (desde solicitud hasta entrega) - Metrica por actividad) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "974",
+    "descripcion": "Indicador 974 (Tiempo promedio de ciclo de un estudio (desde solicitud hasta entrega) - Metrica por actividad) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "974",
+    "descripcion": "Indicador 974 (Tiempo promedio de ciclo de un estudio (desde solicitud hasta entrega) - Metrica por actividad) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "975",
+    "descripcion": "Indicador 975 (Nivel de cumplimiento de tamaños muestrales por grupo de interes) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "975",
+    "descripcion": "Indicador 975 (Nivel de cumplimiento de tamaños muestrales por grupo de interes) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "975",
+    "descripcion": "Indicador 975 (Nivel de cumplimiento de tamaños muestrales por grupo de interes) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "975",
+    "descripcion": "Indicador 975 (Nivel de cumplimiento de tamaños muestrales por grupo de interes) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "976",
+    "descripcion": "Indicador 976 (Número de visitas al informe se sostenibilidad por año (Metrica)) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "976",
+    "descripcion": "Indicador 976 (Número de visitas al informe se sostenibilidad por año (Metrica)) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "976",
+    "descripcion": "Indicador 976 (Número de visitas al informe se sostenibilidad por año (Metrica)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "976",
+    "descripcion": "Indicador 976 (Número de visitas al informe se sostenibilidad por año (Metrica)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "977",
+    "descripcion": "Indicador 977 (Índice de oportunidad en el reporte de indicadores) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "977",
+    "descripcion": "Indicador 977 (Índice de oportunidad en el reporte de indicadores) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "978",
+    "descripcion": "Indicador 978 (Tasa de cancelación de retos estratégicos) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "978",
+    "descripcion": "Indicador 978 (Tasa de cancelación de retos estratégicos) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "978",
+    "descripcion": "Indicador 978 (Tasa de cancelación de retos estratégicos) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "978",
+    "descripcion": "Indicador 978 (Tasa de cancelación de retos estratégicos) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "979",
+    "descripcion": "Indicador 979 (Índice de confiabilidad y consistencia de datos de indicadores) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "979",
+    "descripcion": "Indicador 979 (Índice de confiabilidad y consistencia de datos de indicadores) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "979",
+    "descripcion": "Indicador 979 (Índice de confiabilidad y consistencia de datos de indicadores) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "979",
+    "descripcion": "Indicador 979 (Índice de confiabilidad y consistencia de datos de indicadores) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Clasificación",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin clasificación",
+    "recomendación": "Asignar clasificación (CMI, Proceso, etc.)"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "980",
+    "descripcion": "Indicador 980 (Participación en el despliegue del PDI 2026-2030) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "329",
+    "descripcion": "Indicador 329 (Participación en actividades diseñadas para graduados) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "329",
+    "descripcion": "Indicador 329 (Participación en actividades diseñadas para graduados) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "329",
+    "descripcion": "Indicador 329 (Participación en actividades diseñadas para graduados) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "82",
+    "descripcion": "Indicador 82 (# de rutas diseñadas / #rutas implementadas) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "82",
+    "descripcion": "Indicador 82 (# de rutas diseñadas / #rutas implementadas) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "82",
+    "descripcion": "Indicador 82 (# de rutas diseñadas / #rutas implementadas) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "83",
+    "descripcion": "Indicador 83 (% de cumplimiento de implementación en cada eje) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "83",
+    "descripcion": "Indicador 83 (% de cumplimiento de implementación en cada eje) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "83",
+    "descripcion": "Indicador 83 (% de cumplimiento de implementación en cada eje) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "93",
+    "descripcion": "Indicador 93 (% avance plan de implementación) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "93",
+    "descripcion": "Indicador 93 (% avance plan de implementación) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "93",
+    "descripcion": "Indicador 93 (% avance plan de implementación) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "1",
+    "descripcion": "Indicador 1 (Innovación curricular) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "1",
+    "descripcion": "Indicador 1 (Innovación curricular) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "1",
+    "descripcion": "Indicador 1 (Innovación curricular) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "2",
+    "descripcion": "Indicador 2 (Plan Talento) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "2",
+    "descripcion": "Indicador 2 (Plan Talento) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "2",
+    "descripcion": "Indicador 2 (Plan Talento) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "3",
+    "descripcion": "Indicador 3 (Nuevo POLISIGS) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "3",
+    "descripcion": "Indicador 3 (Nuevo POLISIGS) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "3",
+    "descripcion": "Indicador 3 (Nuevo POLISIGS) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "4",
+    "descripcion": "Indicador 4 (Certificación SGA sede los Colores) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "4",
+    "descripcion": "Indicador 4 (Certificación SGA sede los Colores) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "4",
+    "descripcion": "Indicador 4 (Certificación SGA sede los Colores) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "5",
+    "descripcion": "Indicador 5 (Equidad de Genero) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "5",
+    "descripcion": "Indicador 5 (Equidad de Genero) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "5",
+    "descripcion": "Indicador 5 (Equidad de Genero) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "6",
+    "descripcion": "Indicador 6 (Portal Web Universitario) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "6",
+    "descripcion": "Indicador 6 (Portal Web Universitario) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "6",
+    "descripcion": "Indicador 6 (Portal Web Universitario) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "7",
+    "descripcion": "Indicador 7 (Data Lake Institucional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "7",
+    "descripcion": "Indicador 7 (Data Lake Institucional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "7",
+    "descripcion": "Indicador 7 (Data Lake Institucional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "8",
+    "descripcion": "Indicador 8 (Catalogo de recursos virtuales) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "8",
+    "descripcion": "Indicador 8 (Catalogo de recursos virtuales) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "8",
+    "descripcion": "Indicador 8 (Catalogo de recursos virtuales) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "9",
+    "descripcion": "Indicador 9 (Monarca-Ecosistema Banner) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "9",
+    "descripcion": "Indicador 9 (Monarca-Ecosistema Banner) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "9",
+    "descripcion": "Indicador 9 (Monarca-Ecosistema Banner) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "10",
+    "descripcion": "Indicador 10 (Acreditación Institucional Sede Bogotá - Fase II - Condiciones iniciales) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "10",
+    "descripcion": "Indicador 10 (Acreditación Institucional Sede Bogotá - Fase II - Condiciones iniciales) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "10",
+    "descripcion": "Indicador 10 (Acreditación Institucional Sede Bogotá - Fase II - Condiciones iniciales) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "11",
+    "descripcion": "Indicador 11 (Creación del Instituto de Educación para el trabajo y el desarrollo humano - Stand By) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "11",
+    "descripcion": "Indicador 11 (Creación del Instituto de Educación para el trabajo y el desarrollo humano - Stand By) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "11",
+    "descripcion": "Indicador 11 (Creación del Instituto de Educación para el trabajo y el desarrollo humano - Stand By) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "12",
+    "descripcion": "Indicador 12 (Creación del colegio de educación media virtual  - Stand By) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "12",
+    "descripcion": "Indicador 12 (Creación del colegio de educación media virtual  - Stand By) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "12",
+    "descripcion": "Indicador 12 (Creación del colegio de educación media virtual  - Stand By) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "13",
+    "descripcion": "Indicador 13 (Diseño del Modelo de Experiencia Institucional - Fase 2) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "13",
+    "descripcion": "Indicador 13 (Diseño del Modelo de Experiencia Institucional - Fase 2) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "13",
+    "descripcion": "Indicador 13 (Diseño del Modelo de Experiencia Institucional - Fase 2) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Sentido",
+    "severidad": "BAJA",
+    "indicador": "14",
+    "descripcion": "Indicador 14 (Total Población) sin sentido definido",
+    "recomendación": "Definir sentido (Positivo/Negativo)"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "14",
+    "descripcion": "Indicador 14 (Total Población) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "14",
+    "descripcion": "Indicador 14 (Total Población) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "14",
+    "descripcion": "Indicador 14 (Total Población) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "15",
+    "descripcion": "Indicador 15 (Plan anual Escuela De Ciencias Basicas) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "15",
+    "descripcion": "Indicador 15 (Plan anual Escuela De Ciencias Basicas) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "15",
+    "descripcion": "Indicador 15 (Plan anual Escuela De Ciencias Basicas) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "16",
+    "descripcion": "Indicador 16 (Plan anual Escuela De  Diseño) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "16",
+    "descripcion": "Indicador 16 (Plan anual Escuela De  Diseño) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "16",
+    "descripcion": "Indicador 16 (Plan anual Escuela De  Diseño) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "17",
+    "descripcion": "Indicador 17 (Plan anual Escuela De Optimización, Infra Y Auto) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "17",
+    "descripcion": "Indicador 17 (Plan anual Escuela De Optimización, Infra Y Auto) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "17",
+    "descripcion": "Indicador 17 (Plan anual Escuela De Optimización, Infra Y Auto) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "18",
+    "descripcion": "Indicador 18 (Plan anual Escuela TIC) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "18",
+    "descripcion": "Indicador 18 (Plan anual Escuela TIC) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "18",
+    "descripcion": "Indicador 18 (Plan anual Escuela TIC) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "19",
+    "descripcion": "Indicador 19 (Plan anual Escuela De Administración y competitividad) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "19",
+    "descripcion": "Indicador 19 (Plan anual Escuela De Administración y competitividad) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "19",
+    "descripcion": "Indicador 19 (Plan anual Escuela De Administración y competitividad) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "20",
+    "descripcion": "Indicador 20 (Plan anual Escuela De Contabilidad Internacional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "20",
+    "descripcion": "Indicador 20 (Plan anual Escuela De Contabilidad Internacional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "20",
+    "descripcion": "Indicador 20 (Plan anual Escuela De Contabilidad Internacional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "21",
+    "descripcion": "Indicador 21 (Plan anual Escuela De Negocios Y Desarrollo Internacional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "21",
+    "descripcion": "Indicador 21 (Plan anual Escuela De Negocios Y Desarrollo Internacional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "21",
+    "descripcion": "Indicador 21 (Plan anual Escuela De Negocios Y Desarrollo Internacional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "22",
+    "descripcion": "Indicador 22 (Plan anual Escuela De Comunicaciones, Artes Visuales Y Digitales) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "22",
+    "descripcion": "Indicador 22 (Plan anual Escuela De Comunicaciones, Artes Visuales Y Digitales) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "22",
+    "descripcion": "Indicador 22 (Plan anual Escuela De Comunicaciones, Artes Visuales Y Digitales) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "23",
+    "descripcion": "Indicador 23 (Plan anual Escuela De Educación E Innovación) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "23",
+    "descripcion": "Indicador 23 (Plan anual Escuela De Educación E Innovación) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "23",
+    "descripcion": "Indicador 23 (Plan anual Escuela De Educación E Innovación) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "24",
+    "descripcion": "Indicador 24 (Plan anual Escuela De Derecho Y Gobierno) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "24",
+    "descripcion": "Indicador 24 (Plan anual Escuela De Derecho Y Gobierno) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "24",
+    "descripcion": "Indicador 24 (Plan anual Escuela De Derecho Y Gobierno) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "25",
+    "descripcion": "Indicador 25 (Plan anual Escuela De Marketing Y Branding) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "25",
+    "descripcion": "Indicador 25 (Plan anual Escuela De Marketing Y Branding) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "25",
+    "descripcion": "Indicador 25 (Plan anual Escuela De Marketing Y Branding) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "26",
+    "descripcion": "Indicador 26 (Plan anual Escuela De Psic, Talento Hum Y Soc) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "26",
+    "descripcion": "Indicador 26 (Plan anual Escuela De Psic, Talento Hum Y Soc) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "26",
+    "descripcion": "Indicador 26 (Plan anual Escuela De Psic, Talento Hum Y Soc) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "27",
+    "descripcion": "Indicador 27 (Plan anual Vicerrectoría de crecimiento) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "27",
+    "descripcion": "Indicador 27 (Plan anual Vicerrectoría de crecimiento) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "27",
+    "descripcion": "Indicador 27 (Plan anual Vicerrectoría de crecimiento) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "28",
+    "descripcion": "Indicador 28 (Plan anual Vicerrectoría del estudiante) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "28",
+    "descripcion": "Indicador 28 (Plan anual Vicerrectoría del estudiante) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "28",
+    "descripcion": "Indicador 28 (Plan anual Vicerrectoría del estudiante) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "29",
+    "descripcion": "Indicador 29 (Plan anual Vicerrectoría financiera) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "29",
+    "descripcion": "Indicador 29 (Plan anual Vicerrectoría financiera) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "29",
+    "descripcion": "Indicador 29 (Plan anual Vicerrectoría financiera) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "30",
+    "descripcion": "Indicador 30 (Plan anual Vicerrectoría academica) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "30",
+    "descripcion": "Indicador 30 (Plan anual Vicerrectoría academica) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "30",
+    "descripcion": "Indicador 30 (Plan anual Vicerrectoría academica) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "31",
+    "descripcion": "Indicador 31 (Plan anual Gerencia de estrategia) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "31",
+    "descripcion": "Indicador 31 (Plan anual Gerencia de estrategia) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "31",
+    "descripcion": "Indicador 31 (Plan anual Gerencia de estrategia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "31",
+    "descripcion": "Indicador 31 (Plan anual Gerencia de estrategia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "32",
+    "descripcion": "Indicador 32 (Plan anual Gerencia de talento humano y desarrollo) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "32",
+    "descripcion": "Indicador 32 (Plan anual Gerencia de talento humano y desarrollo) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "32",
+    "descripcion": "Indicador 32 (Plan anual Gerencia de talento humano y desarrollo) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "33",
+    "descripcion": "Indicador 33 (Plan anual Gerencia de Medellín) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "33",
+    "descripcion": "Indicador 33 (Plan anual Gerencia de Medellín) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "33",
+    "descripcion": "Indicador 33 (Plan anual Gerencia de Medellín) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "33",
+    "descripcion": "Indicador 33 (Plan anual Gerencia de Medellín) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "34",
+    "descripcion": "Indicador 34 (Plan anual Secretaría General) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "34",
+    "descripcion": "Indicador 34 (Plan anual Secretaría General) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "34",
+    "descripcion": "Indicador 34 (Plan anual Secretaría General) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "42",
+    "descripcion": "Indicador 42 (Plan anual Gerencia de matriculas) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "42",
+    "descripcion": "Indicador 42 (Plan anual Gerencia de matriculas) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "42",
+    "descripcion": "Indicador 42 (Plan anual Gerencia de matriculas) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "43",
+    "descripcion": "Indicador 43 (Plan anual Gerencia de mercadeo) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "43",
+    "descripcion": "Indicador 43 (Plan anual Gerencia de mercadeo) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "43",
+    "descripcion": "Indicador 43 (Plan anual Gerencia de mercadeo) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "44",
+    "descripcion": "Indicador 44 (Plan anual Dirección de contabilidad) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "44",
+    "descripcion": "Indicador 44 (Plan anual Dirección de contabilidad) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "44",
+    "descripcion": "Indicador 44 (Plan anual Dirección de contabilidad) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "45",
+    "descripcion": "Indicador 45 (Plan anual Dirección de infraestructura) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "45",
+    "descripcion": "Indicador 45 (Plan anual Dirección de infraestructura) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "45",
+    "descripcion": "Indicador 45 (Plan anual Dirección de infraestructura) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "46",
+    "descripcion": "Indicador 46 (Plan anual Dirección planeación financiera y tesorería) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "46",
+    "descripcion": "Indicador 46 (Plan anual Dirección planeación financiera y tesorería) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "46",
+    "descripcion": "Indicador 46 (Plan anual Dirección planeación financiera y tesorería) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Proceso",
+    "severidad": "MEDIA",
+    "indicador": "47",
+    "descripcion": "Indicador 47 (Plan anual Dirección de relacionamiento de CSU) sin proceso asignado",
+    "recomendación": "Asignar proceso al que pertenece"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "47",
+    "descripcion": "Indicador 47 (Plan anual Dirección de relacionamiento de CSU) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "47",
+    "descripcion": "Indicador 47 (Plan anual Dirección de relacionamiento de CSU) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "47",
+    "descripcion": "Indicador 47 (Plan anual Dirección de relacionamiento de CSU) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "48",
+    "descripcion": "Indicador 48 (Plan anual Jefatura administrativa) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "48",
+    "descripcion": "Indicador 48 (Plan anual Jefatura administrativa) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "48",
+    "descripcion": "Indicador 48 (Plan anual Jefatura administrativa) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "49",
+    "descripcion": "Indicador 49 (Plan anual Jefatura de compras) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "49",
+    "descripcion": "Indicador 49 (Plan anual Jefatura de compras) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "49",
+    "descripcion": "Indicador 49 (Plan anual Jefatura de compras) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "59",
+    "descripcion": "Indicador 59 (Plan anual FNGS-ADMON Y COMP- ADM DE EMPRESAS) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "59",
+    "descripcion": "Indicador 59 (Plan anual FNGS-ADMON Y COMP- ADM DE EMPRESAS) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "59",
+    "descripcion": "Indicador 59 (Plan anual FNGS-ADMON Y COMP- ADM DE EMPRESAS) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "60",
+    "descripcion": "Indicador 60 (Plan anual FNGS-CONTABILID INTERN-CONTADURIA) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "60",
+    "descripcion": "Indicador 60 (Plan anual FNGS-CONTABILID INTERN-CONTADURIA) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "60",
+    "descripcion": "Indicador 60 (Plan anual FNGS-CONTABILID INTERN-CONTADURIA) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "75",
+    "descripcion": "Indicador 75 (Plan anual COORDINACIÓN COMERCIAL B2G) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "75",
+    "descripcion": "Indicador 75 (Plan anual COORDINACIÓN COMERCIAL B2G) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "75",
+    "descripcion": "Indicador 75 (Plan anual COORDINACIÓN COMERCIAL B2G) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "76",
+    "descripcion": "Indicador 76 (Plan anual JEFE DE SERVICIO) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "76",
+    "descripcion": "Indicador 76 (Plan anual JEFE DE SERVICIO) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "76",
+    "descripcion": "Indicador 76 (Plan anual JEFE DE SERVICIO) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 1",
+    "descripcion": "Indicador Med 1 (Total Estudiantes  Sede Medellín) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 1",
+    "descripcion": "Indicador Med 1 (Total Estudiantes  Sede Medellín) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 1",
+    "descripcion": "Indicador Med 1 (Total Estudiantes  Sede Medellín) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 1.1",
+    "descripcion": "Indicador Med 1.1 (Estudiante nuevos presencial pregrado) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 1.1",
+    "descripcion": "Indicador Med 1.1 (Estudiante nuevos presencial pregrado) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 1.1",
+    "descripcion": "Indicador Med 1.1 (Estudiante nuevos presencial pregrado) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 1.2",
+    "descripcion": "Indicador Med 1.2 (Estudiante nuevos presencial posgrado) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 1.2",
+    "descripcion": "Indicador Med 1.2 (Estudiante nuevos presencial posgrado) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 1.2",
+    "descripcion": "Indicador Med 1.2 (Estudiante nuevos presencial posgrado) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 1.3",
+    "descripcion": "Indicador Med 1.3 (Total estudiantes nuevos presencial Medellin ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 1.3",
+    "descripcion": "Indicador Med 1.3 (Total estudiantes nuevos presencial Medellin ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 1.3",
+    "descripcion": "Indicador Med 1.3 (Total estudiantes nuevos presencial Medellin ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 1.4",
+    "descripcion": "Indicador Med 1.4 (Estudiantes antiguos presencial Medellin ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 1.4",
+    "descripcion": "Indicador Med 1.4 (Estudiantes antiguos presencial Medellin ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 1.4",
+    "descripcion": "Indicador Med 1.4 (Estudiantes antiguos presencial Medellin ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 2",
+    "descripcion": "Indicador Med 2 (Total Estudiantes Pregrado nuevos y antiguos Medellín ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 2",
+    "descripcion": "Indicador Med 2 (Total Estudiantes Pregrado nuevos y antiguos Medellín ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 2",
+    "descripcion": "Indicador Med 2 (Total Estudiantes Pregrado nuevos y antiguos Medellín ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 3",
+    "descripcion": "Indicador Med 3 (Estudiantes Postgrado antiguos) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 3",
+    "descripcion": "Indicador Med 3 (Estudiantes Postgrado antiguos) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 3",
+    "descripcion": "Indicador Med 3 (Estudiantes Postgrado antiguos) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 4",
+    "descripcion": "Indicador Med 4 (Total estudiantes Postgrado antiguos y nuevos Medellin) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 4",
+    "descripcion": "Indicador Med 4 (Total estudiantes Postgrado antiguos y nuevos Medellin) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 4",
+    "descripcion": "Indicador Med 4 (Total estudiantes Postgrado antiguos y nuevos Medellin) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 2.1",
+    "descripcion": "Indicador Med 2.1 (Estudiantes virtuales pregrado nuevos ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 2.1",
+    "descripcion": "Indicador Med 2.1 (Estudiantes virtuales pregrado nuevos ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 2.1",
+    "descripcion": "Indicador Med 2.1 (Estudiantes virtuales pregrado nuevos ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 4.1",
+    "descripcion": "Indicador Med 4.1 (Estudiantes virtuales posgrado nuevos ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 4.1",
+    "descripcion": "Indicador Med 4.1 (Estudiantes virtuales posgrado nuevos ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 4.1",
+    "descripcion": "Indicador Med 4.1 (Estudiantes virtuales posgrado nuevos ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 2.2",
+    "descripcion": "Indicador Med 2.2 (Estudiantes virtuales pregrado antiguos - Medellín) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 2.2",
+    "descripcion": "Indicador Med 2.2 (Estudiantes virtuales pregrado antiguos - Medellín) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 2.2",
+    "descripcion": "Indicador Med 2.2 (Estudiantes virtuales pregrado antiguos - Medellín) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 4.2",
+    "descripcion": "Indicador Med 4.2 (Estudiantes virtuales posgrado antiguos - Medellín) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 4.2",
+    "descripcion": "Indicador Med 4.2 (Estudiantes virtuales posgrado antiguos - Medellín) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 4.2",
+    "descripcion": "Indicador Med 4.2 (Estudiantes virtuales posgrado antiguos - Medellín) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 5",
+    "descripcion": "Indicador Med 5 (Total Estudiantes virtuales antiguos-Antioquia) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 5",
+    "descripcion": "Indicador Med 5 (Total Estudiantes virtuales antiguos-Antioquia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 5",
+    "descripcion": "Indicador Med 5 (Total Estudiantes virtuales antiguos-Antioquia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 6",
+    "descripcion": "Indicador Med 6 (Ingresos Educación para la vida) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 6",
+    "descripcion": "Indicador Med 6 (Ingresos Educación para la vida) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 6",
+    "descripcion": "Indicador Med 6 (Ingresos Educación para la vida) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 7",
+    "descripcion": "Indicador Med 7 (Satisfacción NPS) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 7",
+    "descripcion": "Indicador Med 7 (Satisfacción NPS) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 7",
+    "descripcion": "Indicador Med 7 (Satisfacción NPS) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 8",
+    "descripcion": "Indicador Med 8 (Tasa de permanencia ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 8",
+    "descripcion": "Indicador Med 8 (Tasa de permanencia ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 8",
+    "descripcion": "Indicador Med 8 (Tasa de permanencia ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 9",
+    "descripcion": "Indicador Med 9 (Satisfacción SSI ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 9",
+    "descripcion": "Indicador Med 9 (Satisfacción SSI ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 9",
+    "descripcion": "Indicador Med 9 (Satisfacción SSI ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 10",
+    "descripcion": "Indicador Med 10 (Total ingresos sede) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 10",
+    "descripcion": "Indicador Med 10 (Total ingresos sede) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 10",
+    "descripcion": "Indicador Med 10 (Total ingresos sede) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 11",
+    "descripcion": "Indicador Med 11 (EBITDA sede) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 11",
+    "descripcion": "Indicador Med 11 (EBITDA sede) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 11",
+    "descripcion": "Indicador Med 11 (EBITDA sede) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 12",
+    "descripcion": "Indicador Med 12 (Ejecución Presupuestal ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 12",
+    "descripcion": "Indicador Med 12 (Ejecución Presupuestal ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 12",
+    "descripcion": "Indicador Med 12 (Ejecución Presupuestal ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 13",
+    "descripcion": "Indicador Med 13 (Eficiencia OPEX ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 13",
+    "descripcion": "Indicador Med 13 (Eficiencia OPEX ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 13",
+    "descripcion": "Indicador Med 13 (Eficiencia OPEX ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 14",
+    "descripcion": "Indicador Med 14 (Cumplimiento proyecto Certificación SGA - medellín) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 14",
+    "descripcion": "Indicador Med 14 (Cumplimiento proyecto Certificación SGA - medellín) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 14",
+    "descripcion": "Indicador Med 14 (Cumplimiento proyecto Certificación SGA - medellín) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 15",
+    "descripcion": "Indicador Med 15 (Cumplimiento del Plan Anual) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 15",
+    "descripcion": "Indicador Med 15 (Cumplimiento del Plan Anual) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 15",
+    "descripcion": "Indicador Med 15 (Cumplimiento del Plan Anual) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 16",
+    "descripcion": "Indicador Med 16 (Convenios con impacto en ingresos adicionales) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 16",
+    "descripcion": "Indicador Med 16 (Convenios con impacto en ingresos adicionales) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 16",
+    "descripcion": "Indicador Med 16 (Convenios con impacto en ingresos adicionales) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Med 17",
+    "descripcion": "Indicador Med 17 (Medición Clima organizacional Sede - Great Place to work) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Med 17",
+    "descripcion": "Indicador Med 17 (Medición Clima organizacional Sede - Great Place to work) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Med 17",
+    "descripcion": "Indicador Med 17 (Medición Clima organizacional Sede - Great Place to work) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "97",
+    "descripcion": "Indicador 97 (Lanzamiento de nuevos programas presencial) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "97",
+    "descripcion": "Indicador 97 (Lanzamiento de nuevos programas presencial) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "97",
+    "descripcion": "Indicador 97 (Lanzamiento de nuevos programas presencial) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "999",
+    "descripcion": "Indicador 999 (Presupuesto nomina docente) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "999",
+    "descripcion": "Indicador 999 (Presupuesto nomina docente) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "999",
+    "descripcion": "Indicador 999 (Presupuesto nomina docente) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "998",
+    "descripcion": "Indicador 998 (Renovaciones de Registro Calificado Radicadas en el Ministerio de Educación Nacional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "998",
+    "descripcion": "Indicador 998 (Renovaciones de Registro Calificado Radicadas en el Ministerio de Educación Nacional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "998",
+    "descripcion": "Indicador 998 (Renovaciones de Registro Calificado Radicadas en el Ministerio de Educación Nacional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "900",
+    "descripcion": "Indicador 900 (Experiencia Institucional - Fase 3- Hub de experiencia) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "900",
+    "descripcion": "Indicador 900 (Experiencia Institucional - Fase 3- Hub de experiencia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "900",
+    "descripcion": "Indicador 900 (Experiencia Institucional - Fase 3- Hub de experiencia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "901",
+    "descripcion": "Indicador 901 (Centro de Idiomas Fase I - Stand By) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "901",
+    "descripcion": "Indicador 901 (Centro de Idiomas Fase I - Stand By) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "901",
+    "descripcion": "Indicador 901 (Centro de Idiomas Fase I - Stand By) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "902",
+    "descripcion": "Indicador 902 (CREA Centro de Recursos y Experiencias para el aprendizaje) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "902",
+    "descripcion": "Indicador 902 (CREA Centro de Recursos y Experiencias para el aprendizaje) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "902",
+    "descripcion": "Indicador 902 (CREA Centro de Recursos y Experiencias para el aprendizaje) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "903",
+    "descripcion": "Indicador 903 (Migración modelo de transporte rotativo) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "903",
+    "descripcion": "Indicador 903 (Migración modelo de transporte rotativo) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "903",
+    "descripcion": "Indicador 903 (Migración modelo de transporte rotativo) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "904",
+    "descripcion": "Indicador 904 (Ecosistema E3) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "904",
+    "descripcion": "Indicador 904 (Ecosistema E3) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "904",
+    "descripcion": "Indicador 904 (Ecosistema E3) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "905",
+    "descripcion": "Indicador 905 (Habilidades Poderosas) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "905",
+    "descripcion": "Indicador 905 (Habilidades Poderosas) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "905",
+    "descripcion": "Indicador 905 (Habilidades Poderosas) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "906",
+    "descripcion": "Indicador 906 (Ser PRO) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "906",
+    "descripcion": "Indicador 906 (Ser PRO) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "906",
+    "descripcion": "Indicador 906 (Ser PRO) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "907",
+    "descripcion": "Indicador 907 (Cultura de una buena docencia) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "907",
+    "descripcion": "Indicador 907 (Cultura de una buena docencia) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "907",
+    "descripcion": "Indicador 907 (Cultura de una buena docencia) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "908",
+    "descripcion": "Indicador 908 (Proyecto Silver) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "908",
+    "descripcion": "Indicador 908 (Proyecto Silver) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "908",
+    "descripcion": "Indicador 908 (Proyecto Silver) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-1",
+    "descripcion": "Indicador Prov-1 (Valor académico agregado ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-1",
+    "descripcion": "Indicador Prov-1 (Valor académico agregado ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-1",
+    "descripcion": "Indicador Prov-1 (Valor académico agregado ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-2",
+    "descripcion": "Indicador Prov-2 (Aporte relativo) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-2",
+    "descripcion": "Indicador Prov-2 (Aporte relativo) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-2",
+    "descripcion": "Indicador Prov-2 (Aporte relativo) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-3",
+    "descripcion": "Indicador Prov-3 (N° Programas con nuevo modelo evaluativo implementado) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-3",
+    "descripcion": "Indicador Prov-3 (N° Programas con nuevo modelo evaluativo implementado) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-3",
+    "descripcion": "Indicador Prov-3 (N° Programas con nuevo modelo evaluativo implementado) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-4",
+    "descripcion": "Indicador Prov-4 (Programas en modalidad virtual y hibrida en 2025) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-4",
+    "descripcion": "Indicador Prov-4 (Programas en modalidad virtual y hibrida en 2025) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-4",
+    "descripcion": "Indicador Prov-4 (Programas en modalidad virtual y hibrida en 2025) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-5",
+    "descripcion": "Indicador Prov-5 (Número de cursos  con microcertificación) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-5",
+    "descripcion": "Indicador Prov-5 (Número de cursos  con microcertificación) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-5",
+    "descripcion": "Indicador Prov-5 (Número de cursos  con microcertificación) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-7",
+    "descripcion": "Indicador Prov-7 (Número de estudiantes matriculados  IEDTH) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-7",
+    "descripcion": "Indicador Prov-7 (Número de estudiantes matriculados  IEDTH) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-7",
+    "descripcion": "Indicador Prov-7 (Número de estudiantes matriculados  IEDTH) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-8",
+    "descripcion": "Indicador Prov-8 (Índice de Permanencia Docente (NPS)) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-8",
+    "descripcion": "Indicador Prov-8 (Índice de Permanencia Docente (NPS)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-8",
+    "descripcion": "Indicador Prov-8 (Índice de Permanencia Docente (NPS)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-9",
+    "descripcion": "Indicador Prov-9 (Índice de Permanencia Administrativos (NPS)) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-9",
+    "descripcion": "Indicador Prov-9 (Índice de Permanencia Administrativos (NPS)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-9",
+    "descripcion": "Indicador Prov-9 (Índice de Permanencia Administrativos (NPS)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-10",
+    "descripcion": "Indicador Prov-10 (Diseño del Gobierno de IT) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-10",
+    "descripcion": "Indicador Prov-10 (Diseño del Gobierno de IT) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-10",
+    "descripcion": "Indicador Prov-10 (Diseño del Gobierno de IT) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-11",
+    "descripcion": "Indicador Prov-11 (Arquitectura de Microservicios) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-11",
+    "descripcion": "Indicador Prov-11 (Arquitectura de Microservicios) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-11",
+    "descripcion": "Indicador Prov-11 (Arquitectura de Microservicios) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-12",
+    "descripcion": "Indicador Prov-12 (Smart Assistant) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-12",
+    "descripcion": "Indicador Prov-12 (Smart Assistant) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-12",
+    "descripcion": "Indicador Prov-12 (Smart Assistant) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-13",
+    "descripcion": "Indicador Prov-13 (Optimización de procesos del ciclo de vida del estudiante) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-13",
+    "descripcion": "Indicador Prov-13 (Optimización de procesos del ciclo de vida del estudiante) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-13",
+    "descripcion": "Indicador Prov-13 (Optimización de procesos del ciclo de vida del estudiante) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-14",
+    "descripcion": "Indicador Prov-14 (Cumplimiento proyecto creación del centro de excelencia analítica ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-14",
+    "descripcion": "Indicador Prov-14 (Cumplimiento proyecto creación del centro de excelencia analítica ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-14",
+    "descripcion": "Indicador Prov-14 (Cumplimiento proyecto creación del centro de excelencia analítica ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-15",
+    "descripcion": "Indicador Prov-15 (ïndice de madurez analítica institucional y  por proceso ) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-15",
+    "descripcion": "Indicador Prov-15 (ïndice de madurez analítica institucional y  por proceso ) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-15",
+    "descripcion": "Indicador Prov-15 (ïndice de madurez analítica institucional y  por proceso ) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "Prov-16",
+    "descripcion": "Indicador Prov-16 (Desempeño de Modelos (Machine Learning - IA)) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "Prov-16",
+    "descripcion": "Indicador Prov-16 (Desempeño de Modelos (Machine Learning - IA)) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "Prov-16",
+    "descripcion": "Indicador Prov-16 (Desempeño de Modelos (Machine Learning - IA)) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "909",
+    "descripcion": "Indicador 909 (Acreditación Institucional  Fase III - Etapa de evaluación externa) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "909",
+    "descripcion": "Indicador 909 (Acreditación Institucional  Fase III - Etapa de evaluación externa) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "909",
+    "descripcion": "Indicador 909 (Acreditación Institucional  Fase III - Etapa de evaluación externa) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "910",
+    "descripcion": "Indicador 910 (Fortalecimiento de la investigacion, la innovación y la creación) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "910",
+    "descripcion": "Indicador 910 (Fortalecimiento de la investigacion, la innovación y la creación) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "910",
+    "descripcion": "Indicador 910 (Fortalecimiento de la investigacion, la innovación y la creación) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "911",
+    "descripcion": "Indicador 911 (Fortalecimiento de planta docente) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "911",
+    "descripcion": "Indicador 911 (Fortalecimiento de planta docente) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "911",
+    "descripcion": "Indicador 911 (Fortalecimiento de planta docente) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "912",
+    "descripcion": "Indicador 912 (Plataforma de gestión de la información curricular Fase I) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "912",
+    "descripcion": "Indicador 912 (Plataforma de gestión de la información curricular Fase I) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "912",
+    "descripcion": "Indicador 912 (Plataforma de gestión de la información curricular Fase I) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "913",
+    "descripcion": "Indicador 913 (Actualización de TRD y creación del Plan de gestión documental) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "913",
+    "descripcion": "Indicador 913 (Actualización de TRD y creación del Plan de gestión documental) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "913",
+    "descripcion": "Indicador 913 (Actualización de TRD y creación del Plan de gestión documental) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "914",
+    "descripcion": "Indicador 914 (ADN Poli) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "914",
+    "descripcion": "Indicador 914 (ADN Poli) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "914",
+    "descripcion": "Indicador 914 (ADN Poli) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "915",
+    "descripcion": "Indicador 915 (Gobierno de datos) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "915",
+    "descripcion": "Indicador 915 (Gobierno de datos) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "915",
+    "descripcion": "Indicador 915 (Gobierno de datos) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "916",
+    "descripcion": "Indicador 916 (Herramientas de Gestión para el mejoramiento continuo) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "916",
+    "descripcion": "Indicador 916 (Herramientas de Gestión para el mejoramiento continuo) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "916",
+    "descripcion": "Indicador 916 (Herramientas de Gestión para el mejoramiento continuo) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "917",
+    "descripcion": "Indicador 917 (Ilumno Self Service S&P) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "917",
+    "descripcion": "Indicador 917 (Ilumno Self Service S&P) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "917",
+    "descripcion": "Indicador 917 (Ilumno Self Service S&P) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "918",
+    "descripcion": "Indicador 918 (Reingeniería de aplicaciones) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "918",
+    "descripcion": "Indicador 918 (Reingeniería de aplicaciones) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "918",
+    "descripcion": "Indicador 918 (Reingeniería de aplicaciones) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "919",
+    "descripcion": "Indicador 919 (SOPHIA Sistema de optimización y programación horaria institucional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "919",
+    "descripcion": "Indicador 919 (SOPHIA Sistema de optimización y programación horaria institucional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "919",
+    "descripcion": "Indicador 919 (SOPHIA Sistema de optimización y programación horaria institucional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "920",
+    "descripcion": "Indicador 920 (Hubspot CRM) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "920",
+    "descripcion": "Indicador 920 (Hubspot CRM) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "920",
+    "descripcion": "Indicador 920 (Hubspot CRM) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "921",
+    "descripcion": "Indicador 921 (Prime) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "921",
+    "descripcion": "Indicador 921 (Prime) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "921",
+    "descripcion": "Indicador 921 (Prime) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "922",
+    "descripcion": "Indicador 922 (Proyecto de permanencia institucional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "922",
+    "descripcion": "Indicador 922 (Proyecto de permanencia institucional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "922",
+    "descripcion": "Indicador 922 (Proyecto de permanencia institucional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "923",
+    "descripcion": "Indicador 923 (Centro Gastronómico) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "923",
+    "descripcion": "Indicador 923 (Centro Gastronómico) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "923",
+    "descripcion": "Indicador 923 (Centro Gastronómico) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "924",
+    "descripcion": "Indicador 924 (Modelo de seguimiento al graduado) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "924",
+    "descripcion": "Indicador 924 (Modelo de seguimiento al graduado) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "924",
+    "descripcion": "Indicador 924 (Modelo de seguimiento al graduado) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "925",
+    "descripcion": "Indicador 925 (Pricing) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "925",
+    "descripcion": "Indicador 925 (Pricing) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "925",
+    "descripcion": "Indicador 925 (Pricing) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "542",
+    "descripcion": "Indicador 542 (Tasa de cotización del graduado - Metrica) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "542",
+    "descripcion": "Indicador 542 (Tasa de cotización del graduado - Metrica) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "542",
+    "descripcion": "Indicador 542 (Tasa de cotización del graduado - Metrica) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "547",
+    "descripcion": "Indicador 547 (Nivel de satisfacción del graduado con la institución) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "547",
+    "descripcion": "Indicador 547 (Nivel de satisfacción del graduado con la institución) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "547",
+    "descripcion": "Indicador 547 (Nivel de satisfacción del graduado con la institución) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "543",
+    "descripcion": "Indicador 543 (Tasa de interacción por usuario) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "543",
+    "descripcion": "Indicador 543 (Tasa de interacción por usuario) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "543",
+    "descripcion": "Indicador 543 (Tasa de interacción por usuario) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "928",
+    "descripcion": "Indicador 928 (Fortalecimiento del proceso de visibilidad nacional e internacional) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "928",
+    "descripcion": "Indicador 928 (Fortalecimiento del proceso de visibilidad nacional e internacional) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "928",
+    "descripcion": "Indicador 928 (Fortalecimiento del proceso de visibilidad nacional e internacional) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "927",
+    "descripcion": "Indicador 927 (Sistema de medición de resultados de aprendizaje) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "927",
+    "descripcion": "Indicador 927 (Sistema de medición de resultados de aprendizaje) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "927",
+    "descripcion": "Indicador 927 (Sistema de medición de resultados de aprendizaje) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Sin_Fórmula",
+    "severidad": "ALTA",
+    "indicador": "926",
+    "descripcion": "Indicador 926 (Titulación Autogestionada) sin fórmula documentada",
+    "recomendación": "Documentar fórmula de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Cálculo",
+    "severidad": "BAJA",
+    "indicador": "926",
+    "descripcion": "Indicador 926 (Titulación Autogestionada) sin responsable de cálculo",
+    "recomendación": "Asignar responsable de cálculo"
+  },
+  {
+    "tipo": "Sin_Responsable_Análisis",
+    "severidad": "BAJA",
+    "indicador": "926",
+    "descripcion": "Indicador 926 (Titulación Autogestionada) sin responsable de análisis",
+    "recomendación": "Asignar responsable de análisis"
+  },
+  {
+    "tipo": "Magic_Numbers",
+    "severidad": "MEDIA",
+    "descripcion": "Valores numéricos hardcodeados encontrados: {'0.01', '1.3'}",
+    "ubicacion": "core/calculos.py",
+    "recomendación": "Mover a config/settings.toml o core/config.py"
+  }
+]

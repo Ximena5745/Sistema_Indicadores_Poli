@@ -46,7 +46,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 # ── ETL modules ───────────────────────────────────────────────────
-from etl.config import AÑO_CIERRE_ACTUAL, OUTPUT_FILE  # noqa: E402
+from etl.config import AÑO_CIERRE_ACTUAL, OUTPUT_FILE, OUTPUT_DIR  # noqa: E402
 from etl.normalizacion import _id_str  # noqa: E402
 from etl.validation_gate import validar_consolidado_api_entrada  # noqa: E402
 from etl.agent5_corrections import AGENT5Corrections  # noqa: E402
@@ -92,6 +92,12 @@ from etl.versioning import VersionManager         # noqa: E402
 from etl.audit import AuditTrail                  # noqa: E402
 from etl.retry_handler import retry_pipeline      # noqa: E402
 from etl.notifications import EmailNotifier         # noqa: E402
+from etl.intermediate_validation import (          # noqa: E402
+    validate_after_build_records,
+    validate_before_write,
+    log_validation_result,
+)
+from etl.pipeline_metrics import MetricsCollector   # noqa: E402
 
 # ── Logging ───────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -205,11 +211,21 @@ def main() -> None:
     logger.info("=" * 65)
     logger.info("  ACTUALIZAR CONSOLIDADO  —  Año cierre: %s", AÑO_CIERRE_ACTUAL)
     logger.info("=" * 65)
+    
+    # ── 0. INICIAR MÉTRICAS ────────────────────────────────────────
+    metrics_collector = MetricsCollector(OUTPUT_DIR.parent / "artifacts")
+    metrics_collector.start_pipeline()
 
     # ── 1. Cargar fuente principal ────────────────────────────────
     logger.info("1. Cargando fuente consolidada API/Kawak…")
+    step1 = metrics_collector.start_step("cargar_fuente")
     df_api = cargar_fuente_consolidada()
     logger.info("   %d registros fuente", len(df_api))
+    metrics_collector.finish_step(
+        status="ok",
+        input_rows=len(df_api),
+        output_rows=len(df_api)
+    )
 
     # ── 1.5 VALIDAR CONTRATO DE ENTRADA ───────────────────────────
     logger.info("1.5 Validando contrato de datos (LAYER 1)…")
@@ -390,6 +406,22 @@ def main() -> None:
     regs_hist, regs_sem, regs_cierres, reporte_agent5 = apply_agent5_corrections_to_registros(
         regs_hist, regs_sem, regs_cierres, trail, logger
     )
+    
+    # ── 10.6 VALIDACIÓN INTERMEDIA (post-construcción) ──────────────
+    logger.info("10.6 Validación intermedia post-construcción…")
+    for nombre_hoja, regs in [("Historico", regs_hist), ("Semestral", regs_sem), ("Cierres", regs_cierres)]:
+        if regs:
+            validation = validate_after_build_records(regs, nombre_hoja)
+            log_validation_result(validation)
+            
+            if validation.status == "error":
+                logger.error(f"❌ Validación post-construcción FALLIDA para {nombre_hoja}")
+                # No bloquear pero registrar
+                trail.registrar_error(
+                    evento="validacion_intermedia",
+                    error=f"Validación post-construcción fallida para {nombre_hoja}",
+                    usuario="etl_script"
+                )
 
     # ── 11. Escribir nuevas filas ─────────────────────────────────
     logger.info("11. Escribiendo nuevas filas…")
@@ -537,6 +569,10 @@ def main() -> None:
                 audit_summary["eventos_exitosos"],
                 audit_summary["eventos_error"])
     logger.info(f"Archivo de auditoría: {trail.audit_file}")
+    
+    # ── Finalizar métricas ────────────────────────────────────────
+    metrics_collector.finish_pipeline(status="ok")
+    logger.info("📊 Métricas de rendimiento guardadas")
 
 
 if __name__ == "__main__":

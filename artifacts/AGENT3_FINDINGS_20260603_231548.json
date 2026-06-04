@@ -1,0 +1,122 @@
+[
+  {
+    "tipo": "Fórmula_Duplicada_Docs",
+    "severidad": "MEDIA",
+    "descripcion": "Múltiples definiciones de fórmula encontradas en docs: 2",
+    "ubicacion": "docs\\core\\02_Logica_Indicadores.md",
+    "recomendación": "Consolidar en una única definición"
+  },
+  {
+    "tipo": "Fórmula_Duplicada_Docs",
+    "severidad": "MEDIA",
+    "descripcion": "Múltiples definiciones de fórmula encontradas en docs: 2",
+    "ubicacion": "docs\\core\\02_Logica_Indicadores.md",
+    "recomendación": "Consolidar en una única definición"
+  },
+  {
+    "tipo": "Delegación_Correcta",
+    "severidad": "OK",
+    "descripcion": "calculos.py delega a domain.categorization (fuente única)",
+    "ubicacion": "core/calculos.py:77-87",
+    "recomendación": "Mantener"
+  },
+  {
+    "tipo": "Sin_Línea_Base",
+    "severidad": "MEDIA",
+    "indicador": "cumplimiento",
+    "descripcion": "Indicador 'Cumplimiento' sin línea base documentada",
+    "recomendación": "Definir línea base y período de establecimiento"
+  },
+  {
+    "tipo": "Sin_Meta",
+    "severidad": "MEDIA",
+    "indicador": "cumplimiento",
+    "descripcion": "Indicador 'Cumplimiento' sin meta o criterio de éxito",
+    "recomendación": "Definir meta específica y justificación"
+  },
+  {
+    "tipo": "Sin_Responsable",
+    "severidad": "BAJA",
+    "indicador": "cumplimiento",
+    "descripcion": "Indicador 'Cumplimiento' sin responsable asignado",
+    "recomendación": "Asignar responsable y contacto"
+  },
+  {
+    "tipo": "Sin_Línea_Base",
+    "severidad": "MEDIA",
+    "indicador": "categoria",
+    "descripcion": "Indicador 'Categoría de Cumplimiento' sin línea base documentada",
+    "recomendación": "Definir línea base y período de establecimiento"
+  },
+  {
+    "tipo": "Sin_Meta",
+    "severidad": "MEDIA",
+    "indicador": "categoria",
+    "descripcion": "Indicador 'Categoría de Cumplimiento' sin meta o criterio de éxito",
+    "recomendación": "Definir meta específica y justificación"
+  },
+  {
+    "tipo": "Sin_Responsable",
+    "severidad": "BAJA",
+    "indicador": "categoria",
+    "descripcion": "Indicador 'Categoría de Cumplimiento' sin responsable asignado",
+    "recomendación": "Asignar responsable y contacto"
+  },
+  {
+    "tipo": "Sin_Línea_Base",
+    "severidad": "MEDIA",
+    "indicador": "salud_institucional",
+    "descripcion": "Indicador 'Salud Institucional' sin línea base documentada",
+    "recomendación": "Definir línea base y período de establecimiento"
+  },
+  {
+    "tipo": "Sin_Meta",
+    "severidad": "MEDIA",
+    "indicador": "salud_institucional",
+    "descripcion": "Indicador 'Salud Institucional' sin meta o criterio de éxito",
+    "recomendación": "Definir meta específica y justificación"
+  },
+  {
+    "tipo": "Sin_Responsable",
+    "severidad": "BAJA",
+    "indicador": "salud_institucional",
+    "descripcion": "Indicador 'Salud Institucional' sin responsable asignado",
+    "recomendación": "Asignar responsable y contacto"
+  },
+  {
+    "tipo": "Sin_Línea_Base",
+    "severidad": "MEDIA",
+    "indicador": "tendencia",
+    "descripcion": "Indicador 'Tendencia' sin línea base documentada",
+    "recomendación": "Definir línea base y período de establecimiento"
+  },
+  {
+    "tipo": "Sin_Meta",
+    "severidad": "MEDIA",
+    "indicador": "tendencia",
+    "descripcion": "Indicador 'Tendencia' sin meta o criterio de éxito",
+    "recomendación": "Definir meta específica y justificación"
+  },
+  {
+    "tipo": "Sin_Responsable",
+    "severidad": "BAJA",
+    "indicador": "tendencia",
+    "descripcion": "Indicador 'Tendencia' sin responsable asignado",
+    "recomendación": "Asignar responsable y contacto"
+  },
+  {
+    "tipo": "Fórmula_Inconsistente",
+    "severidad": "CRÍTICA",
+    "descripcion": "Fórmula difiere entre docs y código",
+    "ubicacion_docs": "docs/core/02_Logica_Indicadores.md",
+    "ubicacion_code": "core/domain/categorization.py",
+    "recomendación": "Investigar y reconciliar diferencias"
+  },
+  {
+    "tipo": "Magic_Numbers",
+    "severidad": "MEDIA",
+    "descripcion": "Valores numéricos hardcodeados encontrados: {'0.01', '1.3'}",
+    "ubicacion": "core/calculos.py",
+    "recomendación": "Mover a config/settings.toml o core/config.py"
+  }
+]

@@ -1,0 +1,7 @@
+Dimension,Descarga,Transformación,Cálculo,Tests,Coverage
+Completitud,Sí,Sí,No,Sí,75%
+Duplicados,Sí,No,No,Sí,50%
+Rangos,Sí,Sí,Sí,Sí,100%
+Tipos,Sí,Sí,No,No,60%
+Nulos,Sí,Sí,Sí,Sí,100%
+Consistencia,No,No,No,No,0%
