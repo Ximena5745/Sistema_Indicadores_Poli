@@ -30,7 +30,7 @@ import pandas as pd
 from pathlib import Path
 
 from core.calculos import normalizar_cumplimiento
-from core.domain import categorizar_cumplimiento
+from core.domain import categorizar_cumplimiento, recalcular_cumplimiento_faltante
 from core.config import DATA_RAW
 from services.procesos import obtener_proceso_padre
 from services.loaders.utils import renombrar_columnas, id_a_str, obtener_rename_map
@@ -258,6 +258,19 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
         else float("nan")
     )
     df.loc[_mask_metrica | _mask_sin_reporte, "Cumplimiento_norm"] = float("nan")
+
+    # Recalcular cumplimiento faltante cuando Meta y Ejecución están disponibles
+    _tiene_ejec = "Ejecucion" in df.columns or "Ejecución" in df.columns
+    _col_ejec = "Ejecucion" if "Ejecucion" in df.columns else ("Ejecución" if "Ejecución" in df.columns else None)
+    if _tiene_ejec and "Meta" in df.columns:
+        _calcular_mask = df["Cumplimiento_norm"].isna() & df["Meta"].notna() & df[_col_ejec].notna()
+        if _calcular_mask.any():
+            df.loc[_calcular_mask, "Cumplimiento_norm"] = df.loc[_calcular_mask].apply(
+                lambda row: recalcular_cumplimiento_faltante(
+                    row["Meta"], row[_col_ejec], id_indicador=row.get("Id")
+                ),
+                axis=1,
+            )
 
     # Categorizar
     df["Categoria"] = df.apply(

@@ -379,7 +379,7 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
             "Subproceso",
             "Categoria",
             "Cumplimiento",
-            "Cumplimiento_pct",
+            "Cumplimiento_norm",
             "Periodicidad",
             "Anio",
             "Mes",
@@ -856,9 +856,14 @@ def _matriz_mitigacion_peligro(
 
     # Incluir porcentaje de cumplimiento actual (si está disponible) y asegurar número OM
     # Cumplimiento puede estar en columnas 'Cumplimiento' (0-100 o 0-1) o 'Cumplimiento_norm' (0-1)
-    if "Cumplimiento" in m.columns:
-        m["Cumplimiento_pct"] = pd.to_numeric(m.get("Cumplimiento"), errors="coerce")
-        # Usar centralizado normalizar_valor_a_porcentaje para escala (Problema #9 FIX)
+    _cumpl_col = None
+    if "Cumplimiento" in m.columns and pd.to_numeric(m["Cumplimiento"], errors="coerce").notna().any():
+        _cumpl_col = "Cumplimiento"
+    elif "Cumplimiento_norm" in m.columns:
+        _cumpl_col = "Cumplimiento_norm"
+
+    if _cumpl_col == "Cumplimiento":
+        m["Cumplimiento_pct"] = pd.to_numeric(m["Cumplimiento"], errors="coerce")
         m["Cumplimiento_pct"] = (
             m["Cumplimiento_pct"]
             .apply(
@@ -868,9 +873,9 @@ def _matriz_mitigacion_peligro(
             )
             .round(1)
         )
-    elif "Cumplimiento_norm" in m.columns:
+    elif _cumpl_col == "Cumplimiento_norm":
         m["Cumplimiento_pct"] = (
-            pd.to_numeric(m.get("Cumplimiento_norm"), errors="coerce") * 100
+            pd.to_numeric(m["Cumplimiento_norm"], errors="coerce") * 100
         ).round(1)
     else:
         m["Cumplimiento_pct"] = pd.NA
