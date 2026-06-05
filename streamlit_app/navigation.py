@@ -40,7 +40,7 @@ def render_sidebar_navigation() -> str:
             "◐  Plan de Mejoramiento",
             "─────────────────────",
             "◧  Seguimiento Operativo",
-            "△  Indicadores en Riesgo",
+            "◈  Gestión OM",
         ]
         menu_map = {
             "◫  Resumen General": "Resumen General",
@@ -50,7 +50,7 @@ def render_sidebar_navigation() -> str:
             "◐  Plan de Mejoramiento": "Plan de Mejoramiento",
             "─────────────────────": "divider",
             "◧  Seguimiento Operativo": "Seguimiento Operativo",
-            "△  Indicadores en Riesgo": "Indicadores en Riesgo",
+            "◈  Gestión OM": "Gestión OM",
         }
 
         # Filtrar opciones válidas (sin separador visual)
@@ -111,7 +111,6 @@ def router(menu: str):
     # Importar páginas bajo demanda para evitar circular imports
     try:
         from streamlit_app.pages import (
-            cmi_estrategico,
             cmi_estrategico_tabulado,
             gestion_om,
             informe_por_procesos,
@@ -119,12 +118,9 @@ def router(menu: str):
             resumen_general,
             resumen_por_proceso,
             seguimiento_reportes,
-            tablero_operativo,
-            pdi_acreditacion,
         )
     except (ImportError, ModuleNotFoundError):
         from .pages import (
-            cmi_estrategico,
             cmi_estrategico_tabulado,
             gestion_om,
             informe_por_procesos,
@@ -132,8 +128,6 @@ def router(menu: str):
             resumen_general,
             resumen_por_proceso,
             seguimiento_reportes,
-            tablero_operativo,
-            pdi_acreditacion,
         )
 
     # Routing
@@ -149,7 +143,7 @@ def router(menu: str):
         plan_mejoramiento.render()
     elif menu == "Seguimiento Operativo":
         seguimiento_reportes.render()
-    elif menu == "Indicadores en Riesgo":
-        tablero_operativo.render()
+    elif menu == "Gestión OM":
+        gestion_om.render()
     else:
         st.error(f"Página no encontrada: {menu}")
