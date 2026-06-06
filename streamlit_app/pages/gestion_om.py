@@ -370,6 +370,11 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
     if "Categoria" in df.columns:
         df = df[df["Categoria"].isin(["Peligro", "Alerta"])].copy()
 
+    # Excluir Métricas y No Aplica
+    if "Tipo_Registro" in df.columns:
+        _tipo_norm = df["Tipo_Registro"].astype(str).str.strip().str.lower()
+        df = df[~_tipo_norm.isin(["metrica", "no aplica"])].copy()
+
     cols = [
         c
         for c in [
@@ -378,6 +383,7 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
             "Proceso",
             "Subproceso",
             "Categoria",
+            "Sentido",
             "Cumplimiento",
             "Cumplimiento_norm",
             "Periodicidad",
@@ -1276,8 +1282,21 @@ def render():
         st.info("No hay indicadores en Peligro con los filtros seleccionados.")
         return
 
-    total_peligro = len(df_tabla)
-    st.markdown(f"### 📊 Indicadores en Peligro: {total_peligro} ({mes_sel} {anio_sel})")
+    # ── KPIs Resumen ──────────────────────────────────────────────────────────
+    total_registros = len(df_tabla)
+    total_peligro = int((df_tabla["Categoria"] == "Peligro").sum()) if "Categoria" in df_tabla.columns else 0
+    total_alerta = int((df_tabla["Categoria"] == "Alerta").sum()) if "Categoria" in df_tabla.columns else 0
+    con_om = int(df_tabla["tiene_om"].sum()) if "tiene_om" in df_tabla.columns else 0
+    avance_prom = pd.to_numeric(df_tabla.get("avance_om", pd.Series(dtype=float)), errors="coerce").mean()
+    avance_prom = 0.0 if pd.isna(avance_prom) else float(avance_prom)
+
+    st.markdown(f"### 📊 Indicadores en Riesgo — {mes_sel} {anio_sel}")
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("🔴 Peligro", total_peligro)
+    k2.metric("🟡 Alerta", total_alerta)
+    k3.metric("📋 Con OM", f"{con_om} / {total_registros}")
+    k4.metric("📊 Avance OM", f"{avance_prom:.1f}%" if con_om > 0 else "—")
+    st.markdown("---")
 
     # --- Tabla principal con encabezado visual e icono de expansión OM ---
     from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
@@ -1324,102 +1343,41 @@ def render():
     st.markdown(
         """
         <style>
-        div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
-        div[data-testid="stColumn"] { padding-left: 0 !important; padding-right: 0 !important; }
-        div[data-testid="stButton"] {
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: 0 !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        div[data-testid="stButton"] > button {
-            margin: 0 !important;
-        }
-        div[data-testid="stButton"] > button[kind="secondary"],
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"],
-        div[data-testid="stButton"] > button[kind="tertiary"],
-        div[data-testid="stButton"] > button[data-testid="baseButton-tertiary"] {
-            min-height: 0 !important;
-            height: 18px !important;
-            width: 18px !important;
-            padding: 0 !important;
-            margin: 0 auto !important;
-            border-radius: 4px !important;
-            border: none !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        div[data-testid="stButton"] > button[kind="secondary"]:hover,
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"]:hover,
-        div[data-testid="stButton"] > button[kind="tertiary"]:hover,
-        div[data-testid="stButton"] > button[data-testid="baseButton-tertiary"]:hover {
-            background: #e2e8f0 !important;
-        }
-        div[data-testid="stButton"] > button[kind="secondary"] p,
-        div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] p,
-        div[data-testid="stButton"] > button[kind="tertiary"] p,
-        div[data-testid="stButton"] > button[data-testid="baseButton-tertiary"] p {
-            font-size: 0.85rem;
-            line-height: 1;
-        }
-        /* Mantener botones primarios con estilo normal */
-        div[data-testid="stButton"] > button[kind="primary"],
-        div[data-testid="stButton"] > button[data-testid="baseButton-primary"] {
-            width: auto !important;
-            height: auto !important;
-            min-height: 2.25rem !important;
-            padding: 0.25rem 0.9rem !important;
-            border-radius: 0.5rem !important;
-        }
         .om-head {
             background:#1e293b;
             color:#fff;
             font-weight:700;
-            padding:6px 4px;
+            padding:8px 6px;
             border-right:1px solid #334155;
             border-radius:0;
             white-space:nowrap;
             line-height:1.1;
-            font-size:14px;
+            font-size:13px;
+            text-align:left;
         }
         .om-cell {
-            padding:6px 4px;
+            padding:7px 6px;
             border-bottom:1px solid #e2e8f0;
-            line-height:1.15;
+            line-height:1.2;
+            font-size:13px;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
         }
-        .om-cell-alt {
-            padding:6px 4px;
-            border-bottom:1px solid #e2e8f0;
-            background:#f8fafc;
-            line-height:1.15;
-        }
-        .om-bar-bg {
-            height: 16px;
-            border-radius: 8px;
-            background: #F3F4F6;
-            position: relative;
-            min-width: 84px;
-        }
-        .om-bar-fill {
-            height: 16px;
-            border-radius: 8px;
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
+        .om-cell-peligro { background:#FFF5F5; }
+        .om-cell-alerta { background:#FFFBEB; }
         .om-center { text-align:center; }
+        .om-right { text-align:right; }
         .om-avance-wrap {
-            min-width: 86px;
-            max-width: 110px;
-            margin: 0 auto;
+            min-width:80px;
+            max-width:100px;
+            margin:0 auto;
         }
         .om-badge {
             display:inline-block;
             padding:2px 8px;
             border-radius:8px;
-            font-size:12px;
+            font-size:11px;
             font-weight:700;
             color:#fff;
             white-space:nowrap;
@@ -1435,6 +1393,13 @@ def render():
             justify-content:center;
             height:100%;
         }
+        .om-ind-name {
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+            max-width:320px;
+            display:block;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1442,7 +1407,7 @@ def render():
 
     # Encabezado visual
     encabezados = cols_orden + ["Ver más"]
-    anchos = [0.5, 4.2, 2.8, 1.15, 0.9, 0.95, 1.25, 1.0, 1.4, 0.75, 1.05, 0.45]
+    anchos = [0.45, 3.5, 2.3, 1.0, 0.8, 0.85, 1.1, 0.9, 1.3, 0.65, 1.0, 0.4]
     head_cols = st.columns(anchos, gap="small")
     for i, h in enumerate(encabezados):
         with head_cols[i]:
@@ -1451,11 +1416,13 @@ def render():
     # Filas con estilo + expansión por icono
     for ridx, row in df_view.iterrows():
         row_cols = st.columns(anchos, gap="small")
-        cell_class = "om-cell" if ridx % 2 == 0 else "om-cell-alt"
+
+        cat = str(row.get("Categoria", "")).strip()
+        cell_class = "om-cell om-cell-peligro" if cat == "Peligro" else "om-cell om-cell-alerta"
 
         cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
         if pd.isna(cumple_num):
-            cumple_txt = "⚪ -"
+            cumple_txt = "—"
         else:
             icon = "🔴" if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
             cumple_txt = f"{icon} {cumple_num:.1f}%"
@@ -1474,15 +1441,17 @@ def render():
             + "</div>"
         )
 
+        ind_name = str(row.get("Indicador", ""))
+
         valores = [
             str(row.get("Id", "")),
-            str(row.get("Indicador", "")),
+            f"<span class='om-ind-name' title='{ind_name}'>{ind_name}</span>",
             str(row.get("Subproceso", "")),
             str(row.get("Periodicidad", "")),
             str(row.get("Meta", "")),
             str(row.get("Ejecucion", "")),
             cumple_txt,
-            str(row.get("Categoria", "")),
+            cat,
             tipo_badge,
             (
                 ""
@@ -1494,7 +1463,10 @@ def render():
 
         for i, val in enumerate(valores):
             with row_cols[i]:
-                extra = " om-center" if i in [4, 5, 9, 10] else ""
+                extra = " om-center" if i in [3, 4, 5, 9] else ""
+                if i == 7:
+                    color = "#C62828" if cat == "Peligro" else "#F57F17"
+                    extra += f" style='font-weight:600;color:{color}'"
                 st.markdown(f"<div class='{cell_class}{extra}'>{val}</div>", unsafe_allow_html=True)
 
         with row_cols[11]:
@@ -1527,6 +1499,32 @@ def render():
                     st.rerun()
             else:
                 st.info(f"OM {om_id} sin acciones asociadas.")
+
+    # ── Vista alternativa: tabla interactiva ────────────────────────────────
+    with st.expander("📋 Vista alternativa (tabla interactiva)", expanded=False):
+        _df_st = df_tabla[["Id", "Indicador", "Subproceso", "Periodicidad",
+                           "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria",
+                           "Sentido", "tipo_accion", "identificador", "avance_om"]].copy()
+        _df_st = _df_st.rename(columns={
+            "Cumplimiento_pct": "Cumplimiento %",
+            "tipo_accion": "Tipo Acción",
+            "identificador": "OM",
+            "avance_om": "Avance OM %",
+        })
+        st.dataframe(
+            _df_st,
+            use_container_width=True,
+            height=min(400, 40 + len(_df_st) * 35),
+            column_config={
+                "Cumplimiento %": st.column_config.ProgressColumn(
+                    "Cumplimiento %", min_value=0, max_value=130, format="%.1f%%"
+                ),
+                "Avance OM %": st.column_config.ProgressColumn(
+                    "Avance OM %", min_value=0, max_value=100, format="%.1f%%"
+                ),
+            },
+            hide_index=True,
+        )
 
     st.markdown("---")
 

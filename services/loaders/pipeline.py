@@ -262,15 +262,16 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     # Recalcular cumplimiento faltante cuando Meta y Ejecución están disponibles
     _tiene_ejec = "Ejecucion" in df.columns or "Ejecución" in df.columns
     _col_ejec = "Ejecucion" if "Ejecucion" in df.columns else ("Ejecución" if "Ejecución" in df.columns else None)
+    _col_sentido = "Sentido" if "Sentido" in df.columns else None
     if _tiene_ejec and "Meta" in df.columns:
         _calcular_mask = df["Cumplimiento_norm"].isna() & df["Meta"].notna() & df[_col_ejec].notna()
         if _calcular_mask.any():
-            df.loc[_calcular_mask, "Cumplimiento_norm"] = df.loc[_calcular_mask].apply(
-                lambda row: recalcular_cumplimiento_faltante(
-                    row["Meta"], row[_col_ejec], id_indicador=row.get("Id")
-                ),
-                axis=1,
-            )
+            def _calcular_fila(row):
+                sentido = row[_col_sentido] if _col_sentido and _col_sentido in row.index else "Positivo"
+                return recalcular_cumplimiento_faltante(
+                    row["Meta"], row[_col_ejec], sentido=sentido, id_indicador=row.get("Id")
+                )
+            df.loc[_calcular_mask, "Cumplimiento_norm"] = df.loc[_calcular_mask].apply(_calcular_fila, axis=1)
 
     # Categorizar
     df["Categoria"] = df.apply(
