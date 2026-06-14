@@ -1,0 +1,195 @@
+"use client";
+
+import { useState } from "react";
+import type { CMILineaDetalle } from "@/lib/types";
+import { CmiLineaAnalisisPanel } from "@/components/cmi/CmiLineaAnalisis";
+import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+
+interface CmiLineasTabProps {
+  lineas: CMILineaDetalle[];
+  expandLineaKey?: string | null;
+}
+
+type SubTab = "resumen" | "objetivos" | "analisis";
+
+export function CmiLineasTab({ lineas, expandLineaKey }: CmiLineasTabProps) {
+  const [openKeys, setOpenKeys] = useState<Set<string>>(() => {
+    if (expandLineaKey) return new Set([expandLineaKey]);
+    return new Set();
+  });
+  const [subTabs, setSubTabs] = useState<Record<string, SubTab>>({});
+
+  const toggle = (key: string) => {
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  if (!lineas.length) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+        No hay líneas estratégicas para mostrar.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-slate-800">Líneas Estratégicas y Objetivos</h3>
+      {lineas.map((linea) => {
+        const isOpen = openKeys.has(linea.linea_key);
+        const subTab = subTabs[linea.linea_key] ?? "resumen";
+        return (
+          <div key={linea.linea_key} className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+            <div
+              className="flex items-center justify-between gap-4 px-5 py-4"
+              style={{
+                background: `linear-gradient(90deg, ${linea.color}ee 0%, ${linea.color}99 50%, ${linea.color}55 100%)`,
+              }}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="h-14 w-3 rounded-full" style={{ backgroundColor: linea.color }} />
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-bold text-white">{linea.linea.replace(/_/g, " ")}</p>
+                  <p className="text-sm text-white/90">
+                    {linea.total_indicadores} indicadores · {linea.n_objetivos} objetivos · {linea.n_metas} metas
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-slate-900">
+                  {fmtPct(linea.cumplimiento_promedio)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toggle(linea.linea_key)}
+                  className="rounded-lg bg-white/90 px-4 py-2 text-sm font-semibold text-poli-navy hover:bg-white"
+                >
+                  {isOpen ? "Cerrar" : "Ver"}
+                </button>
+              </div>
+            </div>
+
+            {isOpen && (
+              <div className="border-t border-slate-200 bg-white p-5">
+                <div className="mb-4 flex gap-2 border-b border-slate-200">
+                  {(["resumen", "objetivos", "analisis"] as SubTab[]).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setSubTabs((s) => ({ ...s, [linea.linea_key]: t }))}
+                      className={`px-3 py-2 text-sm font-medium capitalize ${
+                        subTab === t
+                          ? "border-b-2 border-poli-blue text-poli-blue"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {t === "objetivos" ? "Objetivos, Metas e Indicadores" : t === "analisis" ? "Análisis" : "Resumen"}
+                    </button>
+                  ))}
+                </div>
+
+                {subTab === "resumen" && <LineaResumen linea={linea} />}
+                {subTab === "objetivos" && <LineaObjetivos linea={linea} />}
+                {subTab === "analisis" && <CmiLineaAnalisisPanel linea={linea} />}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LineaResumen({ linea }: { linea: CMILineaDetalle }) {
+  const metrics = [
+    ["Cumplimiento Promedio", fmtPct(linea.cumplimiento_promedio), linea.color],
+    ["En Sobrecumplimiento", String(linea.n_sobrecumplimiento), "#0F766E"],
+    ["En Cumplimiento", String(linea.n_cumplimiento), "#15803D"],
+    ["En Alerta", String(linea.n_alerta), "#F97316"],
+    ["En Riesgo", String(linea.n_riesgo), "#DC2626"],
+    ["Total indicadores", String(linea.total_indicadores), "#2563EB"],
+  ] as const;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {metrics.map(([title, value, color]) => (
+          <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">{title}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+            <div className="mt-3 h-1 w-10 rounded-full" style={{ backgroundColor: color }} />
+          </div>
+        ))}
+      </div>
+      {linea.top_indicadores.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-3 text-sm font-semibold text-slate-800">Indicadores principales</p>
+          <div className="space-y-2">
+            {linea.top_indicadores.map((ind) => (
+              <div key={ind.Indicador} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 flex-1 truncate text-slate-700">{ind.Indicador}</span>
+                <span className="font-bold text-slate-900">{fmtPct(ind.cumplimiento_pct)}</span>
+                <NivelBadge nivel={ind["Nivel de cumplimiento"]} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineaObjetivos({ linea }: { linea: CMILineaDetalle }) {
+  return (
+    <div className="space-y-4">
+      {linea.objetivos.map((obj) => (
+        <details key={obj.objetivo} className="rounded-lg border border-slate-200 bg-slate-50 p-3" open>
+          <summary className="cursor-pointer font-semibold text-slate-800">
+            Objetivo estratégico: {obj.objetivo}
+          </summary>
+          <div className="mt-3 space-y-3 pl-2">
+            {obj.metas.map((meta, idx) => (
+              <details key={`${obj.objetivo}-${idx}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                  {meta.meta ? `Meta Estratégica: ${meta.meta}` : "Indicadores del objetivo"}
+                </summary>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500">
+                        <th className="px-2 py-2">Indicador</th>
+                        <th className="px-2 py-2">Meta</th>
+                        <th className="px-2 py-2">Ejecución</th>
+                        <th className="px-2 py-2">%</th>
+                        <th className="px-2 py-2">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {meta.indicadores.map((ind) => (
+                        <tr key={ind.Id ?? ind.Indicador} className="border-b border-slate-100">
+                          <td className="px-2 py-2">{ind.Indicador}</td>
+                          <td className="px-2 py-2">{ind.Meta ?? "—"}</td>
+                          <td className="px-2 py-2">{ind.Ejecucion ?? "—"}</td>
+                          <td className="px-2 py-2 font-semibold">
+                            {fmtPct(ind.cumplimiento_pct as number | undefined)}
+                          </td>
+                          <td className="px-2 py-2">
+                            <NivelBadge nivel={ind["Nivel de cumplimiento"] as string | undefined} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}

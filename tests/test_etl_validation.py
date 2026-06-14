@@ -48,16 +48,16 @@ class TestValidarConsolidadoAPIEntrada:
     
     def test_valid_data(self):
         df = pd.DataFrame({
-            "ID": ["1", "2", "3"],
+            "Id": ["1", "2", "3"],
             "fecha": ["2025-01-01", "2025-02-01", "2025-03-01"],
             "resultado": [0.85, 0.90, 0.75]
         })
-        result = validar_consolidado_api_entrada(df, verbose=False)
+        result = validar_consolidado_api_entrada(df, min_rows=3, verbose=False)
         assert result.status in ["ok", "warning"]
     
     def test_missing_columns(self):
         df = pd.DataFrame({
-            "ID": ["1", "2"],
+            "Id": ["1", "2"],
             "fecha": ["2025-01-01", "2025-02-01"]
         })
         result = validar_consolidado_api_entrada(df, verbose=False)
@@ -72,7 +72,7 @@ class TestValidarConsolidadoAPIEntrada:
     
     def test_null_ids(self):
         df = pd.DataFrame({
-            "ID": [None, "1", "2"],
+            "Id": [None, "1", "2"],
             "fecha": ["2025-01-01", "2025-02-01", "2025-03-01"],
             "resultado": [0.85, 0.90, 0.75]
         })
@@ -82,7 +82,7 @@ class TestValidarConsolidadoAPIEntrada:
     
     def test_duplicate_ids_warning(self):
         df = pd.DataFrame({
-            "ID": ["1", "1", "2"],
+            "Id": ["1", "1", "2"],
             "fecha": ["2025-01-01", "2025-01-01", "2025-02-01"],
             "resultado": [0.85, 0.90, 0.75]
         })

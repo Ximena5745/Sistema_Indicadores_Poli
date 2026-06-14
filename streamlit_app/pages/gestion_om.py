@@ -1502,27 +1502,31 @@ def render():
 
     # ── Vista alternativa: tabla interactiva ────────────────────────────────
     with st.expander("📋 Vista alternativa (tabla interactiva)", expanded=False):
-        _df_st = df_tabla[["Id", "Indicador", "Subproceso", "Periodicidad",
-                           "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria",
-                           "Sentido", "tipo_accion", "identificador", "avance_om"]].copy()
+        _st_cols = ["Id", "Indicador", "Subproceso", "Periodicidad",
+                    "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria",
+                    "tipo_accion", "identificador", "avance_om"]
+        _st_cols = [c for c in _st_cols if c in df_tabla.columns]
+        _df_st = df_tabla[_st_cols].copy()
         _df_st = _df_st.rename(columns={
             "Cumplimiento_pct": "Cumplimiento %",
             "tipo_accion": "Tipo Acción",
             "identificador": "OM",
             "avance_om": "Avance OM %",
         })
+        _col_cfg = {}
+        if "Cumplimiento %" in _df_st.columns:
+            _col_cfg["Cumplimiento %"] = st.column_config.ProgressColumn(
+                "Cumplimiento %", min_value=0, max_value=130, format="%.1f%%"
+            )
+        if "Avance OM %" in _df_st.columns:
+            _col_cfg["Avance OM %"] = st.column_config.ProgressColumn(
+                "Avance OM %", min_value=0, max_value=100, format="%.1f%%"
+            )
         st.dataframe(
             _df_st,
             use_container_width=True,
             height=min(400, 40 + len(_df_st) * 35),
-            column_config={
-                "Cumplimiento %": st.column_config.ProgressColumn(
-                    "Cumplimiento %", min_value=0, max_value=130, format="%.1f%%"
-                ),
-                "Avance OM %": st.column_config.ProgressColumn(
-                    "Avance OM %", min_value=0, max_value=100, format="%.1f%%"
-                ),
-            },
+            column_config=_col_cfg if _col_cfg else None,
             hide_index=True,
         )
 

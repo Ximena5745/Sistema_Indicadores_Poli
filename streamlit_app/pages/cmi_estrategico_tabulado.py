@@ -96,6 +96,10 @@ def render():
         df = preparar_pdi_con_cierre(int(anio), int(mes))
         df = filter_df_for_cmi_estrategico(df, id_column="Id")
 
+        # Deduplicar por Id para evitar indicadores repetidos (mantener registro más reciente)
+        if not df.empty and "Id" in df.columns:
+            df = df.drop_duplicates(subset=["Id"], keep="last")
+
         if df.empty:
             st.warning("No hay indicadores para los filtros seleccionados.")
             return

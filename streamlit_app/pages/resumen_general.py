@@ -176,6 +176,15 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_c
     )
     return resumen
 
+def _find_year_col(columns):
+    """Busca la columna de año con tolerancia a encoding (Año, Año, Anio, etc.)."""
+    for col in columns:
+        normalized = str(col).strip().lower().replace(" ", "").replace("_", "")
+        if "ano" in normalized or "año" in normalized or "anio" in normalized:
+            return col
+    return None
+
+
 def _load_plan_retos_data(year):
     """Carga Plan de retos.xlsx (hojas 'Linea' y 'Objetivo') para el año dado."""
     import pandas as pd
@@ -188,14 +197,28 @@ def _load_plan_retos_data(year):
         # Normalizar nombres
         linea_df.columns = [str(c).strip() for c in linea_df.columns]
         obj_df.columns = [str(c).strip() for c in obj_df.columns]
-        # Filtrar por año
-        linea_df = linea_df[linea_df["Año"] == year].copy() if "Año" in linea_df.columns else linea_df
-        obj_df = obj_df[obj_df["Año"] == year].copy() if "Año" in obj_df.columns else obj_df
+        # Filtrar por año con tolerancia a encoding
+        linea_year_col = _find_year_col(linea_df.columns)
+        obj_year_col = _find_year_col(obj_df.columns)
+        if linea_year_col is not None:
+            linea_df = linea_df[linea_df[linea_year_col] == year].copy()
+        if obj_year_col is not None:
+            obj_df = obj_df[obj_df[obj_year_col] == year].copy()
         # Normalizar nombres para sunburst
-        if "Línea Estratégica" in linea_df.columns:
-            linea_df = linea_df.rename(columns={"Línea Estratégica": "Linea"})
-        if "Línea Estratégica" in obj_df.columns:
-            obj_df = obj_df.rename(columns={"Línea Estratégica": "Linea"})
+        linea_strat_col = None
+        for col in linea_df.columns:
+            if "línea" in str(col).lower() and "estrat" in str(col).lower():
+                linea_strat_col = col
+                break
+        if linea_strat_col is not None:
+            linea_df = linea_df.rename(columns={linea_strat_col: "Linea"})
+        obj_strat_col = None
+        for col in obj_df.columns:
+            if "línea" in str(col).lower() and "estrat" in str(col).lower():
+                obj_strat_col = col
+                break
+        if obj_strat_col is not None:
+            obj_df = obj_df.rename(columns={obj_strat_col: "Linea"})
         if "Cumplimiento" in linea_df.columns:
             linea_df = linea_df.rename(columns={"Cumplimiento": "cumplimiento_pct"})
         if "Cumplimiento" in obj_df.columns:
@@ -249,8 +272,15 @@ def _load_plan_retos_planes(year):
     try:
         df = pd.read_excel(path, sheet_name="Planes", engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
-        if "Año" in df.columns:
-            df = df[df["Año"] == year].copy()
+        # Buscar columna de año con tolerancia a encoding
+        year_col = None
+        for col in df.columns:
+            normalized = col.lower().replace(" ", "").replace("_", "")
+            if "ano" in normalized or "año" in normalized or "anio" in normalized:
+                year_col = col
+                break
+        if year_col is not None:
+            df = df[df[year_col] == year].copy()
         if "Desglose" in df.columns:
             df = df.rename(columns={"Desglose": "Linea"})
         if "N°" in df.columns:
@@ -333,6 +363,8 @@ def _build_linea_summary_from_retos(linea_df, objetivo_df: pd.DataFrame | None =
         resumen = resumen.merge(planes_count, on="Linea_norm", how="left")
         resumen["N_Indicadores"] = resumen["N_Planes"].fillna(resumen["N_Indicadores"]).astype(int)
         resumen = resumen.drop(columns=["Linea_norm", "N_Planes"])
+
+    resumen["N_Retos"] = resumen["N_Indicadores"]
 
     return resumen
 
@@ -2121,16 +2153,18 @@ def _render_strategy_card(
     card_html += "<div style='font-size:22px;font-weight:bold;color:" + color + ";'>" + f"{cumplimiento:.1f}%" + "</div>"
     card_html += "<div style='font-size:11px;color:#666;'>" + str(count) + " " + unit + "</div>"
     if projects is not None or retos is not None:
-        detail_indicators = indicators if indicators is not None else count
-        detail_parts = [f"{indicators_label}: {detail_indicators}"]
+        detail_parts = []
+        if indicators is not None:
+            detail_parts.append(f"{indicators_label}: {indicators}")
         if projects is not None:
             detail_parts.append(f"Proyectos: {projects}")
         if retos is not None:
             # Evitar duplicar el mismo valor si la unidad ya es el label de retos
             if str(retos_label).strip().lower() != str(unit).strip().lower():
                 detail_parts.append(f"{retos_label}: {retos}")
-        detail_text = " · ".join(detail_parts)
-        card_html += "<div style='font-size:11px;color:#444;margin-top:4px;'>" + detail_text + "</div>"
+        if detail_parts:
+            detail_text = " · ".join(detail_parts)
+            card_html += "<div style='font-size:11px;color:#444;margin-top:4px;'>" + detail_text + "</div>"
     card_html += "</div></div>"
     card_html += "<div style='font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;'>" + title + "</div>"
     # Sparkline en contenedor de altura fija para evitar superposición con otros elementos
@@ -2469,24 +2503,12 @@ def render():
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_proy.columns]
             objetivo_df = pdi_proy[cols].copy() if cols else pd.DataFrame()
             pdi_base_df = pdi_proy.copy()
+            pdi_estrategico = pdi_proy.copy()
                 
         elif category == "Plan de Retos":
-            linea_df = pd.DataFrame()
-            obj_df = pd.DataFrame()
-            planes_df = pd.DataFrame()
-            if use_all_years:
-                for y in years_to_load:
-                    linea_y, obj_y = _load_plan_retos_data(int(y))
-                    if not linea_y.empty:
-                        linea_df = pd.concat([linea_df, linea_y], ignore_index=True) if not linea_df.empty else linea_y
-                    if not obj_y.empty:
-                        obj_df = pd.concat([obj_df, obj_y], ignore_index=True) if not obj_df.empty else obj_y
-                    plane_y = _load_plan_retos_planes(int(y))
-                    if not plane_y.empty:
-                        planes_df = pd.concat([planes_df, plane_y], ignore_index=True) if not planes_df.empty else plane_y
-            else:
-                linea_df, obj_df = _load_plan_retos_data(int(year))
-                planes_df = _load_plan_retos_planes(int(year))
+            # Para Retos, SIEMPRE cargar solo el año seleccionado (no acumular multi-año)
+            linea_df, obj_df = _load_plan_retos_data(int(year))
+            planes_df = _load_plan_retos_planes(int(year))
 
             linea_summary = _build_linea_summary_from_retos(linea_df, obj_df, planes_df=planes_df)
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in obj_df.columns]
@@ -2775,7 +2797,7 @@ def render():
                 elif categoria == "Consolidado":
                     count = int(float(row.get("N_Planes", row.get("N_Indicadores", 0))))
                 elif categoria == "Plan de Retos":
-                    count = int(float(row.get("N_Retos", 0)))
+                    count = int(float(row.get("N_Retos", row.get("N_Indicadores", 0))))
                 else:
                     count = int(float(row.get("N_Indicadores", 0)))
             except (ValueError, TypeError):
@@ -2810,6 +2832,18 @@ def render():
             elif categoria == "Plan de Retos":
                 retos_value = n_retos
             
+            # Ajustar labels según categoría
+            if categoria == "Plan de Retos":
+                card_indicators = None
+                card_indicators_label = "Indicadores"
+                card_reto_value = count
+                card_reto_label = "Retos"
+            else:
+                card_indicators = n_ind
+                card_indicators_label = "Indicadores"
+                card_reto_value = retos_value
+                card_reto_label = "Áreas" if categoria == "Consolidado" else "Retos"
+
             _render_strategy_card(
                 title=card_def["label"],
                 count=count,
@@ -2818,11 +2852,11 @@ def render():
                 icon=card_def["icon"],
                 historico=historico,
                 unit_label=unit_label,
-                indicators=n_ind,
-                indicators_label="Indicadores",
+                indicators=card_indicators,
+                indicators_label=card_indicators_label,
                 projects=n_proy if categoria in ["Consolidado", "Proyectos"] else None,
-                retos=retos_value,
-                retos_label="Áreas" if categoria == "Consolidado" else "Retos",
+                retos=card_reto_value,
+                retos_label=card_reto_label,
             )
 
     # --- Sunburst ---

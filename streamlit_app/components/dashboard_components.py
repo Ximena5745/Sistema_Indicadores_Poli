@@ -518,6 +518,9 @@ def render_fichas_indicadores(
         df_iter = df_group.sort_values("_pct_num", na_position="last")
         total_count = len(df_group)
     else:
+        if "Id" in df_work.columns:
+            df_work["Id_norm"] = df_work["Id"].astype(str).str.strip()
+            df_work = df_work.drop_duplicates(subset=["Id_norm"], keep="last")
         df_iter = df_work.sort_values("_pct_num", na_position="last")
         total_count = len(df_work)
 
@@ -697,9 +700,10 @@ def render_fichas_indicadores(
 
     for i in range(0, len(card_rows), 2):
         cols = st.columns(2)
-        for col, (card_html, row) in zip(cols, card_rows[i : i + 2]):
+        for j, (card_html, row) in enumerate(card_rows[i : i + 2]):
+            col = cols[j]
             col.markdown(card_html, unsafe_allow_html=True)
-            btn_key = f"cmi_ficha_detail_{row.get('Id', '')}_{i}"
+            btn_key = f"cmi_ficha_detail_{row.get('Id', '')}_{i}_{j}"
             if col.button("Ver detalle", key=btn_key, use_container_width=True):
                 render_modal_ficha(row)
 

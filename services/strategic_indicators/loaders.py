@@ -130,6 +130,12 @@ def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
     
     if not include_ids:
         out = out.drop(columns=["Id"])
+        # Deduplicar a 1 fila por (Linea, Objetivo) para evitar
+        # duplicación en merges many-to-many (N indicadores × M catálogos).
+        out = (
+            out.groupby(["Linea", "Objetivo"], as_index=False)
+            .agg({"Meta_Estrategica": "first"})
+        )
 
     return out.reset_index(drop=True)
 
@@ -406,24 +412,28 @@ def load_proyectos_consolidados() -> pd.DataFrame:
     """
     Cargador específico para Proyectos desde 'Consolidado Cierres'.
     
-    Fuente: data/output/Resultados Consolidados.xlsx → Hoja 'Consolidado Cierres'
-    Esta es la fuente oficial actualizada que contiene datos de los 44 proyectos 
-    marcados con Proyecto==1 en el CMI.
+    Fuente: data/raw/Resultados_Consolidados_Fuente.xlsx → Hoja 'Consolidado Cierres'
+    Se usa el archivo fuente (raw) porque el archivo procesado (output) excluye 
+    los IDs de proyectos durante la consolidación del ETL.
     
     Retorna:
         DataFrame con todos los registros de Consolidado Cierres,
         listo para filtrar por proyectos en la capa de presentación.
     """
+    raw_source = ROOT / "data" / "raw" / "Resultados_Consolidados_Fuente.xlsx"
     out_xlsx = _resolve_out_xlsx_path()
-    if not out_xlsx.exists():
+    
+    # Intentar primero el archivo fuente (raw) que contiene proyectos
+    source_file = raw_source if raw_source.exists() else out_xlsx
+    if not source_file.exists():
         return pd.DataFrame()
     
     try:
-        xl = pd.ExcelFile(out_xlsx, engine="openpyxl")
+        xl = pd.ExcelFile(source_file, engine="openpyxl")
     except Exception:
         return pd.DataFrame()
     
-    # Usar "Consolidado Cierres" (fuente oficial actualizada con proyectos)
+    # Usar "Consolidado Cierres"
     if "Consolidado Cierres" not in xl.sheet_names:
         return pd.DataFrame()
     
