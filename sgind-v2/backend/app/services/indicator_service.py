@@ -12,6 +12,7 @@ from app.domain.calculos import obtener_ultimo_registro
 from app.domain.cmi_filters import CMIFilterService
 from app.services.etl_pipeline import ETLPipelineService
 from app.services.excel_reader import ExcelReaderService
+from app.services.tracking_cache import get_tracking_dataframe
 
 
 def _json_safe(value: Any) -> Any:
@@ -63,13 +64,14 @@ _INDICATOR_FIELDS = [
 
 class IndicatorService:
     def __init__(self, excel: ExcelReaderService) -> None:
+        self._excel = excel
         self._etl = ETLPipelineService(excel)
         self._cmi = CMIFilterService(excel)
 
     def _load(self, *, historico: bool = False, cierres: bool = True) -> pd.DataFrame:
         if cierres and not historico:
             return self._etl.leer_cierres()
-        return self._etl.ejecutar(historico=historico)
+        return get_tracking_dataframe(self._excel, historico=historico)
 
     def _apply_filters(
         self,

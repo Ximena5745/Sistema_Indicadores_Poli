@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
-from app.core.config import Settings, get_settings
+from app.api.deps import get_excel_service
 from app.core.security import require_reader
 from app.models.user import User
 from app.schemas.common import (
@@ -19,11 +19,7 @@ from app.services.excel_reader import ExcelReaderService
 router = APIRouter()
 
 
-def _excel_service(settings: Settings = Depends(get_settings)) -> ExcelReaderService:
-    return ExcelReaderService(settings)
-
-
-def _cmi_service(excel: ExcelReaderService = Depends(_excel_service)) -> CMIService:
+def _cmi_service(excel: ExcelReaderService = Depends(get_excel_service)) -> CMIService:
     return CMIService(excel)
 
 

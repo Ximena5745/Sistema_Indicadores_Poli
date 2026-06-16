@@ -20,7 +20,12 @@ export function NivelBadge({ nivel }: { nivel?: string }) {
   );
 }
 
-export function fmtPct(val?: number | null) {
+export function fmtPct(val?: number | null, digits = 1) {
   if (val == null || Number.isNaN(val)) return "—";
-  return `${val.toFixed(1)}%`;
+  return `${Number(val).toFixed(digits)}%`;
+}
+
+export function fmtNum(val?: number | null, digits = 1) {
+  if (val == null || Number.isNaN(val)) return "—";
+  return Number(val).toFixed(digits);
 }

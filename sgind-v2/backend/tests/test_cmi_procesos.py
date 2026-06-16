@@ -70,6 +70,48 @@ def test_apply_ui_filters_proceso():
     assert len(out) == 1
 
 
+def test_build_comparativa_procesos_colors():
+    from app.domain.procesos_builders import build_comparativa_procesos, cumplimiento_semaforo_color
+
+    df = pd.DataFrame(
+        {
+            "Proceso_padre": ["P1", "P2"],
+            "Tipo de proceso": ["MISIONAL", "APOYO"],
+            "cumplimiento_pct": [95.0, 65.0],
+            "Nivel de cumplimiento": ["Cumplimiento", "Peligro"],
+        }
+    )
+    prev = pd.DataFrame({"Proceso_padre": ["P1", "P2"], "cumplimiento_pct": [90.0, 70.0]})
+    out = build_comparativa_procesos(df, prev)
+    assert len(out) == 2
+    assert out[0]["color"] == cumplimiento_semaforo_color(95.0)
+    assert out[1]["estado"] == "Crítico"
+
+
+def test_build_vista_global_structure():
+    from app.domain.procesos_builders import build_vista_global
+
+    df = pd.DataFrame(
+        {
+            "Id": ["1"],
+            "Indicador": ["Ind A"],
+            "Proceso_padre": ["P1"],
+            "Subproceso_final": ["S1"],
+            "Unidad": ["U1"],
+            "Tipo de proceso": ["MISIONAL"],
+            "cumplimiento_pct": [88.0],
+            "Nivel de cumplimiento": ["Alerta"],
+            "Anio": [2025],
+            "Mes": ["Junio"],
+        }
+    )
+    vg = build_vista_global(df, pd.DataFrame(), pd.DataFrame(), anio=2025, mes_corte=6, base_year=2024, base_mes=12)
+    assert vg["mes_corte"] == 6
+    assert "kpis" in vg
+    assert "comparativa_procesos" in vg
+    assert "alertas_criticas" in vg
+
+
 def test_build_procesos_kpis():
     df = pd.DataFrame(
         {

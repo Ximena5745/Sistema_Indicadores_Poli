@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 
 
 
+from app.api.deps import get_excel_service
 from app.core.config import Settings, get_settings
 
 from app.core.security import require_reader
@@ -37,8 +38,7 @@ router = APIRouter()
 
 
 def _excel_service(settings: Settings = Depends(get_settings)) -> ExcelReaderService:
-
-    return ExcelReaderService(settings)
+    return get_excel_service(settings)
 
 
 

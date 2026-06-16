@@ -116,6 +116,45 @@ class StrategicProcessors:
 
         return self._cmi.filter_estrategico(result.reset_index(drop=True))
 
+    def preparar_cna_con_cierre(self, anio: int, mes: int = 12) -> pd.DataFrame:
+        base = self._loaders.load_worksheet_flags()
+        catalog = self._loaders.load_cna_catalog()
+        cierres = self._loaders.load_cierres()
+        if base.empty or cierres.empty:
+            return pd.DataFrame()
+        if "FlagCNA" not in base.columns:
+            return pd.DataFrame()
+
+        flag_vals = _normalize_flag_series(base["FlagCNA"])
+        indicators = base[flag_vals == 1].copy()
+        if indicators.empty:
+            return pd.DataFrame()
+
+        merge_cols = ["Id", "Indicador"]
+        for col in ("Factor", "Caracteristica"):
+            if col in indicators.columns:
+                merge_cols.append(col)
+
+        indicators["Id"] = indicators["Id"].apply(_normalize_id_value)
+        cierres_cut = cierre_por_corte(cierres, anio, mes)
+        cierres_cut["Id"] = cierres_cut["Id"].apply(_normalize_id_value)
+
+        result = indicators[merge_cols].merge(cierres_cut, on="Id", how="left", suffixes=("", "_cierre"))
+        if "Indicador_cierre" in result.columns:
+            result["Indicador"] = result["Indicador"].where(
+                result["Indicador"].notna() & (result["Indicador"].astype(str).str.strip() != ""),
+                result["Indicador_cierre"],
+            )
+            result = result.drop(columns=["Indicador_cierre"])
+
+        if not catalog.empty and "Factor" in result.columns and "Caracteristica" in result.columns:
+            result = result.merge(catalog, on=["Factor", "Caracteristica"], how="left", suffixes=("", "_cat"))
+
+        if "Nivel de cumplimiento" in result.columns:
+            result["Nivel de cumplimiento"] = result["Nivel de cumplimiento"].fillna(PENDIENTE_STR)
+
+        return self._cmi.filter_estrategico(result.reset_index(drop=True))
+
     def load_proyectos(self) -> pd.DataFrame:
         return self._loaders.load_proyectos()
 

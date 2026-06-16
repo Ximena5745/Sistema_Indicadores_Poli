@@ -7,6 +7,10 @@ import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
 interface CmiProcesosListadoTabProps {
   indicadores: Indicator[];
   summary: Record<string, number>;
+  ejecucionVariacion?: {
+    positiva: Array<{ indicador: string; ejecucion: number | null; delta: number; periodo: string }>;
+    negativa: Array<{ indicador: string; ejecucion: number | null; delta: number; periodo: string }>;
+  };
   onOpenFicha?: (id: string) => void;
   onExportCsv?: () => void;
   onExportExcel?: () => void;
@@ -18,6 +22,7 @@ const PAGE_SIZES = [25, 50, 100];
 export function CmiProcesosListadoTab({
   indicadores,
   summary,
+  ejecucionVariacion,
   onOpenFicha,
   onExportCsv,
   onExportExcel,
@@ -56,14 +61,19 @@ export function CmiProcesosListadoTab({
 
   return (
     <div className="space-y-6">
+      <p className="text-xs text-slate-500">
+        Listado filtrado — respeta todos los filtros del panel (año, mes, unidad, proceso, clasificación,
+        frecuencia). Columnas de proceso/subproceso, sin líneas estratégicas PDI.
+      </p>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid flex-1 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <SummaryCard label="Total" value={summary.total ?? 0} />
-        <SummaryCard label="Métricas" value={summary.metricas ?? 0} />
-        <SummaryCard label="Sobrecumpl." value={summary.sobrecumplimiento ?? 0} color="text-emerald-700" />
-        <SummaryCard label="Cumplimiento" value={summary.cumplimiento ?? 0} color="text-green-800" />
-        <SummaryCard label="Alerta" value={summary.alerta ?? 0} color="text-amber-700" />
-        <SummaryCard label="Peligro" value={summary.peligro ?? 0} color="text-red-700" />
+        <SummaryCard label="Total" value={summary.total ?? 0} bg="bg-slate-50" />
+        <SummaryCard label="Métricas" value={summary.metricas ?? 0} bg="bg-slate-50" />
+        <SummaryCard label="Sobrecumpl." value={summary.sobrecumplimiento ?? 0} color="text-blue-800" bg="bg-blue-50" border="border-blue-200" />
+        <SummaryCard label="Cumplimiento" value={summary.cumplimiento ?? 0} color="text-emerald-800" bg="bg-emerald-50" border="border-emerald-200" />
+        <SummaryCard label="Alerta" value={summary.alerta ?? 0} color="text-amber-800" bg="bg-amber-50" border="border-amber-200" />
+        <SummaryCard label="Peligro" value={summary.peligro ?? 0} color="text-red-800" bg="bg-red-50" border="border-red-200" />
         </div>
         <div className="flex gap-2">
           {onExportCsv && (
@@ -88,6 +98,14 @@ export function CmiProcesosListadoTab({
           )}
         </div>
       </div>
+
+      {ejecucionVariacion &&
+        (ejecucionVariacion.positiva.length > 0 || ejecucionVariacion.negativa.length > 0) && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <EjecVarTable title="Mayor variación positiva de ejecución" rows={ejecucionVariacion.positiva} positive />
+            <EjecVarTable title="Mayor variación negativa de ejecución" rows={ejecucionVariacion.negativa} positive={false} />
+          </div>
+        )}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">
@@ -235,15 +253,60 @@ function SummaryCard({
   label,
   value,
   color = "text-slate-900",
+  bg = "bg-white",
+  border = "border-slate-200",
 }: {
   label: string;
   value: number;
   color?: string;
+  bg?: string;
+  border?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
+    <div className={`rounded-xl border ${border} ${bg} p-3 text-center shadow-sm`}>
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
       <p className={`mt-1 text-xl font-bold ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function EjecVarTable({
+  title,
+  rows,
+  positive,
+}: {
+  title: string;
+  rows: Array<{ indicador: string; ejecucion: number | null; delta: number; periodo: string }>;
+  positive: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h4 className="mb-3 text-sm font-bold text-slate-800">{title}</h4>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-500">Sin variación registrada.</p>
+      ) : (
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-xs uppercase text-slate-500">
+              <th className="py-2 text-left">Indicador</th>
+              <th className="py-2 text-right">Delta</th>
+              <th className="py-2 text-right">Periodo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={`${r.indicador}-${r.periodo}`} className="border-t border-slate-100">
+                <td className="py-2 text-slate-800">{r.indicador}</td>
+                <td className={`py-2 text-right font-bold ${positive ? "text-emerald-700" : "text-red-700"}`}>
+                  {r.delta > 0 ? "+" : ""}
+                  {r.delta}
+                </td>
+                <td className="py-2 text-right text-slate-500">{r.periodo}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

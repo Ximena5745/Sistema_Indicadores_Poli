@@ -1,14 +1,47 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_excel_service
+from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.security import require_admin, require_reader
 from app.models.user import User
 from app.schemas.common import RegistroOMCreate, RegistroOMResponse, RegistroOMUpdate
+from app.services.excel_reader import ExcelReaderService
+from app.services.om_matriz_service import OMMatrizService
 from app.services.om_service import OMService
 
 router = APIRouter()
 _om_service = OMService()
+
+
+def _excel(settings: Settings = Depends(get_settings)) -> ExcelReaderService:
+    return get_excel_service(settings)
+
+
+def _matriz_service(excel: ExcelReaderService = Depends(_excel)) -> OMMatrizService:
+    return OMMatrizService(excel)
+
+
+@router.get("/matriz")
+async def om_matriz(
+    anio: int = Query(...),
+    mes: str = Query("Diciembre"),
+    proceso: str | None = Query(None),
+    subproceso: str | None = Query(None),
+    mostrar_alerta: bool = Query(False),
+    _user: User = Depends(require_reader),
+    db: AsyncSession = Depends(get_db),
+    service: OMMatrizService = Depends(_matriz_service),
+) -> dict:
+    return await service.get_matriz(
+        db,
+        anio=anio,
+        mes=mes,
+        proceso=proceso,
+        subproceso=subproceso,
+        mostrar_alerta=mostrar_alerta,
+    )
 
 
 @router.get("", response_model=list[RegistroOMResponse])

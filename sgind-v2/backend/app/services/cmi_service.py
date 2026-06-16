@@ -7,6 +7,8 @@ from typing import Any
 
 import pandas as pd
 
+from app.core.ttl_cache import cache_get
+
 from app.domain.cmi_builders import (
     CORTE_POR_MES,
     CORTE_SEMESTRAL,
@@ -36,7 +38,9 @@ from app.domain.procesos_builders import (
     build_catalog_charts,
     build_export_dataframe,
     build_export_excel_bytes,
+    build_ejecucion_variacion,
     build_filtros_options,
+    build_historico_catalog,
     build_indicadores_procesos_listado,
     build_indicadores_summary,
     build_proceso_bars,
@@ -45,6 +49,7 @@ from app.domain.procesos_builders import (
     build_tipo_proceso_cards,
     build_unidades_detalle,
     build_variacion_analisis,
+    build_vista_global,
     default_anio_procesos,
     default_mes,
     filter_by_anio_mes,
@@ -62,11 +67,14 @@ from app.services.etl_pipeline import ETLPipelineService
 from app.services.excel_reader import ExcelReaderService
 from app.services.indicator_service import IndicatorService
 from app.services.strategic_loaders import StrategicLoaders
+from app.services.tracking_cache import get_tracking_dataframe
 
 _FICHA_PATHS = [
     "raw/Ficha_Tecnica.xlsx",
     "raw/Ficha_Tecnica_Indicadores.xlsx",
 ]
+
+_YEAR_PREPARED_CACHE: dict[tuple[str, int, bool], tuple[float, pd.DataFrame]] = {}
 
 
 class CMIService:
@@ -240,8 +248,41 @@ class CMIService:
         return record
 
     def _load_tracking(self) -> pd.DataFrame:
-        etl = ETLPipelineService(self._excel)
-        return etl.ejecutar(historico=False)
+        return get_tracking_dataframe(self._excel, historico=False)
+
+    def _get_year_prepared(
+        self,
+        tracking: pd.DataFrame,
+        map_df: pd.DataFrame,
+        *,
+        anio: int,
+        omit_kawak_cross: bool = False,
+    ) -> pd.DataFrame:
+        root = str(self._excel.data_root.resolve())
+        key = (root, int(anio), omit_kawak_cross)
+
+        def _load() -> pd.DataFrame:
+            if tracking.empty or "Anio" not in tracking.columns:
+                return pd.DataFrame()
+            year_df = tracking[pd.to_numeric(tracking["Anio"], errors="coerce") == int(anio)].copy()
+            if year_df.empty:
+                return pd.DataFrame()
+            prepared = prepare_tracking(year_df, map_df)
+            prepared = self._cmi.filter_procesos(
+                prepared,
+                anio=anio,
+                map_df=map_df,
+                omit_if_no_cross=not omit_kawak_cross,
+            )
+            return ensure_nivel_cumplimiento(prepared)
+
+        return cache_get(_YEAR_PREPARED_CACHE, key, _load)
+
+    @staticmethod
+    def _slice_by_mes(year_prepared: pd.DataFrame, *, anio: int, mes: int) -> pd.DataFrame:
+        if year_prepared.empty:
+            return year_prepared
+        return filter_by_anio_mes(year_prepared, anio=anio, mes=mes)
 
     def _prepare_procesos_slice(
         self,
@@ -252,17 +293,10 @@ class CMIService:
         mes: int,
         omit_kawak_cross: bool = False,
     ) -> pd.DataFrame:
-        year_df = tracking[pd.to_numeric(tracking["Anio"], errors="coerce") == int(anio)].copy() if "Anio" in tracking.columns else tracking.copy()
-        prepared = prepare_tracking(year_df, map_df)
-        prepared = self._cmi.filter_procesos(
-            prepared,
-            anio=anio,
-            map_df=map_df,
-            omit_if_no_cross=not omit_kawak_cross,
+        year_prepared = self._get_year_prepared(
+            tracking, map_df, anio=anio, omit_kawak_cross=omit_kawak_cross
         )
-        prepared = filter_by_anio_mes(prepared, anio=anio, mes=mes)
-        prepared = ensure_nivel_cumplimiento(prepared)
-        return prepared
+        return self._slice_by_mes(year_prepared, anio=anio, mes=mes)
 
     def get_procesos_filtros(self, *, anio: int | None = None) -> dict[str, Any]:
         tracking = self._load_tracking()
@@ -282,6 +316,35 @@ class CMIService:
             "clasificaciones": opts["clasificaciones"],
             "frecuencias": opts["frecuencias"],
         }
+
+    def get_procesos_indicators_light(
+        self,
+        *,
+        anio: int,
+        mes: int,
+        unidad: str | None = None,
+        proceso: str | None = None,
+        subproceso: str | None = None,
+        clasificacion: str | None = None,
+        frecuencia: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Solo listado de indicadores (sin KPIs/gráficos) — para comparación año anterior en Informe."""
+        tracking = self._load_tracking()
+        map_df = load_process_map(self._excel)
+        if tracking.empty:
+            return []
+        year_prep = self._get_year_prepared(tracking, map_df, anio=anio)
+        df = self._slice_by_mes(year_prep, anio=anio, mes=mes)
+        df = apply_ui_filters(
+            df,
+            unidad=unidad,
+            proceso=proceso,
+            subproceso=subproceso,
+            clasificacion=clasificacion,
+            frecuencia=frecuencia,
+        )
+        latest = latest_per_indicator(df)
+        return build_indicadores_procesos_listado(latest)
 
     def get_procesos_dashboard(
         self,
@@ -329,6 +392,8 @@ class CMIService:
             "variacion": {"mejoraron": [], "empeoraron": [], "top_riesgo_procesos": []},
             "analisis_avanzado": {},
             "calidad": build_calidad_dashboard(pd.DataFrame(), mensaje="Sin datos de tracking."),
+            "vista_global": {},
+            "ejecucion_variacion": {"positiva": [], "negativa": []},
             "meta": {"base_anio": anio_eff - 1, "base_mes": None, "latest_month_global": mes_eff},
         }
 
@@ -338,24 +403,55 @@ class CMIService:
         base_year = anio_eff - 1
         base_mes = get_prev_month_for_year(tracking, base_year) if base_year in anios else None
 
-        df_current = self._prepare_procesos_slice(tracking, map_df, anio=anio_eff, mes=mes_eff)
-        df_prev_month = self._prepare_procesos_slice(tracking, map_df, anio=anio_eff, mes=max(1, mes_eff - 1)) if mes_eff > 1 else pd.DataFrame()
+        year_prep = self._get_year_prepared(tracking, map_df, anio=anio_eff)
+        year_prep_base = (
+            self._get_year_prepared(tracking, map_df, anio=base_year, omit_kawak_cross=True)
+            if base_mes is not None
+            else pd.DataFrame()
+        )
 
-        df_base_year = pd.DataFrame()
-        if base_mes is not None:
-            df_base_year = self._prepare_procesos_slice(
-                tracking,
-                map_df,
-                anio=base_year,
-                mes=base_mes,
-                omit_kawak_cross=True,
-            )
+        df_current = self._slice_by_mes(year_prep, anio=anio_eff, mes=mes_eff)
+        df_prev_month = (
+            self._slice_by_mes(year_prep, anio=anio_eff, mes=max(1, mes_eff - 1)) if mes_eff > 1 else pd.DataFrame()
+        )
 
-        df_global = self._prepare_procesos_slice(
-            tracking,
-            map_df,
+        df_base_year = (
+            self._slice_by_mes(year_prep_base, anio=base_year, mes=base_mes) if base_mes is not None else pd.DataFrame()
+        )
+
+        mes_global = get_prev_month_for_year(tracking, anio_eff) or mes_eff
+        df_global = self._slice_by_mes(year_prep, anio=anio_eff, mes=mes_global)
+
+        df_global_base = (
+            self._slice_by_mes(year_prep_base, anio=base_year, mes=base_mes) if base_mes is not None else pd.DataFrame()
+        )
+
+        vista_global = build_vista_global(
+            df_global,
+            df_global_base,
+            cmi_catalog,
             anio=anio_eff,
-            mes=get_prev_month_for_year(tracking, anio_eff) or mes_eff,
+            mes_corte=mes_global,
+            base_year=base_year,
+            base_mes=base_mes,
+        )
+
+        meses_hist = sorted(
+            tracking[pd.to_numeric(tracking["Anio"], errors="coerce") == anio_eff]["Mes"]
+            .apply(lambda m: int(mes_to_num(m) or 0))
+            .dropna()
+            .astype(int)
+            .unique()
+            .tolist()
+        ) if "Anio" in tracking.columns else list(range(1, 13))
+
+        hist_slices_global: list[pd.DataFrame] = []
+        for m in meses_hist:
+            sl = self._slice_by_mes(year_prep, anio=anio_eff, mes=int(m))
+            if not sl.empty:
+                hist_slices_global.append(sl)
+        tracking_hist_global = (
+            pd.concat(hist_slices_global, ignore_index=True) if hist_slices_global else pd.DataFrame()
         )
 
         filtered = apply_ui_filters(
@@ -372,16 +468,8 @@ class CMIService:
         catalog_charts = build_catalog_charts(cmi_catalog, active_ids)
 
         hist_slices: list[pd.DataFrame] = []
-        meses_hist = sorted(
-            tracking[pd.to_numeric(tracking["Anio"], errors="coerce") == anio_eff]["Mes"]
-            .apply(lambda m: int(mes_to_num(m) or 0))
-            .dropna()
-            .astype(int)
-            .unique()
-            .tolist()
-        ) if "Anio" in tracking.columns else list(range(1, 13))
         for m in meses_hist:
-            sl = self._prepare_procesos_slice(tracking, map_df, anio=anio_eff, mes=int(m))
+            sl = self._slice_by_mes(year_prep, anio=anio_eff, mes=int(m))
             sl = apply_ui_filters(
                 sl,
                 unidad=unidad,
@@ -408,9 +496,19 @@ class CMIService:
             latest,
             df_prev_month,
             df_base_year,
-            tracking_hist,
+            tracking_hist_global if not tracking_hist_global.empty else tracking_hist,
             proceso=proceso or "Todos",
             base_anio=base_year,
+        )
+        latest_global = latest_per_indicator(df_global)
+        analisis_avanzado["historico_indicadores"] = build_historico_catalog(
+            latest_global,
+            tracking_hist_global,
+        )
+
+        ejecucion_variacion = build_ejecucion_variacion(
+            latest,
+            df_prev_month if not df_prev_month.empty else df_base_year,
         )
 
         return {
@@ -453,6 +551,8 @@ class CMIService:
             "variacion": build_variacion_analisis(latest, df_prev_month if not df_prev_month.empty else df_base_year),
             "analisis_avanzado": analisis_avanzado,
             "calidad": calidad,
+            "vista_global": vista_global,
+            "ejecucion_variacion": ejecucion_variacion,
             "meta": {
                 "base_anio": base_year,
                 "base_mes": base_mes,

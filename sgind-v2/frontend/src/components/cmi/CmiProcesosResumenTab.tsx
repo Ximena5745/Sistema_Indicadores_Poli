@@ -1,57 +1,52 @@
 "use client";
 
-import type { CMIProcesosDashboardResponse } from "@/lib/types";
+import type { CMIProcesosVistaGlobal } from "@/lib/types";
+import { CmiCatalogChartsPlotly } from "@/components/cmi/CmiCatalogChartsPlotly";
 import { CmiDonutNivelPlotly } from "@/components/cmi/CmiDonutNivelPlotly";
 import { CmiMetricCard } from "@/components/cmi/CmiMetricCard";
 import { CmiProcesosBarPlotly } from "@/components/cmi/CmiProcesosBarPlotly";
+import { fmtNum, fmtPct } from "@/components/cmi/nivelUtils";
 
-const NIVEL_COLORS: Record<string, string> = {
-  Sobrecumplimiento: "#6699FF",
-  Cumplimiento: "#43A047",
-  Alerta: "#FBAF17",
-  Peligro: "#D32F2F",
-  "Pendiente de reporte": "#9E9E9E",
-};
+const RESUMEN_BAR_LIMIT = 12;
 
 interface CmiProcesosResumenTabProps {
-  data: CMIProcesosDashboardResponse;
+  vista: CMIProcesosVistaGlobal;
+  baseAnio: number;
 }
 
-export function CmiProcesosResumenTab({ data }: CmiProcesosResumenTabProps) {
-  const {
-    kpis,
-    banner,
-    distribucion_nivel,
-    tipo_proceso_cards,
-    proceso_bars,
-    catalog_charts,
-    meta,
-    analisis_avanzado,
-    variacion,
-  } = data;
-  const topCount = kpis.conteo_estados[kpis.top_nivel] ?? 0;
-  const nivelColor = NIVEL_COLORS[kpis.top_nivel] ?? "#1A3A5C";
-  const insights = analisis_avanzado?.insights;
+export function CmiProcesosResumenTab({ vista, baseAnio }: CmiProcesosResumenTabProps) {
+  const { kpis, banner, distribucion_nivel, proceso_bars, catalog_charts, variacion } = vista;
+
+  const conteo = kpis.conteo_estados ?? {};
+  const nAlerta = conteo["Alerta"] ?? 0;
+  const nPeligro = conteo["Peligro"] ?? 0;
+
+  const barSlice = [...proceso_bars]
+    .sort((a, b) => (b.cumplimiento ?? 0) - (a.cumplimiento ?? 0))
+    .slice(0, RESUMEN_BAR_LIMIT);
 
   return (
-    <div className="space-y-8">
-      <h3 className="text-xl font-bold text-slate-900">Resumen Desglosado</h3>
-
-      <div className="rounded-2xl border border-poli-navy/20 bg-gradient-to-br from-poli-navy via-[#234a73] to-[#2d5a8a] p-6 text-white shadow-[0_8px_32px_rgba(26,58,92,0.25)]">
-        <p className="text-xs font-bold uppercase tracking-wider text-white/70">{banner.titulo}</p>
-        <h3 className="mt-1 text-2xl font-bold">
-          {banner.anio} · {banner.mes}
-        </h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-4">
-          <BannerStat
-            label="Cumplimiento global"
-            value={banner.cumplimiento_global != null ? `${banner.cumplimiento_global}%` : "—"}
-          />
+    <div className="space-y-6">
+      <div className="rounded-2xl bg-gradient-to-br from-[#173a63] to-[#2d5a8a] p-5 text-white shadow-lg sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">CMI por Procesos</p>
+            <h3 className="text-xl font-bold sm:text-2xl">
+              {banner.anio} · {banner.mes}
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Chip label="Subprocesos = 1" />
+            <Chip label="Validado Kawak" />
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <BannerStat label="Cumplimiento global" value={fmtPct(banner.cumplimiento_global)} large />
           <BannerStat
             label={`vs ${banner.base_anio}`}
             value={
               banner.variacion_pp != null
-                ? `${banner.variacion_pp > 0 ? "+" : ""}${banner.variacion_pp} pp`
+                ? `${banner.variacion_pp > 0 ? "+" : ""}${fmtNum(banner.variacion_pp)} pp`
                 : "—"
             }
           />
@@ -60,196 +55,117 @@ export function CmiProcesosResumenTab({ data }: CmiProcesosResumenTabProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <CmiMetricCard
-          title="Indicadores CMI Procesos"
-          value={String(kpis.total)}
-          subtitle={`Con dato: ${kpis.con_dato}`}
-          icon="📊"
-          color="#1A3A5C"
-        />
-        <CmiMetricCard
-          title="Promedio cumplimiento"
-          value={`${kpis.promedio}%`}
-          subtitle={`${kpis.n_procesos} procesos · ${kpis.n_subprocesos} subprocesos`}
+          title="Cumplimiento promedio"
+          value={fmtPct(kpis.promedio)}
+          subtitle={`Corte ${vista.mes_nombre}`}
           icon="📈"
           color="#43A047"
         />
         <CmiMetricCard
-          title="Nivel predominante"
-          value={kpis.top_nivel}
-          subtitle={`${topCount} de ${kpis.total}`}
-          icon="🏆"
-          color={nivelColor}
+          title="En alerta"
+          value={String(nAlerta)}
+          subtitle="80% – 99%"
+          icon="⚠️"
+          color="#FBAF17"
         />
         <CmiMetricCard
-          title="En riesgo"
-          value={String(kpis.en_riesgo)}
-          subtitle={`${kpis.n_unidades} unidades`}
-          icon="⚠️"
-          color={kpis.en_riesgo > 0 ? "#D32F2F" : "#43A047"}
+          title="En peligro"
+          value={String(nPeligro)}
+          subtitle="Menor a 80%"
+          icon="🚨"
+          color="#D32F2F"
+        />
+        <CmiMetricCard
+          title="Procesos activos"
+          value={String(kpis.n_procesos)}
+          subtitle={`${kpis.n_subprocesos} subprocesos · ${kpis.n_unidades} unidades`}
+          icon="🏢"
+          color="#1A3A5C"
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(26,58,92,0.06)] lg:col-span-3">
-          <h4 className="mb-4 text-sm font-bold text-slate-800">
-            Cumplimiento por proceso {meta.base_anio ? `(vs ${meta.base_anio})` : ""}
-          </h4>
-          <CmiProcesosBarPlotly data={proceso_bars} baseAnio={meta.base_anio} />
+      <CmiCatalogChartsPlotly
+        periodicidad={catalog_charts.periodicidad}
+        tipoIndicador={catalog_charts.tipo_indicador}
+      />
+
+      <div className="grid gap-5 lg:grid-cols-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h4 className="text-sm font-bold text-slate-800">
+              Top procesos por cumplimiento {baseAnio ? `(vs ${baseAnio})` : ""}
+            </h4>
+            {proceso_bars.length > RESUMEN_BAR_LIMIT && (
+              <span className="text-[10px] text-slate-500">
+                Mostrando {RESUMEN_BAR_LIMIT} de {proceso_bars.length} · ver todos en Procesos
+              </span>
+            )}
+          </div>
+          <CmiProcesosBarPlotly data={barSlice} baseAnio={baseAnio} maxHeight={300} compact />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(26,58,92,0.06)] lg:col-span-2">
-          <h4 className="mb-4 text-sm font-bold text-slate-800">Distribución por nivel</h4>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+          <h4 className="mb-3 text-sm font-bold text-slate-800">Distribución por nivel</h4>
           <CmiDonutNivelPlotly data={distribucion_nivel} total={kpis.total} />
         </div>
       </div>
 
-      {insights && (insights.mejora_proceso || insights.riesgo_proceso) && (
-        <div>
-          <h4 className="mb-4 text-sm font-bold text-slate-800">Insights automáticos</h4>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {insights.mejora_proceso && (
-              <InsightCard
-                emoji="🏆"
-                title="Mayor mejora"
-                text={insights.mejora_proceso}
-                gradient="from-emerald-50 to-blue-50"
-                borderColor="#43A047"
-              />
-            )}
-            {insights.riesgo_proceso && (
-              <InsightCard
-                emoji="⚡"
-                title="Mayor riesgo"
-                text={insights.riesgo_proceso}
-                gradient="from-red-50 to-amber-50"
-                borderColor="#D32F2F"
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {variacion.top_riesgo_procesos.length > 0 && (
-        <div>
-          <h4 className="mb-4 text-sm font-bold text-slate-800">Procesos con más indicadores en riesgo</h4>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {variacion.top_riesgo_procesos.slice(0, 6).map((p) => (
-              <div
-                key={p.proceso}
-                className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(26,58,92,0.05)]"
-              >
-                <p className="text-sm font-bold text-slate-800">{p.proceso}</p>
-                <p className="mt-2 text-2xl font-extrabold text-red-600">{p.n_riesgo}</p>
-                <p className="text-xs text-slate-500">
-                  en riesgo · cumpl. {p.cumplimiento != null ? `${p.cumplimiento}%` : "—"}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tipo_proceso_cards.length > 0 && (
-        <div>
-          <h4 className="mb-4 text-sm font-bold text-slate-800">Por tipo de proceso</h4>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {tipo_proceso_cards.map((card) => (
-              <div
-                key={card.tipo}
-                className="rounded-2xl border border-slate-200 p-4 shadow-[0_2px_12px_rgba(26,58,92,0.06)] transition hover:shadow-[0_6px_20px_rgba(26,58,92,0.1)]"
-                style={{ backgroundColor: card.color_light }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{card.icon}</span>
-                  <span className="text-sm font-bold" style={{ color: card.color }}>
-                    {card.tipo}
-                  </span>
-                </div>
-                <p className="mt-3 text-2xl font-bold text-slate-900">
-                  {card.cumplimiento != null ? `${card.cumplimiento}%` : "—"}
-                </p>
-                <p className="text-xs text-slate-600">
-                  {card.n_indicadores} indicadores · {card.n_riesgo} en riesgo
-                  {card.variacion_pp != null && (
-                    <span className={card.variacion_pp >= 0 ? " text-emerald-700" : " text-red-700"}>
-                      {" "}
-                      · {card.variacion_pp > 0 ? "+" : ""}
-                      {card.variacion_pp} pp
-                    </span>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(catalog_charts.periodicidad.length > 0 || catalog_charts.tipo_indicador.length > 0) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <CatalogList title="Periodicidad" items={catalog_charts.periodicidad} />
-          <CatalogList title="Tipo de indicador" items={catalog_charts.tipo_indicador} />
+      {(variacion.mejoraron.length > 0 || variacion.empeoraron.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <VarTable title="Mayor mejora" rows={variacion.mejoraron} positive />
+          <VarTable title="Mayor riesgo" rows={variacion.empeoraron} positive={false} />
         </div>
       )}
     </div>
   );
 }
 
-function InsightCard({
-  emoji,
-  title,
-  text,
-  gradient,
-  borderColor,
+function Chip({ label }: { label: string }) {
+  return (
+    <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold text-white/90">
+      {label}
+    </span>
+  );
+}
+
+function BannerStat({
+  label,
+  value,
+  large,
 }: {
-  emoji: string;
-  title: string;
-  text: string;
-  gradient: string;
-  borderColor: string;
+  label: string;
+  value: string;
+  large?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-xl border-l-[5px] bg-gradient-to-r p-4 shadow-[0_2px_6px_rgba(0,0,0,0.06)] ${gradient}`}
-      style={{ borderLeftColor: borderColor }}
-    >
-      <div className="flex items-start gap-3">
-        <span className="text-2xl">{emoji}</span>
-        <div>
-          <p className="text-sm font-bold text-slate-800">{title}</p>
-          <p className="mt-1 text-sm text-slate-700">{text}</p>
-        </div>
-      </div>
+    <div className="rounded-xl bg-white/10 px-3 py-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-white/55">{label}</p>
+      <p className={`mt-0.5 font-bold ${large ? "text-2xl" : "text-lg"}`}>{value}</p>
     </div>
   );
 }
 
-function BannerStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-bold uppercase tracking-wider text-white/60">{label}</p>
-      <p className="mt-1 text-xl font-bold">{value}</p>
-    </div>
-  );
-}
-
-function CatalogList({
+function VarTable({
   title,
-  items,
+  rows,
+  positive,
 }: {
   title: string;
-  items: Array<{ label: string; count: number }>;
+  rows: Array<{ indicador: string; variacion: number }>;
+  positive: boolean;
 }) {
-  const total = items.reduce((a, i) => a + i.count, 0) || 1;
+  if (!rows.length) return null;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(26,58,92,0.06)]">
-      <h4 className="mb-3 text-sm font-bold text-slate-800">{title}</h4>
-      <ul className="space-y-2">
-        {items.map((item) => (
-          <li key={item.label} className="flex items-center justify-between text-sm">
-            <span className="text-slate-700">{item.label}</span>
-            <span className="font-semibold text-poli-navy">
-              {item.count} ({Math.round((item.count / total) * 100)}%)
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-600">{title}</h4>
+      <ul className="space-y-1.5">
+        {rows.slice(0, 5).map((r) => (
+          <li key={r.indicador} className="flex items-center justify-between gap-2 text-sm">
+            <span className="truncate text-slate-700">{r.indicador}</span>
+            <span className={`shrink-0 font-bold ${positive ? "text-emerald-700" : "text-red-700"}`}>
+              {r.variacion > 0 ? "+" : ""}
+              {fmtNum(r.variacion)}%
             </span>
           </li>
         ))}

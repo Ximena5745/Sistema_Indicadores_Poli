@@ -59,6 +59,28 @@ TIPO_PROCESO_ICONS: dict[str, str] = {
     "MISIONAL": "⭐",
 }
 
+STRATEGIC_PALETTE = ["#FBAF17", "#42F2F2", "#EC0677", "#1FB2DE", "#A6CE38", "#0F385A"]
+
+
+def cumplimiento_semaforo_color(val: float | None) -> str:
+    if val is None:
+        return "#9E9E9E"
+    if val >= 100:
+        return "#2E7D32"
+    if val >= 80:
+        return "#F9A825"
+    return "#C62828"
+
+
+def cumplimiento_estado(val: float | None) -> dict[str, str]:
+    if val is None:
+        return {"label": "Sin dato", "icon": "—", "color": "#6B7280"}
+    if val >= 100:
+        return {"label": "Saludable", "icon": "🟢", "color": "#2E7D32"}
+    if val >= 80:
+        return {"label": "Alerta", "icon": "🟡", "color": "#F9A825"}
+    return {"label": "Crítico", "icon": "🔴", "color": "#C62828"}
+
 
 def _norm_text(value: object) -> str:
     txt = str(value or "").strip().upper()
@@ -324,8 +346,8 @@ def build_tipo_proceso_cards(df: pd.DataFrame, df_prev: pd.DataFrame | None = No
                 "color": TIPO_PROCESO_COLORS.get(tipo, "#BDBDBD"),
                 "color_light": TIPO_PROCESO_COLORS_LIGHT.get(tipo, "#F5F5F5"),
                 "icon": TIPO_PROCESO_ICONS.get(tipo, "📋"),
-                "cumplimiento": cumpl,
-                "cumplimiento_anterior": prev_cumpl,
+                "cumplimiento": round(cumpl, 1) if cumpl is not None else None,
+                "cumplimiento_anterior": round(prev_cumpl, 1) if prev_cumpl is not None else None,
                 "variacion_pp": variacion,
                 "n_indicadores": len(group),
                 "n_riesgo": riesgo,
@@ -352,9 +374,10 @@ def build_proceso_bars(df: pd.DataFrame, df_prev: pd.DataFrame | None = None) ->
         bars.append(
             {
                 "proceso": str(proceso),
-                "cumplimiento": actual,
-                "cumplimiento_anterior": anterior,
+                "cumplimiento": round(actual, 1) if actual is not None else None,
+                "cumplimiento_anterior": round(anterior, 1) if anterior is not None else None,
                 "n_indicadores": len(group),
+                "color": cumplimiento_semaforo_color(actual),
             }
         )
     bars.sort(key=lambda x: x["cumplimiento"] or 0)
@@ -417,7 +440,9 @@ def build_unidades_detalle(df: pd.DataFrame) -> list[dict[str, Any]]:
             continue
         cumpl = _safe_float(group["cumplimiento_pct"].mean())
         riesgo = int(group["Nivel de cumplimiento"].isin(["Peligro", "Alerta"]).sum()) if "Nivel de cumplimiento" in group.columns else 0
+        criticos = int((group["Nivel de cumplimiento"] == "Peligro").sum()) if "Nivel de cumplimiento" in group.columns else 0
         procesos = int(group["Proceso_padre"].nunique()) if "Proceso_padre" in group.columns else 0
+        estado = cumplimiento_estado(cumpl)
         items.append(
             {
                 "unidad": u,
@@ -425,6 +450,11 @@ def build_unidades_detalle(df: pd.DataFrame) -> list[dict[str, Any]]:
                 "n_indicadores": len(group),
                 "n_procesos": procesos,
                 "en_riesgo": riesgo,
+                "n_criticos": criticos,
+                "color": cumplimiento_semaforo_color(cumpl),
+                "estado": estado["label"],
+                "estado_icon": estado["icon"],
+                "estado_color": estado["color"],
             }
         )
     items.sort(key=lambda x: x["cumplimiento_promedio"] or 0, reverse=True)
@@ -504,6 +534,155 @@ def build_variacion_analisis(df: pd.DataFrame, df_prev: pd.DataFrame) -> dict[st
     return {"mejoraron": mejoraron[:10], "empeoraron": empeoraron[:10], "top_riesgo_procesos": top_riesgo}
 
 
+def build_comparativa_procesos(df: pd.DataFrame, df_prev: pd.DataFrame | None = None) -> list[dict[str, Any]]:
+    col = "Proceso_padre" if "Proceso_padre" in df.columns else "Proceso"
+    if df.empty or col not in df.columns:
+        return []
+    items: list[dict[str, Any]] = []
+    for proceso, group in df.groupby(col, dropna=True):
+        if not proceso or str(proceso).strip() in ("", "nan"):
+            continue
+        actual = _safe_float(group["cumplimiento_pct"].mean()) if "cumplimiento_pct" in group.columns else None
+        anterior = None
+        variacion = None
+        if df_prev is not None and not df_prev.empty and col in df_prev.columns:
+            prev_g = df_prev[df_prev[col].astype(str) == str(proceso)]
+            if not prev_g.empty:
+                anterior = _safe_float(prev_g["cumplimiento_pct"].mean())
+                if actual is not None and anterior is not None:
+                    variacion = round(actual - anterior, 1)
+        criticos = 0
+        if "Nivel de cumplimiento" in group.columns:
+            criticos = int((group["Nivel de cumplimiento"] == "Peligro").sum())
+        estado = cumplimiento_estado(actual)
+        tipo = str(group["Tipo de proceso"].iloc[0]) if "Tipo de proceso" in group.columns and len(group) else ""
+        items.append(
+            {
+                "proceso": str(proceso),
+                "tipo_proceso": _normalize_tipo(tipo),
+                "tipo_color": TIPO_PROCESO_COLORS.get(_normalize_tipo(tipo), "#BDBDBD"),
+                "cumplimiento": actual,
+                "cumplimiento_anterior": anterior,
+                "variacion": variacion,
+                "n_indicadores": len(group),
+                "n_criticos": criticos,
+                "color": cumplimiento_semaforo_color(actual),
+                "estado": estado["label"],
+                "estado_icon": estado["icon"],
+                "estado_color": estado["color"],
+            }
+        )
+    items.sort(key=lambda x: x["cumplimiento"] or 0, reverse=True)
+    return items
+
+
+def build_alertas_criticas(df: pd.DataFrame, *, limit: int = 6) -> list[dict[str, Any]]:
+    if df.empty or "Nivel de cumplimiento" not in df.columns:
+        return []
+    peligro = df[df["Nivel de cumplimiento"] == "Peligro"].copy()
+    if peligro.empty:
+        return []
+    if "cumplimiento_pct" in peligro.columns:
+        peligro = peligro.sort_values("cumplimiento_pct", ascending=True)
+    items: list[dict[str, Any]] = []
+    for _, row in peligro.head(limit).iterrows():
+        cumpl = _safe_float(row.get("cumplimiento_pct"))
+        brecha = round(80 - cumpl, 1) if cumpl is not None else None
+        proc = str(row.get("Proceso_padre", row.get("Proceso", "Sin proceso")))
+        tipo = _normalize_tipo(str(row.get("Tipo de proceso", "")))
+        diag = (
+            f"Cumplimiento {cumpl:.1f}% — requiere plan de acción inmediato."
+            if cumpl is not None
+            else "Sin dato de cumplimiento reportado."
+        )
+        items.append(
+            {
+                "id": str(row.get("Id", "")),
+                "indicador": str(row.get("Indicador", "Sin nombre")),
+                "proceso": proc,
+                "tipo_proceso": tipo,
+                "tipo_color": TIPO_PROCESO_COLORS.get(tipo, "#BDBDBD"),
+                "cumplimiento": cumpl,
+                "brecha_pp": brecha,
+                "nivel": "Peligro",
+                "diagnostico": diag,
+            }
+        )
+    return items
+
+
+def build_ejecucion_variacion(df: pd.DataFrame, df_prev: pd.DataFrame, *, limit: int = 8) -> dict[str, list[dict[str, Any]]]:
+    if df.empty or df_prev.empty or "Id" not in df.columns or "Id" not in df_prev.columns:
+        return {"positiva": [], "negativa": []}
+    if "Ejecucion" not in df.columns or "Ejecucion" not in df_prev.columns:
+        return {"positiva": [], "negativa": []}
+
+    cur = df[["Id", "Indicador", "Ejecucion", "Mes", "Anio"]].drop_duplicates(subset=["Id"], keep="last")
+    prev = df_prev[["Id", "Ejecucion"]].drop_duplicates(subset=["Id"], keep="last")
+    merged = cur.merge(prev, on="Id", suffixes=("", "_prev"))
+    merged["delta"] = pd.to_numeric(merged["Ejecucion"], errors="coerce") - pd.to_numeric(
+        merged["Ejecucion_prev"], errors="coerce"
+    )
+    merged = merged.dropna(subset=["delta"])
+    if merged.empty:
+        return {"positiva": [], "negativa": []}
+
+    def _row(r: pd.Series) -> dict[str, Any]:
+        periodo = f"{r.get('Mes', '')} {r.get('Anio', '')}".strip()
+        return {
+            "indicador": str(r.get("Indicador", r["Id"])),
+            "ejecucion": _safe_float(r.get("Ejecucion")),
+            "delta": round(float(r["delta"]), 2),
+            "periodo": periodo or "—",
+        }
+
+    pos = merged[merged["delta"] > 0].sort_values("delta", ascending=False).head(limit)
+    neg = merged[merged["delta"] < 0].sort_values("delta").head(limit)
+    return {
+        "positiva": [_row(r) for _, r in pos.iterrows()],
+        "negativa": [_row(r) for _, r in neg.iterrows()],
+    }
+
+
+def build_vista_global(
+    df_global: pd.DataFrame,
+    df_base_year: pd.DataFrame,
+    cmi_catalog: pd.DataFrame,
+    *,
+    anio: int,
+    mes_corte: int,
+    base_year: int,
+    base_mes: int | None,
+) -> dict[str, Any]:
+    latest = latest_per_indicator(df_global)
+    active_ids = set(latest["Id"].astype(str).str.strip().tolist()) if "Id" in latest.columns else set()
+    cumpl_global = avg_cumplimiento(latest)
+    cumpl_base = avg_cumplimiento(df_base_year)
+    return {
+        "mes_corte": mes_corte,
+        "mes_nombre": mes_nombre(mes_corte),
+        "kpis": build_procesos_kpis(latest),
+        "banner": build_banner(
+            latest,
+            anio=anio,
+            mes=mes_corte,
+            base_year=base_year,
+            base_month=base_mes,
+            cumpl_global=cumpl_global,
+            cumpl_base=cumpl_base,
+        ),
+        "distribucion_nivel": build_distribucion_nivel(latest),
+        "tipo_proceso_cards": build_tipo_proceso_cards(latest, df_base_year),
+        "proceso_bars": build_proceso_bars(latest, df_base_year),
+        "catalog_charts": build_catalog_charts(cmi_catalog, active_ids),
+        "procesos_detalle": build_procesos_detalle(latest),
+        "unidades_detalle": build_unidades_detalle(latest),
+        "comparativa_procesos": build_comparativa_procesos(latest, df_base_year),
+        "variacion": build_variacion_analisis(latest, df_base_year if not df_base_year.empty else df_global),
+        "alertas_criticas": build_alertas_criticas(latest),
+    }
+
+
 def build_filtros_options(
     tracking: pd.DataFrame,
     map_df: pd.DataFrame,
@@ -576,7 +755,8 @@ def build_indicadores_procesos_listado(df: pd.DataFrame) -> list[dict[str, Any]]
 def avg_cumplimiento(df: pd.DataFrame) -> float | None:
     if df.empty or "cumplimiento_pct" not in df.columns:
         return None
-    return _safe_float(df["cumplimiento_pct"].mean())
+    val = _safe_float(df["cumplimiento_pct"].mean())
+    return round(val, 1) if val is not None else None
 
 
 def default_anio_procesos(anios: list[int]) -> int:

@@ -7,12 +7,18 @@ from typing import Optional
 
 import pandas as pd
 
+from app.core.ttl_cache import cache_get
 from app.services.excel_reader import ExcelReaderService
 
 _CMI_CANDIDATES = [
     "raw/Indicadores por CMI.xlsx",
     "raw/Excel_Entrada/CMI.xlsx",
 ]
+
+_WORKSHEET_CACHE: dict[str, tuple[float, pd.DataFrame]] = {}
+_KAWAK_IDS_CACHE: dict[tuple[str, int], tuple[float, frozenset[str]]] = {}
+_PROCESOS_IDS_CACHE: dict[tuple[str, int | None], tuple[float, frozenset[str]]] = {}
+_SUBPROCESOS_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
 
 
 def _normalize_flag_series(series: pd.Series) -> pd.Series:
@@ -65,15 +71,20 @@ class CMIFilterService:
         return None
 
     def load_cmi_worksheet(self) -> pd.DataFrame:
-        path = self._resolve_cmi_path()
-        if not path:
-            return pd.DataFrame()
-        try:
-            df = self._excel.read_excel(path, sheet_name="Worksheet")
-            df.columns = [str(c).strip() for c in df.columns]
-            return df
-        except Exception:
-            return pd.DataFrame()
+        root = str(self._excel.data_root.resolve())
+
+        def _load() -> pd.DataFrame:
+            path = self._resolve_cmi_path()
+            if not path:
+                return pd.DataFrame()
+            try:
+                df = self._excel.read_excel(path, sheet_name="Worksheet")
+                df.columns = [str(c).strip() for c in df.columns]
+                return df
+            except Exception:
+                return pd.DataFrame()
+
+        return cache_get(_WORKSHEET_CACHE, root, _load)
 
     def get_estrategico_ids(self) -> set[str]:
         df = self.load_cmi_worksheet()
@@ -100,53 +111,65 @@ class CMIFilterService:
         return {_normalize_id_value(v) for v in filtered["Id"].dropna() if _normalize_id_value(v)}
 
     def get_procesos_ids(self, year: Optional[int] = None) -> set[str]:
-        df = self.load_cmi_worksheet()
-        if df.empty or "Subprocesos" not in df.columns or "Id" not in df.columns:
-            return set()
-        flag_sub = _normalize_flag_series(df["Subprocesos"])
-        filtered = df[flag_sub == 1]
-        base_ids = {_normalize_id_value(v) for v in filtered["Id"].dropna() if _normalize_id_value(v)}
-        if year is None:
-            return base_ids
-        kawak_ids = self._load_kawak_active_ids(year)
-        if not kawak_ids:
-            return set()
-        intersect = base_ids.intersection(kawak_ids)
-        return intersect if intersect else set()
+        root = str(self._excel.data_root.resolve())
+        cache_key = (root, year)
+
+        def _load() -> frozenset[str]:
+            df = self.load_cmi_worksheet()
+            if df.empty or "Subprocesos" not in df.columns or "Id" not in df.columns:
+                return frozenset()
+            flag_sub = _normalize_flag_series(df["Subprocesos"])
+            filtered = df[flag_sub == 1]
+            base_ids = {_normalize_id_value(v) for v in filtered["Id"].dropna() if _normalize_id_value(v)}
+            if year is None:
+                return frozenset(base_ids)
+            kawak_ids = self._load_kawak_active_ids(year)
+            if not kawak_ids:
+                return frozenset()
+            intersect = base_ids.intersection(kawak_ids)
+            return frozenset(intersect if intersect else set())
+
+        return set(cache_get(_PROCESOS_IDS_CACHE, cache_key, _load))
 
     def _load_kawak_active_ids(self, year: int) -> set[str]:
-        folder = self._excel.data_root / "raw" / "Fuentes Consolidadas"
-        if not folder.exists():
-            return set()
-        ids: set[str] = set()
-        for path in folder.glob("*.xlsx"):
-            try:
-                df_k = self._excel.read_excel(str(path.relative_to(self._excel.data_root)))
-                if df_k.empty:
-                    continue
-                id_col = next(
-                    (c for c in df_k.columns if str(c).strip().lower() in ("id", "id_indicador", "idindicador")),
-                    None,
-                )
-                if id_col is None:
-                    continue
-                year_col = next(
-                    (c for c in df_k.columns if str(c).strip().lower() in ("anio", "año", "year")),
-                    None,
-                )
-                if year_col is not None:
-                    df_k = df_k[pd.to_numeric(df_k[year_col], errors="coerce").fillna(0).astype(int) == int(year)]
-                else:
-                    match = re.search(r"(20\d{2})", path.name)
-                    if match and int(match.group(1)) != int(year):
+        root = str(self._excel.data_root.resolve())
+        cache_key = (root, int(year))
+
+        def _load() -> frozenset[str]:
+            folder = self._excel.data_root / "raw" / "Fuentes Consolidadas"
+            if not folder.exists():
+                return frozenset()
+            ids: set[str] = set()
+            for path in folder.glob("*.xlsx"):
+                try:
+                    df_k = self._excel.read_excel(str(path.relative_to(self._excel.data_root)))
+                    if df_k.empty:
                         continue
-                for val in df_k[id_col].dropna():
-                    norm = _normalize_id_value(val)
-                    if norm:
-                        ids.add(norm)
-            except Exception:
-                continue
-        return ids
+                    id_col = next(
+                        (c for c in df_k.columns if str(c).strip().lower() in ("id", "id_indicador", "idindicador")),
+                        None,
+                    )
+                    if id_col is None:
+                        continue
+                    year_col = next(
+                        (c for c in df_k.columns if str(c).strip().lower() in ("anio", "año", "year")),
+                        None,
+                    )
+                    if year_col is not None:
+                        df_k = df_k[pd.to_numeric(df_k[year_col], errors="coerce").fillna(0).astype(int) == int(year)]
+                    else:
+                        match = re.search(r"(20\d{2})", path.name)
+                        if match and int(match.group(1)) != int(year):
+                            continue
+                    for val in df_k[id_col].dropna():
+                        norm = _normalize_id_value(val)
+                        if norm:
+                            ids.add(norm)
+                except Exception:
+                    continue
+            return frozenset(ids)
+
+        return set(cache_get(_KAWAK_IDS_CACHE, cache_key, _load))
 
     def filter_estrategico(self, df: pd.DataFrame, id_column: str = "Id") -> pd.DataFrame:
         if df.empty or id_column not in df.columns:
@@ -170,18 +193,23 @@ class CMIFilterService:
         """Subprocesos válidos: intersección CMI (Subprocesos=1) y mapa maestro."""
         if map_df.empty or "Subproceso" not in map_df.columns:
             return set()
-        cmi_df = self.load_cmi_worksheet()
-        if cmi_df.empty or "Subprocesos" not in cmi_df.columns or "Subproceso" not in cmi_df.columns:
-            return set()
-        sub_cmi = set(
-            cmi_df.loc[_normalize_flag_series(cmi_df["Subprocesos"]) == 1, "Subproceso"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .tolist()
-        )
-        sub_map = set(map_df["Subproceso"].dropna().astype(str).str.strip().tolist())
-        return sub_cmi & sub_map
+        root = str(self._excel.data_root.resolve())
+
+        def _load() -> frozenset[str]:
+            cmi_df = self.load_cmi_worksheet()
+            if cmi_df.empty or "Subprocesos" not in cmi_df.columns or "Subproceso" not in cmi_df.columns:
+                return frozenset()
+            sub_cmi = set(
+                cmi_df.loc[_normalize_flag_series(cmi_df["Subprocesos"]) == 1, "Subproceso"]
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .tolist()
+            )
+            sub_map = set(map_df["Subproceso"].dropna().astype(str).str.strip().tolist())
+            return frozenset(sub_cmi & sub_map)
+
+        return set(cache_get(_SUBPROCESOS_CACHE, root, _load))
 
     def filter_procesos(
         self,

@@ -56,9 +56,9 @@ export function CmiProcesosFilters(props: CmiProcesosFiltersProps) {
   } = props;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(26,58,92,0.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Filtros</h3>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600">Filtros</h3>
         {onReset && (
           <button
             type="button"
@@ -70,7 +70,7 @@ export function CmiProcesosFilters(props: CmiProcesosFiltersProps) {
           </button>
         )}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <SegmentedGroup
           label="Año"
           value={anio}

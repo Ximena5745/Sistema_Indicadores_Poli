@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CmiProcesosTabHighlight } from "@/components/cmi/CmiProcesosTabHighlight";
 import { CmiProcesosFichaModal } from "@/components/cmi/CmiProcesosFichaModal";
 import { CmiProcesosAlertasTab } from "@/components/cmi/CmiProcesosAlertasTab";
 import { CmiProcesosAnalisisTab } from "@/components/cmi/CmiProcesosAnalisisTab";
@@ -137,7 +136,7 @@ function CMIProcesosContent() {
   const data = dashboardQuery.data;
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 px-1">
+    <div className="mx-auto max-w-[1400px] space-y-5 px-1">
       <div>
         <h2 className="text-2xl font-bold text-slate-900">CMI por Procesos</h2>
         <p className="mt-1 text-slate-600">
@@ -176,10 +175,14 @@ function CMIProcesosContent() {
         />
       )}
 
-      {data && (
+      {data && tab !== "resumen" && (
         <p className="text-xs text-slate-500">
-          Corte: {data.mes_nombre} {data.anio} · Unidad: {data.filtros_aplicados.unidad} · Proceso:{" "}
-          {data.filtros_aplicados.proceso} · Subproceso: {data.filtros_aplicados.subproceso}
+          Corte filtrado: {data.mes_nombre} {data.anio}
+          {tab === "listado" || tab === "alertas"
+            ? ` · ${data.filtros_aplicados.unidad} · ${data.filtros_aplicados.proceso}`
+            : data.vista_global?.mes_nombre
+              ? ` · Global: ${data.vista_global.mes_nombre}`
+              : ""}
         </p>
       )}
 
@@ -200,8 +203,6 @@ function CMIProcesosContent() {
           </button>
         ))}
       </div>
-
-      <CmiProcesosTabHighlight tab={tab} />
 
       {!isAuthenticated ? (
         <p className="text-sm text-amber-700">Inicie sesión para ver CMI por procesos.</p>
@@ -228,14 +229,32 @@ function CMIProcesosContent() {
               No hay datos para la combinación de filtros seleccionada.
             </p>
           )}
-          {tab === "resumen" && <CmiProcesosResumenTab data={data} />}
+          {tab === "resumen" && (
+            data.vista_global?.kpis ? (
+              <CmiProcesosResumenTab vista={data.vista_global} baseAnio={data.meta.base_anio} />
+            ) : (
+              <p className="text-sm text-slate-500">Sin datos globales para el resumen.</p>
+            )
+          )}
           {tab === "procesos" && (
-            <CmiProcesosUnidadesTab procesos={data.procesos_detalle} unidades={data.unidades_detalle} />
+            data.vista_global?.kpis ? (
+              <CmiProcesosUnidadesTab
+                unidades={data.vista_global.unidades_detalle}
+                procesoBars={data.vista_global.proceso_bars}
+                tipoCards={data.vista_global.tipo_proceso_cards}
+                procesos={data.vista_global.procesos_detalle}
+                comparativa={data.vista_global.comparativa_procesos ?? []}
+                baseAnio={data.meta.base_anio}
+              />
+            ) : (
+              <p className="text-sm text-slate-500">Sin datos globales de procesos.</p>
+            )
           )}
           {tab === "listado" && (
             <CmiProcesosListadoTab
               indicadores={data.indicadores}
               summary={data.indicadores_summary}
+              ejecucionVariacion={data.ejecucion_variacion}
               onOpenFicha={setFichaId}
               onExportCsv={() => handleExport("csv")}
               onExportExcel={() => handleExport("xlsx")}
@@ -247,10 +266,16 @@ function CMIProcesosContent() {
               peligro={data.alertas.peligro}
               alerta={data.alertas.alerta}
               items={data.alertas.items}
+              alertasCriticas={data.vista_global?.alertas_criticas ?? []}
               onOpenFicha={setFichaId}
             />
           )}
-          {tab === "analisis" && <CmiProcesosAnalisisTab data={data} />}
+          {tab === "analisis" && (
+            <CmiProcesosAnalisisTab
+              data={data}
+              comparativa={data.vista_global?.comparativa_procesos ?? []}
+            />
+          )}
         </>
       )}
 

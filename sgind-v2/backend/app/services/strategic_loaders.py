@@ -72,18 +72,50 @@ class StrategicLoaders:
             c_obj = find_col(df, ["Objetivo", "OBJETIVO"])
             c_plan = find_col(df, ["Indicadores Plan estrategico"])
             c_proyecto = find_col(df, ["Proyecto", "PROYECTO"])
+            c_factor = find_col(df, ["FACTOR", "Factor"])
+            c_car = find_col(df, ["CARACTERISTICA", "Caracteristica", "CARACTERÍSTICA"])
+            c_cna = find_col(df, ["Indicadores CNA", "FlagCNA", "CNA"])
             if not c_id:
                 return pd.DataFrame()
-            cols = [c for c in [c_id, c_ind, c_linea, c_obj, c_plan, c_proyecto] if c]
+            cols = [c for c in [c_id, c_ind, c_linea, c_obj, c_plan, c_proyecto, c_factor, c_car, c_cna] if c]
             out = df[cols].copy()
             rename = {c_id: "Id", c_ind: "Indicador", c_linea: "Linea", c_obj: "Objetivo"}
             if c_plan:
                 rename[c_plan] = "FlagPlanEstrategico"
             if c_proyecto:
                 rename[c_proyecto] = "Proyecto"
+            if c_factor:
+                rename[c_factor] = "Factor"
+            if c_car:
+                rename[c_car] = "Caracteristica"
+            if c_cna:
+                rename[c_cna] = "FlagCNA"
             return out.rename(columns=rename)
 
         return self._cached("worksheet_flags", _load)
+
+    def load_cna_catalog(self) -> pd.DataFrame:
+        def _load() -> pd.DataFrame:
+            path = self._resolve_cmi()
+            if not path:
+                return pd.DataFrame(columns=["Factor", "Caracteristica"])
+            try:
+                df = self._excel.read_excel(path, sheet_name="Worksheet")
+            except Exception:
+                return pd.DataFrame(columns=["Factor", "Caracteristica"])
+            df.columns = [str(c).strip() for c in df.columns]
+            c_factor = find_col(df, ["FACTOR", "Factor"])
+            c_car = find_col(df, ["CARACTERISTICA", "Caracteristica", "CARACTERÍSTICA"])
+            if not c_factor or not c_car:
+                return pd.DataFrame(columns=["Factor", "Caracteristica"])
+            out = df[[c_factor, c_car]].copy().rename(columns={c_factor: "Factor", c_car: "Caracteristica"})
+            out["Factor"] = out["Factor"].astype(str).str.strip()
+            out["Caracteristica"] = out["Caracteristica"].astype(str).str.strip()
+            out = out[(out["Factor"] != "") & (out["Caracteristica"] != "")]
+            out["Caracteristica"] = out["Caracteristica"].replace("nan", "")
+            return out.drop_duplicates().reset_index(drop=True)
+
+        return self._cached("cna_catalog", _load)
 
     def load_pdi_catalog(self) -> pd.DataFrame:
         def _load() -> pd.DataFrame:
