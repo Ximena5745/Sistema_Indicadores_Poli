@@ -6,7 +6,6 @@ from app.domain.calidad_builders import (
     _estado_calidad,
     _score_calidad,
     build_calidad_dashboard,
-    build_dim_scores,
     filter_calidad,
 )
 

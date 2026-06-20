@@ -15,6 +15,30 @@ class SeguimientoService:
     def __init__(self, excel: ExcelReaderService) -> None:
         self._excel = excel
 
+    def get_filtros(self) -> dict:
+        """Devuelve años, meses, procesos y estados disponibles en el tracking."""
+        df = load_tracking(self._excel)
+        if df.empty:
+            return {"anios": [], "meses": [], "procesos": [], "estados": []}
+        anios: list[int] = sorted(
+            [int(a) for a in df["Año"].dropna().unique().tolist() if str(a).isdigit()], reverse=True
+        ) if "Año" in df.columns else []
+        meses: list[int] = sorted(
+            [int(m) for m in df["Mes"].dropna().unique().tolist() if str(m).isdigit()]
+        ) if "Mes" in df.columns else []
+        procesos: list[str] = sorted(df["Proceso"].dropna().unique().tolist()) if "Proceso" in df.columns else []
+        estados: list[str] = sorted(df["Estado"].dropna().unique().tolist()) if "Estado" in df.columns else []
+        anio_default = anios[0] if anios else None
+        mes_default = max(meses) if meses else None
+        return {
+            "anios": anios,
+            "anio_default": anio_default,
+            "meses": meses,
+            "mes_default": mes_default,
+            "procesos": procesos,
+            "estados": estados,
+        }
+
     def get_dashboard(
         self,
         *,

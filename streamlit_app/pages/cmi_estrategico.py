@@ -12,7 +12,7 @@ try:
         preparar_pdi_con_cierre,
         load_cierres,
     )
-    from ..utils.formatting import formatear_meta_ejecucion_df
+    from ..utils.formatting import formatear_meta_ejecucion_df, meta_his_signo
 except (ImportError, ModuleNotFoundError):
     import sys
 
@@ -24,7 +24,7 @@ except (ImportError, ModuleNotFoundError):
         load_cierres,
     )
     from services.cmi_filters import filter_df_for_cmi_estrategico
-    from utils.formatting import formatear_meta_ejecucion_df
+    from utils.formatting import formatear_meta_ejecucion_df, meta_his_signo
 
 
 def _get_sin_gestion_df():
@@ -608,8 +608,9 @@ def render():
                 if "Meta" in df_obj.columns:
                     metas = df_obj["Meta"].dropna().unique().tolist()
                     for meta in metas:
-                        st.markdown(f"<div style='font-weight:600;margin-bottom:4px;color:#1976d2'>Meta: {_escape(str(meta))}</div>", unsafe_allow_html=True)
                         df_meta = df_obj[df_obj["Meta"] == meta].copy()
+                        meta_fmt = meta_his_signo(df_meta.iloc[0].to_dict()) if not df_meta.empty else str(meta)
+                        st.markdown(f"<div style='font-weight:600;margin-bottom:4px;color:#1976d2'>Meta: {_escape(meta_fmt)}</div>", unsafe_allow_html=True)
                         # Mostrar tabla de indicadores para la meta
                         st.dataframe(
                             df_meta[[c for c in ["Indicador", "Ejecución", "Cumplimiento (%)", "Nivel"] if c in df_meta.columns]],

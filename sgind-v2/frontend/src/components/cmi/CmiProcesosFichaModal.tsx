@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { CMIProcesosFichaIndicador } from "@/lib/types";
 import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+import { fmtMeta, fmtEjecucion } from "@/lib/formatValor";
 
 interface CmiProcesosFichaModalProps {
   ficha: CMIProcesosFichaIndicador | null;
@@ -67,8 +68,8 @@ export function CmiProcesosFichaModal({ ficha, loading, onClose }: CmiProcesosFi
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <Stat label="Meta" value={String(ficha.Meta ?? "—")} />
-              <Stat label="Ejecución" value={String(ficha.Ejecucion ?? "—")} />
+              <Stat label="Meta" value={fmtMeta(ficha as Record<string, unknown>)} />
+              <Stat label="Ejecución" value={fmtEjecucion(ficha as Record<string, unknown>)} />
               <Stat label="Cumplimiento" value={fmtPct(ficha.cumplimiento_pct as number | undefined)} />
             </div>
 

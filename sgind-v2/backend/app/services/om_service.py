@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.om import RegistroOM
-from app.schemas.common import RegistroOMCreate, RegistroOMUpdate
+from app.schemas.common import RegistroOMCreate, RegistroOMCerrar, RegistroOMUpdate
 
 
 class OMService:
@@ -59,6 +59,20 @@ class OMService:
             return None
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(registro, field, value)
+        registro.fecha_registro = datetime.now(UTC).isoformat()
+        return registro
+
+    async def cerrar(
+        self, db: AsyncSession, registro_id: int, data: RegistroOMCerrar
+    ) -> RegistroOM | None:
+        """Cierra un OM: establece tiene_om=0 y registra fecha de cierre."""
+        result = await db.execute(select(RegistroOM).where(RegistroOM.id == registro_id))
+        registro = result.scalar_one_or_none()
+        if registro is None:
+            return None
+        registro.tiene_om = 0
+        if data.comentario is not None:
+            registro.comentario = data.comentario
         registro.fecha_registro = datetime.now(UTC).isoformat()
         return registro
 

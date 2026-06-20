@@ -9,7 +9,7 @@ import { CmiProcesosListadoTab } from "@/components/cmi/CmiProcesosListadoTab";
 import { KPICard } from "@/components/ui/KPICard";
 import { CmiCumplimientoHorizBarPlotly } from "@/components/cmi/CmiCumplimientoHorizBarPlotly";
 import { fmtPct } from "@/components/cmi/nivelUtils";
-import { fetchCMIProcesosFicha, fetchCMIProcesosFiltros, fetchInformeDashboard } from "@/lib/api";
+import { downloadInformeProcesosPdf, fetchCMIProcesosFicha, fetchCMIProcesosFiltros, fetchInformeDashboard } from "@/lib/api";
 import type { InformeDashboardResponse } from "@/lib/types";
 import { useAuthReady } from "@/stores/auth-store";
 
@@ -43,6 +43,7 @@ function InformeContent() {
   const [frecuencia, setFrecuencia] = useState("Todos");
   const [tab, setTab] = useState<TabId>("resumen");
   const [fichaId, setFichaId] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const filtrosQuery = useQuery({
     queryKey: ["informe-filtros", anio],
@@ -103,13 +104,38 @@ function InformeContent() {
     setFrecuencia("Todos");
   }, [filtrosQuery.data]);
 
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      await downloadInformeProcesosPdf({
+        anio: anioEff,
+        mes: mesEff,
+        proceso: proceso !== "Todos" ? proceso : undefined,
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Informe por Procesos</h2>
-        <p className="mt-1 text-slate-600">
-          Resumen ejecutivo, indicadores, calidad, auditoría, propuestas y análisis heurístico.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Informe por Procesos</h2>
+          <p className="mt-1 text-slate-600">
+            Resumen ejecutivo, indicadores, calidad, auditoría, propuestas y análisis heurístico.
+          </p>
+        </div>
+        {isAuthenticated && (
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading || dashQuery.isLoading}
+            className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            {pdfLoading ? "Generando…" : "Descargar PDF"}
+          </button>
+        )}
       </div>
 
       {!isAuthenticated ? (

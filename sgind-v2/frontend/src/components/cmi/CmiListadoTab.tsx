@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Indicator } from "@/lib/types";
 import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+import { fmtMeta, fmtEjecucion } from "@/lib/formatValor";
 
 interface CmiListadoTabProps {
   indicadores: Indicator[];
@@ -48,14 +49,18 @@ export function CmiListadoTab({ indicadores, onOpenFicha }: CmiListadoTabProps) 
 
   const exportCsv = () => {
     const headers = ["Id", "Indicador", "Linea", "Objetivo", "Meta", "Ejecucion", "cumplimiento_pct", "Nivel"];
-    const rows = filtered.map((ind) =>
-      headers
+    const rows = filtered.map((ind) => {
+      const rec = ind as Record<string, unknown>;
+      return headers
         .map((h) => {
-          const val = (ind as Record<string, unknown>)[h];
+          let val: unknown;
+          if (h === "Meta") val = fmtMeta(rec);
+          else if (h === "Ejecucion") val = fmtEjecucion(rec);
+          else val = rec[h];
           return `"${String(val ?? "").replace(/"/g, '""')}"`;
         })
-        .join(",")
-    );
+        .join(",");
+    });
     const blob = new Blob([[headers.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -123,8 +128,8 @@ export function CmiListadoTab({ indicadores, onOpenFicha }: CmiListadoTabProps) 
                 <td className="px-3 py-2 text-xs text-slate-500">{ind.Id}</td>
                 <td className="max-w-xs truncate px-3 py-2 font-medium text-slate-800">{ind.Indicador}</td>
                 <td className="px-3 py-2 text-xs">{ind.Linea}</td>
-                <td className="px-3 py-2">{ind.Meta ?? "—"}</td>
-                <td className="px-3 py-2">{ind.Ejecucion ?? "—"}</td>
+                <td className="px-3 py-2">{fmtMeta(ind as Record<string, unknown>)}</td>
+                <td className="px-3 py-2">{fmtEjecucion(ind as Record<string, unknown>)}</td>
                 <td className="px-3 py-2 font-semibold">{fmtPct(ind.cumplimiento_pct as number | undefined)}</td>
                 <td className="px-3 py-2">
                   <NivelBadge nivel={ind["Nivel de cumplimiento"] as string | undefined} />

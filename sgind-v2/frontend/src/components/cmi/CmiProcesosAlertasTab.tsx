@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CMIAlertaCritica, Indicator } from "@/lib/types";
 import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+import { fmtMeta, fmtEjecucion } from "@/lib/formatValor";
 
 interface CmiProcesosAlertasTabProps {
   peligro: number;
@@ -187,8 +188,8 @@ export function CmiProcesosAlertasTab({
                           )}
                         </td>
                         <td className="px-4 py-3 text-slate-600">{proc ?? "—"}</td>
-                        <td className="px-4 py-3 text-right">{ind.Meta ?? "—"}</td>
-                        <td className="px-4 py-3 text-right">{ind.Ejecucion ?? "—"}</td>
+                        <td className="px-4 py-3 text-right">{fmtMeta(ind as Record<string, unknown>)}</td>
+                        <td className="px-4 py-3 text-right">{fmtEjecucion(ind as Record<string, unknown>)}</td>
                         <td className="px-4 py-3 text-right font-semibold">
                           {fmtPct(ind.cumplimiento_pct as number)}
                         </td>

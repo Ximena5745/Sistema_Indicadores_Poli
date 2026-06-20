@@ -14,6 +14,7 @@ from core.domain import (
     normalizar_y_categorizar,
 )
 from core.presentation import obtener_icono_categoria, obtener_color_categoria
+from streamlit_app.utils.formatting import meta_his_signo, ejecucion_his_signo
 
 _RUTA_KPI_DIAG = (
     Path(__file__).resolve().parents[2] / "data" / "output" / "artifacts" / "kpi_diagnostico.json"
@@ -1448,8 +1449,8 @@ def render():
             f"<span class='om-ind-name' title='{ind_name}'>{ind_name}</span>",
             str(row.get("Subproceso", "")),
             str(row.get("Periodicidad", "")),
-            str(row.get("Meta", "")),
-            str(row.get("Ejecucion", "")),
+            meta_his_signo(row),
+            ejecucion_his_signo(row),
             cumple_txt,
             cat,
             tipo_badge,

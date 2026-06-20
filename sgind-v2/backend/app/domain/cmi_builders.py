@@ -254,12 +254,12 @@ def build_vista_rapida_lineas(df: pd.DataFrame) -> list[dict[str, Any]]:
     if df.empty or "Linea" not in df.columns:
         return []
     presentes = sorted(
-        [l for l in df["Linea"].dropna().unique() if str(l).strip()],
+        [ln for ln in df["Linea"].dropna().unique() if str(ln).strip()],
         key=lambda x: _safe_float(df[df["Linea"] == x]["cumplimiento_pct"].mean(), 0.0) or 0.0,
         reverse=True,
     )
-    catalogo_por_clave = {normalize_linea_key(l): l for l in CATALOGO_LINEAS}
-    presentes_por_clave = {normalize_linea_key(l): l for l in presentes}
+    catalogo_por_clave = {normalize_linea_key(ln): ln for ln in CATALOGO_LINEAS}
+    presentes_por_clave = {normalize_linea_key(ln): ln for ln in presentes}
     lineas = [presentes_por_clave[k] for k in presentes_por_clave] + [
         catalogo_por_clave[k] for k in catalogo_por_clave if k not in presentes_por_clave
     ]
@@ -377,6 +377,11 @@ def build_objetivos_estructura(
             "Indicador",
             "Meta",
             "Ejecucion",
+            "Meta_Signo",
+            "Ejecucion_s",
+            "EjecS",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
             "cumplimiento_pct",
             "Nivel de cumplimiento",
             "Proceso",
@@ -591,7 +596,7 @@ def build_lineas_detalle(
 ) -> list[dict[str, Any]]:
     if df.empty or "Linea" not in df.columns:
         return []
-    lineas = sorted([str(l).strip() for l in df["Linea"].dropna().unique() if str(l).strip()])
+    lineas = sorted([str(ln).strip() for ln in df["Linea"].dropna().unique() if str(ln).strip()])
     result = []
     for linea in lineas:
         df_linea = df[df["Linea"] == linea].copy()
@@ -650,6 +655,11 @@ def build_alertas(df: pd.DataFrame) -> dict[str, Any]:
             "Objetivo",
             "Meta",
             "Ejecucion",
+            "Meta_Signo",
+            "Ejecucion_s",
+            "EjecS",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
             "cumplimiento_pct",
             "Nivel de cumplimiento",
             "Proceso",
@@ -675,6 +685,11 @@ def build_indicadores_listado(df: pd.DataFrame) -> list[dict[str, Any]]:
             "Meta_Estrategica",
             "Meta",
             "Ejecucion",
+            "Meta_Signo",
+            "Ejecucion_s",
+            "EjecS",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
             "cumplimiento_pct",
             "Nivel de cumplimiento",
             "Proceso",

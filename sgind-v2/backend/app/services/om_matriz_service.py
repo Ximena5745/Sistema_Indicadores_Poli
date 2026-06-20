@@ -14,6 +14,7 @@ from app.domain.om_builders import (
     matriz_to_records,
     merge_om_registros,
 )
+from app.services.excel_reader import ExcelReaderService
 from app.services.om_service import OMService
 from app.services.tracking_cache import get_tracking_dataframe
 

@@ -193,13 +193,14 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
     if "Meta" in h.columns:
         mv = pd.to_numeric(h["Meta"], errors="coerce")
         if mv.notna().sum() >= 1:
+            meta_labels = [meta_his_signo(row.to_dict()) for _, row in h.iterrows()]
             fig.add_trace(go.Bar(
                 x=x_values, y=mv, name="Meta",
                 marker_color="#F59E0B",
                 opacity=0.65,
                 yaxis="y1",
                 offsetgroup="meta",
-                text=mv.round(1).astype(str),
+                text=meta_labels,
                 textposition="outside",
             ))
             has_primary = True
@@ -218,13 +219,14 @@ def _hist_fig(hist: pd.DataFrame) -> Optional[go.Figure]:
     if "Ejecucion" in h.columns:
         ev = pd.to_numeric(h["Ejecucion"], errors="coerce")
         if ev.notna().sum() >= 1:
+            ejec_labels = [ejecucion_his_signo(row.to_dict()) for _, row in h.iterrows()]
             fig.add_trace(go.Bar(
                 x=x_values, y=ev, name="Ejecución",
                 marker_color=_bar_colors,
                 opacity=0.85,
                 yaxis="y1",
                 offsetgroup="ejec",
-                text=ev.round(1).astype(str),
+                text=ejec_labels,
                 textposition="outside",
             ))
             has_primary = True

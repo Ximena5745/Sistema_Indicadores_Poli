@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from streamlit_app.components.charts import grafico_historico_indicador, tabla_historica_indicador
 from streamlit_app.services.data_service import DataService
-from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+from streamlit_app.utils.formatting import formatear_meta_ejecucion_df, meta_his_signo, ejecucion_his_signo
 from services.cmi_filters.filters import filter_df_for_procesos
 from core.proceso_types import TIPOS_PROCESO, get_tipo_color
 from streamlit_app.styles.design_system import get_strategic_palette
@@ -2960,8 +2960,8 @@ def _render_indicadores_subproceso_cards(
             for idx, (_, row) in enumerate(page_df.iterrows()):
                 indicador = str(row.get("Indicador", "")).strip() or "Indicador sin nombre"
                 ind_id = str(row.get("Id", "")).strip()
-                meta = _fmt_short_value(row.get("Meta"))
-                ejec = _fmt_short_value(row.get("Ejecucion"))
+                meta = meta_his_signo(row)
+                ejec = ejecucion_his_signo(row)
                 cumpl = _to_float(row.get("Cumplimiento_pct"))
                 # Fallback: si cumpl es None, buscar el último valor histórico disponible
                 if cumpl is None and not historic_df.empty and ind_id:

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CMILineaDetalle } from "@/lib/types";
 import { CmiLineaAnalisisPanel } from "@/components/cmi/CmiLineaAnalisis";
 import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+import { fmtMeta, fmtEjecucion } from "@/lib/formatValor";
 
 interface CmiLineasTabProps {
   lineas: CMILineaDetalle[];
@@ -172,8 +173,8 @@ function LineaObjetivos({ linea }: { linea: CMILineaDetalle }) {
                       {meta.indicadores.map((ind) => (
                         <tr key={ind.Id ?? ind.Indicador} className="border-b border-slate-100">
                           <td className="px-2 py-2">{ind.Indicador}</td>
-                          <td className="px-2 py-2">{ind.Meta ?? "—"}</td>
-                          <td className="px-2 py-2">{ind.Ejecucion ?? "—"}</td>
+                          <td className="px-2 py-2">{fmtMeta(ind as Record<string, unknown>)}</td>
+                          <td className="px-2 py-2">{fmtEjecucion(ind as Record<string, unknown>)}</td>
                           <td className="px-2 py-2 font-semibold">
                             {fmtPct(ind.cumplimiento_pct as number | undefined)}
                           </td>

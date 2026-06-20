@@ -27,7 +27,7 @@ from reportlab.platypus import (
 )
 
 from .charts import chart_to_png
-from .utils import MARGIN, BORDE, BLANCO, FONDO, GRIS, PRIMARIO, PAGE_W, PAGE_H, nivel_color, safe
+from .utils import MARGIN, BORDE, BLANCO, FONDO, GRIS, PRIMARIO, PAGE_W, PAGE_H, nivel_color, safe, fmt_meta_from_dict, fmt_ejec_from_dict, fmt_valor_signo
 
 
 def build_ficha_pdf(
@@ -95,8 +95,8 @@ def build_ficha_pdf(
     descripcion = safe(
         ind_data.get("descripcion", ind_data.get("Descripcion", ind_data.get("Descripción del indicador", "")))
     )
-    meta_val = safe(ind_data.get("Meta"))
-    ejec_val = safe(ind_data.get("Ejecucion"))
+    meta_val = fmt_meta_from_dict(ind_data)
+    ejec_val = fmt_ejec_from_dict(ind_data)
     cump_raw = ind_data.get("cumplimiento_pct", 0)
     cump = float(cump_raw) if pd.notna(cump_raw) else 0.0
     nivel = safe(ind_data.get("Nivel de cumplimiento"))
@@ -244,12 +244,30 @@ def build_ficha_pdf(
             if c in h.columns
         ]
         seg = (
-            h[seg_cols]
-            .rename(columns={"cumplimiento_pct": "% Cumpl."})
+            h
             .sort_values("Periodo")
             .tail(10)
             .reset_index(drop=True)
         )
+        if "Meta" in seg.columns:
+            seg["Meta"] = seg.apply(
+                lambda r: fmt_valor_signo(
+                    r.get("Meta"),
+                    r.get("Meta_Signo") or r.get("Meta s") or "%",
+                    r.get("Decimales_Meta") or 0,
+                ),
+                axis=1,
+            )
+        if "Ejecucion" in seg.columns:
+            seg["Ejecucion"] = seg.apply(
+                lambda r: fmt_valor_signo(
+                    r.get("Ejecucion"),
+                    r.get("Ejecucion_s") or r.get("EjecS") or r.get("Ejecucion_Signo") or "%",
+                    r.get("Decimales_Ejecucion") or 0,
+                ),
+                axis=1,
+            )
+        seg = seg[[c for c in seg_cols if c in seg.columns]].rename(columns={"cumplimiento_pct": "% Cumpl."})
         if "% Cumpl." in seg.columns:
             seg["% Cumpl."] = pd.to_numeric(seg["% Cumpl."], errors="coerce").round(1)
 

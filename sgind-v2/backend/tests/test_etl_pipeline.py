@@ -8,7 +8,6 @@ from app.services.indicator_service import IndicatorService
 
 @pytest.fixture
 def settings():
-    import os
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[3]

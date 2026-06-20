@@ -1,8 +1,22 @@
 # Sistema de Indicadores Institucionales (SGIND)
 
-**Versión:** 2026 Q2  
-**Estado:** � **Fase 2 EN EJECUCIÓN** (Semana 2/8) — ✅ Refactorización Arquitectónica Sprint 1-2 Completada  
-**Última actualización:** 15 de abril de 2026
+**Versión:** v2.0 (en cutover)  
+**Estado:** Fase 12 — Cutover a Producción  
+**Última actualización:** 2026-06-19
+
+---
+
+> **SGIND v2 — Nuevo stack oficial**
+>
+> El sistema ha migrado de Streamlit (Python monolítico) a **Next.js 14 + FastAPI + PostgreSQL**.
+> El nuevo sistema está en proceso de cutover (Fase 12). Streamlit permanece activo como respaldo por 30 días.
+>
+> - **SGIND v2 (nuevo):** [sgind-v2/](sgind-v2/) — Next.js + FastAPI + PostgreSQL
+> - **Streamlit (legacy):** `app.py` — en modo read-only / mantenimiento
+> - **Roadmap completo:** [sgind-v2/docs/migration/ROADMAP.md](sgind-v2/docs/migration/ROADMAP.md)
+> - **Runbook de cutover:** [sgind-v2/docs/migration/CUTOVER_RUNBOOK.md](sgind-v2/docs/migration/CUTOVER_RUNBOOK.md)
+
+---
 
 ## 🗺️ Índices de Documentación
 

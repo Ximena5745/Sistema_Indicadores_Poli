@@ -1,8 +1,8 @@
 # 07 - DECISIONES Y PROBLEMAS RESUELTOS
 
 **Documento:** 07_Decisiones.md  
-**Versión:** 1.0  
-**Fecha:** 22 de abril de 2026  
+**Versión:** 2.0  
+**Fecha:** 17 de junio de 2026 (actualizado FASE 3 auditoría)  
 **Status:** ✅ Consolidado MDV
 
 ---
@@ -328,6 +328,177 @@ assert cat == CategoriaCumplimiento.PELIGRO.value
 **Approach:** Tests unitarios por suite, fixtures centralizadas.
 
 **Validación:** Sin regresiones en APIs públicas.
+
+---
+
+---
+
+## 8. Hallazgos SOLID — Auditoría FASE 3 (jun-2026)
+
+### 8.1 Violaciones Detectadas
+
+#### SRP — Single Responsibility Principle
+| Módulo | Violación | Severidad | Acción |
+|---|---|---|---|
+| `services/data_loader.py` | Mezcla `@st.cache_data` (infraestructura Streamlit) con lógica de carga ETL | Media | Extraer lógica pura en `services/loaders/data_access.py`; mantener wrapper Streamlit delgado |
+| `core/calculos.py` | `generar_recomendaciones()` genera texto editorial junto a cálculos numéricos | Baja | Aceptable por su tamaño (~40 líneas); documentado como deuda técnica menor |
+
+#### DRY — Don't Repeat Yourself
+| Duplicación | Archivos | Decisión |
+|---|---|---|
+| `COL_ALIASES` | `scripts/etl/normalizacion.py` vs `scripts/consolidation/core/constants.py` | **Aceptada** — subpaquetes independientes. Agregar comentario cross-reference en ambos archivos |
+| `MESES_ES` | `scripts/etl/normalizacion.py`, `scripts/consolidation/core/constants.py`, `core/config.py` | **Aceptada** — misma razón. Documentado |
+
+#### DIP — Dependency Inversion Principle
+| Módulo | Violación | Impacto | Acción |
+|---|---|---|---|
+| `services/data_loader.py` | Dependencia directa de `@st.cache_data` en funciones públicas | Coverage solo 23% — no testeable sin Streamlit | Deuda técnica registrada en ARQ-006 abajo |
+
+#### OCP — Open/Closed Principle
+| Módulo | Situación |
+|---|---|
+| `core/config.py:IDS_PLAN_ANUAL` | ✅ BIEN — carga dinámica desde Excel, extensible sin modificar código |
+| `scripts/consolidation/core/rules_engine.py:evaluar_regla()` | 🟡 Leve — agregar nuevo TipoRegla requiere editar el switch. Impacto bajo mientras el motor no esté activo |
+
+### 8.2 Nuevas Decisiones ARQ
+
+#### ARQ-006: Deuda Técnica — data_loader.py sin separar capa Streamlit
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-006` |
+| **Área** | Servicios / Testing |
+| **Problema** | `services/data_loader.py` tiene 23% coverage porque `@st.cache_data` no es testeable sin Streamlit corriendo |
+| **Decisión actual** | Mantener estado actual — refactorizar en SGIND v2 (FastAPI no tiene esta restricción) |
+| **Acción diferida** | Extraer lógica pura a `services/loaders/data_access.py` en siguiente sprint de Streamlit |
+| **Status** | 🟡 Deuda técnica registrada |
+| **Fecha** | 2026-06-17 |
+
+#### ARQ-007: COL_ALIASES — Duplicación Aceptada por Contexto
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-007` |
+| **Área** | ETL / Consolidación |
+| **Decisión** | `COL_ALIASES` duplicado en `scripts/etl/normalizacion.py` y `scripts/consolidation/core/constants.py` es **intencional** |
+| **Razón** | Los módulos son subpaquetes independientes. Unificarlos crearía dependencia circular o requeriría un tercer módulo compartido sin valor arquitectónico claro |
+| **Condición de revisión** | Si los mapeos divergen en > 3 entradas, crear `core/etl_constants.py` como fuente única |
+| **Status** | ✅ Decisión tomada |
+| **Fecha** | 2026-06-17 |
+
+### 8.3 Patrones de Diseño — Estado Actual
+
+| Patrón | Módulo | Estado |
+|---|---|---|
+| **Strategy** | `scripts/etl/extraccion.py` — extracción por variables/series/directo | 🟡 Implícito, no formalizado con interfaz |
+| **Repository** | `core/db/operations.py` | ✅ Implementado |
+| **Factory** | `scripts/etl/builders.py` — constructores de registros Excel | 🟡 Implícito |
+| **Observer** | `scripts/etl/notifications.py` | ✅ Implementado |
+| **Facade** | `core/semantica.py` — re-exporta `core/domain` | ✅ Correcto uso |
+| **Pipeline** | `services/loaders/pipeline.py` — 5 fases ETL | ✅ Bien estructurado |
+
+---
+
+## 9. Decisiones FASE 7 — Modularización (jun-2026)
+
+### ARQ-008: Shim en `streamlit_app/services/` — Patrón Aceptado
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-008` |
+| **Área** | Estructura de módulos / Streamlit |
+| **Decisión** | `streamlit_app/services/strategic_indicators.py` es un shim deliberado que re-exporta desde `services.strategic_indicators` canónico |
+| **Razón** | Streamlit resuelve imports relativos al CWD del `app.py`; el shim evita errores de path sin duplicar lógica |
+| **Condición de revisión** | Eliminar el shim cuando `app.py` migre a `streamlit_app/` o se use SGIND v2 |
+| **Status** | ✅ Aceptado — no requiere acción |
+| **Fecha** | 2026-06-17 |
+
+**Estructura del shim:**
+```python
+# streamlit_app/services/strategic_indicators.py
+from services.strategic_indicators import *  # re-export limpio, 0 lógica propia
+```
+
+---
+
+### ARQ-009: `utils/` Raíz — Directorio Vestigial
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-009` |
+| **Área** | Estructura de módulos |
+| **Decisión** | El directorio `utils/` en la raíz contiene solo `__init__.py`. No consolidar con `streamlit_app/utils/` |
+| **Razón** | `streamlit_app/utils/formatting.py` es formateo de presentación UI (no ETL). `scripts/etl/normalizacion.py` es normalización de datos. Contextos distintos, unificarlos crearía dependencia incorrecta |
+| **Acción** | `utils/` raíz puede eliminarse en siguiente limpieza de FASE 1; `__init__.py` no tiene importadores activos |
+| **Status** | 🟡 Pendiente limpieza menor |
+| **Fecha** | 2026-06-17 |
+
+---
+
+## 10. Decisiones FASE 8 — CI/CD (jun-2026)
+
+### ARQ-010: Coverage Gate en CI — Umbral 50%
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-010` |
+| **Área** | CI/CD / Calidad |
+| **Decisión** | Agregar `--cov-fail-under=50` al workflow `test.yml` y extender cobertura a `scripts/` |
+| **Razón** | Sin `--cov-fail-under`, el CI nunca rechazaba PRs por pérdida de cobertura. El 50% refleja el estado actual (903 tests) y actúa como piso, no como meta |
+| **Meta futura** | Subir a `--cov-fail-under=70` al completar tests de `escritura.py`, `fuentes.py`, `purga.py` |
+| **Status** | ✅ Implementado en `.github/workflows/test.yml` |
+| **Fecha** | 2026-06-17 |
+
+**Cambio aplicado:**
+```yaml
+# .github/workflows/test.yml — antes
+pytest tests/ --cov=core --cov=services --cov=streamlit_app ...
+
+# después
+pytest tests/ --cov=core --cov=services --cov=streamlit_app --cov=scripts \
+  --cov-fail-under=50 ...
+```
+
+---
+
+### ARQ-011: `deploy-staging.yml` — Corrección de Plataforma
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-011` |
+| **Área** | CI/CD / Deploy |
+| **Problema** | `deploy-staging.yml` referenciaba Render.com (`RENDER_DEPLOY_HOOK_URL`) pero la producción real está en **Streamlit Community Cloud** |
+| **Decisión** | Corregir comentarios; renombrar secret a `STAGING_DEPLOY_HOOK_URL`; Streamlit Cloud deploya automáticamente desde `main` via GitHub integration sin webhook explícito |
+| **Situación staging** | No existe entorno staging dedicado actualmente. El workflow es un placeholder para cuando se configure uno |
+| **Status** | ✅ Corregido en `.github/workflows/deploy-staging.yml` |
+| **Fecha** | 2026-06-17 |
+
+---
+
+### ARQ-012: `main_indicadores.yml` — Workflow Azure Obsoleto
+
+| Componente | Valor |
+|---|---|
+| **ID** | `ARQ-012` |
+| **Área** | CI/CD / Deploy |
+| **Situación** | `.github/workflows/main_indicadores.yml` despliega en Azure Web App con Python 3.14. La app de producción es Streamlit Community Cloud, no Azure |
+| **Decisión** | El workflow Azure puede ser de una prueba piloto anterior. Mantener desactivado (no tiene trigger automático activo) hasta confirmar si Azure Web App es un destino de deploy válido |
+| **Acción** | Confirmar con el equipo si el deploy Azure sigue activo; si no, eliminar el workflow en siguiente limpieza |
+| **Status** | 🟡 Pendiente confirmación |
+| **Fecha** | 2026-06-17 |
+
+---
+
+### 10.1 Tabla Consolidada CI/CD
+
+| Workflow | Trigger | Estado | Gap identificado |
+|---|---|---|---|
+| `test.yml` | push/PR a main, develop | ✅ Activo | Corregido: `--cov-fail-under=50` + `--cov=scripts` agregado |
+| `lint.yml` | push/PR a main, develop | ⚠️ No bloqueante | Todos los steps tienen `continue-on-error: true` |
+| `deploy-staging.yml` | push a develop | ⚠️ Placeholder | No hay staging real; Render→Streamlit Cloud corregido |
+| `pipeline_automatico.yml` | cron día 5/mes 06:00 UTC | ✅ Bien diseñado | Requiere `ANTHROPIC_API_KEY` secret en GitHub |
+| `main_indicadores.yml` | push a main | 🟡 Dudoso | Despliega Azure; posiblemente obsoleto |
+| `docker-publish.yml` | push a main + tags | ✅ Activo | Para SGIND v2 container |
 
 ---
 

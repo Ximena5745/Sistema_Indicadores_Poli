@@ -10,14 +10,11 @@ from typing import Any
 import pandas as pd
 
 from app.domain.cmi_builders import (
-    COLOR_CATEGORIA,
-    build_alertas,
     build_distribucion_nivel,
-    build_indicadores_listado,
     calcular_kpis,
     df_to_records,
 )
-from app.domain.resumen_builders import compute_trends, ensure_nivel_cumplimiento
+from app.domain.resumen_builders import compute_trends
 
 MESES_OPCIONES = [
     "Enero",
@@ -739,6 +736,11 @@ def build_indicadores_procesos_listado(df: pd.DataFrame) -> list[dict[str, Any]]
             "Subproceso",
             "Meta",
             "Ejecucion",
+            "Meta_Signo",
+            "Ejecucion_s",
+            "EjecS",
+            "Decimales_Meta",
+            "Decimales_Ejecucion",
             "cumplimiento_pct",
             "Nivel de cumplimiento",
             "Clasificacion",

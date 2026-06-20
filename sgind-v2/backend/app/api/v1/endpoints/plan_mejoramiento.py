@@ -13,6 +13,15 @@ def _service(excel: ExcelReaderService = Depends(get_excel_service)) -> PlanMejo
     return PlanMejoramientoService(excel)
 
 
+@router.get("/filtros")
+async def plan_mejoramiento_filtros(
+    _user: User = Depends(require_reader),
+    service: PlanMejoramientoService = Depends(_service),
+) -> dict:
+    """Devuelve años, cortes, factores y características disponibles."""
+    return service.get_filtros()
+
+
 @router.get("/dashboard")
 async def plan_mejoramiento_dashboard(
     anio: int | None = Query(None),

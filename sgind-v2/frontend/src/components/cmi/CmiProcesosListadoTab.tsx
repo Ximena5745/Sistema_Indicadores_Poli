@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Indicator } from "@/lib/types";
 import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+import { fmtMeta, fmtEjecucion } from "@/lib/formatValor";
 
 interface CmiProcesosListadoTabProps {
   indicadores: Indicator[];
@@ -195,8 +196,8 @@ export function CmiProcesosListadoTab({
                   <td className="px-4 py-3 text-slate-600">
                     {String(rec.Subproceso_final ?? ind.Subproceso ?? "—")}
                   </td>
-                  <td className="px-4 py-3 text-right">{ind.Meta ?? "—"}</td>
-                  <td className="px-4 py-3 text-right">{ind.Ejecucion ?? "—"}</td>
+                  <td className="px-4 py-3 text-right">{fmtMeta(ind as Record<string, unknown>)}</td>
+                  <td className="px-4 py-3 text-right">{fmtEjecucion(ind as Record<string, unknown>)}</td>
                   <td className="px-4 py-3 text-right">{fmtPct(ind.cumplimiento_pct as number)}</td>
                   <td className="px-4 py-3">
                     <NivelBadge nivel={ind["Nivel de cumplimiento"] as string} />

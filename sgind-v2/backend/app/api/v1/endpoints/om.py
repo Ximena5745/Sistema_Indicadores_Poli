@@ -6,7 +6,7 @@ from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.security import require_admin, require_reader
 from app.models.user import User
-from app.schemas.common import RegistroOMCreate, RegistroOMResponse, RegistroOMUpdate
+from app.schemas.common import RegistroOMCerrar, RegistroOMCreate, RegistroOMResponse, RegistroOMUpdate
 from app.services.excel_reader import ExcelReaderService
 from app.services.om_matriz_service import OMMatrizService
 from app.services.om_service import OMService
@@ -73,6 +73,20 @@ async def update_om(
     db: AsyncSession = Depends(get_db),
 ) -> RegistroOMResponse:
     registro = await _om_service.update(db, registro_id, data)
+    if registro is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro no encontrado")
+    return registro
+
+
+@router.patch("/{registro_id}/cerrar", response_model=RegistroOMResponse)
+async def cerrar_om(
+    registro_id: int,
+    data: RegistroOMCerrar,
+    _user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> RegistroOMResponse:
+    """Cierra un OM: establece tiene_om=0. Acepta comentario opcional."""
+    registro = await _om_service.cerrar(db, registro_id, data)
     if registro is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro no encontrado")
     return registro

@@ -17,6 +17,30 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(STREAMLIT_APP_PATH) not in sys.path:
     sys.path.append(str(STREAMLIT_APP_PATH))
 
+# ─── Modo mantenimiento ───────────────────────────────────────────────────────
+# Activar con: variable de entorno SGIND_MAINTENANCE_MODE=1
+# o creando el archivo .maintenance_mode en el directorio raíz del proyecto.
+_MAINTENANCE_FLAG_FILE = PROJECT_ROOT / ".maintenance_mode"
+_MAINTENANCE_ENV = os.getenv("SGIND_MAINTENANCE_MODE", "").strip() in {"1", "true", "yes"}
+_MAINTENANCE_ACTIVE = _MAINTENANCE_ENV or _MAINTENANCE_FLAG_FILE.exists()
+
+if _MAINTENANCE_ACTIVE:
+    _v2_url = os.getenv("SGIND_V2_URL", "")
+    st.set_page_config(
+        page_title="Sistema en mantenimiento — SGIND",
+        page_icon="🔧",
+        layout="centered",
+    )
+    st.title("🔧 Sistema en mantenimiento")
+    st.info(
+        "El Sistema de Indicadores (SGIND) se encuentra en proceso de actualización.\n\n"
+        "Estará disponible nuevamente en breve.\n\n"
+        "Para consultas urgentes, contacte al área de Planeación Institucional."
+    )
+    if _v2_url:
+        st.success(f"La nueva versión del sistema ya está disponible en: [{_v2_url}]({_v2_url})")
+    st.stop()
+
 
 def _get_git_commit_short():
     try:

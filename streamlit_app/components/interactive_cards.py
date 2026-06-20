@@ -12,6 +12,7 @@ import re
 import pandas as pd
 import streamlit as st
 from typing import Optional
+from streamlit_app.utils.formatting import meta_his_signo, ejecucion_his_signo
 
 # Colores para estados
 NIVELES_COLORS = {
@@ -271,8 +272,8 @@ def render_indicator_card_enhanced(
     proceso = str(row.get("Proceso_padre", row.get("Proceso", "—"))).strip()
     unidad = str(row.get("Unidad", "—")).strip()
     
-    meta = _fmt_short_value(row.get("Meta"))
-    ejec = _fmt_short_value(row.get("Ejecucion"))
+    meta = meta_his_signo(row)
+    ejec = ejecucion_his_signo(row)
     freq = str(row.get("Frecuencia", row.get("Periodicidad", "—"))).strip()
     clasificacion = str(row.get("Clasificacion", "—")).strip()
     

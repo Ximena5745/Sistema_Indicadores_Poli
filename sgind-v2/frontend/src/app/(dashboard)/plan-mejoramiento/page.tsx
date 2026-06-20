@@ -7,6 +7,7 @@ import { CmiDonutNivelPlotly } from "@/components/cmi/CmiDonutNivelPlotly";
 import { KPICard } from "@/components/ui/KPICard";
 import { YearSegmentedControl } from "@/components/ui/YearSegmentedControl";
 import { fetchPlanMejoramientoDashboard } from "@/lib/api";
+import { fmtValorSigno } from "@/lib/formatValor";
 import { useAuthReady } from "@/stores/auth-store";
 
 const CORTES = ["Junio", "Diciembre"] as const;
@@ -186,8 +187,8 @@ export default function PlanMejoramientoPage() {
                         {String(row.nivel_emoji ?? "")} {String(row.nivel ?? "")}
                       </span>
                     </td>
-                    <td className="px-3 py-2">{row.Meta != null ? String(row.Meta) : "—"}</td>
-                    <td className="px-3 py-2">{row.Ejecucion != null ? String(row.Ejecucion) : "—"}</td>
+                    <td className="px-3 py-2">{fmtValorSigno(row.Meta as number | null, String(row.Meta_Signo ?? "%"), row.Decimales_Meta as number | null)}</td>
+                    <td className="px-3 py-2">{fmtValorSigno(row.Ejecucion as number | null, String(row.Ejecucion_s ?? row.EjecS ?? "%"), row.Decimales_Ejecucion as number | null)}</td>
                   </tr>
                 ))}
               </tbody>

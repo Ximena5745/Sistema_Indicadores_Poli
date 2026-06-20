@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Indicator } from "@/lib/types";
 import { fmtPct, NivelBadge } from "@/components/cmi/nivelUtils";
+import { fmtMeta, fmtEjecucion } from "@/lib/formatValor";
 
 interface CmiAlertasTabProps {
   peligro: number;
@@ -105,8 +106,8 @@ export function CmiAlertasTab({ peligro, alerta, items, onOpenFicha }: CmiAlerta
                 <tr key={ind.Id ?? ind.Indicador} className="border-t border-slate-100">
                   <td className="px-3 py-2 font-medium">{ind.Indicador}</td>
                   <td className="px-3 py-2">{ind.Linea}</td>
-                  <td className="px-3 py-2">{ind.Meta ?? "—"}</td>
-                  <td className="px-3 py-2">{ind.Ejecucion ?? "—"}</td>
+                  <td className="px-3 py-2">{fmtMeta(ind as Record<string, unknown>)}</td>
+                  <td className="px-3 py-2">{fmtEjecucion(ind as Record<string, unknown>)}</td>
                   <td className="px-3 py-2 font-semibold">{fmtPct(ind.cumplimiento_pct as number | undefined)}</td>
                   <td className="px-3 py-2">
                     <NivelBadge nivel={ind["Nivel de cumplimiento"] as string | undefined} />

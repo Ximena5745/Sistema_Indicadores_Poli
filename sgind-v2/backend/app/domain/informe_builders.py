@@ -93,7 +93,6 @@ def build_analisis_ia(indicadores: list[dict[str, Any]]) -> dict[str, Any]:
     peligro = [i for i in indicadores if (i.get("cumplimiento_pct") or 100) < 80]
     alerta = [i for i in indicadores if 80 <= (i.get("cumplimiento_pct") or 0) < 100]
     saludables = [i for i in indicadores if (i.get("cumplimiento_pct") or 0) >= 100]
-    cols = ["indicador", "proceso", "subproceso", "cumplimiento_pct"]
     def _pick(lst, n=20):
         out = []
         for i in lst[:n]:

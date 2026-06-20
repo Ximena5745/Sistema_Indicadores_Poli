@@ -1,25 +1,50 @@
 # 06 - TESTING Y CALIDAD
 
 **Documento:** 06_Testing_Calidad.md  
-**Versión:** 1.0  
-**Fecha:** 22 de abril de 2026  
+**Versión:** 2.1  
+**Fecha:** 17 de junio de 2026 (actualizado Sprint Pending — cobertura módulos 0%)  
 **Status:** ✅ Consolidado MDV
 
 ---
 
 ## 1. Estado Actual
 
+> Última medición: 17-jun-2026, pytest-cov sobre `core/`, `scripts/etl/`, `services/`.
+
 | Métrica | Valor | Estado |
 |---------|-------|--------|
-| **Tests Totales** | 696 | ✅ |
-| **Tests Pasando** | 696 | ✅ 100% |
-| **Coverage Global** | 18%* | 🔴 |
-| **Coverage core/** | 100% | ✅ |
-| **Coverage services/** | 35% | 🟡 |
-| **Coverage scripts/** | 12% | 🔴 |
-| **Fase** | FASE 3 (MEDIA) | ⏳ En ejecución |
+| **Tests Totales** | 903 | ✅ |
+| **Tests Pasando** | 903 | ✅ 100% |
+| **Coverage Global** | 50% | 🟡 |
+| **Coverage core/domain/** | ~90% | ✅ |
+| **Coverage scripts/etl/cumplimiento.py** | 89% | ✅ |
+| **Coverage services/loaders/pipeline.py** | 82% | ✅ |
+| **Coverage scripts/etl/extraccion.py** | ~60% | 🟡 |
+| **Coverage scripts/etl/normalizacion.py** | ~95% | ✅ |
+| **Coverage scripts/etl/builders.py** | 88% | ✅ Nuevo |
+| **Coverage services/ficha_pdf/utils.py** | 100% | ✅ Nuevo |
+| **Coverage scripts/etl/fuentes.py** | 32% | 🟡 Nuevo |
+| **Coverage scripts/etl/purga.py** | 30% | 🟡 Nuevo |
+| **Coverage scripts/etl/escritura.py** | 29% | 🟡 Nuevo |
+| **Coverage services/data_loader.py** | 23% | 🔴 (DIP issue) |
+| **Meta** | 70% en módulos core/etl | ⏳ En progreso |
 
-\* Última medición histórica registrada. En este entorno, `pytest-cov` no está disponible actualmente en la instalación de pytest activa.
+**Nuevos tests agregados en FASE 4 (jun-2026):**
+- `tests/test_etl_utils.py` — 75 tests: normalizacion, periodos, no_aplica, signos
+- `tests/test_etl_extraccion.py` — 34 tests: extraccion de meta/ejec desde variables/series
+
+**Nuevos tests agregados en Sprint Pending (jun-2026):**
+- `tests/test_ficha_pdf_utils.py` — 14 tests: `nivel_color`, `safe` (100% cobertura del módulo)
+- `tests/test_etl_fuentes.py` — 22 tests: `homologar_proceso`, loaders con archivo ausente/mock
+- `tests/test_etl_builders.py` — 27 tests: `construir_registros_historico/semestral/cierres` con mocks
+- `tests/test_etl_purga_escritura.py` — 32 tests: `_ejec_score`, `llaves_de_df`, `get_last_data_row`, `deduplicar_sheet`, `limpiar_cierres_existentes`, `purgar_filas_invalidas`
+
+**Módulos con cobertura baja (próximos sprints):**
+- `scripts/etl/escritura.py` (29%) — funciones openpyxl complejas: `limpiar_ordenar_hoja`, `escribir_filas`
+- `scripts/etl/fuentes.py` (32%) — loaders de Kawak 2025 y lookup consolidado
+- `scripts/etl/purga.py` (30%) — `_dedup_cierres_por_año`, `reparar_meta_vacia`
+- `services/ficha_pdf/builder.py` (13%) — requiere reportlab con datos reales
+- `services/data_loader.py` (23%) — DIP issue pendiente (ARQ-006)
 
 ---
 

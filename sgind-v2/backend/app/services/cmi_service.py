@@ -63,7 +63,6 @@ from app.domain.procesos_builders import (
 from app.domain.procesos_loaders import load_process_map
 from app.domain.resumen_builders import ensure_nivel_cumplimiento
 from app.domain.strategic_processors import StrategicProcessors
-from app.services.etl_pipeline import ETLPipelineService
 from app.services.excel_reader import ExcelReaderService
 from app.services.indicator_service import IndicatorService
 from app.services.strategic_loaders import StrategicLoaders

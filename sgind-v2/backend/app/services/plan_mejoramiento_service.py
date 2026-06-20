@@ -26,6 +26,19 @@ class PlanMejoramientoService:
         self._strategic = StrategicProcessors(excel)
         self._loaders = StrategicLoaders(excel)
 
+    def get_filtros(self) -> dict:
+        """Devuelve los filtros disponibles para Plan de Mejoramiento."""
+        cierres = self._loaders.load_cierres()
+        filtros_corte = build_filtros_corte(cierres) if not cierres.empty else {"anios": [], "cortes": []}
+        catalog = self._loaders.load_cna_catalog()
+        factores: list[str] = []
+        if not catalog.empty and "Factor" in catalog.columns:
+            factores = sorted(catalog["Factor"].dropna().unique().tolist())
+        caracteristicas: list[str] = []
+        if not catalog.empty and "Característica" in catalog.columns:
+            caracteristicas = sorted(catalog["Característica"].dropna().unique().tolist())
+        return {**filtros_corte, "factores": factores, "caracteristicas": caracteristicas}
+
     def get_dashboard(
         self,
         *,

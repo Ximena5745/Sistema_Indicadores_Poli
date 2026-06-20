@@ -16,10 +16,19 @@ def _auth_service(settings: Settings = Depends(get_settings)) -> AuthService:
     return AuthService(settings)
 
 
-@router.get("/login", response_model=LoginResponse)
+@router.get("/login")
 async def login(
     auth: AuthService = Depends(_auth_service),
+):
+    """Redirige al navegador directamente a Azure AD OAuth."""
+    return RedirectResponse(url=auth.get_login_url())
+
+
+@router.get("/login-url", response_model=LoginResponse)
+async def login_url(
+    auth: AuthService = Depends(_auth_service),
 ) -> LoginResponse:
+    """Devuelve la URL de Azure AD para flujos que necesitan el JSON (SPA, tests)."""
     return LoginResponse(authorization_url=auth.get_login_url())
 
 

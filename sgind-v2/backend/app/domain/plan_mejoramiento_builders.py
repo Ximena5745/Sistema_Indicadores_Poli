@@ -198,7 +198,9 @@ def build_tabla_cna(df: pd.DataFrame) -> list[dict[str, Any]]:
         return []
     cols_order = [
         "Id", "Indicador", "Factor", "Caracteristica", "cumplimiento_pct",
-        "Nivel de cumplimiento", "Meta", "Ejecucion", "Sentido", "Anio", "Mes", "Fecha",
+        "Nivel de cumplimiento", "Meta", "Ejecucion",
+        "Meta_Signo", "Ejecucion_s", "EjecS", "Decimales_Meta", "Decimales_Ejecucion",
+        "Sentido", "Anio", "Mes", "Fecha",
     ]
     present = [c for c in cols_order if c in df.columns]
     sort_cols = [c for c in ["Factor", "Caracteristica", "Id"] if c in df.columns]

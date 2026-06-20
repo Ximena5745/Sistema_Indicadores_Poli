@@ -13,7 +13,7 @@ from app.domain.cmi_filters import _KAWAK_IDS_CACHE, _PROCESOS_IDS_CACHE, _WORKS
 from app.domain.procesos_loaders import _PROCESS_MAP_CACHE
 from app.services.cmi_service import CMIService, _YEAR_PREPARED_CACHE
 from app.services.informe_service import InformeService
-from app.services.tracking_cache import _TRACKING_CACHE, clear_tracking_cache
+from app.services.tracking_cache import clear_tracking_cache
 
 
 def _setup():

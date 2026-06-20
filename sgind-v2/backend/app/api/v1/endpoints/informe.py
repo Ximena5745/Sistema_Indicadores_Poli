@@ -13,6 +13,15 @@ def _service(excel: ExcelReaderService = Depends(get_excel_service)) -> InformeS
     return InformeService(excel)
 
 
+@router.get("/filtros")
+async def informe_filtros(
+    _user: User = Depends(require_reader),
+    service: InformeService = Depends(_service),
+) -> dict:
+    """Devuelve años, meses, procesos y subprocesos disponibles."""
+    return service.get_filtros()
+
+
 @router.get("/dashboard")
 async def informe_dashboard(
     anio: int = Query(...),

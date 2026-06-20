@@ -11,7 +11,7 @@ import { ExecutiveNarrative } from "@/components/ui/ExecutiveNarrative";
 import { StrategyCardGrid } from "@/components/ui/StrategyCard";
 import { VistaSelector } from "@/components/ui/VistaSelector";
 import { YearSegmentedControl } from "@/components/ui/YearSegmentedControl";
-import { fetchDashboardFiltros, fetchHealth, fetchResumenCompleto } from "@/lib/api";
+import { downloadResumenGeneralPdf, fetchDashboardFiltros, fetchHealth, fetchResumenCompleto } from "@/lib/api";
 import { isDevLoginEnabled, useDevLogin } from "@/hooks/use-dev-login";
 import { useAuthReady } from "@/stores/auth-store";
 
@@ -50,20 +50,44 @@ export default function ResumenGeneralPage() {
   const needsAuth = ready && !isAuthenticated;
   const showLoading = !ready || (isAuthenticated && resumenQuery.isFetching && !resumenQuery.data);
   const years = filtrosQuery.data?.anios ?? [2022, 2023, 2024, 2025];
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      await downloadResumenGeneralPdf(anioEfectivo);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white shadow-md">
-        <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">Sistema de Indicadores</p>
-        <h2 className="mt-1 text-2xl font-bold">Plan de Desarrollo Institucional 2022–2026</h2>
-        <p className="mt-1 text-sm text-slate-300">
-          Seguimiento estratégico de indicadores PDI · Cuadro de Mando Integral
-        </p>
-        {health && (
-          <p className="mt-2 text-xs text-slate-400">
-            API {health.status} · v{health.version}
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">Sistema de Indicadores</p>
+            <h2 className="mt-1 text-2xl font-bold">Plan de Desarrollo Institucional 2022–2026</h2>
+            <p className="mt-1 text-sm text-slate-300">
+              Seguimiento estratégico de indicadores PDI · Cuadro de Mando Integral
+            </p>
+            {health && (
+              <p className="mt-2 text-xs text-slate-400">
+                API {health.status} · v{health.version}
+              </p>
+            )}
+          </div>
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading || showLoading}
+              className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600 disabled:opacity-50"
+            >
+              {pdfLoading ? "Generando…" : "Descargar PDF"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">

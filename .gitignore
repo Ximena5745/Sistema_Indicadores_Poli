@@ -200,3 +200,6 @@ __tmp*
 # Artefactos binarios de diagnóstico regenerables
 artifacts/consolidado_*.xlsx
 artifacts/sunburst_*.xlsx
+# SGIND v2 staging secrets
+sgind-v2/.env.staging
+sgind-v2/.env

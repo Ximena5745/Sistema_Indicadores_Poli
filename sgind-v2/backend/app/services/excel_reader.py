@@ -4,8 +4,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.schemas.common import ExcelFileInfo

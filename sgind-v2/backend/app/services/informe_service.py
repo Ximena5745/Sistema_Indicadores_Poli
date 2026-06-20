@@ -21,6 +21,13 @@ class InformeService:
         self._excel = excel
         self._cmi = CMIService(excel)
 
+    def get_filtros(self) -> dict:
+        """Devuelve filtros disponibles (años, meses, procesos, etc.) reutilizando CMI procesos."""
+        try:
+            return self._cmi.get_procesos_filtros()
+        except FileNotFoundError:
+            return {"anios": [], "meses": [], "procesos": [], "subprocesos": [], "error": "datos no disponibles"}
+
     def get_dashboard(
         self,
         *,

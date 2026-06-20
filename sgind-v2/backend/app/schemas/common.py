@@ -75,6 +75,10 @@ class RegistroOMUpdate(BaseModel):
     comentario: str | None = None
 
 
+class RegistroOMCerrar(BaseModel):
+    comentario: str | None = None
+
+
 class RegistroOMResponse(RegistroOMBase):
     model_config = ConfigDict(from_attributes=True)
 

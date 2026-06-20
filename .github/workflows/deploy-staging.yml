@@ -1,64 +1,207 @@
-name: Deploy to Staging
+name: Deploy to Staging v2
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: "Solo construir imágenes (no SSH deploy)"
+        required: false
+        default: "false"
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/sgind-v2-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/sgind-v2-frontend
 
 jobs:
-  deploy-staging:
+  # ─── Build & push backend image ──────────────────────────────────────────────
+  build-backend:
+    name: Build backend Docker image
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Deploy to Render (Staging)
-      run: |
-        echo "Staging deployment trigger"
-        # Render.com automatically deploys on push to develop branch
-        # if connected via GitHub integration
-    
-    - name: Notify deployment
-      if: always()
-      run: |
-        echo "Deployment to staging initiated"
-        echo "Check Render.com dashboard for status"
-    
-    # Optional: Ping Render deploy hook
-    - name: Trigger Render Deploy Hook
-      if: github.event_name == 'push'
-      run: |
-        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }} || true
-      continue-on-error: true
+    permissions:
+      contents: read
+      packages: write
 
-  smoke-test:
-    runs-on: ubuntu-latest
-    needs: deploy-staging
-    if: success()
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Wait for deployment
-      run: |
-        echo "Waiting 30 seconds for deployment to propagate..."
-        sleep 30
-    
-    - name: Health check
-      run: |
-        # Replace with actual staging URL
-        STAGING_URL="${{ secrets.STAGING_URL }}"
-        if [ -z "$STAGING_URL" ]; then
-          echo "Staging URL not configured in secrets"
-          exit 0
-        fi
-        
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" $STAGING_URL/healthz || echo "000")
-        echo "Staging health check: $STATUS"
-        
-        if [ "$STATUS" -eq 200 ]; then
-          echo "✅ Staging deployment successful"
-        else
-          echo "⚠️ Staging health check returned: $STATUS"
-        fi
-      continue-on-error: true
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: sgind-v2/backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── Build & push frontend image ─────────────────────────────────────────────
+  build-frontend:
+    name: Build frontend Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: sgind-v2/frontend
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.STAGING_API_URL || 'http://localhost:8000' }}
+            NEXT_PUBLIC_ENABLE_DEV_LOGIN=false
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── Deploy to staging server (condicional) ───────────────────────────────────
+  deploy:
+    name: Deploy to staging server
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: |
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.skip_deploy == 'false'
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check staging secrets
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.STAGING_HOST }}" ]; then
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+            echo "STAGING_HOST secret not configured — skipping SSH deploy"
+          fi
+
+      - name: Deploy via SSH
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_PORT || 22 }}
+          script: |
+            set -e
+
+            # Directorio de deploy
+            DEPLOY_DIR="${{ vars.STAGING_DEPLOY_DIR || '/opt/sgind-v2' }}"
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+
+            # Actualizar compose file
+            cat > docker-compose.yml << 'COMPOSE_EOF'
+            $(cat sgind-v2/docker-compose.staging.yml)
+            COMPOSE_EOF
+
+            # Autenticar en GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull y restart
+            docker compose pull
+            docker compose up -d --remove-orphans
+
+            # Esperar health check backend
+            echo "Esperando backend..."
+            for i in $(seq 1 30); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/health || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "Backend saludable"
+                break
+              fi
+              echo "Intento $i/30 — status $STATUS"
+              sleep 5
+            done
+
+            docker compose ps
+
+      - name: Log staging images (sin SSH)
+        if: steps.check-secrets.outputs.has_secrets != 'true'
+        run: |
+          echo "Imágenes publicadas en GHCR:"
+          echo "  Backend:  ghcr.io/${{ github.repository_owner }}/sgind-v2-backend:latest"
+          echo "  Frontend: ghcr.io/${{ github.repository_owner }}/sgind-v2-frontend:latest"
+          echo ""
+          echo "Para deploy manual:"
+          echo "  Ver: sgind-v2/docs/migration/STAGING_RUNBOOK.md"
+
+  # ─── Smoke tests ─────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke tests post-deploy
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always() && needs.deploy.result != 'failure'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install httpx
+        run: pip install httpx
+
+      - name: Run smoke tests
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL || '' }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL || '' }}
+        run: |
+          python sgind-v2/scripts/smoke_test.py \
+            --api-url "$STAGING_API_URL" \
+            --frontend-url "$STAGING_URL" \
+            --skip-if-unconfigured

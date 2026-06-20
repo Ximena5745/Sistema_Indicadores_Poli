@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from app.domain.categorization import categorizar_cumplimiento
 from app.domain.loader_utils import id_a_str
 
 MESES_NOMBRES = [
@@ -163,7 +161,6 @@ def merge_om_registros(
     for _, row in df.iterrows():
         rid = id_a_str(row.get("Id", ""))
         om = om_by_id.get(rid, {})
-        cumpl_col = None
         if "Cumplimiento_pct" in row.index and pd.notna(row.get("Cumplimiento_pct")):
             cumpl = pd.to_numeric(row["Cumplimiento_pct"], errors="coerce")
             cumpl_pct = round(float(cumpl), 1) if pd.notna(cumpl) else None

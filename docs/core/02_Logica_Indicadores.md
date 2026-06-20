@@ -1,8 +1,8 @@
 # 02 - LÓGICA DE CÁLCULO DE INDICADORES
 
 **Documento:** 02_Logica_Indicadores.md  
-**Versión:** 1.0  
-**Fecha:** 22 de abril de 2026  
+**Versión:** 2.0  
+**Fecha:** 17 de junio de 2026 (actualizado FASE 2 auditoría)  
 **Status:** ✅ Consolidado MDV
 
 ---
@@ -232,11 +232,33 @@ def _cargar_avance_om() -> dict:
 
 ---
 
+## 8. Jerarquía Canónica de Funciones de Cálculo
+
+> ⚠️ ACTUALIZADO FASE 2 (jun-2026): Las referencias anteriores a `core/semantica.py` apuntaban
+> a la **fachada legacy**. Las funciones canónicas viven en `core/domain/`.
+> `core/semantica.py` se mantiene como re-export para no romper código existente.
+
+| Función | Archivo Canónico | Propósito |
+|---|---|---|
+| `calcular_cumplimiento()` | `scripts/etl/cumplimiento.py` | Calcula `(cumpl_capped, cumpl_real)` desde meta/ejec/sentido |
+| `normalizar_cumplimiento()` | `core/calculos.py` | Valida que el valor esté en rango [0, 1.3] |
+| `categorizar_cumplimiento()` | `core/domain/categorization.py` | **OFICIAL** — clasifica en Peligro/Alerta/Cumplimiento/Sobrecumplimiento |
+| `recalcular_cumplimiento_faltante()` | `core/domain/health_metrics.py` | **OFICIAL** — recalcula cuando falta el valor consolidado |
+| `obtener_color_categoria()` | `core/semantica.py` (fachada → `core/config.py`) | Color hexadecimal por categoría |
+| `obtener_icono_categoria()` | `core/semantica.py` (fachada → `core/config.py`) | Emoji por categoría |
+
+**Nota SGIND v2:** El backend FastAPI porta estas funciones en `sgind-v2/backend/app/domain/`.
+La diferencia notable: `normalizar_cumplimiento()` en v2 convierte escala 0–100 → 0–1
+automáticamente cuando `valor > RANGO_CUMPLIMIENTO_MAX and valor <= 100`.
+El Streamlit NO hace esa conversión (asume que los datos ya vienen en escala decimal).
+
+---
+
 ## 9. Función Centralizada de Cálculo (Living Documentation + Data Contract)
 
 ### 9.1 Función: `normalizar_y_categorizar()`
 
-**Ubicación:** `core/semantica.py:432`
+**Ubicación:** `core/semantica.py` (fachada legacy) → implementación real en `core/domain/categorization.py`
 
 **Propósito:** Wrapper que combina normalización de cumplimiento + categorización en una sola función. Centraliza la lógica de conversión automática y garantiza consistencia en formato de entrada/salida.
 
@@ -328,7 +350,7 @@ Cumplimiento_Línea = promedio(cumplimiento_pct de todos los indicadores de la l
 
 ### 9.4 Función: `obtener_color_categoria()`
 
-**Ubicación:** [`core/semantica.py:168`](../../core/semantica.py#L168)
+**Ubicación:** `core/semantica.py` (fachada) → colores definidos en `core/config.py:NIVEL_COLOR`
 
 **Propósito:** Retorna el color hexadecimal asignado a una categoría de cumplimiento.
 
@@ -367,7 +389,7 @@ print(color)  # "#43A047"
 
 ### 9.5 Función: `obtener_icono_categoria()`
 
-**Ubicación:** [`core/semantica.py:179`](../../core/semantica.py#L179)
+**Ubicación:** `core/semantica.py` (fachada) → iconos definidos en `core/config.py:NIVEL_ICON`
 
 **Propósito:** Retorna el emoji/ícono asignado a una categoría de cumplimiento.
 
@@ -406,7 +428,7 @@ print(icono)  # "🟡"
 
 ### 9.6 Función: `recalcular_cumplimiento_faltante()`
 
-**Ubicación:** [`core/semantica.py:187`](../../core/semantica.py#L187)
+**Ubicación:** `core/domain/health_metrics.py` (canónica) — también re-exportada desde `core/semantica.py`
 
 **Propósito:** Recalcula cumplimiento cuando falta por derivación de meta/ejecución.
 
@@ -453,8 +475,57 @@ print(c2)  # 1.25
 
 ---
 
-## 10. Referencias
+---
 
-- **Código fuente:** [`core/semantica.py`](../../core/semantica.py)
+## 10. Motor de Reglas vs Semaforización — Diferencia de Umbrales
+
+> ⚠️ ACLARACIÓN IMPORTANTE (FASE 2, jun-2026):
+> Los umbrales del `RulesEngine` son DISTINTOS a los de la semaforización.
+> Esto es INTENCIONAL — son dos sistemas con propósitos diferentes.
+
+### Semaforización (categorización de indicadores)
+Genera categorías de **estado de cumplimiento** visibles en dashboards.
+
+```python
+# core/domain/categorization.py — umbrales oficiales
+UMBRAL_PELIGRO         = 0.80   # < 80% → Peligro
+UMBRAL_ALERTA          = 1.00   # 80–99% → Alerta
+UMBRAL_SOBRECUMPL      = 1.05   # 100–104% → Cumplimiento; ≥ 105% → Sobrecumplimiento
+```
+
+### Motor de Reglas (alertas de monitoreo)
+Genera **alertas de monitoreo operativo** para detectar anomalías en el pipeline.
+Sus niveles son `critico/atencion/normal` — distintos a `Peligro/Alerta/Cumplimiento`.
+
+```python
+# scripts/consolidation/core/rules_engine.py — umbrales de alertas
+SEMAFORO_STANDARD = {
+    "critico_low":  0.70,   # < 70% → alerta crítica de monitoreo
+    "atencion_low": 0.80,   # 70–80% → alerta de atención (zona de aviso anticipado)
+    "normal_low":   0.80,   # 80–105% → normal
+    "atencion_high": 1.20,  # 105–120% → atención (sobrecumplimiento excesivo)
+    "critico_high":  1.20,  # > 120% → crítico (posible error de dato)
+}
+```
+
+**Lógica de diseño:** El RulesEngine avisa con anticipación (desde 70%) antes de que un indicador
+entre en categoría Peligro (< 80%). Así el equipo puede actuar preventivamente.
+El rango 70–80% es "zona de atención temprana" para el motor, aunque en la semaforización
+ese mismo rango ya es "Peligro". Los indicadores en esa zona aparecerán como `Peligro`
+en el dashboard Y como `atencion` en las alertas del motor — ambas son correctas.
+
+**Estado actual:** El RulesEngine está implementado pero **no activo en producción**.
+Activación prevista: Junio 2026. Tests requeridos antes de activar: `tests/test_rules_engine.py` (no existe aún).
+
+---
+
+## 11. Referencias
+
+- **Categorización canónica:** [`core/domain/categorization.py`](../../core/domain/categorization.py)
+- **Recálculo canónico:** [`core/domain/health_metrics.py`](../../core/domain/health_metrics.py)
+- **Cálculo ETL:** [`scripts/etl/cumplimiento.py`](../../scripts/etl/cumplimiento.py)
+- **Fachada legacy:** [`core/semantica.py`](../../core/semantica.py)
 - **Configuración:** [`core/config.py`](../../core/config.py)
+- **Motor de Reglas:** [`scripts/consolidation/core/rules_engine.py`](../../scripts/consolidation/core/rules_engine.py)
 - **Tests:** [`tests/`](../../tests/)
+- **Inventario del proyecto:** [`docs/core/00_INVENTARIO.md`](./00_INVENTARIO.md)

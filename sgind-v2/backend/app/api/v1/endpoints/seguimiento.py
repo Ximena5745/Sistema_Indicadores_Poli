@@ -14,6 +14,15 @@ def _service(excel: ExcelReaderService = Depends(get_excel_service)) -> Seguimie
     return SeguimientoService(excel)
 
 
+@router.get("/filtros")
+async def seguimiento_filtros(
+    _user: User = Depends(require_reader),
+    service: SeguimientoService = Depends(_service),
+) -> dict:
+    """Devuelve años, meses, procesos y estados disponibles."""
+    return service.get_filtros()
+
+
 @router.get("/dashboard")
 async def seguimiento_dashboard(
     anio: int | None = Query(None),
