@@ -106,18 +106,28 @@ export function CmiLineasTab({ lineas, expandLineaKey }: CmiLineasTabProps) {
 }
 
 function LineaResumen({ linea }: { linea: CMILineaDetalle }) {
-  const metrics = [
+  const n_pendiente =
+    linea.total_indicadores -
+    linea.n_sobrecumplimiento -
+    linea.n_cumplimiento -
+    linea.n_alerta -
+    linea.n_riesgo;
+
+  const metrics: [string, string, string][] = [
     ["Cumplimiento Promedio", fmtPct(linea.cumplimiento_promedio), linea.color],
-    ["En Sobrecumplimiento", String(linea.n_sobrecumplimiento), "#0F766E"],
-    ["En Cumplimiento", String(linea.n_cumplimiento), "#15803D"],
-    ["En Alerta", String(linea.n_alerta), "#F97316"],
-    ["En Riesgo", String(linea.n_riesgo), "#DC2626"],
-    ["Total indicadores", String(linea.total_indicadores), "#2563EB"],
-  ] as const;
+    ["Sobrecumplimiento", String(linea.n_sobrecumplimiento), "#1D4ED8"],
+    ["Cumplimiento", String(linea.n_cumplimiento), "#166534"],
+    ["Alerta", String(linea.n_alerta), "#B45309"],
+    ["Peligro", String(linea.n_riesgo), "#B71C1C"],
+    ...(n_pendiente > 0
+      ? [["Pendiente de reporte", String(n_pendiente), "#475569"] as [string, string, string]]
+      : []),
+    ["Total indicadores", String(linea.total_indicadores), "#334155"],
+  ];
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         {metrics.map(([title, value, color]) => (
           <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500">{title}</p>
@@ -126,20 +136,58 @@ function LineaResumen({ linea }: { linea: CMILineaDetalle }) {
           </div>
         ))}
       </div>
-      {linea.top_indicadores.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-800">Indicadores principales</p>
-          <div className="space-y-2">
-            {linea.top_indicadores.map((ind) => (
-              <div key={ind.Indicador} className="flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 flex-1 truncate text-slate-700">{ind.Indicador}</span>
-                <span className="font-bold text-slate-900">{fmtPct(ind.cumplimiento_pct)}</span>
-                <NivelBadge nivel={ind["Nivel de cumplimiento"]} />
-              </div>
+      <AllIndicadoresTable linea={linea} />
+    </div>
+  );
+}
+
+function AllIndicadoresTable({ linea }: { linea: CMILineaDetalle }) {
+  const indicadores = linea.objetivos
+    .flatMap((obj) => obj.metas.flatMap((m) => m.indicadores))
+    .sort((a, b) => {
+      const pa = ((a as Record<string, unknown>).cumplimiento_pct as number) ?? -1;
+      const pb = ((b as Record<string, unknown>).cumplimiento_pct as number) ?? -1;
+      return pb - pa;
+    });
+  if (!indicadores.length) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="mb-3 text-sm font-semibold text-slate-800">
+        Todos los indicadores ({indicadores.length})
+      </p>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 text-slate-500">
+              <th className="px-2 py-2 font-semibold">Indicador</th>
+              <th className="px-2 py-2 font-semibold">Meta</th>
+              <th className="px-2 py-2 font-semibold">Ejecución</th>
+              <th className="px-2 py-2 font-semibold">% Cumplimiento</th>
+              <th className="px-2 py-2 font-semibold">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {indicadores.map((ind, i) => (
+              <tr key={(ind.Id as string) ?? i} className="border-b border-slate-100 hover:bg-white">
+                <td className="px-2 py-2 text-slate-700">{ind.Indicador as string}</td>
+                <td className="px-2 py-2 font-medium text-slate-800">
+                  {fmtMeta(ind as Record<string, unknown>)}
+                </td>
+                <td className="px-2 py-2 font-medium text-slate-800">
+                  {fmtEjecucion(ind as Record<string, unknown>)}
+                </td>
+                <td className="px-2 py-2 font-bold text-slate-900">
+                  {fmtPct((ind as Record<string, unknown>).cumplimiento_pct as number | undefined)}
+                </td>
+                <td className="px-2 py-2">
+                  <NivelBadge nivel={(ind as Record<string, unknown>)["Nivel de cumplimiento"] as string | undefined} />
+                </td>
+              </tr>
             ))}
-          </div>
-        </div>
-      )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -165,7 +213,7 @@ function LineaObjetivos({ linea }: { linea: CMILineaDetalle }) {
                         <th className="px-2 py-2">Indicador</th>
                         <th className="px-2 py-2">Meta</th>
                         <th className="px-2 py-2">Ejecución</th>
-                        <th className="px-2 py-2">%</th>
+                        <th className="px-2 py-2">% Cumplimiento</th>
                         <th className="px-2 py-2">Estado</th>
                       </tr>
                     </thead>

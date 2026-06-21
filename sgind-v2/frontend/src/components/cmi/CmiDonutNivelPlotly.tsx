@@ -1,10 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import type { Layout } from "plotly.js";
-
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
-
 export interface CmiDonutNivelItem {
   nivel: string;
   cantidad: number;
@@ -17,6 +12,8 @@ interface CmiDonutNivelPlotlyProps {
   total: number;
 }
 
+const MIN_PCT_LABEL = 8;
+
 export function CmiDonutNivelPlotly({ data, total }: CmiDonutNivelPlotlyProps) {
   if (!data.length) {
     return (
@@ -26,51 +23,98 @@ export function CmiDonutNivelPlotly({ data, total }: CmiDonutNivelPlotlyProps) {
     );
   }
 
-  const trace = {
-    type: "pie" as const,
-    labels: data.map((d) => d.nivel),
-    values: data.map((d) => d.cantidad),
-    hole: 0.5,
-    textinfo: "label+percent" as const,
-    textposition: "inside" as const,
-    textfont: { size: 11, color: "#FFFFFF" },
-    marker: {
-      colors: data.map((d) => d.color),
-      line: { color: "#FFFFFF", width: 2 },
-    },
-    hovertemplate: "<b>%{label}</b><br>Cantidad: %{value}<br>Porcentaje: %{percent}<extra></extra>",
-  };
+  const sum = data.reduce((a, d) => a + d.cantidad, 0) || 1;
 
-  const layout: Partial<Layout> = {
-    margin: { l: 10, r: 10, t: 30, b: 10 },
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)",
-    showlegend: true,
-    legend: {
-      orientation: "h" as const,
-      yanchor: "bottom",
-      y: -0.12,
-      xanchor: "center",
-      x: 0.5,
-      font: { size: 10 },
-    },
-    annotations: [
-      {
-        text: `<b>${total}</b><br><span style='font-size:12px'>indicadores</span>`,
-        showarrow: false,
-        font: { size: 22, color: "#1A3A5C" },
-        align: "center" as const,
-      },
-    ],
-  };
+  // Construir segmentos SVG (donut)
+  const cx = 110;
+  const cy = 110;
+  const R = 90;
+  const r = 52;
+
+  function polarToXY(angleDeg: number, radius: number) {
+    const rad = ((angleDeg - 90) * Math.PI) / 180;
+    return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
+  }
+
+  function arcPath(startDeg: number, endDeg: number) {
+    const large = endDeg - startDeg > 180 ? 1 : 0;
+    const o = polarToXY(startDeg, R);
+    const i1 = polarToXY(endDeg, R);
+    const o2 = polarToXY(endDeg, r);
+    const i2 = polarToXY(startDeg, r);
+    return [
+      `M ${o.x} ${o.y}`,
+      `A ${R} ${R} 0 ${large} 1 ${i1.x} ${i1.y}`,
+      `L ${o2.x} ${o2.y}`,
+      `A ${r} ${r} 0 ${large} 0 ${i2.x} ${i2.y}`,
+      "Z",
+    ].join(" ");
+  }
+
+  let angle = 0;
+  const segments = data.map((d) => {
+    const pct = (d.cantidad / sum) * 100;
+    const sweep = (pct / 100) * 360;
+    const start = angle;
+    const end = angle + sweep;
+    const mid = start + sweep / 2;
+    const labelPos = polarToXY(mid, (R + r) / 2);
+    angle = end;
+    return { ...d, pct, start, end, mid, labelPos };
+  });
 
   return (
-    <Plot
-      data={[trace]}
-      layout={layout}
-      config={{ displayModeBar: false, responsive: true }}
-      style={{ width: "100%", height: 320 }}
-      useResizeHandler
-    />
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative">
+        <svg viewBox="0 0 220 220" className="w-52 h-52">
+          {segments.map((seg) => (
+            <path
+              key={seg.nivel}
+              d={arcPath(seg.start, seg.end)}
+              fill={seg.color}
+              stroke="#fff"
+              strokeWidth="2"
+            >
+              <title>{seg.nivel}: {seg.cantidad} ({seg.pct.toFixed(1)}%)</title>
+            </path>
+          ))}
+          {segments.map((seg) =>
+            seg.pct >= MIN_PCT_LABEL ? (
+              <text
+                key={seg.nivel}
+                x={seg.labelPos.x}
+                y={seg.labelPos.y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="10"
+                fontWeight="600"
+                fill="#fff"
+              >
+                {seg.pct.toFixed(1)}%
+              </text>
+            ) : null,
+          )}
+          {/* Centro */}
+          <circle cx={cx} cy={cy} r={r - 2} fill="#fff" />
+          <text x={cx} y={cy - 8} textAnchor="middle" fontSize="22" fontWeight="800" fill="#1A3A5C">
+            {total}
+          </text>
+          <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="#64748b">
+            indicadores
+          </text>
+        </svg>
+      </div>
+
+      {/* Leyenda */}
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+        {data.map((d) => (
+          <span key={d.nivel} className="flex items-center gap-1.5 text-xs text-slate-700">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: d.color }} />
+            {d.nivel}
+            <span className="font-semibold text-slate-500">({d.cantidad})</span>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }

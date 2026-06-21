@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 
 from app.domain.categorization import categorizar_cumplimiento
+from app.domain.linea_order import linea_sort_key
 
 
 def _safe_pct(value: Any, *, default: float | None = None) -> float | None:
@@ -934,7 +935,7 @@ def build_proyectos_gantt(
             }
         )
 
-    items.sort(key=lambda x: (norm_key(x["linea"]), x["nombre"].lower()))
+    items.sort(key=lambda x: (linea_sort_key(x["linea"]), x["nombre"].lower()))
     return {"anio_min": anio_min, "anio_max": anio_max, "items": items}
 
 
@@ -947,7 +948,7 @@ def build_proyectos_tabla(proy_df: pd.DataFrame) -> list[dict]:
     if not available:
         return []
     rows = []
-    for linea in sorted(work["Linea"].dropna().unique()) if "Linea" in work.columns else [""]:
+    for linea in sorted(work["Linea"].dropna().unique(), key=linea_sort_key) if "Linea" in work.columns else [""]:
         sub = work[work["Linea"] == linea] if linea else work
         for _, row in sub.drop_duplicates("Id", keep="last").iterrows():
             cumpl = row.get("cumplimiento_pct")

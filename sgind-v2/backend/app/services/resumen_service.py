@@ -8,6 +8,7 @@ import pandas as pd
 
 from app.domain.calculos import aplicar_calculos_cumplimiento, calcular_kpis, obtener_ultimo_registro
 from app.domain.cmi_filters import CMIFilterService
+from app.domain.linea_order import linea_sort_key
 from app.domain.resumen_builders import (
     build_linea_summary,
     build_linea_summary_retos,
@@ -229,7 +230,7 @@ class ResumenService:
                     "en_riesgo": riesgo,
                 }
             )
-        lineas.sort(key=lambda x: x["cumplimiento_promedio"] or 0, reverse=True)
+        lineas.sort(key=lambda x: linea_sort_key(x.get("linea", "")))
         return lineas
 
     def get_semaphore(self, *, anio: int | None = None, periodo: str | None = None, vista: str = "indicadores") -> list[dict]:

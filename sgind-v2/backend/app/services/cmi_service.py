@@ -26,6 +26,7 @@ from app.domain.cmi_builders import (
     linea_color,
     previous_corte,
 )
+from app.domain.linea_order import linea_sort_key
 from app.domain.calidad_builders import build_calidad_dashboard, filter_calidad, load_calidad_data
 from app.domain.cmi_filters import CMIFilterService
 from app.domain.procesos_builders import (
@@ -702,7 +703,7 @@ class CMIService:
                     "en_riesgo": riesgo,
                 }
             )
-        lineas.sort(key=lambda x: x["cumplimiento_promedio"] or 0)
+        lineas.sort(key=lambda x: linea_sort_key(x.get("linea", "")))
         return {
             "anio": anio_eff,
             "mes": mes_eff,

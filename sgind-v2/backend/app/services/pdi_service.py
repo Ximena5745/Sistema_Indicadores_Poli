@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 
+from app.domain.linea_order import linea_sort_key
 from app.services.excel_reader import ExcelReaderService
 from app.services.tracking_cache import get_tracking_dataframe
 
@@ -110,7 +111,7 @@ class PDIService:
             else HORIZONTES_DEFAULT
         )
         macros = (
-            sorted(df["Linea"].dropna().astype(str).unique().tolist())
+            sorted(df["Linea"].dropna().astype(str).unique().tolist(), key=linea_sort_key)
             if not df.empty and "Linea" in df.columns
             else MACROS_DEFAULT
         )

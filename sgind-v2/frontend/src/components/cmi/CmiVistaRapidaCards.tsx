@@ -4,10 +4,11 @@ import type { CMIVistaRapidaLinea } from "@/lib/types";
 import { fmtPct } from "@/components/cmi/nivelUtils";
 
 const DOT_COLORS = {
-  sobrecumplimiento: "#5bc97a",
-  cumplimiento: "#4f8ef7",
-  alerta: "#f5a623",
-  riesgo: "#e63d6f",
+  sobrecumplimiento: "#1D4ED8",
+  cumplimiento: "#166534",
+  alerta: "#B45309",
+  riesgo: "#B71C1C",
+  pendiente: "#475569",
 };
 
 interface CmiVistaRapidaCardsProps {
@@ -89,12 +90,13 @@ export function CmiVistaRapidaCards({ lineas, onVerLinea }: CmiVistaRapidaCardsP
                   }}
                 />
               </div>
-              <div className="mt-2 grid h-1.5 grid-cols-4 gap-1.5">
-                <div className="rounded-sm opacity-95" style={{ backgroundColor: DOT_COLORS.sobrecumplimiento }} />
-                <div className="rounded-sm opacity-95" style={{ backgroundColor: DOT_COLORS.cumplimiento }} />
-                <div className="rounded-sm opacity-95" style={{ backgroundColor: DOT_COLORS.alerta }} />
-                <div className="rounded-sm opacity-95" style={{ backgroundColor: DOT_COLORS.riesgo }} />
-              </div>
+              <DistribucionBar
+                total={linea.total_indicadores}
+                sobrecumplimiento={linea.n_sobrecumplimiento}
+                cumplimiento={linea.n_cumplimiento}
+                alerta={linea.n_alerta}
+                riesgo={linea.n_riesgo}
+              />
               <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] font-semibold text-[#3D4E66]">
                 <LegendDot color={DOT_COLORS.sobrecumplimiento} label={`${linea.n_sobrecumplimiento} Sobrecump.`} />
                 <LegendDot color={DOT_COLORS.cumplimiento} label={`${linea.n_cumplimiento} Cumpl.`} />
@@ -125,5 +127,43 @@ function LegendDot({ color, label }: { color: string; label: string }) {
       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
       {label}
     </span>
+  );
+}
+
+function DistribucionBar({
+  total,
+  sobrecumplimiento,
+  cumplimiento,
+  alerta,
+  riesgo,
+}: {
+  total: number;
+  sobrecumplimiento: number;
+  cumplimiento: number;
+  alerta: number;
+  riesgo: number;
+}) {
+  const pendiente = Math.max(0, total - sobrecumplimiento - cumplimiento - alerta - riesgo);
+  const segments = [
+    { count: sobrecumplimiento, color: DOT_COLORS.sobrecumplimiento },
+    { count: cumplimiento, color: DOT_COLORS.cumplimiento },
+    { count: alerta, color: DOT_COLORS.alerta },
+    { count: riesgo, color: DOT_COLORS.riesgo },
+    { count: pendiente, color: DOT_COLORS.pendiente },
+  ].filter((s) => s.count > 0);
+
+  const sum = segments.reduce((a, s) => a + s.count, 0) || 1;
+
+  return (
+    <div className="mt-2 flex h-1.5 gap-0.5 overflow-hidden rounded-sm">
+      {segments.map((seg, i) => (
+        <div
+          key={i}
+          className="h-full rounded-sm"
+          style={{ width: `${(seg.count / sum) * 100}%`, backgroundColor: seg.color }}
+          title={`${seg.count} indicadores`}
+        />
+      ))}
+    </div>
   );
 }

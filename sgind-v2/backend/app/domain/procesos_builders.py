@@ -698,6 +698,15 @@ def build_filtros_options(
     procesos = sorted(year_slice["Proceso_padre"].dropna().astype(str).unique().tolist()) if "Proceso_padre" in year_slice.columns else []
     subprocesos = sorted(year_slice["Subproceso_final"].dropna().astype(str).unique().tolist()) if "Subproceso_final" in year_slice.columns else []
 
+    subprocesos_por_proceso: dict[str, list[str]] = {}
+    if "Proceso_padre" in year_slice.columns and "Subproceso_final" in year_slice.columns:
+        for proc in procesos:
+            subs = sorted(
+                year_slice[year_slice["Proceso_padre"] == proc]["Subproceso_final"]
+                .dropna().astype(str).unique().tolist()
+            )
+            subprocesos_por_proceso[proc] = subs
+
     clasificaciones: list[str] = []
     if "Clasificacion" in year_slice.columns:
         clasificaciones = sorted(year_slice["Clasificacion"].dropna().astype(str).unique().tolist())
@@ -720,6 +729,7 @@ def build_filtros_options(
         "unidades": unidades,
         "procesos": procesos,
         "subprocesos": subprocesos,
+        "subprocesos_por_proceso": subprocesos_por_proceso,
         "clasificaciones": clasificaciones,
         "frecuencias": frecuencias,
     }

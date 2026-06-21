@@ -42,6 +42,8 @@ LINEA_DISPLAY_MAP: dict[str, str] = {
     "educacion para toda la vida": "Educación para toda la vida",
 }
 
+from app.domain.linea_order import LINEA_ORDER, linea_sort_key
+
 
 def default_anio(anios: list[int]) -> int:
     if 2025 in anios:
@@ -158,8 +160,9 @@ def build_cumplimiento_por_linea(df: pd.DataFrame) -> list[dict[str, Any]]:
         .mean()
         .fillna(0)
         .reset_index()
-        .sort_values("cumplimiento_pct", ascending=True)
     )
+    by_linea["_order"] = by_linea["Linea"].map(lambda x: linea_sort_key(str(x)))
+    by_linea = by_linea.sort_values("_order")
     result = []
     for _, row in by_linea.iterrows():
         linea = str(row["Linea"])
@@ -255,8 +258,7 @@ def build_vista_rapida_lineas(df: pd.DataFrame) -> list[dict[str, Any]]:
         return []
     presentes = sorted(
         [ln for ln in df["Linea"].dropna().unique() if str(ln).strip()],
-        key=lambda x: _safe_float(df[df["Linea"] == x]["cumplimiento_pct"].mean(), 0.0) or 0.0,
-        reverse=True,
+        key=linea_sort_key,
     )
     catalogo_por_clave = {normalize_linea_key(ln): ln for ln in CATALOGO_LINEAS}
     presentes_por_clave = {normalize_linea_key(ln): ln for ln in presentes}
@@ -596,7 +598,7 @@ def build_lineas_detalle(
 ) -> list[dict[str, Any]]:
     if df.empty or "Linea" not in df.columns:
         return []
-    lineas = sorted([str(ln).strip() for ln in df["Linea"].dropna().unique() if str(ln).strip()])
+    lineas = sorted([str(ln).strip() for ln in df["Linea"].dropna().unique() if str(ln).strip()], key=linea_sort_key)
     result = []
     for linea in lineas:
         df_linea = df[df["Linea"] == linea].copy()

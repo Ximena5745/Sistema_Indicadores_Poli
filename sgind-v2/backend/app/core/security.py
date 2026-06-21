@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -40,11 +41,20 @@ def decode_token(token: str, settings: Settings) -> dict[str, Any]:
         ) from exc
 
 
+def _dev_user_from_payload(payload: dict[str, Any]) -> Any:
+    """Construye un objeto user-like desde el payload JWT sin consultar la BD."""
+    email = payload.get("sub", "dev@poligran.edu.co")
+    role_name = payload.get("role", "calidad")
+    name = payload.get("name", f"Dev {role_name.capitalize()}")
+    role = SimpleNamespace(name=role_name)
+    return SimpleNamespace(email=email, name=name, role=role, is_active=True)
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
-) -> User:
+) -> Any:
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,6 +65,9 @@ async def get_current_user(
     email = payload.get("sub")
     if not email:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    if settings.environment == "development":
+        return _dev_user_from_payload(payload)
 
     result = await db.execute(
         select(User).options(selectinload(User.role)).where(User.email == email.lower())

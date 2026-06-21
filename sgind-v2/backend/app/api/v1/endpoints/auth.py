@@ -61,11 +61,9 @@ async def logout(
 async def dev_token(
     email: str = Query("dev@poligran.edu.co"),
     role: str = Query("calidad"),
-    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
-    auth: AuthService = Depends(_auth_service),
 ) -> TokenResponse:
-    """Solo desarrollo — genera JWT y usuario en BD sin OIDC."""
+    """Solo desarrollo — genera JWT sin OIDC ni BD."""
     if settings.environment == "production":
         from fastapi import HTTPException, status
 
@@ -75,10 +73,10 @@ async def dev_token(
     from app.core.security import create_access_token
 
     role_name: RoleName = role if role in ("procesos", "calidad", "desempeno") else "calidad"
-    user = await auth.ensure_dev_user(db, email=email, role_name=role_name)
+    name = f"Dev {role_name.capitalize()}"
     token = create_access_token(
-        user.email,
+        email,
         settings=settings,
-        extra={"role": user.role.name, "name": user.name},
+        extra={"role": role_name, "name": name},
     )
     return TokenResponse(access_token=token, expires_in=settings.jwt_expire_minutes * 60)

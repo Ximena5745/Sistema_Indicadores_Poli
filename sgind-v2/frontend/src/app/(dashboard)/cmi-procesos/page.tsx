@@ -65,6 +65,11 @@ function CMIProcesosContent() {
   const anioEfectivo = anio ?? filtrosQuery.data?.anio_default ?? new Date().getFullYear();
   const mesEfectivo = mes ?? filtrosQuery.data?.mes_default ?? 12;
 
+  const subprocesosFiltrados: string[] =
+    proceso !== "Todos" && filtrosQuery.data?.subprocesos_por_proceso
+      ? (filtrosQuery.data.subprocesos_por_proceso[proceso] ?? [])
+      : (filtrosQuery.data?.subprocesos ?? []);
+
   const dashboardQuery = useQuery({
     queryKey: [
       "cmi-procesos-dashboard",
@@ -153,7 +158,7 @@ function CMIProcesosContent() {
           mesesNombres={filtrosQuery.data.meses_nombres}
           unidades={filtrosQuery.data.unidades}
           procesos={filtrosQuery.data.procesos}
-          subprocesos={filtrosQuery.data.subprocesos}
+          subprocesos={subprocesosFiltrados}
           clasificaciones={filtrosQuery.data.clasificaciones}
           frecuencias={filtrosQuery.data.frecuencias}
           unidad={unidad}
@@ -167,7 +172,7 @@ function CMIProcesosContent() {
           }}
           onMesChange={setMes}
           onUnidadChange={setUnidad}
-          onProcesoChange={setProceso}
+          onProcesoChange={(v) => { setProceso(v); setSubproceso("Todos"); }}
           onSubprocesoChange={setSubproceso}
           onClasificacionChange={setClasificacion}
           onFrecuenciaChange={setFrecuencia}

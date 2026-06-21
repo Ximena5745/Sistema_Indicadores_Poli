@@ -176,6 +176,10 @@ class StrategicLoaders:
                 (find_col(df, ["Tipo_Registro", "Tipo Registro"]), "Tipo_Registro", lambda s: s.astype(str).str.strip()),
                 (find_col(df, ["Linea", "Línea"]), "Linea", lambda s: s.astype(str).str.strip()),
                 (find_col(df, ["Objetivo"]), "Objetivo", lambda s: s.astype(str).str.strip()),
+                (find_col(df, ["Meta_Signo", "MetaS", "meta_signo"]), "Meta_Signo", lambda s: s.astype(str).str.strip()),
+                (find_col(df, ["Ejecucion_Signo", "Ejecucion_s", "EjecS", "ejec_signo"]), "Ejecucion_s", lambda s: s.astype(str).str.strip()),
+                (find_col(df, ["Decimales_Meta"]), "Decimales_Meta", lambda s: pd.to_numeric(s, errors="coerce")),
+                (find_col(df, ["Decimales_Ejecucion"]), "Decimales_Ejecucion", lambda s: pd.to_numeric(s, errors="coerce")),
             ]:
                 if src:
                     out[dst] = transform(df[src])

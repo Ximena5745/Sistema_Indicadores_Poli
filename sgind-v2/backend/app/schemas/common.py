@@ -156,6 +156,7 @@ class CMIProcesosFiltrosResponse(BaseModel):
     unidades: list[str] = Field(default_factory=list)
     procesos: list[str] = Field(default_factory=list)
     subprocesos: list[str] = Field(default_factory=list)
+    subprocesos_por_proceso: dict[str, list[str]] = Field(default_factory=dict)
     clasificaciones: list[str] = Field(default_factory=list)
     frecuencias: list[str] = Field(default_factory=list)
 
