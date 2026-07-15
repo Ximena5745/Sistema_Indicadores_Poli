@@ -100,3 +100,23 @@ SOBRECUMPLIMIENTO = "Sobrecumplimiento"
 NO_APLICA = "No aplica"
 PENDIENTE = "Pendiente de reporte"
 METRICA = "Metrica"
+
+
+# El archivo fuente "Catalogo de Indicadores.xlsx" tiene celdas de "Linea" con
+# el caracter de reemplazo Unicode (�) en lugar de tildes, producto de una
+# corrupción de encoding ocurrida antes de que los datos entraran al repo (la
+# información original de la tilde ya no existe en el archivo). Sin este
+# arreglo, "Expansi�n" y "Educaci�n_para_toda_la_vida" no calzan contra las
+# claves normalizadas ("expansion", "educacion...") usadas para agrupar/mostrar
+# cumplimiento por línea estratégica, y esas líneas se muestran en 0.0% pese a
+# tener indicadores con resultados.
+_LINEA_REPAIR_MAP = {
+    "Expansi�n": "Expansión",
+    "Transformaci�n_Organizacional": "Transformación_Organizacional",
+    "Educaci�n_para_toda_la_vida": "Educación_para_toda_la_vida",
+}
+
+
+def _repair_linea_encoding(series: pd.Series) -> pd.Series:
+    """Corrige valores de 'Linea' con el caracter de reemplazo Unicode conocido."""
+    return series.replace(_LINEA_REPAIR_MAP)

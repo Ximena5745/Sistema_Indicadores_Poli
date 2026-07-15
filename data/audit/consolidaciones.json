@@ -12145,5 +12145,44 @@
       "registros_afectados": 0,
       "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
     }
+  },
+  {
+    "timestamp": "2026-07-15T02:59:13.100799",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T02:59:13.221210",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T02:59:13.291201",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T07:24:57.536003",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1085,
+      "registros_semestral": 511,
+      "registros_cierres": 893,
+      "total_nuevos": 2489
+    }
   }
 ]

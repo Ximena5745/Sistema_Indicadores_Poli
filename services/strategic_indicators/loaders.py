@@ -21,6 +21,7 @@ from .utils import (
     _set_cached,
     _find_col,
     _id_limpio,
+    _repair_linea_encoding,
     NO_APLICA,
     PENDIENTE,
     METRICA,
@@ -123,7 +124,7 @@ def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
     else:
         out["Meta_Estrategica"] = ""
 
-    out["Linea"] = out["Linea"].astype(str).str.strip()
+    out["Linea"] = _repair_linea_encoding(out["Linea"].astype(str).str.strip())
     out["Objetivo"] = out["Objetivo"].astype(str).str.strip()
     out["Meta_Estrategica"] = out["Meta_Estrategica"].astype(str).str.strip()
     
@@ -275,6 +276,8 @@ def load_worksheet_flags() -> pd.DataFrame:
         rename_map[c_subproceso] = "Subproceso"
 
     out = out.rename(columns=rename_map)
+    if "Linea" in out.columns:
+        out["Linea"] = _repair_linea_encoding(out["Linea"])
     _set_cached("worksheet_flags", out)
     return out
 
@@ -481,7 +484,7 @@ def load_proyectos_consolidados() -> pd.DataFrame:
     out = pd.DataFrame()
     out["Id"] = df[c_id].apply(_id_limpio)
     out["Indicador"] = df[c_ind].astype(str).str.strip() if c_ind else None
-    out["Linea"] = df[c_linea].astype(str).str.strip() if c_linea else ""
+    out["Linea"] = _repair_linea_encoding(df[c_linea].astype(str).str.strip()) if c_linea else ""
     out["Objetivo"] = df[c_obj].astype(str).str.strip() if c_obj else ""
     out["Fecha"] = pd.to_datetime(df[c_fecha], errors="coerce") if c_fecha else pd.NaT
     out["Anio"] = pd.to_numeric(df[c_anio], errors="coerce") if c_anio else pd.NA
