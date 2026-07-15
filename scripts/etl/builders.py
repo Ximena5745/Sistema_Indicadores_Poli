@@ -19,8 +19,9 @@ from .config import (
 )
 from .extraccion import (
     _ejec_corrected_from_row, _meta_corrected_from_row, _extraer_registro,
+    extraer_por_simbolo,
 )
-from .normalizacion import _id_str, limpiar_html, make_llave, nan2none
+from .normalizacion import _id_str, limpiar_html, make_llave, nan2none, parse_json_safe
 from .periodos import _fecha_es_periodo_valido, ultimo_dia_mes
 
 logger = logging.getLogger(__name__)
@@ -456,6 +457,212 @@ def extraer_cronograma_proyectos(
                 "Ejecucion":    ejec,
                 "LLAVE":        llave,
                 "es_na":        ejec is None,
+            })
+
+    return registros
+
+
+# ── Población total (14, 14.1-14.4) ─────────────────────────────────
+
+# Ninguno de estos 5 IDs tiene datos propios en Kawak/API: son derivados,
+# calculados sumando matrículas nuevos (379, 381-384) y estudiantes antiguos
+# (274). Fórmulas verificadas contra la columna "Asociacion" de la hoja
+# "Catalogo Indicadores" (data/raw/Resultados_Consolidados_Fuente.xlsx) y
+# contra docs/LOGICA_INDICADORES_ESPECIALES.md §2-3:
+#   14   = Σ(379) + Σ(274)                        ("Suma de total de
+#          indicador 379 y total indicador 274")
+#   14.1-14.4 = "Suman Nuevos-Antiguos" por categoría (presencial/virtual/
+#          pregrado/posgrado)
+# Los símbolos de 379/381-384 dan conteos brutos (no porcentajes) de
+# matrículas nuevos; TEMS/TEP dentro de cada serie de 274 dan los conteos
+# brutos (matriculados/presupuestados) de estudiantes antiguos por
+# modalidad — ver estructura de `series` documentada en el Grupo B.
+_SIMBOLOS_MATRICULAS_NUEVOS: Dict[str, Tuple[str, str]] = {
+    "379": ("NENTM",  "NTENMP"),   # Total estudiantes nuevos
+    "381": ("ENMPP",  "TENPPP"),   # Pregrado presencial nuevos
+    "382": ("ENMPV",  "TENPPV"),   # Pregrado virtual nuevos
+    "383": ("NENMPV", "TEMPVP"),   # Posgrado virtual nuevos
+    "384": ("NENMPP", "TENPPPR"),  # Posgrado presencial nuevos
+}
+
+_SERIES_ANTIGUOS_TODAS = [
+    "Posgrado Presencial", "Pregrado Presencial", "Pregrado Virtual", "Posgrado Virtual",
+]
+_SERIES_ANTIGUOS_POR_CATEGORIA: Dict[str, List[str]] = {
+    "presencial": ["Posgrado Presencial", "Pregrado Presencial"],
+    "virtual":    ["Pregrado Virtual", "Posgrado Virtual"],
+    "pregrado":   ["Pregrado Presencial", "Pregrado Virtual"],
+    "posgrado":   ["Posgrado Presencial", "Posgrado Virtual"],
+}
+_NUEVOS_POR_CATEGORIA: Dict[str, List[str]] = {
+    "presencial": ["381", "384"],
+    "virtual":    ["382", "383"],
+    "pregrado":   ["381", "382"],
+    "posgrado":   ["384", "383"],
+}
+
+_ID_TOTAL_POBLACION = "14"
+_SUB_POBLACION: Dict[str, Tuple[str, str]] = {
+    "14.1": ("Estudiantes Presencial", "presencial"),
+    "14.2": ("Estudiantes Virtual",    "virtual"),
+    "14.3": ("Estudiantes Pregrado",   "pregrado"),
+    "14.4": ("Estudiantes Posgrado",   "posgrado"),
+}
+
+# Metadatos fijos según hoja "Catalogo Indicadores" — id 14 y sus hijos
+# tienen su propio Proceso/Sentido en el catálogo, distinto al de sus
+# indicadores fuente (379/381-384/274).
+_PROCESO_POBLACION = "Servicio"
+_SENTIDO_POBLACION = "Positivo"
+
+
+def construir_registros_poblacion(
+    df_fuente: pd.DataFrame,
+    llaves_existentes: Set[str],
+    modo: str = "historico",
+    metadatos_cmi: Optional[Dict] = None,
+    kawak_por_año: Optional[Dict] = None,
+) -> List[Dict]:
+    """
+    Construye el indicador 14 (Total Población) y sus sub-indicadores
+    14.1-14.4, sumando matrículas nuevos (379, 381-384) y estudiantes
+    antiguos (274). Ver docs/LOGICA_INDICADORES_ESPECIALES.md.
+
+    Al igual que expandir_series_como_subindicadores(), no filtra por
+    kawak_validos: estos IDs nunca aparecen en la fuente Kawak/API.
+    """
+    ids_fuente = set(_SIMBOLOS_MATRICULAS_NUEVOS.keys()) | {"274"}
+    df = df_fuente[
+        df_fuente["Id"].map(lambda v: _id_str(v) if pd.notna(v) else "").isin(ids_fuente)
+    ].copy()
+    if df.empty:
+        return []
+
+    df["_id_s"] = df["Id"].map(_id_str)
+    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
+    df = df.dropna(subset=["fecha"])
+
+    if modo == "semestral":
+        df = df[df["fecha"].dt.month.isin([6, 12])]
+    elif modo == "cierres":
+        df["_año"] = df["fecha"].dt.year
+        grupos = []
+        for (_id_s, año), grp in df.groupby(["_id_s", "_año"]):
+            dec_rows = grp[grp["fecha"].dt.month == 12]
+            candidato = (dec_rows if not dec_rows.empty else grp).sort_values("fecha").tail(1)
+            grupos.append(candidato)
+        if not grupos:
+            return []
+        df = pd.concat(grupos, ignore_index=True)
+
+    if df.empty:
+        return []
+
+    # Recopila valores por fecha: {fecha: {"381_ejec": .., "274_Pregrado Virtual_meta": .., ...}}
+    valores: Dict[pd.Timestamp, Dict[str, float]] = {}
+
+    for row in df.itertuples(index=False):
+        id_s = _id_str(getattr(row, "Id", ""))
+        fecha = getattr(row, "fecha", None)
+        if pd.isna(fecha):
+            continue
+        fecha = pd.Timestamp(fecha)
+        slot = valores.setdefault(fecha, {})
+
+        if id_s in _SIMBOLOS_MATRICULAS_NUEVOS:
+            vars_list = parse_json_safe(getattr(row, "variables", None)) or []
+            simb_ejec, simb_meta = _SIMBOLOS_MATRICULAS_NUEVOS[id_s]
+            ejec = extraer_por_simbolo(vars_list, simb_ejec)
+            meta = extraer_por_simbolo(vars_list, simb_meta)
+            if ejec is not None:
+                slot[f"{id_s}_ejec"] = ejec
+            if meta is not None:
+                slot[f"{id_s}_meta"] = meta
+
+        elif id_s == "274":
+            series_list = parse_json_safe(getattr(row, "series", None)) or []
+            for serie in series_list:
+                if not isinstance(serie, dict):
+                    continue
+                nombre = str(serie.get("nombre", "")).strip()
+                if nombre not in _SERIES_ANTIGUOS_TODAS:
+                    continue
+                vars_dict = {
+                    v.get("simbolo", ""): v.get("valor")
+                    for v in serie.get("variables", [])
+                    if isinstance(v, dict)
+                }
+                ejec_v, meta_v = vars_dict.get("TEMS"), vars_dict.get("TEP")
+                try:
+                    if ejec_v is not None:
+                        slot[f"274_{nombre}_ejec"] = float(ejec_v)
+                    if meta_v is not None:
+                        slot[f"274_{nombre}_meta"] = float(meta_v)
+                except (TypeError, ValueError):
+                    pass
+
+    def _sum(slot: Dict[str, float], claves: List[str]) -> Optional[float]:
+        vals = [slot[c] for c in claves if c in slot]
+        return sum(vals) if len(vals) == len(claves) else None
+
+    registros: List[Dict] = []
+
+    for fecha, slot in valores.items():
+        try:
+            año = fecha.year
+        except Exception:
+            año = None
+        periodicidad = _resolver_periodicidad(
+            _ID_TOTAL_POBLACION, año, "Semestral", kawak_por_año, metadatos_cmi, modo
+        )
+
+        # ── Total (14) ──────────────────────────────────────────────
+        claves_ejec_14 = ["379_ejec"] + [f"274_{s}_ejec" for s in _SERIES_ANTIGUOS_TODAS]
+        claves_meta_14 = ["379_meta"] + [f"274_{s}_meta" for s in _SERIES_ANTIGUOS_TODAS]
+        ejec_14 = _sum(slot, claves_ejec_14)
+        if ejec_14 is not None:
+            llave = make_llave(_ID_TOTAL_POBLACION, fecha)
+            if llave not in llaves_existentes:
+                registros.append({
+                    "Id":          _ID_TOTAL_POBLACION,
+                    "Indicador":   "Total Población",
+                    "Proceso":     _PROCESO_POBLACION,
+                    "Periodicidad":periodicidad,
+                    "Sentido":     _SENTIDO_POBLACION,
+                    "fecha":       fecha,
+                    "Meta":        _sum(slot, claves_meta_14),
+                    "Ejecucion":   ejec_14,
+                    "LLAVE":       llave,
+                    "es_na":       False,
+                })
+
+        # ── Sub-indicadores (14.1-14.4) ────────────────────────────
+        for sub_id, (nombre_sub, categoria) in _SUB_POBLACION.items():
+            claves_ejec = (
+                [f"{nid}_ejec" for nid in _NUEVOS_POR_CATEGORIA[categoria]]
+                + [f"274_{s}_ejec" for s in _SERIES_ANTIGUOS_POR_CATEGORIA[categoria]]
+            )
+            claves_meta = (
+                [f"{nid}_meta" for nid in _NUEVOS_POR_CATEGORIA[categoria]]
+                + [f"274_{s}_meta" for s in _SERIES_ANTIGUOS_POR_CATEGORIA[categoria]]
+            )
+            ejec = _sum(slot, claves_ejec)
+            if ejec is None:
+                continue
+            llave = make_llave(sub_id, fecha)
+            if llave in llaves_existentes:
+                continue
+            registros.append({
+                "Id":          sub_id,
+                "Indicador":   nombre_sub,
+                "Proceso":     _PROCESO_POBLACION,
+                "Periodicidad":periodicidad,
+                "Sentido":     _SENTIDO_POBLACION,
+                "fecha":       fecha,
+                "Meta":        _sum(slot, claves_meta),
+                "Ejecucion":   ejec,
+                "LLAVE":       llave,
+                "es_na":       False,
             })
 
     return registros

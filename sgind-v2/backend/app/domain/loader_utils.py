@@ -52,3 +52,21 @@ def find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
         if hit:
             return hit
     return None
+
+
+# El archivo fuente "Catalogo de Indicadores.xlsx" tiene celdas de "Linea" con
+# el caracter de reemplazo Unicode (�) en lugar de tildes, producto de una
+# corrupción de encoding ocurrida antes de que los datos entraran al repo (la
+# tilde original ya no existe en el archivo). Sin este arreglo, "Expansión" y
+# "Educación_para_toda_la_vida" no calzan contra las claves normalizadas
+# usadas para agrupar/mostrar cumplimiento por línea estratégica.
+_LINEA_REPAIR_MAP = {
+    "Expansi�n": "Expansión",
+    "Transformaci�n_Organizacional": "Transformación_Organizacional",
+    "Educaci�n_para_toda_la_vida": "Educación_para_toda_la_vida",
+}
+
+
+def repair_linea_encoding(series: pd.Series) -> pd.Series:
+    """Corrige valores de 'Linea' con el caracter de reemplazo Unicode conocido."""
+    return series.replace(_LINEA_REPAIR_MAP)

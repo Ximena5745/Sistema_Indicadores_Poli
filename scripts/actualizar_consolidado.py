@@ -94,6 +94,7 @@ from etl.builders import (                         # noqa: E402
     construir_registros_cierres,
     expandir_series_como_subindicadores,
     extraer_cronograma_proyectos,
+    construir_registros_poblacion,
 )
 from etl.workbook_io import workbook_local_copy   # noqa: E402
 from etl.versioning import VersionManager         # noqa: E402
@@ -372,7 +373,12 @@ def main() -> None:
 
     # ── 9.5 Excluir llaves de sub-indicadores y proyectos para forzar
     #        regeneración con valores correctos (variables PAGE/PEGE, PARPR/PAEPR)
-    _ids_regenerar = set(SERIES_SUBINDICADORES_MAP.keys()) | set(CRONOGRAMA_SERIES_FLAT.values())
+    _IDS_POBLACION = {"14", "14.1", "14.2", "14.3", "14.4"}
+    _ids_regenerar = (
+        set(SERIES_SUBINDICADORES_MAP.keys())
+        | set(CRONOGRAMA_SERIES_FLAT.values())
+        | _IDS_POBLACION
+    )
     def _excluir_llaves(llaves: set, ids: set) -> set:
         return {lv for lv in llaves if not any(lv.startswith(id_ + "-") for id_ in ids)}
     llaves_hist    = _excluir_llaves(llaves_hist,    _ids_regenerar)
@@ -477,7 +483,20 @@ def main() -> None:
         "   Proyectos cronograma: +%d histórico, +%d semestral (jun), +%d cierres (dic/último)",
         len(regs_proy_hist), len(regs_proy_sem), len(regs_proy_cierres),
     )
-    
+
+    # ── 10.46 Construir Total Población (14, 14.1-14.4) ──────────────
+    logger.info("10.46 Construyendo Total Población (14, 14.1-14.4)…")
+    regs_pob_hist    = construir_registros_poblacion(df_api, llaves_hist,    modo="historico", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_pob_sem     = construir_registros_poblacion(df_api, llaves_sem,     modo="semestral", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_pob_cierres = construir_registros_poblacion(df_api, llaves_cierres, modo="cierres", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_hist    += regs_pob_hist
+    regs_sem     += regs_pob_sem
+    regs_cierres += regs_pob_cierres
+    logger.info(
+        "   Total Población: +%d histórico, +%d semestral, +%d cierres",
+        len(regs_pob_hist), len(regs_pob_sem), len(regs_pob_cierres),
+    )
+
     # ── 10.6 VALIDACIÓN INTERMEDIA (post-construcción) ──────────────
     logger.info("10.6 Validación intermedia post-construcción…")
     for nombre_hoja, regs in [("Historico", regs_hist), ("Semestral", regs_sem), ("Cierres", regs_cierres)]:

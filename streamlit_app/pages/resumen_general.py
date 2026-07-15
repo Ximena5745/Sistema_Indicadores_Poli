@@ -150,9 +150,13 @@ def _build_linea_summary_from_df(df, nivel_col="Nivel de cumplimiento", unique_c
             df["cumplimiento_pct"] = None
 
     # Deduplicar por ID para evitar contar el mismo indicador múltiples veces
-    # Mantener el último registro (más reciente) por ID y Línea
+    # Mantener el último registro (más reciente) por ID y Línea. Las filas sin
+    # cierre aún reportado tienen Fecha=NaT (p.ej. año en curso); con
+    # na_position="first" quedan al inicio del orden ascendente para que
+    # drop_duplicates(keep="last") se quede con la fecha real más reciente en
+    # vez de con el placeholder vacío del año corriente.
     if unique_count_col and unique_count_col in df.columns:
-        df = df.sort_values([unique_count_col, "Linea", "Fecha"] if "Fecha" in df.columns else [unique_count_col, "Linea"], na_position="last")
+        df = df.sort_values([unique_count_col, "Linea", "Fecha"] if "Fecha" in df.columns else [unique_count_col, "Linea"], na_position="first")
         df = df.drop_duplicates(subset=[unique_count_col, "Linea"], keep="last")
 
     if unique_count_col and unique_count_col in df.columns:
@@ -2598,9 +2602,7 @@ def render():
         return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
     
     # --- Carga de datos usando función unificada ---
-    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
-    
-    linea_summary_all, _, _, _, _ = _load_base_data_by_type(categoria, safe_year_estrategico, use_all_years=True)
+    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico)
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
     def _get_chip_config(category: str, linea_summary, pdi_estrategico):
@@ -2721,7 +2723,7 @@ def render():
     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
 
     # --- Fichas por línea estratégica ---
-    summary_for_cards = linea_summary if categoria == "Consolidado" else linea_summary_all
+    summary_for_cards = linea_summary
     strategic_defs = [
         {"key": "expansion", "alt": [], "label": "Expansion", "icon": "🚀", "color": "#FBAF17"},
         {"key": "transformacion organizacional", "alt": ["transformacion organizacional"], "label": "Transformacion organizacional", "icon": "📈", "color": "#42F2F2"},

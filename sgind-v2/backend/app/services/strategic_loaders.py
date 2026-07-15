@@ -6,7 +6,7 @@ import pandas as pd
 
 from app.domain.categorization import categorizar_cumplimiento
 from app.domain.health_metrics import recalcular_cumplimiento_faltante
-from app.domain.loader_utils import find_col, id_a_str
+from app.domain.loader_utils import find_col, id_a_str, repair_linea_encoding
 from app.services.excel_reader import ExcelReaderService
 
 PENDIENTE = "Pendiente de reporte"
@@ -94,7 +94,10 @@ class StrategicLoaders:
                 rename[c_car] = "Caracteristica"
             if c_cna:
                 rename[c_cna] = "FlagCNA"
-            return out.rename(columns=rename)
+            out = out.rename(columns=rename)
+            if "Linea" in out.columns:
+                out["Linea"] = repair_linea_encoding(out["Linea"])
+            return out
 
         return self._cached("worksheet_flags", _load)
 
@@ -142,7 +145,7 @@ class StrategicLoaders:
                 out = out.rename(columns={c_meta: "Meta_Estrategica"})
             else:
                 out["Meta_Estrategica"] = ""
-            out["Linea"] = out["Linea"].astype(str).str.strip()
+            out["Linea"] = repair_linea_encoding(out["Linea"].astype(str).str.strip())
             out["Objetivo"] = out["Objetivo"].astype(str).str.strip()
             return out.drop_duplicates(subset=["Linea", "Objetivo"])
 
@@ -178,7 +181,7 @@ class StrategicLoaders:
                 (find_col(df, ["Ejecucion", "Ejecución"]), "Ejecucion", lambda s: pd.to_numeric(s, errors="coerce")),
                 (find_col(df, ["Sentido"]), "Sentido", lambda s: s.astype(str).str.strip()),
                 (find_col(df, ["Tipo_Registro", "Tipo Registro"]), "Tipo_Registro", lambda s: s.astype(str).str.strip()),
-                (find_col(df, ["Linea", "Línea"]), "Linea", lambda s: s.astype(str).str.strip()),
+                (find_col(df, ["Linea", "Línea"]), "Linea", lambda s: repair_linea_encoding(s.astype(str).str.strip())),
                 (find_col(df, ["Objetivo"]), "Objetivo", lambda s: s.astype(str).str.strip()),
                 (find_col(df, ["Meta_Signo", "MetaS", "meta_signo"]), "Meta_Signo", lambda s: s.astype(str).str.strip()),
                 (find_col(df, ["Ejecucion_Signo", "Ejecucion_s", "EjecS", "ejec_signo"]), "Ejecucion_s", lambda s: s.astype(str).str.strip()),
@@ -238,7 +241,7 @@ class StrategicLoaders:
             out["Id"] = df[c_id].apply(id_a_str)
             for src, dst, transform in [
                 (find_col(df, ["Indicador"]), "Indicador", lambda s: s.astype(str).str.strip()),
-                (find_col(df, ["Linea", "Línea"]), "Linea", lambda s: s.astype(str).str.strip()),
+                (find_col(df, ["Linea", "Línea"]), "Linea", lambda s: repair_linea_encoding(s.astype(str).str.strip())),
                 (find_col(df, ["Objetivo"]), "Objetivo", lambda s: s.astype(str).str.strip()),
                 (find_col(df, ["Fecha"]), "Fecha", pd.to_datetime),
                 (find_col(df, ["Año", "Anio"]), "Anio", lambda s: pd.to_numeric(s, errors="coerce")),
