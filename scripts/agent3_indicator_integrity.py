@@ -47,9 +47,11 @@ class IndicatorIntegrityAgent:
         existing_ids = set()
         
         # 1. Cargar desde Ficha Técnica (fuente principal con más información)
-        ficha_path = self.root_path / "data" / "raw" / "Ficha_Tecnica_Indicadores.xlsx"
+        # Desde la fusión 2026-07-13, vive en 'Ficha Tecnica Detalle' del
+        # directorio maestro (antes 'Ficha_Tecnica_Indicadores.xlsx').
+        ficha_path = self.root_path / "data" / "raw" / "Catalogo de Indicadores.xlsx"
         if ficha_path.exists():
-            df_ficha = pd.read_excel(ficha_path)
+            df_ficha = pd.read_excel(ficha_path, sheet_name="Ficha Tecnica Detalle")
             logger.info(f"  Ficha Técnica: {len(df_ficha)} registros cargados")
             
             for _, row in df_ficha.iterrows():
@@ -78,22 +80,23 @@ class IndicatorIntegrityAgent:
                 all_indicators.append(ind)
                 existing_ids.add(ind_id)
         
-        # 2. Cargar desde Indicadores por CMI (incluye sub-indicadores)
-        cmi_path = self.root_path / "data" / "raw" / "Indicadores por CMI.xlsx"
+        # 2. Cargar desde Catalogo Indicadores (incluye sub-indicadores)
+        # Desde la fusión 2026-07-13 (antes 'Indicadores por CMI.xlsx').
+        cmi_path = self.root_path / "data" / "raw" / "Catalogo de Indicadores.xlsx"
         temp_cmi_path = self.root_path / "temp_cmi.xlsx"
-        
+
         # Use temp copy if original is locked
         if cmi_path.exists():
             try:
-                df_cmi = pd.read_excel(cmi_path)
+                df_cmi = pd.read_excel(cmi_path, sheet_name="Catalogo Indicadores")
             except PermissionError:
                 logger.info("  Original locked, using temp copy...")
                 if temp_cmi_path.exists():
-                    df_cmi = pd.read_excel(temp_cmi_path)
+                    df_cmi = pd.read_excel(temp_cmi_path, sheet_name="Catalogo Indicadores")
                 else:
                     import shutil
                     shutil.copy2(cmi_path, temp_cmi_path)
-                    df_cmi = pd.read_excel(temp_cmi_path)
+                    df_cmi = pd.read_excel(temp_cmi_path, sheet_name="Catalogo Indicadores")
             logger.info(f"  CMI: {len(df_cmi)} registros cargados")
             
             subindicadores_count = 0
@@ -109,7 +112,7 @@ class IndicatorIntegrityAgent:
                     ind = {
                         "id": ind_id,
                         "nombre": row.get("Indicador", ""),
-                        "clasificacion": row.get("Clasificación", row.get("Clasificaci\u00f3n", "")),
+                        "clasificacion": row.get("Clasificacion", ""),
                         "proceso": row.get("Subproceso", ""),
                         "periodicidad": row.get("Periodicidad", ""),
                         "sentido": row.get("Sentido", ""),
@@ -119,12 +122,12 @@ class IndicatorIntegrityAgent:
                         "responsable_analisis": "",
                         "unidad": "",
                         "descripcion": "",
-                        "linea_estrategica": row.get("Linea", ""),
-                        "objetivo": row.get("Objetivo", ""),
-                        "meta_general": row.get("Meta Estratégica", row.get("Meta Estrat\u00e9gica", "")),
+                        "linea_estrategica": row.get("Linea_Estrategica", ""),
+                        "objetivo": row.get("Objetivo_Estrategico", ""),
+                        "meta_general": row.get("Meta_Estrategica", ""),
                         "es_subindicador": es_sub,
                         "indicador_padre": self.get_parent_id(ind_id) if es_sub else None,
-                        "fuente": "Indicadores por CMI"
+                        "fuente": "Catalogo Indicadores"
                     }
                     all_indicators.append(ind)
                     existing_ids.add(ind_id)
@@ -165,20 +168,21 @@ class IndicatorIntegrityAgent:
             active_ids.update(api_ids)
             logger.info(f"  API/Kawak: {len(api_ids)} indicadores únicos con datos")
         
-        # 2. Cargar IDs de CMI y aplicar filtros de exclusión
-        cmi_path = self.root_path / "data" / "raw" / "Indicadores por CMI.xlsx"
+        # 2. Cargar IDs de Catalogo Indicadores y aplicar filtros de exclusión
+        # Desde la fusión 2026-07-13 (antes 'Indicadores por CMI.xlsx').
+        cmi_path = self.root_path / "data" / "raw" / "Catalogo de Indicadores.xlsx"
         temp_cmi_path = self.root_path / "temp_cmi.xlsx"
-        
+
         if cmi_path.exists():
             try:
-                df_cmi = pd.read_excel(cmi_path)
+                df_cmi = pd.read_excel(cmi_path, sheet_name="Catalogo Indicadores")
             except PermissionError:
                 if temp_cmi_path.exists():
-                    df_cmi = pd.read_excel(temp_cmi_path)
+                    df_cmi = pd.read_excel(temp_cmi_path, sheet_name="Catalogo Indicadores")
                 else:
                     import shutil
                     shutil.copy2(cmi_path, temp_cmi_path)
-                    df_cmi = pd.read_excel(temp_cmi_path)
+                    df_cmi = pd.read_excel(temp_cmi_path, sheet_name="Catalogo Indicadores")
             
             # IDs a excluir por various razones
             exclude_by_proyecto = set(df_cmi[df_cmi["Proyecto"] == 1]["Id"].dropna().unique().astype(str))

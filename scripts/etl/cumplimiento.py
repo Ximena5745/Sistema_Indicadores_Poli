@@ -4,18 +4,20 @@ Cálculo de cumplimiento (lógica de negocio pura, sin I/O).
 
 DOCUMENTACIÓN:
   - Cumplimiento (col L): Decimal normalizado con TOPE [0.0, 1.0] PA o [0.0, 1.3] regular
-  - CumplReal (col M): Decimal SIN TOPE [0.0, ∞)
-  
+  - CumplReal (col M): Decimal con TOPE [0.0, 1.0] PA/tope-100, SIN TOPE [0.0, ∞) regular
+
 CASOS ESPECIALES (Problema #4 fixes):
   1. Meta=0 Y Ejecución=0 → 1.0 (100% éxito, no error)
      Ejemplo: Mortalidad laboral con meta=0, ejecutado=0 → perfecto
-  
+
   2. Sentido Negativo Y Ejecución=0 (Meta>0) → 1.0 (100% éxito)
      Ejemplo: Accidentalidad con meta=1.6, ejecutado=0 → cero accidentes es perfecto
-  
+
   3. Tope aplicado:
      - SIEMPRE 1.0 máximo en Cumplimiento (capped)
-     - CumplReal retorna sin límite
+     - CumplReal: también acotado a 1.0 para Plan Anual/IDS_TOPE_100 (la meta
+       es un techo real, no tiene sentido "sobrecumplir"); sin límite para
+       indicadores regulares (tope=1.3)
 """
 from __future__ import annotations
 
@@ -90,9 +92,13 @@ def _calc_cumpl(
     # ── Normalizar: asegurar mínimo 0 ──────────────────────────────
     raw = max(raw, 0.0)
     
-    # ── Aplicar tope: cumpl_capped [0, tope], cumpl_real sin límite ────────────
+    # ── Aplicar tope ─────────────────────────────────────────────────
+    # cumpl_capped siempre acotado a [0, tope].
+    # cumpl_real solo se acota cuando tope <= 1.0 (Plan Anual / IDS_TOPE_100),
+    # donde la meta es un techo real y no tiene sentido "sobrecumplir".
+    # Para indicadores regulares (tope=1.3) cumpl_real queda sin límite.
     cumpl_capped = min(raw, tope)
-    cumpl_real = raw
+    cumpl_real = min(raw, tope) if tope <= 1.0 else raw
     
     logger.debug(
         f"Calc cumpl: meta={m}, ejec={e}, sentido={sentido}, raw={raw:.4f}, "

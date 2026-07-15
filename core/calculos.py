@@ -79,11 +79,11 @@ def categorizar_cumplimiento(cumplimiento, sentido="Positivo", id_indicador=None
 
     FUENTE ÚNICA OFICIAL: core/domain
     El parámetro `sentido` se ignora (se mantiene solo por compatibilidad hacia atrás).
-    La categorización depende SOLO del valor numérico y del tipo de indicador.
+    La categorización depende SOLO del valor numérico y del ID del indicador
+    (Plan Anual / Negativo-Porcentual se auto-detectan por ID en core.domain).
 
     Retorna: 'Peligro' | 'Alerta' | 'Cumplimiento' | 'Sobrecumplimiento' | 'Sin dato'
     """
-    # Delegar a la implementación oficial, ignorando `sentido`
     return _categorizar_cumplimiento_oficial(cumplimiento, id_indicador=id_indicador)
 
 

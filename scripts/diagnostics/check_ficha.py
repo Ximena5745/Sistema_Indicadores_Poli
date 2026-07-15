@@ -1,7 +1,7 @@
 import pandas as pd
 
-# Cargar Ficha Técnica
-df_ficha = pd.read_excel('data/raw/Ficha_Tecnica_Indicadores.xlsx')
+# Cargar Ficha Técnica (fusionada 2026-07-13 en 'Ficha Tecnica Detalle')
+df_ficha = pd.read_excel('data/raw/Catalogo de Indicadores.xlsx', sheet_name='Ficha Tecnica Detalle')
 print('=== Ficha Técnica Indicadores ===')
 print(f'Total registros: {len(df_ficha)}')
 print(f'\nColumnas relevantes:')

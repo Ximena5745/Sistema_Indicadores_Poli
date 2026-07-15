@@ -21,6 +21,23 @@ def test_categorizar_plan_anual():
     assert categorizar_cumplimiento(0.90, id_indicador="373") == "Alerta"
 
 
+def test_categorizar_negativo_pct_cumplimiento():
+    assert categorizar_cumplimiento(1.0199, id_indicador="121") == "Cumplimiento"
+
+
+def test_categorizar_negativo_pct_alerta():
+    assert categorizar_cumplimiento(1.05, id_indicador="207") == "Alerta"
+    assert categorizar_cumplimiento(1.10, id_indicador="207") == "Alerta"
+
+
+def test_categorizar_negativo_pct_peligro():
+    assert categorizar_cumplimiento(1.1001, id_indicador="377") == "Peligro"
+
+
+def test_categorizar_negativo_pct_no_aplica_fuera_de_lista():
+    assert categorizar_cumplimiento(1.10, id_indicador="104") == "Sobrecumplimiento"
+
+
 def test_calcular_kpis():
     df = pd.DataFrame({
         "Id": ["1", "2", "3"],

@@ -198,6 +198,7 @@ Reportes de sesión de agentes (AGENT5*, AGENT9*, CHANGELOG_SESION*, etc.)
 | Archivo | Contenido clave |
 |---|---|
 | `config/settings.toml` | `año_cierre=2025`, IDs Plan Anual, IDs Tope 100%, rutas, cron schedule |
+| `core/config.py` | Umbrales de semaforización (Regular/PA/Negativo-Porcentual), `IDS_TOPE_100`, `IDS_NEGATIVO_PCT` (lista curada jul-2026, ver `02_Logica_Indicadores.md`) |
 | `config/data_contracts.yaml` | Contratos de datos |
 | `config/mapeos_procesos.yaml` | Mapeo de procesos |
 | `.env.example` | `DATABASE_URL` para PostgreSQL (Supabase) |

@@ -51,6 +51,26 @@ cumplimiento = min(cumplimiento, 1.3)  # 130%
 - Tope máximo 100% (no sobrecumplimiento)
 - Auto-detectados por ID desde Excel: `Indicadores por CMI.xlsx`
 
+#### 🔻 Indicadores NEGATIVOS con escala 0-100 (Régimen Negativo-Porcentual)
+
+| Rango | Categoría | Código | Color |
+|-------|-----------|--------|-------|
+| **< 102%** | Cumplimiento | `CUM` | `#43A047` 🟢 |
+| **102% - 110%** | Alerta | `ALE` | `#FBAF17` 🟡 |
+| **> 110%** | Peligro | `PEL` | `#D32F2F` 🔴 |
+
+**Características Negativo-Porcentual (jul-2026):**
+- Aplica a una **lista curada de IDs** (no detección dinámica por valor — probar por rango
+  de `meta`/`ejecución` producía falsos positivos: tasas SST decimales de 0-1 como accidentalidad
+  o mortalidad laboral, puntajes CES de 0-5, e Índice de rotación también caen en [0,100] sin
+  ser porcentajes reales).
+- IDs actuales: `IDS_NEGATIVO_PCT = {"121", "207", "377", "561"}` en `core/config.py`
+  (y su réplica en `sgind-v2/backend/app/domain/constants.py`).
+- El cumplimiento sigue calculándose igual que hoy (`meta / ejecución`, más alto = mejor).
+- Auto-detectado por ID, igual patrón que `IDS_PLAN_ANUAL`/`IDS_TOPE_100`.
+- **Precedencia:** Plan Anual se evalúa primero; si un ID estuviera en ambas listas, Plan Anual
+  gana sobre Negativo-Porcentual.
+
 ---
 
 ## 2. Umbrales Configurados
@@ -62,6 +82,9 @@ UMBRAL_ALERTA = 1.00                       # Límite inferior Cumplimiento
 UMBRAL_SOBRECUMPLIMIENTO = 1.05            # Límite inferior Sobrecumplimiento
 UMBRAL_ALERTA_PA = 0.95                    # Límite inferior Cumplimiento PA
 UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00        # Tope máximo PA
+UMBRAL_ALERTA_NEG_PCT = 1.02              # Límite inferior Alerta (Negativo-Porcentual)
+UMBRAL_PELIGRO_NEG_PCT = 1.10             # Límite superior Alerta / inicio Peligro (Negativo-Porcentual)
+IDS_NEGATIVO_PCT = {"121", "207", "377", "561"}  # Lista curada de indicadores en este régimen
 ```
 
 ---
@@ -277,8 +300,8 @@ def normalizar_y_categorizar(
     PARÁMETROS:
     - valor: float, str, NaN - Valor de cumplimiento (puede ser porcentaje o decimal)
     - es_porcentaje: None (auto-detectar), True (0-130), False (0-1.3)
-    - id_indicador: ID del indicador para auto-detectar Plan Anual
-    - sentido: "Positivo" o "Negativo"
+    - id_indicador: ID del indicador para auto-detectar Plan Anual o Negativo-Porcentual
+    - sentido: "Positivo" o "Negativo" (no afecta la categorización, solo compatibilidad)
     """
     pass
 ```
@@ -294,6 +317,9 @@ def normalizar_y_categorizar(
 | PLAN ANUAL | < 80% | Peligro |
 | PLAN ANUAL | 80% - 94.99% | Alerta |
 | PLAN ANUAL | ≥ 95% | Cumplimiento |
+| NEGATIVO-PORCENTUAL | < 102% | Cumplimiento |
+| NEGATIVO-PORCENTUAL | 102% - 110% | Alerta |
+| NEGATIVO-PORCENTUAL | > 110% | Peligro |
 
 ### 9.2 Función: `_render_strategy_card()`
 

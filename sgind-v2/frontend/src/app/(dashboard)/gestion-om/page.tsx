@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KPICard } from "@/components/ui/KPICard";
-import { createOM, fetchOMMatriz } from "@/lib/api";
+import { cerrarOM, createOM, fetchOMMatriz, updateOM } from "@/lib/api";
 import { useAuthReady, useAuthStore } from "@/stores/auth-store";
 
 const MESES = [
@@ -26,6 +26,7 @@ export default function GestionOMPage() {
   const [mostrarAlerta, setMostrarAlerta] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingOmId, setEditingOmId] = useState<number | null>(null);
   const [tipoAccion, setTipoAccion] = useState("OM Kawak");
   const [numeroOm, setNumeroOm] = useState("");
 
@@ -50,20 +51,55 @@ export default function GestionOMPage() {
     }
   }, [query.data?.filtros]);
 
+  const resetForm = () => {
+    setFormOpen(false);
+    setSelectedId(null);
+    setEditingOmId(null);
+    setTipoAccion("OM Kawak");
+    setNumeroOm("");
+  };
+
   const createMutation = useMutation({
     mutationFn: createOM,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["om-matriz"] });
-      setFormOpen(false);
-      setNumeroOm("");
+      resetForm();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, tipo_accion, numero_om }: { id: number; tipo_accion: string; numero_om?: string }) =>
+      updateOM(id, { tipo_accion, numero_om, comentario: numero_om }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["om-matriz"] });
+      resetForm();
+    },
+  });
+
+  const cerrarMutation = useMutation({
+    mutationFn: (id: number) => cerrarOM(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["om-matriz"] });
     },
   });
 
   const data = query.data;
   const selectedRow = data?.filas.find((f) => f.id === selectedId);
 
+  const handleEditar = (row: NonNullable<typeof data>["filas"][number]) => {
+    setSelectedId(row.id);
+    setEditingOmId(row.om_id);
+    setTipoAccion(row.tipo_accion !== "Sin acción" ? row.tipo_accion : "OM Kawak");
+    setNumeroOm(row.numero_om);
+    setFormOpen(true);
+  };
+
   const handleSubmit = () => {
     if (!selectedRow) return;
+    if (editingOmId != null) {
+      updateMutation.mutate({ id: editingOmId, tipo_accion: tipoAccion, numero_om: numeroOm || undefined });
+      return;
+    }
     createMutation.mutate({
       id_indicador: selectedRow.id,
       nombre_indicador: selectedRow.indicador,
@@ -193,6 +229,9 @@ export default function GestionOMPage() {
                   value={selectedId ?? ""}
                   onChange={(e) => {
                     setSelectedId(e.target.value || null);
+                    setEditingOmId(null);
+                    setTipoAccion("OM Kawak");
+                    setNumeroOm("");
                     setFormOpen(!!e.target.value);
                   }}
                 >
@@ -232,10 +271,21 @@ export default function GestionOMPage() {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                     className="rounded-lg bg-poli-navy px-4 py-2 text-sm font-semibold text-white hover:bg-poli-navy/90 disabled:opacity-50"
                   >
-                    {createMutation.isPending ? "Guardando…" : "Asociar nueva OM"}
+                    {createMutation.isPending || updateMutation.isPending
+                      ? "Guardando…"
+                      : editingOmId != null
+                        ? "Guardar cambios"
+                        : "Asociar nueva OM"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-white"
+                  >
+                    Cancelar
                   </button>
                 </>
               ) : null}
@@ -263,6 +313,7 @@ export default function GestionOMPage() {
                       "Tipo de Acción",
                       "OM",
                       "Avance OM",
+                      ...(canEdit ? ["Acciones"] : []),
                     ].map((h) => (
                       <th key={h} className="whitespace-nowrap px-3 py-2">
                         {h}
@@ -316,6 +367,33 @@ export default function GestionOMPage() {
                           "—"
                         )}
                       </td>
+                      {canEdit && (
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditar(row)}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            >
+                              {row.tiene_om ? "Editar" : "Registrar"}
+                            </button>
+                            {row.tiene_om === 1 && row.om_id != null && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`¿Cerrar la OM del indicador ${row.id}?`)) {
+                                    cerrarMutation.mutate(row.om_id as number);
+                                  }
+                                }}
+                                disabled={cerrarMutation.isPending}
+                                className="rounded border border-amber-300 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                              >
+                                Cerrar
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -1,8 +1,8 @@
 import pandas as pd
 import re
 
-# Cargar Ficha Técnica
-df_ficha = pd.read_excel('data/raw/Ficha_Tecnica_Indicadores.xlsx')
+# Cargar Ficha Técnica (fusionada 2026-07-13 en 'Ficha Tecnica Detalle')
+df_ficha = pd.read_excel('data/raw/Catalogo de Indicadores.xlsx', sheet_name='Ficha Tecnica Detalle')
 print('=== Análisis de IDs en Ficha Técnica ===')
 print(f'Total registros: {len(df_ficha)}')
 
@@ -33,8 +33,8 @@ print(f'Patrón XXX.Y.Z: {len(pattern2)}')
 print(f'Patrón XXX-Y: {len(pattern3)}')
 print(f'Patrón XXXA: {len(pattern4)}')
 
-# Verificar CMI
-df_cmi = pd.read_excel('data/raw/Indicadores por CMI.xlsx')
+# Verificar Catalogo Indicadores (fusionado 2026-07-13, antes 'Indicadores por CMI.xlsx')
+df_cmi = pd.read_excel('data/raw/Catalogo de Indicadores.xlsx', sheet_name='Catalogo Indicadores')
 print(f'\n=== Análisis de IDs en CMI ===')
 print(f'Total registros: {len(df_cmi)}')
 

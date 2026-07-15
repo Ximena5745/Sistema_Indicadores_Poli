@@ -14,26 +14,63 @@ def limpiar_ordenar_hoja(ws, nombre: str = "", ordenar_por: list = None, validar
     # Columnas que deben ser fórmulas
     col_formula = set([cm.get("Anio"), cm.get("Mes"), cm.get("Semestre"), cm.get("LLAVE")])
     if idxs:
+        from copy import copy as _copy
         datos = []
         for row in ws.iter_rows(min_row=2, values_only=False):
             if row[0].value is None:
                 continue
-            fila = []
+            fila_vals = []
+            fila_estilos = []
             for idx, cell in enumerate(row, start=1):
                 if idx in col_formula:
-                    fila.append(None)  # Dejar en blanco para que la fórmula se reescriba
+                    fila_vals.append(None)
                 else:
-                    fila.append(cell.value)
-            datos.append(fila)
+                    fila_vals.append(cell.value)
+                fila_estilos.append({
+                    "font": _copy(cell.font),
+                    "fill": _copy(cell.fill),
+                    "border": _copy(cell.border),
+                    "alignment": _copy(cell.alignment),
+                    "number_format": cell.number_format,
+                    "protection": _copy(cell.protection),
+                })
+            datos.append((fila_vals, fila_estilos))
+
         from datetime import datetime, date
         def normaliza_valor(val):
             if isinstance(val, datetime):
                 return val.date()
             return val
-        datos.sort(key=lambda x: tuple((normaliza_valor(x[i-1]) if x[i-1] is not None else 0) for i in idxs))
-        for i, row_vals in enumerate(datos, start=2):
-            for j, val in enumerate(row_vals, start=1):
-                ws.cell(row=i, column=j).value = val
+
+        def sort_key(entrada):
+            fila = entrada[0]
+            partes = []
+            for i in idxs:
+                val = normaliza_valor(fila[i - 1])
+                if val is None:
+                    partes.append(("", ""))
+                elif isinstance(val, (int, float)):
+                    partes.append((0, str(val).zfill(20)))
+                elif isinstance(val, date):
+                    partes.append((0, val.isoformat()))
+                else:
+                    partes.append((0, str(val)))
+            return partes
+
+        datos.sort(key=sort_key)
+        for i, (row_vals, row_estilos) in enumerate(datos, start=2):
+            for j, (val, estilo) in enumerate(zip(row_vals, row_estilos), start=1):
+                cell = ws.cell(row=i, column=j)
+                cell.value = val
+                # Restaurar estilos siempre — incluyendo columnas de fórmula
+                # (sus valores se reescriben después como fórmulas, pero el
+                # borde, fill y number_format deben preservarse)
+                cell.font = estilo["font"]
+                cell.fill = estilo["fill"]
+                cell.border = estilo["border"]
+                cell.alignment = estilo["alignment"]
+                cell.number_format = estilo["number_format"]
+                cell.protection = estilo["protection"]
         # Reescribir fórmulas explícitamente en columnas de fórmula
         from etl.formulas_excel import formula_G, formula_H, formula_I, formula_R
         cm = _build_col_map(ws)
@@ -193,7 +230,8 @@ def deduplicar_sheet(ws, nombre: str = "") -> int:
     for llave, grupo in grupos.items():
         if llave is None or len(grupo) <= 1:
             continue
-        mejor = max(grupo, key=lambda f: _ejec_score(f["ejec"]))
+        # Para igual score, preferir la fila más reciente (mayor row_idx = recién generada)
+        mejor = max(grupo, key=lambda f: (_ejec_score(f["ejec"]), f["row_idx"]))
         filas_a_borrar.extend(
             f["row_idx"] for f in grupo if f["row_idx"] != mejor["row_idx"]
         )
@@ -282,7 +320,7 @@ def escribir_filas(
             _id_fila = _id_str(fila.get("Id"))
             _tope = obtener_tope_cumplimiento(_id_fila)
             _set(r, "Cumplimiento", formula_L(r, tope=_tope), "0.00%")
-            _set(r, "CumplReal",   formula_M(r), "0.00%")
+            _set(r, "CumplReal",   formula_M(r, tope=_tope), "0.00%")
 
         _set(r, "MetaS",        sg["meta_signo"])
         _set(r, "EjecS",        ejec_signo)

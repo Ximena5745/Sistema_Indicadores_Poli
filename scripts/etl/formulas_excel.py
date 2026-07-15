@@ -59,7 +59,15 @@ def formula_L(r: int, tope: float = 1.3) -> str:
         f'MIN(MAX(J{r}/K{r},0),{tope}))),"") '
     )
 
-def formula_M(r: int, tope: Optional[float] = None) -> str:
+def formula_M(r: int, tope: float = 1.3) -> str:
+    # CumplReal: acotado a `tope` cuando tope<=1.0 (Plan Anual/IDS_TOPE_100),
+    # sin límite superior para indicadores regulares (tope=1.3).
+    if tope <= 1.0:
+        return (
+            f'=IFERROR(IF(OR(J{r}=0,K{r}=""),"",IF(E{r}="Positivo",'
+            f'MIN(MAX(K{r}/J{r},0),{tope}),'
+            f'MIN(MAX(J{r}/K{r},0),{tope}))),"") '
+        )
     return (
         f'=IFERROR(IF(OR(J{r}=0,K{r}=""),"",IF(E{r}="Positivo",'
         f'MAX(K{r}/J{r},0),'
@@ -261,7 +269,7 @@ def _reescribir_formulas(ws) -> None:
             if es_metrica:
                 c.value = None
             elif meta_val is not None and ejec_val is not None:
-                c.value = formula_M(r)
+                c.value = formula_M(r, tope=tope)
                 c.number_format = "0.00%"
             else:
                 c.value = None

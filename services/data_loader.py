@@ -322,14 +322,16 @@ def cargar_metadatos_kawak() -> pd.DataFrame:
         except Exception:
             pass
 
-    # ── 2. Ficha_Tecnica_Indicadores.xlsx → Formula ───────────────────────────
-    ficha_path = DATA_RAW / "Ficha_Tecnica_Indicadores.xlsx"
+    # ── 2. 'Ficha Tecnica Detalle' (directorio maestro dedicado) → Formula ───
+    # Desde la fusión 2026-07-14 (antes 'Ficha_Tecnica_Indicadores.xlsx',
+    # archivado en data/raw/_archivados/).
+    ficha_path = DATA_RAW / "Catalogo de Indicadores.xlsx"
     if ficha_path.exists():
         try:
-            df_ficha = pd.read_excel(ficha_path, engine="openpyxl")
+            df_ficha = pd.read_excel(ficha_path, sheet_name="Ficha Tecnica Detalle", engine="openpyxl")
             df_ficha.columns = [str(c).strip() for c in df_ficha.columns]
             id_col = next(
-                (c for c in ["ID Kawak", "Id Ind"] if c in df_ficha.columns), None
+                (c for c in ["Id", "ID Kawak", "Id Ind"] if c in df_ficha.columns), None
             )
             if id_col and "Formula" in df_ficha.columns:
                 df_ficha = (

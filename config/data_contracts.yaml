@@ -131,8 +131,8 @@ resultados_consolidados:
           descripcion: "Nombre del indicador"
         Proceso:
           tipo: "string"
-          requerida: true
-          descripcion: "Proceso padre (macroproceso)"
+          requerida: false
+          descripcion: "Proceso padre (macroproceso) — nulo permitido en indicadores Plan Anual"
         Periodicidad:
           tipo: "categorical"
           requerida: true
@@ -165,7 +165,7 @@ resultados_consolidados:
         - "Fecha y Anio deben ser coherentes"
         - "Periodo debe corresponder al corte temporal"
         - "Cumplimiento puede existir aunque Meta o Ejecucion sean nulos en registros especiales"
-      
+
     "Catalogo Indicadores":
       descripcion: "Catálogo maestro con metadatos de indicadores"
       columnas:
@@ -179,11 +179,13 @@ resultados_consolidados:
           descripcion: "Nombre del indicador"
         Clasificacion:
           tipo: "categorical"
-          requerida: true
+          requerida: false
           valores_permitidos: ["Estratégico", "Operativo"]
+          descripcion: "Nulo permitido en sub-indicadores (IDs con decimal como 108.2, 414.5)"
         Proceso:
           tipo: "string"
-          requerida: true
+          requerida: false
+          descripcion: "Nulo permitido en indicadores Plan Anual que cruzan múltiples áreas"
         Periodicidad:
           tipo: "categorical"
           requerida: true
@@ -374,14 +376,14 @@ kawak_catalogo:
         - "Sin duplicados (Ano + Id)"
 
 indicadores_cmi:
-  archivo: "data/raw/Indicadores por CMI.xlsx"
+  archivo: "data/raw/Catalogo de Indicadores.xlsx"
   tipo: "excel"
-  descripcion: "Mapeo CMI — vincula indicadores a subprocesos y líneas"
-  actualizado_por: "Manual"
-  frecuencia_actualizacion: "Por cambios en estructura estratégica"
+  descripcion: "Directorio maestro de indicadores — vincula indicadores a subprocesos y líneas (fusionado 2026-07-13 desde 'Indicadores por CMI.xlsx' y 'Ficha_Tecnica_Indicadores.xlsx', ahora archivados en data/raw/_archivados/)"
+  actualizado_por: "Manual + scripts/sincronizar_directorio_indicadores.py"
+  frecuencia_actualizacion: "Por cambios en estructura estratégica; sincronización de Ids nuevos tras cada corrida de scripts/consolidar_api.py"
   hojas:
-    "Worksheet":
-      descripcion: "Tabla de mapeo indicador ↔ subproceso ↔ línea estratégica"
+    "Catalogo Indicadores":
+      descripcion: "Directorio único de indicadores: Kawak/API + clasificación de negocio + ficha técnica resumida"
       columnas:
         Id:
           tipo: "string"
@@ -390,7 +392,7 @@ indicadores_cmi:
         Subproceso:
           tipo: "string"
           requerida: false
-        Linea:
+        Linea_Estrategica:
           tipo: "string"
           requerida: false
       validaciones:

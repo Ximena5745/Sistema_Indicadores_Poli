@@ -63,6 +63,11 @@ UMBRAL_PELIGRO = 0.80
 UMBRAL_ALERTA = 1.00
 UMBRAL_SOBRECUMPLIMIENTO = 1.05
 
+# Régimen Negativo-Porcentual: indicadores de sentido Negativo cuya meta y/o
+# ejecución están en escala 0-100. < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro
+UMBRAL_ALERTA_NEG_PCT = 1.02
+UMBRAL_PELIGRO_NEG_PCT = 1.10
+
 # ── Rango válido para Cumplimiento (normalizado) ───────────────────────────
 # Los datos de Cumplimiento deben estar en rango [0.0, 1.3]
 # donde 1.3 = 130% (máximo permitido tras cappeo)
@@ -83,7 +88,8 @@ RANGO_CUMPLIMIENTO = (RANGO_CUMPLIMIENTO_MIN, RANGO_CUMPLIMIENTO_MAX)
 
 def _cargar_ids_plan_anual():
     """
-    Extrae dinámicamente IDs de Plan Anual desde 'Indicadores por CMI.xlsx'.
+    Extrae dinámicamente IDs de Plan Anual desde la hoja 'Catalogo Indicadores'
+    del directorio maestro (antes 'Indicadores por CMI.xlsx').
 
     NO hardcodea. Se actualiza automáticamente si el Excel cambia.
 
@@ -99,19 +105,22 @@ def _cargar_ids_plan_anual():
 
     logger = logging.getLogger(__name__)
 
-    xlsx_path = DATA_RAW / "Indicadores por CMI.xlsx"
+    # Desde la fusión 2026-07-14, vive en la hoja "Catalogo Indicadores" del
+    # directorio maestro dedicado 'Catalogo de Indicadores.xlsx' (antes
+    # 'Indicadores por CMI.xlsx', archivado en data/raw/_archivados/).
+    xlsx_path = DATA_RAW / "Catalogo de Indicadores.xlsx"
 
     # Si no existe, fallar explícitamente (FALLA SEGURA)
     if not xlsx_path.exists():
         logger.error(f"ARCHIVO REQUERIDO FALTA: {xlsx_path}")
         raise FileNotFoundError(
             f"No se puede cargar IDS_PLAN_ANUAL: {xlsx_path} no existe. "
-            f"Verificar que 'Indicadores por CMI.xlsx' esté en {DATA_RAW}"
+            f"Verificar que 'Catalogo de Indicadores.xlsx' esté en {DATA_RAW}"
         )
 
     try:
         # Leer Excel
-        df = pd.read_excel(xlsx_path, engine="openpyxl")
+        df = pd.read_excel(xlsx_path, sheet_name="Catalogo Indicadores", engine="openpyxl")
 
         # Normalizar nombres de columnas (minúsculas, sin espacios)
         df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
@@ -173,8 +182,8 @@ IDS_PLAN_ANUAL = _cargar_ids_plan_anual()
 if not IDS_PLAN_ANUAL:
     raise RuntimeError(
         "FALLO CRÍTICO: IDS_PLAN_ANUAL está vacío después de cargar. "
-        "Verificar que 'Indicadores por CMI.xlsx' contiene indicadores con "
-        "columna 'Plan anual'=1 o 'Proyecto'=1"
+        "Verificar que 'Catalogo Indicadores' (Catalogo de Indicadores.xlsx) "
+        "contiene indicadores con columna 'Plan_Anual'=1 o 'Proyecto'=1"
     )
 
 UMBRAL_ALERTA_PA = 0.95  # PA cumple desde 95%
@@ -183,6 +192,10 @@ UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00  # tope 100%
 # ── Indicadores con tope de cumplimiento 100% (no sobrecumplimiento) ──────────
 # Indicadores de sentido Negativo cuyo cumplimiento no debe superar el 100%.
 IDS_TOPE_100 = {"208", "218"}
+
+# ── Indicadores Negativo-Porcentual (régimen 102%/110%) ───────────────────────
+# Lista curada (jul-2026): < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro
+IDS_NEGATIVO_PCT = {"121", "207", "377", "561"}
 
 # ── Aliases de colores para compatibilidad heredada ──────────────────────────
 # (core/niveles.py usaba estos nombres)

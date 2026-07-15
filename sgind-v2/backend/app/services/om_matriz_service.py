@@ -49,6 +49,7 @@ class OMMatrizService:
         registros_orm = await self._om.list_registros(db, anio=anio, periodo=mes)
         registros = [
             {
+                "id": r.id,
                 "id_indicador": r.id_indicador,
                 "nombre_indicador": r.nombre_indicador,
                 "proceso": r.proceso,

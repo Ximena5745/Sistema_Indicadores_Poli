@@ -308,18 +308,23 @@ def test_semaforo_colores_cmi_builders():
 # ─── Paridad numérica básica ─────────────────────────────────────────────────
 
 def test_classify_estado_pdi_thresholds():
-    """La clasificación de estado en PDIService sigue los umbrales correctos."""
+    """PDIService._classify_estado reutiliza los umbrales centrales de categorizar_cumplimiento (A-01).
+
+    Umbrales en escala fracción (UMBRAL_PELIGRO=0.80, UMBRAL_ALERTA=1.00,
+    UMBRAL_SOBRECUMPLIMIENTO=1.05) — no la escala 75/100/105 legacy que
+    causaba semáforos inconsistentes entre PDI y CMI/Resumen General.
+    """
     from app.services.pdi_service import _classify_estado
 
     assert _classify_estado(None) == "Sin dato"
     assert _classify_estado(float("nan")) == "Sin dato"
-    assert _classify_estado(50.0) == "Peligro"      # < 75
-    assert _classify_estado(74.9) == "Peligro"      # < 75
-    assert _classify_estado(75.0) == "Alerta"       # 75 <= x < 100
-    assert _classify_estado(99.9) == "Alerta"       # < 100
-    assert _classify_estado(100.0) == "Cumplimiento"  # 100 <= x <= 105
-    assert _classify_estado(105.0) == "Cumplimiento"  # <= 105
-    assert _classify_estado(105.1) == "Sobrecumplimiento"  # > 105
+    assert _classify_estado(50.0) == "Peligro"        # < 80
+    assert _classify_estado(79.9) == "Peligro"        # < 80
+    assert _classify_estado(80.0) == "Alerta"         # 80 <= x < 100
+    assert _classify_estado(99.9) == "Alerta"         # < 100
+    assert _classify_estado(100.0) == "Cumplimiento"  # 100 <= x < 105
+    assert _classify_estado(104.9) == "Cumplimiento"  # < 105
+    assert _classify_estado(105.0) == "Sobrecumplimiento"  # >= 105
     assert _classify_estado(130.0) == "Sobrecumplimiento"
 
 

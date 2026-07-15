@@ -40,7 +40,7 @@ except ImportError:
 
 OUT_DIR = ROOT / "artifacts"
 OUT_FILE = OUT_DIR / "indicadores_procesos_cross_validation.xlsx"
-RAW_CMI = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
+RAW_CMI = ROOT / "data" / "raw" / "Catalogo de Indicadores.xlsx"  # hoja 'Catalogo Indicadores'
 MASTER_PROCESOS = ROOT / "data" / "raw" / "Subproceso-Proceso-Area.xlsx"
 
 

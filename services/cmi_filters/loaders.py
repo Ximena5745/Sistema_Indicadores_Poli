@@ -15,7 +15,12 @@ import pandas as pd
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[2]
-CMI_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
+# Desde la fusión 2026-07-14, la clasificación de negocio vive en la hoja
+# "Catalogo Indicadores" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Indicadores por CMI.xlsx' (archivado en
+# data/raw/_archivados/).
+CMI_XLSX = ROOT / "data" / "raw" / "Catalogo de Indicadores.xlsx"
+CMI_SHEET = "Catalogo Indicadores"
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -90,11 +95,11 @@ def load_cmi_worksheet() -> pd.DataFrame:
         Proyecto, Subprocesos, entre otras.
     """
     if not CMI_XLSX.exists():
-        print("Error: El archivo 'Indicadores por CMI.xlsx' no existe en la ruta esperada.")
+        print("Error: El archivo 'Resultados_Consolidados_Fuente.xlsx' no existe en la ruta esperada.")
         return pd.DataFrame()
 
     try:
-        df = pd.read_excel(CMI_XLSX, sheet_name="Worksheet", engine="openpyxl")
+        df = pd.read_excel(CMI_XLSX, sheet_name=CMI_SHEET, engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         return df
     except Exception as e:

@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 
+from app.domain.categorization import categorizar_cumplimiento
 from app.domain.linea_order import linea_sort_key
 from app.services.excel_reader import ExcelReaderService
 from app.services.tracking_cache import get_tracking_dataframe
@@ -22,23 +23,19 @@ ESTADOS_DEFAULT = ["Peligro", "Alerta", "Cumplimiento", "Sobrecumplimiento", "Si
 MACROS_DEFAULT = ["Docencia", "Investigación", "Extensión", "Gobierno"]
 HORIZONTES_DEFAULT = ["2026-1", "2026-2", "2027-1"]
 
+# Desde la fusión 2026-07-14, el catálogo de clasificación vive en la hoja
+# "Catalogo Indicadores" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Indicadores por CMI.xlsx' (archivado en
+# data/raw/_archivados/).
 _CNA_PATHS = [
-    "raw/Excel_Entrada/CMI.xlsx",
-    "db/Indicadores por CMI.xlsx",
+    "raw/Catalogo de Indicadores.xlsx",
 ]
+_CNA_SHEET = "Catalogo Indicadores"
 
 
-def _classify_estado(cumpl_pct: float | None) -> str:
-    if cumpl_pct is None or (isinstance(cumpl_pct, float) and pd.isna(cumpl_pct)):
-        return "Sin dato"
-    v = float(cumpl_pct)
-    if v < 75:
-        return "Peligro"
-    if v < 100:
-        return "Alerta"
-    if v > 105:
-        return "Sobrecumplimiento"
-    return "Cumplimiento"
+def _classify_estado(cumpl_pct: float | None, id_indicador: Any = None) -> str:
+    fraccion = cumpl_pct / 100 if pd.notna(cumpl_pct) else cumpl_pct
+    return categorizar_cumplimiento(fraccion, id_indicador=id_indicador)
 
 
 class PDIService:
@@ -59,10 +56,13 @@ class PDIService:
         if df.empty:
             return df
 
-        # Enrich with CNA catalog for Linea/Objetivo columns
+        # Enrich with directorio maestro (Catalogo Indicadores) for Linea/Objetivo columns
         for path in _CNA_PATHS:
             try:
-                df_cna = self._excel.read_excel(path, sheet_name=0)
+                df_cna = self._excel.read_excel(path, sheet_name=_CNA_SHEET)
+                df_cna = df_cna.rename(columns={
+                    "Linea_Estrategica": "Linea", "Objetivo_Estrategico": "Objetivo",
+                })
                 for col in ["Linea", "Objetivo"]:
                     if col not in df.columns and col in df_cna.columns and "Id" in df_cna.columns:
                         df = df.merge(df_cna[["Id", col]].drop_duplicates("Id"), on="Id", how="left")
@@ -94,8 +94,11 @@ class PDIService:
         else:
             df["brecha"] = None
 
-        # Classify estado
-        df["Estado"] = df["cumplimiento_pct"].apply(_classify_estado)
+        # Classify estado (misma escala/umbrales que categorizar_cumplimiento central)
+        id_col = df["Id"] if "Id" in df.columns else pd.Series([None] * len(df), index=df.index)
+        df["Estado"] = [
+            _classify_estado(cumpl, id_ind) for cumpl, id_ind in zip(df["cumplimiento_pct"], id_col)
+        ]
 
         return df
 

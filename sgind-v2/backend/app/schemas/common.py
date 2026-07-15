@@ -221,6 +221,104 @@ class CMIDashboardResponse(BaseModel):
     alertas: dict[str, Any] = Field(default_factory=dict)
 
 
+class PDIFiltrosResponse(BaseModel):
+    estados: list[str] = Field(default_factory=list)
+    macros: list[str] = Field(default_factory=list)
+    horizontes: list[str] = Field(default_factory=list)
+    horizonte_default: str = ""
+
+
+class PDIDashboardResponse(BaseModel):
+    error: str | None = None
+    filtros: PDIFiltrosResponse
+    filtros_aplicados: dict[str, str] = Field(default_factory=dict)
+    kpis: dict[str, Any] = Field(default_factory=dict)
+    treemap: list[dict[str, Any]] = Field(default_factory=list)
+    benchmark: list[dict[str, Any]] = Field(default_factory=list)
+    evolucion_brechas: list[dict[str, Any]] = Field(default_factory=list)
+    tabla: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PlanMejoramientoFiltrosResponse(BaseModel):
+    anios: list[int] = Field(default_factory=list)
+    anio_default: int | None = None
+    corte_default: str = "Diciembre"
+    cortes: list[str] = Field(default_factory=list)
+    factores: list[str] = Field(default_factory=list)
+    caracteristicas: list[str] = Field(default_factory=list)
+
+
+class PlanMejoramientoDashboardResponse(BaseModel):
+    error: str | None = None
+    anio: int | None = None
+    mes: int | None = None
+    corte: str | None = None
+    filtros_corte: dict[str, Any] = Field(default_factory=dict)
+    filtros_cna: dict[str, Any] = Field(default_factory=dict)
+    filtros_aplicados: dict[str, Any] = Field(default_factory=dict)
+    kpis: dict[str, Any] = Field(default_factory=dict)
+    graficos: dict[str, Any] = Field(default_factory=dict)
+    tabla_cna: list[dict[str, Any]] = Field(default_factory=list)
+    acciones: dict[str, Any] = Field(default_factory=dict)
+    total_indicadores: int = 0
+
+
+class InformeFiltrosResponse(BaseModel):
+    error: str | None = None
+    anios: list[int] = Field(default_factory=list)
+    anio_default: int | None = None
+    meses: list[int] = Field(default_factory=list)
+    mes_default: int = 12
+    meses_nombres: list[str] = Field(default_factory=list)
+    unidades: list[str] = Field(default_factory=list)
+    procesos: list[str] = Field(default_factory=list)
+    subprocesos: list[str] = Field(default_factory=list)
+    subprocesos_por_proceso: dict[str, list[str]] = Field(default_factory=dict)
+    clasificaciones: list[str] = Field(default_factory=list)
+    frecuencias: list[str] = Field(default_factory=list)
+
+
+class InformeDashboardResponse(CMIProcesosDashboardResponse):
+    resumen_ejecutivo: dict[str, Any] = Field(default_factory=dict)
+    comparativa_interanual: list[dict[str, Any]] = Field(default_factory=list)
+    criticos: list[dict[str, Any]] = Field(default_factory=list)
+    distribucion_estado: dict[str, int] = Field(default_factory=dict)
+    propuestas: list[dict[str, Any]] = Field(default_factory=list)
+    propuestas_error: str | None = None
+    auditoria: list[dict[str, Any]] = Field(default_factory=list)
+    auditoria_error: str | None = None
+    analisis_ia: dict[str, Any] = Field(default_factory=dict)
+
+
+class SeguimientoFiltrosResponse(BaseModel):
+    anios: list[int] = Field(default_factory=list)
+    anio_default: int | None = None
+    meses: list[int] = Field(default_factory=list)
+    mes_default: int | None = None
+    procesos: list[str] = Field(default_factory=list)
+    estados: list[str] = Field(default_factory=list)
+
+
+class SeguimientoDashboardResponse(BaseModel):
+    error: str | None = None
+    filtros: dict[str, Any] = Field(default_factory=dict)
+    filtros_aplicados: dict[str, Any] = Field(default_factory=dict)
+    kpis: dict[str, Any] = Field(default_factory=dict)
+    alertas: dict[str, Any] = Field(default_factory=dict)
+    estado_por_proceso: list[dict[str, Any]] = Field(default_factory=list)
+    detalle: list[dict[str, Any]] = Field(default_factory=list)
+    estado_colores: dict[str, str] = Field(default_factory=dict)
+
+
+class FichaIndicadorResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    Id: Any = None
+    historico: list[dict[str, Any]] = Field(default_factory=list)
+    linea_color: str | None = None
+    narrativa_ia: dict[str, str] | None = None
+
+
 class ExcelFileInfo(BaseModel):
     name: str
     path: str

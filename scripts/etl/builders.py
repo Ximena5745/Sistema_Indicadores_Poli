@@ -10,7 +10,13 @@ from typing import Dict, List, Optional, Set, Tuple
 import numpy as np
 import pandas as pd
 
-from .config import AÑO_CIERRE_ACTUAL
+from .config import (
+    AÑO_CIERRE_ACTUAL,
+    _PARENT_SERIES_INDEX,
+    _normalizar_nombre_serie,
+    CRONOGRAMA_PADRES,
+    _CRONOGRAMA_SERIES_FLAT,
+)
 from .extraccion import (
     _ejec_corrected_from_row, _meta_corrected_from_row, _extraer_registro,
 )
@@ -18,6 +24,60 @@ from .normalizacion import _id_str, limpiar_html, make_llave, nan2none
 from .periodos import _fecha_es_periodo_valido, ultimo_dia_mes
 
 logger = logging.getLogger(__name__)
+
+
+# Los proyectos (Proyecto=1 en el catálogo) reportan avance mensual, pero la
+# Periodicidad mostrada en cada hoja refleja el nivel de agregación de esa
+# hoja, no la cadencia de captura (feedback 2026-07-14).
+_PERIODICIDAD_PROYECTO_POR_HOJA = {
+    "historico": "Mensual",
+    "semestral": "Semestral",
+    "cierres":   "Anual",
+}
+
+
+def _es_proyecto(id_s: str, metadatos_cmi: Optional[Dict]) -> bool:
+    if not metadatos_cmi:
+        return False
+    v = metadatos_cmi.get(id_s, {}).get("proyecto")
+    try:
+        return int(float(v)) == 1
+    except (TypeError, ValueError):
+        return False
+
+
+def _resolver_periodicidad(
+    id_s: str,
+    año: Optional[int],
+    valor_fuente,
+    kawak_por_año: Optional[Dict] = None,
+    metadatos_cmi: Optional[Dict] = None,
+    hoja: str = "historico",
+) -> str:
+    """Periodicidad de un registro.
+
+    Proyectos (Proyecto=1 en el catálogo): fija según la hoja de destino
+    (Mensual/Semestral/Anual) — ver _PERIODICIDAD_PROYECTO_POR_HOJA.
+
+    Resto de indicadores, en orden de precedencia:
+    1. 'Indicadores Kawak.xlsx' (consolidado de Kawak/<año>.xlsx) para el
+       (Id, Año) exacto del registro — fuente primaria.
+    2. Periodicidad del catálogo maestro (Catalogo de Indicadores.xlsx).
+    3. Valor que ya trae el propio registro fuente (Consolidado_API_Kawak),
+       como último recurso para no dejar la celda vacía.
+    """
+    if _es_proyecto(id_s, metadatos_cmi):
+        return _PERIODICIDAD_PROYECTO_POR_HOJA.get(hoja, "Mensual")
+    if kawak_por_año and año is not None:
+        v = kawak_por_año.get((id_s, int(año)))
+        if v:
+            return v
+    if metadatos_cmi:
+        v = str(metadatos_cmi.get(id_s, {}).get("periodicidad", "") or "").strip()
+        if v and v.lower() != "nan":
+            return v
+    v = str(valor_fuente or "").strip()
+    return v if v and v.lower() != "nan" else ""
 
 
 # ── Histórico ─────────────────────────────────────────────────────
@@ -33,6 +93,9 @@ def construir_registros_historico(
     api_kawak_lookup: Optional[Dict] = None,
     variables_campo_map: Optional[Dict] = None,
     tipo_indicador_map: Optional[Dict] = None,
+    metadatos_cmi: Optional[Dict] = None,
+    kawak_por_año: Optional[Dict] = None,
+    hoja: str = "historico",
 ) -> Tuple[List[Dict], int, int]:
     """
     Genera registros nuevos para Consolidado Histórico.
@@ -44,13 +107,12 @@ def construir_registros_historico(
     df = df_fuente[~df_fuente["LLAVE"].isin(llaves_existentes)].dropna(subset=["LLAVE"])
 
     for row in df.itertuples(index=False):
+        id_s = _id_str(getattr(row, "Id", None) or getattr(row, "ID", ""))
+        try:
+            año = pd.to_datetime(getattr(row, "fecha", None)).year
+        except Exception:
+            año = None
         if kawak_validos is not None:
-            id_s = _id_str(getattr(row, "Id", None) or getattr(row, "ID", ""))
-            fecha_raw = getattr(row, "fecha", None)
-            try:
-                año = pd.to_datetime(fecha_raw).year
-            except Exception:
-                año = None
             if año is not None and (id_s, año) not in kawak_validos:
                 skipped += 1
                 continue
@@ -68,12 +130,15 @@ def construir_registros_historico(
             skipped += 1
             continue
 
+        periodicidad = _resolver_periodicidad(
+            id_s, año, getattr(row, "Periodicidad", ""), kawak_por_año, metadatos_cmi, hoja
+        )
+
         if es_na:
             try:
                 fecha_ts = pd.to_datetime(getattr(row, "fecha", None))
             except Exception:
                 fecha_ts = None
-            periodicidad = str(getattr(row, "Periodicidad", ""))
             if periodicidad and fecha_ts is not None:
                 if not _fecha_es_periodo_valido(fecha_ts, periodicidad):
                     skipped += 1
@@ -84,7 +149,7 @@ def construir_registros_historico(
             "Id":          getattr(row, "Id", None),
             "Indicador":   limpiar_html(str(getattr(row, "Indicador", ""))),
             "Proceso":     getattr(row, "Proceso", ""),
-            "Periodicidad":getattr(row, "Periodicidad", ""),
+            "Periodicidad":periodicidad,
             "Sentido":     getattr(row, "Sentido", ""),
             "fecha":       getattr(row, "fecha", None),
             "Meta":        meta,
@@ -94,6 +159,306 @@ def construir_registros_historico(
         })
 
     return registros, skipped, conteo_na
+
+
+# ── Expansión de series como sub-indicadores ───────────────────────
+
+# Símbolos de "% avance" (ejecución real) y "% esperado" (meta) por indicador
+# padre de Plan Anual (Retos). Verificados contra las variables reales de
+# data/raw/Fuentes Consolidadas/Consolidado_API_Kawak.xlsx — varían por padre,
+# no son un par fijo "PAGE"/"PEGE" global.
+_SIMBOLOS_PLAN_ANUAL: Dict[str, Tuple[str, str]] = {
+    "373": ("PAVAN", "PEAVAN"),
+    "390": ("PAPRE", "PEPRE"),
+    "414": ("PAVR",  "PERE"),
+    "415": ("PAVE",  "PESVE"),
+    "416": ("PAVC",  "PEVE"),
+    "417": ("PAVF",  "PEVF"),
+    "418": ("PAVA",  "PEVA"),
+    "420": ("PAGE",  "PEGE"),
+    "469": ("PARM",  "PAEM"),
+    "470": ("PASAE", "PESAE"),
+    "471": ("PAGTH", "PEGTH"),
+}
+
+
+def expandir_series_como_subindicadores(
+    df_fuente: pd.DataFrame,
+    llaves_existentes: Set[str],
+    modo: str = "historico",
+    metadatos_cmi: Optional[Dict] = None,
+    kawak_por_año: Optional[Dict] = None,
+) -> List[Dict]:
+    """
+    Expande las series JSON de indicadores padre en registros de sub-indicadores.
+
+    Usa el índice _PARENT_SERIES_INDEX (cargado de config/series_subindicadores.toml)
+    para mapear nombre de serie → ID decimal (ej. "SGC" → "420.1").
+
+    Parámetros:
+        df_fuente: DataFrame con todos los registros fuente (ya tiene columna 'fecha' parseada).
+        llaves_existentes: Set de LLAVEs ya presentes en el consolidado.
+        modo: "historico"  → todos los períodos
+              "semestral"  → junio (S1) y diciembre (S2)
+              "cierres"    → un registro por (sub_id, año): diciembre si existe, si no el último
+    """
+    if not _PARENT_SERIES_INDEX:
+        return []
+
+    registros: List[Dict] = []
+    padres_en_fuente = set(_PARENT_SERIES_INDEX.keys())
+
+    df_padres = df_fuente[
+        df_fuente["Id"].map(lambda v: _id_str(v) if pd.notna(v) else "").isin(padres_en_fuente)
+    ].copy()
+
+    if df_padres.empty:
+        return []
+
+    df_padres["_id_s"] = df_padres["Id"].map(_id_str)
+    df_padres["fecha"] = pd.to_datetime(df_padres["fecha"], errors="coerce")
+    df_padres = df_padres.dropna(subset=["fecha", "series"])
+    df_padres = df_padres[
+        ~df_padres["series"].astype(str).str.strip().isin(["", "nan", "[]", "None"])
+    ]
+
+    if modo == "semestral":
+        df_padres = df_padres[df_padres["fecha"].dt.month.isin([6, 12])]
+    elif modo == "cierres":
+        df_padres["_año"] = df_padres["fecha"].dt.year
+
+    def _parse_series(val):
+        from .normalizacion import parse_json_safe
+        return parse_json_safe(val) or []
+
+    if modo == "cierres":
+        grupos = []
+        for (id_s, año), grp in df_padres.groupby(["_id_s", "_año"]):
+            dec_rows = grp[grp["fecha"].dt.month == 12]
+            candidato = (dec_rows if not dec_rows.empty else grp).sort_values("fecha").tail(1)
+            grupos.append(candidato)
+        if not grupos:
+            return []
+        df_padres = pd.concat(grupos, ignore_index=True)
+
+    for row in df_padres.itertuples(index=False):
+        id_s: str = getattr(row, "_id_s", "") or _id_str(getattr(row, "Id", ""))
+        serie_index = _PARENT_SERIES_INDEX.get(id_s, {})
+        if not serie_index:
+            continue
+
+        series_list = _parse_series(getattr(row, "series", None))
+        if not series_list:
+            continue
+
+        fecha = getattr(row, "fecha", None)
+        indicador_padre = limpiar_html(str(getattr(row, "Indicador", "") or ""))
+        proceso = getattr(row, "Proceso", "") or ""
+        try:
+            año_row = pd.to_datetime(fecha).year
+        except Exception:
+            año_row = None
+        periodicidad = _resolver_periodicidad(
+            id_s, año_row, getattr(row, "Periodicidad", ""), kawak_por_año, metadatos_cmi, modo
+        )
+        sentido = getattr(row, "Sentido", "") or ""
+
+        for serie in series_list:
+            if not isinstance(serie, dict):
+                continue
+            nombre_serie = str(serie.get("nombre", "")).strip()
+            nombre_norm = _normalizar_nombre_serie(nombre_serie)
+            sub_id = serie_index.get(nombre_norm)
+            if sub_id is None:
+                continue
+
+            # Extraer avance real y esperado desde variables. Los símbolos
+            # varían por indicador padre (ver _SIMBOLOS_PLAN_ANUAL); solo si
+            # el padre no está en el mapa o las variables no existen se cae
+            # a serie["resultado"]/serie["meta"] (que en la fuente NO son
+            # avance real/esperado: "resultado" ya es un % de cumplimiento
+            # pre-calculado y "meta" viene hardcodeado a 100).
+            # Se almacenan en escala porcentual (0-100), igual que el resto del consolidado
+            vars_dict = {
+                v.get("simbolo", ""): v.get("valor")
+                for v in serie.get("variables", [])
+                if isinstance(v, dict)
+            }
+            simb_avance, simb_esperado = _SIMBOLOS_PLAN_ANUAL.get(id_s, ("PAGE", "PEGE"))
+            avance = vars_dict.get(simb_avance)
+            esperado = vars_dict.get(simb_esperado)
+            try:
+                ejec = float(avance) if avance is not None else (
+                    float(serie["resultado"]) if serie.get("resultado") is not None else None
+                )
+            except (TypeError, ValueError):
+                ejec = None
+            try:
+                meta = float(esperado) if esperado is not None else (
+                    float(serie["meta"]) if serie.get("meta") is not None else None
+                )
+            except (TypeError, ValueError):
+                meta = None
+
+            llave = make_llave(sub_id, pd.Timestamp(fecha))
+            if llave in llaves_existentes:
+                continue
+
+            registros.append({
+                "Id":          sub_id,
+                "Indicador":   f"{indicador_padre} — {nombre_serie}",
+                "Proceso":     proceso,
+                "Periodicidad":periodicidad,
+                "Sentido":     sentido,
+                "fecha":       fecha,
+                "Meta":        meta,
+                "Ejecucion":   ejec,
+                "LLAVE":       llave,
+                "es_na":       ejec is None,
+            })
+
+    return registros
+
+
+# ── Proyectos cronograma (extrae series de padres 441/509/603) ─────
+
+def extraer_cronograma_proyectos(
+    df_fuente: pd.DataFrame,
+    llaves_existentes: Set[str],
+    modo: str = "historico",
+    metadatos_cmi: Optional[Dict] = None,
+    kawak_por_año: Optional[Dict] = None,
+) -> List[Dict]:
+    """
+    Extrae ejecución y meta de los proyectos estratégicos desde las series
+    del indicador padre correspondiente a cada año.
+
+    Mapa en config/series_subindicadores.toml:
+        [cronograma_proyectos.padres]   año → ID_padre   (441/509/603)
+        [cronograma_proyectos.series]   nombre_serie → ID_proyecto
+
+    Parámetros:
+        modo: "historico"  → todos los meses del año de vigencia del padre
+              "semestral"  → junio (S1) y diciembre (S2)
+              "cierres"    → un registro por (padre, año): diciembre si existe, si no el último
+    """
+    if not CRONOGRAMA_PADRES or not _CRONOGRAMA_SERIES_FLAT:
+        return []
+
+    _padre_a_año: Dict[str, int] = {pid: yr for yr, pid in CRONOGRAMA_PADRES.items()}
+    padres_ids = set(_padre_a_año.keys())
+
+    df_proy = df_fuente[
+        df_fuente["Id"].map(lambda v: _id_str(v) if pd.notna(v) else "").isin(padres_ids)
+    ].copy()
+
+    if df_proy.empty:
+        return []
+
+    df_proy["id_padre"] = df_proy["Id"].map(_id_str)
+    df_proy["fecha"] = pd.to_datetime(df_proy["fecha"], errors="coerce")
+    df_proy = df_proy.dropna(subset=["fecha", "series"])
+    df_proy = df_proy[
+        ~df_proy["series"].astype(str).str.strip().isin(["", "nan", "[]", "None"])
+    ]
+
+    # Filtrar filas al año de vigencia de su padre
+    df_proy["año_padre"] = df_proy["fecha"].dt.year
+    df_proy = df_proy[
+        df_proy.apply(lambda r: _padre_a_año.get(r["id_padre"]) == r["año_padre"], axis=1)
+    ]
+
+    if df_proy.empty:
+        return []
+
+    # Aplicar filtro por modo
+    if modo == "semestral":
+        df_proy = df_proy[df_proy["fecha"].dt.month.isin([6, 12])]
+    elif modo == "cierres":
+        # Un registro por (padre_id, año): preferir diciembre, si no el último disponible
+        seleccionados = []
+        for (id_padre, año), grp in df_proy.groupby(["id_padre", "año_padre"]):
+            dic_rows = grp[grp["fecha"].dt.month == 12]
+            candidato = (dic_rows if not dic_rows.empty else grp).sort_values("fecha").tail(1)
+            seleccionados.append(candidato)
+        if not seleccionados:
+            return []
+        df_proy = pd.concat(seleccionados, ignore_index=True)
+
+    def _parse_series(val):
+        from .normalizacion import parse_json_safe
+        return parse_json_safe(val) or []
+
+    registros: List[Dict] = []
+
+    for row in df_proy.itertuples(index=False):
+        fecha = getattr(row, "fecha", None)
+        if pd.isna(fecha):
+            continue
+
+        series_list = _parse_series(getattr(row, "series", None))
+        if not series_list:
+            continue
+
+        proceso    = getattr(row, "Proceso", "") or ""
+        periodicid = getattr(row, "Periodicidad", "") or ""
+        sentido    = getattr(row, "Sentido", "") or ""
+        try:
+            año_row = pd.to_datetime(fecha).year
+        except Exception:
+            año_row = None
+
+        for serie in series_list:
+            if not isinstance(serie, dict):
+                continue
+            nombre_serie = str(serie.get("nombre", "")).strip()
+            nombre_norm  = _normalizar_nombre_serie(nombre_serie)
+            proj_id = _CRONOGRAMA_SERIES_FLAT.get(nombre_norm)
+            if proj_id is None:
+                continue
+
+            # Extraer avance real (PARPR) y esperado (PAEPR) desde variables
+            # Se almacenan en escala porcentual (0-100), igual que el resto del consolidado
+            vars_dict = {
+                v.get("simbolo", ""): v.get("valor")
+                for v in serie.get("variables", [])
+                if isinstance(v, dict)
+            }
+            parpr = vars_dict.get("PARPR")
+            paepr = vars_dict.get("PAEPR")
+            try:
+                ejec = float(parpr) if parpr is not None else (
+                    float(serie["resultado"]) if serie.get("resultado") is not None else None
+                )
+            except (TypeError, ValueError):
+                ejec = None
+            try:
+                meta = float(paepr) if paepr is not None else (
+                    float(serie["meta"]) if serie.get("meta") is not None else None
+                )
+            except (TypeError, ValueError):
+                meta = None
+
+            llave = make_llave(proj_id, pd.Timestamp(fecha))
+            if llave in llaves_existentes:
+                continue
+
+            registros.append({
+                "Id":           proj_id,
+                "Indicador":    limpiar_html(nombre_serie),
+                "Proceso":      proceso,
+                "Periodicidad": _resolver_periodicidad(
+                    proj_id, año_row, periodicid, kawak_por_año, metadatos_cmi, modo
+                ),
+                "Sentido":      sentido,
+                "fecha":        fecha,
+                "Meta":         meta,
+                "Ejecucion":    ejec,
+                "LLAVE":        llave,
+                "es_na":        ejec is None,
+            })
+
+    return registros
 
 
 # ── Semestral ─────────────────────────────────────────────────────
@@ -110,6 +475,8 @@ def construir_registros_semestral(
     tipo_calculo_map: Optional[Dict] = None,
     variables_campo_map: Optional[Dict] = None,
     tipo_indicador_map: Optional[Dict] = None,
+    metadatos_cmi: Optional[Dict] = None,
+    kawak_por_año: Optional[Dict] = None,
 ) -> Tuple[List[Dict], int, int]:
     """
     Genera registros para Consolidado Semestral.
@@ -192,7 +559,9 @@ def construir_registros_semestral(
                 "Id":          id_val,
                 "Indicador":   limpiar_html(str(last.get("Indicador", ""))),
                 "Proceso":     last.get("Proceso", ""),
-                "Periodicidad":last.get("Periodicidad", ""),
+                "Periodicidad":_resolver_periodicidad(
+                    ids, year, last.get("Periodicidad", ""), kawak_por_año, metadatos_cmi, "semestral"
+                ),
                 "Sentido":     last.get("Sentido", ""),
                 "fecha":       end_fecha,
                 "Meta":        nan2none(pd.to_numeric(meta_agg, errors="coerce")) if meta_agg is not None else None,
@@ -211,7 +580,8 @@ def construir_registros_semestral(
         config_patrones=config_patrones, mapa_procesos=mapa_procesos,
         kawak_validos=kawak_validos, extraccion_map=extraccion_map,
         api_kawak_lookup=api_kawak_lookup, variables_campo_map=variables_campo_map,
-        tipo_indicador_map=tipo_indicador_map,
+        tipo_indicador_map=tipo_indicador_map, metadatos_cmi=metadatos_cmi,
+        kawak_por_año=kawak_por_año, hoja="semestral",
     )
     return regs_std + registros_agg, skip_std, na_std
 
@@ -229,6 +599,8 @@ def construir_registros_cierres(
     tipo_calculo_map: Optional[Dict] = None,
     variables_campo_map: Optional[Dict] = None,
     tipo_indicador_map: Optional[Dict] = None,
+    metadatos_cmi: Optional[Dict] = None,
+    kawak_por_año: Optional[Dict] = None,
 ) -> Tuple[List[Dict], int, int]:
     """
     Genera registros para Consolidado Cierres.
@@ -291,7 +663,9 @@ def construir_registros_cierres(
                 "Id":          id_val,
                 "Indicador":   limpiar_html(str(last.get("Indicador", ""))),
                 "Proceso":     last.get("Proceso", ""),
-                "Periodicidad":last.get("Periodicidad", ""),
+                "Periodicidad":_resolver_periodicidad(
+                    id_s, año, last.get("Periodicidad", ""), kawak_por_año, metadatos_cmi, "cierres"
+                ),
                 "Sentido":     last.get("Sentido", ""),
                 "fecha":       fecha_cierre,
                 "Meta":        meta_agg,
@@ -328,7 +702,9 @@ def construir_registros_cierres(
                 "Id":          id_val,
                 "Indicador":   limpiar_html(str(row.get("Indicador", ""))),
                 "Proceso":     row.get("Proceso", ""),
-                "Periodicidad":row.get("Periodicidad", ""),
+                "Periodicidad":_resolver_periodicidad(
+                    id_s, año, row.get("Periodicidad", ""), kawak_por_año, metadatos_cmi, "cierres"
+                ),
                 "Sentido":     row.get("Sentido", ""),
                 "fecha":       row["fecha"],
                 "Meta":        meta,

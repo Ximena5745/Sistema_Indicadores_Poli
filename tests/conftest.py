@@ -46,14 +46,16 @@ def validate_plan_anual_ids_loaded():
     Pre-condición: Asegurar que IDS_PLAN_ANUAL está cargado desde Excel.
     
     Valida que la configuración fue inicializada con IDs Plan Anual reales
-    desde data/raw/Indicadores por CMI.xlsx
-    
+    desde la hoja 'Catalogo Indicadores' de data/raw/Catalogo de Indicadores.xlsx
+    (fusionado 2026-07-14, antes 'Indicadores por CMI.xlsx').
+
     Si esto falla, TODOS los tests Plan Anual deben ser skippeados.
     """
     if len(IDS_PLAN_ANUAL) == 0:
         pytest.skip(
             "⚠️  IDS_PLAN_ANUAL vacío. "
-            "Verificar que data/raw/Indicadores por CMI.xlsx esté cargado."
+            "Verificar que data/raw/Catalogo de Indicadores.xlsx (hoja "
+            "'Catalogo Indicadores') esté cargado."
         )
     
     # Verificar que todos los IDs son strings

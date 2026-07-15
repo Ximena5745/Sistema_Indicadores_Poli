@@ -77,7 +77,7 @@ class TestIntegracionPlanAnualDetection(unittest.TestCase):
     def test_plan_anual_auto_detection(self):
         """Verificar que IDs en IDS_PLAN_ANUAL son categorizados con umbrales PA"""
         # IDs que SÍ son Plan Anual
-        plan_anual_ids = ["1", "2", "3", "15", "23"]  # Algunos de los verdaderos
+        plan_anual_ids = ["1", "2", "3", "4", "5"]  # Algunos de los verdaderos
 
         for id_pa in plan_anual_ids:
             # 95% debe ser Cumplimiento en Plan Anual

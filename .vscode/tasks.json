@@ -1,0 +1,133 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Pipeline: ▶ EJECUTAR TODO",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/00_run_all.py",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 00_api — Consolidar API Kawak",
+      "type": "shell",
+      "command": "python scripts/consolidar_api.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 01 — Cargar Fuente",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/01_cargar_fuente.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 02 — Validar Contrato",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/02_validar_contrato.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 03+04 — Catálogo + Metadatos",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/03_04_cargar_catalogo_metadatos.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 05 — Abrir Workbook",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/05_abrir_workbook.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 06 — Construir Registros",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/06_construir_registros.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 07 — AGENT5 Correcciones",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/07_aplicar_correcciones.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 08 — Validación Intermedia",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/08_validacion_intermedia.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 09+10 — Escribir + Reparar",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/09_10_escribir_reparar.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 09+10 — Escribir + Reparar (dry-run)",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/09_10_escribir_reparar.py --dry-run",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 11 — Deduplicar + Fórmulas",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/11_deduplicar_formulas.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 12 — Actualizar Catálogo",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/12_actualizar_catalogo.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 13 — Guardar",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/13_guardar.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 14+15 — Auditoría + Respaldo",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/14_15_auditoria_respaldo.py",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: desde 01 (omitir consolidar_api)",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/00_run_all.py --desde 01",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: desde 06 (construir en adelante)",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/00_run_all.py --desde 06",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: 🌐 Abrir UI en navegador",
+      "type": "shell",
+      "command": "python scripts/pipeline_steps/runner_server.py",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

@@ -5,6 +5,18 @@ Carga unificada del Catálogo de Indicadores y configuraciones derivadas.
 MEJORA CLAVE: cargar_catalogo_completo() lee 'Catalogo Indicadores' una
 sola vez y extrae extraccion_map, tipo_calculo_map, tipo_indicador_map
 y variables_campo_map en una pasada — antes eran 4 lecturas separadas.
+
+DIRECTORIO MAESTRO (2026-07-14): 'Catalogo Indicadores' vive en un archivo
+SEPARADO — data/raw/Catalogo de Indicadores.xlsx (CATALOGO_MAESTRO_FILE) —
+que fusiona clasificación de negocio (antes en 'Indicadores por CMI.xlsx')
+y ficha técnica resumida (antes en 'Ficha_Tecnica_Indicadores.xlsx'), ambos
+archivos ahora archivados en data/raw/_archivados/. INPUT_FILE
+(Resultados_Consolidados_Fuente.xlsx) conserva su propia hoja 'Catalogo
+Indicadores' (14 columnas) solo para los campos manuales preservados entre
+corridas (Extraccion/TipoCalculo/Asociacion/Formato_Valores) — ver
+cargar_catalogo_completo(). cargar_directorio_maestro() lee el directorio
+maestro y se propaga a través de construir_catalogo() para que persista en
+cada corrida del ETL.
 """
 from __future__ import annotations
 
@@ -15,13 +27,51 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
-from .config import INPUT_FILE, OUTPUT_FILE
+from .config import CATALOGO_MAESTRO_FILE, INPUT_FILE, OUTPUT_FILE
 from .normalizacion import (
     _fmt_val_raw, _id_str, limpiar_clasificacion, limpiar_html,
 )
 from .workbook_io import workbook_local_copy
 
 logger = logging.getLogger(__name__)
+
+# Columnas del directorio maestro (clasificación de negocio + ficha técnica
+# resumida). Meta_General y los umbrales de semáforo (Deficiente/Alerta/
+# Satisfactorio/Sobresaliente) se excluyen a propósito: el primero es
+# redundante con Meta_Estrategica, y los segundos varían por año (feedback
+# 2026-07-14) — solo viven en la hoja 'Ficha Tecnica Detalle'.
+DIRECTORIO_COLS = [
+    "Subproceso", "Linea_Estrategica", "Objetivo_Estrategico",
+    "Meta_Estrategica", "Proyecto", "Orden_CMI", "Plan_Anual",
+    "Formula", "Descripcion", "Unidad", "Responsable_Calculo",
+    "Responsable_Analisis", "ID_Kawak", "CNA_SNIES",
+    "Factor", "Caracteristica", "Indicadores_Clave",
+    "Indicadores_Plan_Estrategico", "Indicadores_Vicerrectoria",
+    "Subprocesos", "General", "Ind_Act",
+]
+
+
+def cargar_directorio_maestro() -> Dict[str, Dict]:
+    """Lee 'Catalogo Indicadores' de CATALOGO_MAESTRO_FILE (Catalogo de
+    Indicadores.xlsx) y retorna {id_str: {col: valor, ...}} para cada
+    columna en DIRECTORIO_COLS presente."""
+    result: Dict[str, Dict] = {}
+    if not CATALOGO_MAESTRO_FILE.exists():
+        return result
+    try:
+        df = pd.read_excel(CATALOGO_MAESTRO_FILE, sheet_name="Catalogo Indicadores")
+        df.columns = [str(c).strip() for c in df.columns]
+        for _, row in df.iterrows():
+            id_s = _id_str(row.get("Id", ""))
+            if not id_s:
+                continue
+            result[id_s] = {
+                c: (None if pd.isna(row.get(c)) else row.get(c))
+                for c in DIRECTORIO_COLS if c in df.columns
+            }
+    except Exception as e:
+        logger.warning(f"  Error leyendo directorio maestro {CATALOGO_MAESTRO_FILE.name}: {e}")
+    return result
 
 
 # ── Lectura unificada del Catálogo (1 sola I/O) ───────────────────
@@ -81,7 +131,6 @@ def cargar_catalogo_completo(src: Optional[Path] = None) -> Dict:
                             "Asociacion":      str(row.get("Asociacion", "") or "").strip(),
                             "Formato_Valores": _fmt_val_raw(row.get("Formato_Valores")),
                         }
-
                 # ── Hoja Variables ─────────────────────────────────────
                 if "Variables" in xl.sheet_names:
                     dfv = xl.parse("Variables")
@@ -152,18 +201,22 @@ def construir_catalogo(
     if metadatos_kawak is None: metadatos_kawak = {}
     if metadatos_cmi   is None: metadatos_cmi   = {}
 
-    # Leer user_data desde INPUT_FILE y OUTPUT_FILE
+    # Leer user_data desde INPUT_FILE y OUTPUT_FILE (INPUT_FILE gana).
     user_data: Dict = {}
     for _src in (INPUT_FILE, OUTPUT_FILE):
         if not _src.exists():
             continue
         try:
-            partial = cargar_catalogo_completo(_src)["user_data"]
-            for ids, vals in partial.items():
+            cat = cargar_catalogo_completo(_src)
+            for ids, vals in cat["user_data"].items():
                 if ids not in user_data:
                     user_data[ids] = vals
         except Exception:
             pass
+
+    # directorio_map: clasificación de negocio + ficha técnica, desde el
+    # directorio maestro dedicado (data/raw/Catalogo de Indicadores.xlsx).
+    directorio_map: Dict = cargar_directorio_maestro()
 
     all_ids: Dict = {}
     df_last = df_api.sort_values("fecha").groupby("Id").last().reset_index()
@@ -207,6 +260,18 @@ def construir_catalogo(
                     "Tipo_API": "", "Estado": "Historico", "Fuente": "Historico",
                 }
 
+    # Sembrar Ids que solo existen en el directorio maestro (clasificados
+    # pero sin datos de API/histórico todavía, ej. proyectos nuevos recién
+    # agregados a Kawak/CMI sin serie reportada aún).
+    for ids, dvals in directorio_map.items():
+        if ids not in all_ids:
+            nombre_dir = metadatos_cmi.get(ids, {}).get("nombre") or ""
+            all_ids[ids] = {
+                "Id": ids, "Indicador": nombre_dir, "Clasificacion": "",
+                "Proceso": "", "Periodicidad": "", "Sentido": "",
+                "Tipo_API": "", "Estado": "", "Fuente": "Directorio (sin datos)",
+            }
+
     def _clean(v: object) -> str:
         return "" if (v is None or str(v).strip() in ("", "nan", "None")) else str(v).strip()
 
@@ -223,13 +288,17 @@ def construir_catalogo(
         tipo_calculo    = _clean(ud.get("TipoCalculo"))     or _clean(kw.get("tipo_calculo", ""))
         asociacion      = _clean(ud.get("Asociacion",    ""))
         formato_valores = _clean(ud.get("Formato_Valores", "")) or "%"
-        rows.append({
+        dvals = directorio_map.get(ids, {})
+        row = {
             "Id": base["Id"], "Indicador": nombre, "Clasificacion": clasificacion,
             "Proceso": proceso, "Periodicidad": periodicidad, "Sentido": sentido,
             "Tipo_API": base["Tipo_API"], "Estado": base["Estado"], "Fuente": base["Fuente"],
             "TipoCalculo": tipo_calculo, "Asociacion": asociacion,
             "Formato_Valores": formato_valores,
-        })
+        }
+        for col in DIRECTORIO_COLS:
+            row[col] = dvals.get(col)
+        rows.append(row)
 
     df_cat = pd.DataFrame(rows)
 

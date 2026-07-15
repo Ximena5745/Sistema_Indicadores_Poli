@@ -2429,9 +2429,13 @@ def render():
             try:
                 cierres = load_cierres()
                 if not cierres.empty:
-                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
-                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name=0, engine="openpyxl")
+                    # Desde la fusión 2026-07-13, vive en 'Catalogo Indicadores' del
+                    # directorio maestro (antes 'Indicadores por CMI.xlsx', archivado
+                    # en data/raw/_archivados/).
+                    indicadores_cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Catalogo de Indicadores.xlsx"
+                    df_cmi = pd.read_excel(indicadores_cmi_path, sheet_name="Catalogo Indicadores", engine="openpyxl")
                     df_cmi.columns = [str(c).strip() for c in df_cmi.columns]
+                    df_cmi = df_cmi.rename(columns={"Linea_Estrategica": "Linea"})
                     if "Id" in df_cmi.columns and "Linea" in df_cmi.columns:
                         cierres = cierres.copy()
                         cierres["Id"] = cierres["Id"].astype(str)

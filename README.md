@@ -416,19 +416,36 @@ ESCALA DECIMAL [0 a n]:
   - Ejecución / Meta = Cumplimiento
   - Rango: 0.00 (0%) a ~2.00+ (>200%)
 
-CATEGORIZACIÓN (UMBRALES):
-  - 0.00 - 0.79   → 🔴 PELIGRO      (< 80%)
-  - 0.80 - 0.99   → 🟡 ALERTA       (80-99%)
-  - 1.00 - 1.04   → 🟢 CUMPLIMIENTO (100-104%)
-  - 1.05+         → 🔵 SOBRECUMPL.  (≥ 105%)
+CATEGORIZACIÓN — 3 REGÍMENES (precedencia: Plan Anual > Negativo-Porcentual > Regular):
 
-ESPECIALES:
-  - Plan Anual (IDs: 373, 390, 414-420, 469-471):
-    Umbral bajo: 0.95 (en lugar de 1.00)
-    Tope: 100% (no permite sobrecumplimiento)
+  1) REGULAR (default, cualquier Id no listado abajo):
+     - 0.00 - 0.79   → 🔴 PELIGRO      (< 80%)
+     - 0.80 - 0.99   → 🟡 ALERTA       (80-99%)
+     - 1.00 - 1.04   → 🟢 CUMPLIMIENTO (100-104%)
+     - 1.05+         → 🔵 SOBRECUMPL.  (≥ 105%)
 
-  - Indicadores Negativo (menor es mejor):
-    Meta / Ejecución (inversión de fórmula)
+  2) PLAN ANUAL (IDs auto-detectados dinámicamente desde
+     "Indicadores por CMI.xlsx", columna Plan anual=1 o Proyecto=1):
+     - 0.00 - 0.79   → 🔴 PELIGRO      (< 80%)
+     - 0.80 - 0.94   → 🟡 ALERTA       (80-94%)
+     - 0.95+ (tope 100%) → 🟢 CUMPLIMIENTO (no sobrecumple)
+
+  3) NEGATIVO-PORCENTUAL (lista curada fija, IDS_NEGATIVO_PCT en core/config.py:
+     {"121", "207", "377", "561"}):
+     - < 1.02        → 🟢 CUMPLIMIENTO (< 102%)
+     - 1.02 - 1.10   → 🟡 ALERTA       (102-110%)
+     - > 1.10        → 🔴 PELIGRO      (> 110%)
+
+  Nota — indicadores de sentido Negativo (menor ejecución es mejor):
+  el cumplimiento se calcula como Meta / Ejecución (inversión de fórmula,
+  ver scripts/etl/cumplimiento.py). Esto es independiente de a qué régimen
+  de categorización pertenezca el indicador; solo los 4 IDs de arriba usan
+  el régimen Negativo-Porcentual, el resto de indicadores Negativos cae en
+  el régimen Regular o Plan Anual según corresponda.
+
+  Función oficial: core/domain/categorization.py::categorizar_cumplimiento(
+      cumplimiento, id_indicador=None)
+  Detalle completo: docs/core/02_Logica_Indicadores.md
 ```
 
 ### Oportunidades de Mejora (OM)

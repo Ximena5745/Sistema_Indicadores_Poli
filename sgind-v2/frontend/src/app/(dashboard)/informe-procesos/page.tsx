@@ -9,7 +9,13 @@ import { CmiProcesosListadoTab } from "@/components/cmi/CmiProcesosListadoTab";
 import { KPICard } from "@/components/ui/KPICard";
 import { CmiCumplimientoHorizBarPlotly } from "@/components/cmi/CmiCumplimientoHorizBarPlotly";
 import { fmtPct } from "@/components/cmi/nivelUtils";
-import { downloadInformeProcesosPdf, fetchCMIProcesosFicha, fetchCMIProcesosFiltros, fetchInformeDashboard } from "@/lib/api";
+import {
+  downloadFichaIndicadorPdf,
+  downloadInformeProcesosPdf,
+  fetchCMIProcesosFicha,
+  fetchCMIProcesosFiltros,
+  fetchInformeDashboard,
+} from "@/lib/api";
 import type { InformeDashboardResponse } from "@/lib/types";
 import { useAuthReady } from "@/stores/auth-store";
 
@@ -44,6 +50,7 @@ function InformeContent() {
   const [tab, setTab] = useState<TabId>("resumen");
   const [fichaId, setFichaId] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [downloadingFichaPdf, setDownloadingFichaPdf] = useState(false);
 
   const filtrosQuery = useQuery({
     queryKey: ["informe-filtros", anio],
@@ -60,6 +67,11 @@ function InformeContent() {
 
   const anioEff = anio ?? filtrosQuery.data?.anio_default ?? new Date().getFullYear();
   const mesEff = mes ?? filtrosQuery.data?.mes_default ?? 12;
+
+  const subprocesosFiltrados: string[] =
+    proceso !== "Todos" && filtrosQuery.data?.subprocesos_por_proceso
+      ? (filtrosQuery.data.subprocesos_por_proceso[proceso] ?? [])
+      : (filtrosQuery.data?.subprocesos ?? []);
 
   const dashQuery = useQuery({
     queryKey: ["informe-dashboard", anioEff, mesEff, unidad, proceso, subproceso, clasificacion, frecuencia],
@@ -117,6 +129,23 @@ function InformeContent() {
     }
   }
 
+  async function handleDownloadFichaPdf() {
+    if (!fichaId) return;
+    setDownloadingFichaPdf(true);
+    try {
+      await downloadFichaIndicadorPdf(fichaId, {
+        anio: anioEff,
+        mes: mesEff,
+        origen: "procesos",
+        unidad: unidad !== "Todos" ? unidad : undefined,
+        proceso: proceso !== "Todos" ? proceso : undefined,
+        subproceso: subproceso !== "Todos" ? subproceso : undefined,
+      });
+    } finally {
+      setDownloadingFichaPdf(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -151,7 +180,7 @@ function InformeContent() {
               mesesNombres={filtrosQuery.data.meses_nombres}
               unidades={filtrosQuery.data.unidades}
               procesos={filtrosQuery.data.procesos}
-              subprocesos={filtrosQuery.data.subprocesos}
+              subprocesos={subprocesosFiltrados}
               clasificaciones={filtrosQuery.data.clasificaciones}
               frecuencias={filtrosQuery.data.frecuencias}
               unidad={unidad}
@@ -162,7 +191,7 @@ function InformeContent() {
               onAnioChange={setAnio}
               onMesChange={setMes}
               onUnidadChange={setUnidad}
-              onProcesoChange={setProceso}
+              onProcesoChange={(v) => { setProceso(v); setSubproceso("Todos"); }}
               onSubprocesoChange={setSubproceso}
               onClasificacionChange={setClasificacion}
               onFrecuenciaChange={setFrecuencia}
@@ -326,6 +355,8 @@ function InformeContent() {
             ficha={fichaQuery.data ?? null}
             loading={fichaQuery.isLoading}
             onClose={() => setFichaId(null)}
+            onDownloadPdf={handleDownloadFichaPdf}
+            downloadingPdf={downloadingFichaPdf}
           />
         </>
       )}

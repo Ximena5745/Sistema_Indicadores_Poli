@@ -121,9 +121,14 @@ def render():
     # Cargar catálogo CNA para completar columnas faltantes
     import os
 
-    cna_path = os.path.join(os.path.dirname(__file__), "../../data/db/Indicadores por CMI.xlsx")
+    # Desde la fusión 2026-07-13, vive en 'Catalogo Indicadores' del directorio
+    # maestro (antes 'Indicadores por CMI.xlsx', archivado en data/raw/_archivados/).
+    cna_path = os.path.join(os.path.dirname(__file__), "../../data/raw/Catalogo de Indicadores.xlsx")
     try:
-        df_cna = pd.read_excel(cna_path, sheet_name="Worksheet")
+        df_cna = pd.read_excel(cna_path, sheet_name="Catalogo Indicadores")
+        df_cna = df_cna.rename(columns={
+            "Linea_Estrategica": "Linea", "Objetivo_Estrategico": "Objetivo",
+        })
     except Exception:
         df_cna = pd.DataFrame()
 

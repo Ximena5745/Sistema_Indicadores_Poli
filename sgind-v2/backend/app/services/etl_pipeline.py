@@ -10,10 +10,14 @@ _CONSOLIDADO_CANDIDATES = [
     "output/Resultados Consolidados VALORES.xlsx",
 ]
 
+# Desde la fusión 2026-07-14, la clasificación de negocio vive en la hoja
+# "Catalogo Indicadores" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Indicadores por CMI.xlsx' (archivado en
+# data/raw/_archivados/).
 _CMI_CANDIDATES = [
-    "raw/Indicadores por CMI.xlsx",
-    "raw/Excel_Entrada/CMI.xlsx",
+    "raw/Catalogo de Indicadores.xlsx",
 ]
+_CMI_SHEET = "Catalogo Indicadores"
 
 _MESES_ES = {
     1: "Enero",
@@ -101,8 +105,11 @@ class ETLPipelineService:
         if not cmi_path:
             return df
         try:
-            df_cmi = self._excel.read_excel(cmi_path, sheet_name="Worksheet")
+            df_cmi = self._excel.read_excel(cmi_path, sheet_name=_CMI_SHEET)
             df_cmi = renombrar_columnas(df_cmi, obtener_rename_map())
+            df_cmi = df_cmi.rename(columns={
+                "Linea_Estrategica": "Linea", "Objetivo_Estrategico": "Objetivo",
+            })
             if "Id" not in df_cmi.columns:
                 return df
             df_cmi["Id"] = df_cmi["Id"].apply(id_a_str)

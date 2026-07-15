@@ -125,13 +125,19 @@ def fase3_enriquecer_cmi_y_procesos(df: pd.DataFrame) -> pd.DataFrame:
     Efectos: Agrega jerarquía de procesos (CMI + mapeo YAML)
     """
     # CMI — NO se toma Sentido (puede estar desactualizado respecto a Kawak)
+    # Desde la fusión 2026-07-14, vive en 'Catalogo Indicadores' del directorio
+    # maestro dedicado (antes 'Indicadores por CMI.xlsx', archivado en
+    # data/raw/_archivados/).
     try:
         df_cmi = pd.read_excel(
-            DATA_RAW / "Indicadores por CMI.xlsx",
-            sheet_name="Worksheet",
+            DATA_RAW / "Catalogo de Indicadores.xlsx",
+            sheet_name="Catalogo Indicadores",
             engine="openpyxl",
         )
         df_cmi = renombrar_columnas(df_cmi, obtener_rename_map())
+        df_cmi = df_cmi.rename(columns={
+            "Linea_Estrategica": "Linea", "Objetivo_Estrategico": "Objetivo",
+        })
         df_cmi["Id"] = df_cmi["Id"].apply(id_a_str)
         cols_cmi = ["Id"] + [c for c in ["Subproceso", "Linea", "Objetivo"] if c in df_cmi.columns]
         if len(cols_cmi) > 1:

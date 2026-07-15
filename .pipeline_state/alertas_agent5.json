@@ -1,0 +1,25 @@
+{
+  "ejecuciones_recortadas": 0,
+  "metas_en_cero": 0,
+  "por_hoja": {
+    "historico": {
+      "ejecucion_cappados": "851",
+      "meta_cero": "160",
+      "meta_excedidas": "939",
+      "total_correcciones": "1950"
+    },
+    "semestral": {
+      "ejecucion_cappados": "507",
+      "meta_cero": "51",
+      "meta_excedidas": "487",
+      "total_correcciones": "1045"
+    },
+    "cierres": {
+      "ejecucion_cappados": "756",
+      "meta_cero": "78",
+      "meta_excedidas": "730",
+      "total_correcciones": "1564"
+    }
+  },
+  "ids_con_alerta": []
+}

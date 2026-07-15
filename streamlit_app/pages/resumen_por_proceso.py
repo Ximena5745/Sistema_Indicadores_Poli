@@ -755,11 +755,13 @@ def _render_resumen_banner(
 
 
 def _load_indicadores_por_cmi() -> pd.DataFrame:
-    path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+    # Desde la fusión 2026-07-13, vive en 'Catalogo Indicadores' del directorio
+    # maestro (antes 'Indicadores por CMI.xlsx', archivado en data/raw/_archivados/).
+    path = Path(__file__).parents[2] / "data" / "raw" / "Catalogo de Indicadores.xlsx"
     if not path.exists():
         return pd.DataFrame()
     try:
-        df = pd.read_excel(path, sheet_name=0, engine="openpyxl")
+        df = pd.read_excel(path, sheet_name="Catalogo Indicadores", engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         return df
     except Exception:
@@ -3537,11 +3539,12 @@ def render() -> None:
         )
         _base_caption = f"Último mes {_base_year}" if _base_m is not None else f"Sin datos {_base_year}"
 
-        # Filtrar subprocesos válidos del mapeo y de Indicadores por CMI.xlsx
+        # Filtrar subprocesos válidos del mapeo y del directorio maestro
+        # (antes 'Indicadores por CMI.xlsx', archivado en data/raw/_archivados/).
         try:
-            _cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Indicadores por CMI.xlsx"
+            _cmi_path = Path(__file__).parents[2] / "data" / "raw" / "Catalogo de Indicadores.xlsx"
             if _cmi_path.exists():
-                _df_cmi = pd.read_excel(_cmi_path, sheet_name=0, engine="openpyxl")
+                _df_cmi = pd.read_excel(_cmi_path, sheet_name="Catalogo Indicadores", engine="openpyxl")
                 _df_cmi.columns = [str(c).strip() for c in _df_cmi.columns]
                 _subprocesos_cmi = set(
                     _df_cmi.loc[_df_cmi["Subprocesos"] == 1, "Subproceso"].dropna().astype(str).unique()

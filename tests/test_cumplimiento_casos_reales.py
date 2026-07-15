@@ -59,10 +59,10 @@ class TestCasosReales:
         assert abs(cumpl_real - 2.60) < 0.01, "Real debe ser 2.60 (sin tope)"
 
     def test_caso_real_id_208_con_tope_100(self):
-        """ID 208: Si tiene tope 100%, el capped debe ser 1.0."""
+        """ID 208: Si tiene tope 100%, capped Y real deben ser 1.0."""
         cumpl_capped, cumpl_real = _calc_cumpl(1700, 654, "Negativo", tope=1.0)
         assert abs(cumpl_capped - 1.0) < 0.01, "Capped debe ser 1.0 (tope 100%)"
-        assert abs(cumpl_real - 2.60) < 0.01, "Real sigue siendo 2.60"
+        assert abs(cumpl_real - 1.0) < 0.01, "Real también topeado a 1.0 (tope <= 1.0)"
 
     def test_caso_real_id_124_accidentalidad(self):
         """ID 124: Accidentalidad - Sentido Negativo, Meta=1.6, Ejec=0."""
@@ -118,13 +118,13 @@ class TestCalculoConTopeDinamico:
     """Pruebas para cálculo con tope dinámico."""
 
     def test_id_208_con_tope_dinamico(self):
-        """ID 208 (TOPE_100): Meta=1700, Ejec=654 → 100% capped."""
+        """ID 208 (TOPE_100): Meta=1700, Ejec=654 → 100% capped, real también topeado."""
         ids_tope100 = {"208", "218"}
         cumpl_capped, cumpl_real = _calc_cumpl_con_tope_dinamico(
             1700, 654, "Negativo", id_indicador="208", ids_tope_100=ids_tope100
         )
         assert abs(cumpl_capped - 1.0) < 0.01, "Con tope 100% → 100%"
-        assert abs(cumpl_real - 2.60) < 0.01, "Real sin tope → 260%"
+        assert abs(cumpl_real - 1.0) < 0.01, "Real también topeado → 100%"
 
     def test_id_regular_con_tope_dinamico(self):
         """ID 999 (regular): Meta=1700, Ejec=654 → 130% capped."""

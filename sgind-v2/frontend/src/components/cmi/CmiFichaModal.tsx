@@ -17,9 +17,11 @@ interface CmiFichaModalProps {
   ficha: CMIFichaIndicador | null;
   loading?: boolean;
   onClose: () => void;
+  onDownloadPdf?: () => void;
+  downloadingPdf?: boolean;
 }
 
-export function CmiFichaModal({ ficha, loading, onClose }: CmiFichaModalProps) {
+export function CmiFichaModal({ ficha, loading, onClose, onDownloadPdf, downloadingPdf }: CmiFichaModalProps) {
   if (!ficha && !loading) return null;
 
   return (
@@ -27,9 +29,21 @@ export function CmiFichaModal({ ficha, loading, onClose }: CmiFichaModalProps) {
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <h3 className="text-lg font-bold text-poli-navy">Ficha del indicador</h3>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            {onDownloadPdf && ficha && (
+              <button
+                type="button"
+                onClick={onDownloadPdf}
+                disabled={downloadingPdf}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {downloadingPdf ? "Generando…" : "Descargar PDF"}
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
+              ✕
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -82,6 +96,19 @@ export function CmiFichaModal({ ficha, loading, onClose }: CmiFichaModalProps) {
                     <Line yAxisId="pct" type="monotone" dataKey="cumplimiento" stroke="#1A3A5C" name="%" />
                   </LineChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+
+            {ficha.narrativa_ia && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                <p className="mb-2 text-sm font-bold text-poli-navy">
+                  Análisis IA {ficha.narrativa_ia.fuente === "claude" ? "" : "(heurístico)"}
+                </p>
+                <div
+                  className="prose prose-sm max-w-none text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: ficha.narrativa_ia.texto_html }}
+                />
+                <p className="mt-2 text-[10px] text-slate-400">Fuente: {ficha.narrativa_ia.fuente}</p>
               </div>
             )}
           </div>

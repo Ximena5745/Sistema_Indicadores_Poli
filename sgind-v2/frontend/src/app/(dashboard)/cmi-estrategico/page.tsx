@@ -9,7 +9,7 @@ import { CmiFilters } from "@/components/cmi/CmiFilters";
 import { CmiLineasTab } from "@/components/cmi/CmiLineasTab";
 import { CmiListadoTab } from "@/components/cmi/CmiListadoTab";
 import { CmiResumenTab } from "@/components/cmi/CmiResumenTab";
-import { fetchCMIDashboard, fetchCMIFicha, fetchCMIFiltros } from "@/lib/api";
+import { downloadFichaIndicadorPdf, fetchCMIDashboard, fetchCMIFicha, fetchCMIFiltros } from "@/lib/api";
 import { useAuthReady } from "@/stores/auth-store";
 
 const TABS = [
@@ -37,6 +37,7 @@ function CMIEstrategicoContent() {
   const [tab, setTab] = useState<TabId>("resumen");
   const [expandLineaKey, setExpandLineaKey] = useState<string | null>(null);
   const [fichaId, setFichaId] = useState<string | null>(null);
+  const [downloadingFichaPdf, setDownloadingFichaPdf] = useState(false);
 
   const filtrosQuery = useQuery({
     queryKey: ["cmi-filtros"],
@@ -77,6 +78,16 @@ function CMIEstrategicoContent() {
     setTab("lineas");
     setExpandLineaKey(lineaKey);
   }, []);
+
+  const handleDownloadFichaPdf = useCallback(async () => {
+    if (!fichaId) return;
+    setDownloadingFichaPdf(true);
+    try {
+      await downloadFichaIndicadorPdf(fichaId, { anio: anioEfectivo, corte, origen: "estrategico" });
+    } finally {
+      setDownloadingFichaPdf(false);
+    }
+  }, [fichaId, anioEfectivo, corte]);
 
   const handleReset = () => {
     if (filtrosQuery.data) {
@@ -156,6 +167,8 @@ function CMIEstrategicoContent() {
         ficha={fichaQuery.data ?? null}
         loading={fichaQuery.isLoading}
         onClose={() => setFichaId(null)}
+        onDownloadPdf={handleDownloadFichaPdf}
+        downloadingPdf={downloadingFichaPdf}
       />
     </div>
   );

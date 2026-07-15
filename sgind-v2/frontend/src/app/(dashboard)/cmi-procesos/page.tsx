@@ -9,7 +9,13 @@ import { CmiProcesosFilters } from "@/components/cmi/CmiProcesosFilters";
 import { CmiProcesosListadoTab } from "@/components/cmi/CmiProcesosListadoTab";
 import { CmiProcesosResumenTab } from "@/components/cmi/CmiProcesosResumenTab";
 import { CmiProcesosUnidadesTab } from "@/components/cmi/CmiProcesosUnidadesTab";
-import { downloadCMIProcesosExport, fetchCMIProcesosDashboard, fetchCMIProcesosFicha, fetchCMIProcesosFiltros } from "@/lib/api";
+import {
+  downloadCMIProcesosExport,
+  downloadFichaIndicadorPdf,
+  fetchCMIProcesosDashboard,
+  fetchCMIProcesosFicha,
+  fetchCMIProcesosFiltros,
+} from "@/lib/api";
 import { useAuthReady } from "@/stores/auth-store";
 
 const TABS = [
@@ -42,6 +48,7 @@ function CMIProcesosContent() {
   const [tab, setTab] = useState<TabId>("resumen");
   const [fichaId, setFichaId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [downloadingFichaPdf, setDownloadingFichaPdf] = useState(false);
 
   const filtrosQuery = useQuery({
     queryKey: ["cmi-procesos-filtros", anio],
@@ -123,6 +130,23 @@ function CMIProcesosContent() {
       await downloadCMIProcesosExport({ ...exportParams, formato });
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleDownloadFichaPdf = async () => {
+    if (!fichaId) return;
+    setDownloadingFichaPdf(true);
+    try {
+      await downloadFichaIndicadorPdf(fichaId, {
+        anio: anioEfectivo,
+        mes: mesEfectivo,
+        origen: "procesos",
+        unidad: unidad !== "Todos" ? unidad : undefined,
+        proceso: proceso !== "Todos" ? proceso : undefined,
+        subproceso: subproceso !== "Todos" ? subproceso : undefined,
+      });
+    } finally {
+      setDownloadingFichaPdf(false);
     }
   };
 
@@ -288,6 +312,8 @@ function CMIProcesosContent() {
         ficha={fichaQuery.data ?? null}
         loading={fichaQuery.isLoading}
         onClose={() => setFichaId(null)}
+        onDownloadPdf={handleDownloadFichaPdf}
+        downloadingPdf={downloadingFichaPdf}
       />
     </div>
   );

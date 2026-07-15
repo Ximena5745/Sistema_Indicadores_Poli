@@ -1,0 +1,80 @@
+{
+  "run_id": "20260623_004836",
+  "inicio": "2026-06-23T00:48:34.698157",
+  "fin": "2026-06-23T00:48:36.007509",
+  "pasos_ejecutados": [
+    "01",
+    "02",
+    "03_04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09_10",
+    "11",
+    "12",
+    "13"
+  ],
+  "pasos_con_error": [],
+  "totales": {
+    "filas_fuente": "12,784",
+    "registros_nuevos_hist": 1198,
+    "registros_nuevos_sem": 578,
+    "registros_nuevos_cierres": 858,
+    "duplicados_bloqueados": 0,
+    "indicadores_en_catalogo": 547,
+    "total_filas_historico": 3435
+  },
+  "alertas_agent5": {
+    "ejecuciones_recortadas": 0,
+    "metas_en_cero": 0,
+    "ids_con_alerta": []
+  },
+  "estado_pasos": {
+    "step_01": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:06.029277"
+    },
+    "step_02": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:06.843310"
+    },
+    "step_03_04": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:10.612593"
+    },
+    "step_05": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:44.115728"
+    },
+    "step_06": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:52.402395"
+    },
+    "step_07": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:53.168408"
+    },
+    "step_08": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:47:53.797253"
+    },
+    "step_09_10": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:48:05.690127"
+    },
+    "step_11": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:48:22.243075"
+    },
+    "step_12": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:48:28.720530"
+    },
+    "step_13": {
+      "status": "ok",
+      "timestamp": "2026-06-23T00:48:34.698149"
+    }
+  },
+  "errores": []
+}

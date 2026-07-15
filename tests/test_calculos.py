@@ -150,26 +150,54 @@ class TestCategorizarCumplimiento:
     # ── Plan Anual: cumple desde 95%, tope 100% ──────────────────────────────
     def test_plan_anual_alerta(self):
         # 90% → Alerta para PA (entre 80% y 95%)
-        assert categorizar_cumplimiento(0.90, id_indicador="45") == "Alerta"
+        assert categorizar_cumplimiento(0.90, id_indicador="1") == "Alerta"
 
     def test_plan_anual_cumplimiento_desde_95(self):
-        assert categorizar_cumplimiento(0.95, id_indicador="45") == "Cumplimiento"
+        assert categorizar_cumplimiento(0.95, id_indicador="1") == "Cumplimiento"
 
     def test_plan_anual_cumplimiento_99(self):
-        assert categorizar_cumplimiento(0.99, id_indicador="45") == "Cumplimiento"
+        assert categorizar_cumplimiento(0.99, id_indicador="1") == "Cumplimiento"
 
     def test_plan_anual_sobrecumplimiento_100(self):
         # 100% exacto en PA → Cumplimiento (tope = 100%, no puede sobrecumplir)
         # Lógica oficial en core/semantica.py: c <= UMBRAL_SOBRECUMPLIMIENTO_PA (1.00) → Cumplimiento
-        assert categorizar_cumplimiento(1.00, id_indicador="45") == "Cumplimiento"
+        assert categorizar_cumplimiento(1.00, id_indicador="1") == "Cumplimiento"
 
     def test_plan_anual_sobrecumplimiento_por_encima_100(self):
         # > 100% en PA → Sobrecumplimiento (prácticamente no ocurre, tope en Excel es 1.0)
-        assert categorizar_cumplimiento(1.01, id_indicador="45") == "Sobrecumplimiento"
+        assert categorizar_cumplimiento(1.01, id_indicador="1") == "Sobrecumplimiento"
 
     def test_indicador_normal_no_es_pa(self):
         # Id no PA: 95% sigue siendo Alerta
         assert categorizar_cumplimiento(0.95, id_indicador="999") == "Alerta"
+
+
+# ── categorizar_cumplimiento: régimen Negativo-Porcentual ──────────────────────
+# Lista curada de IDs (core/config.py:IDS_NEGATIVO_PCT = {"121","207","377","561"}):
+# < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro
+
+
+class TestCategorizarCumplimientoNegativoPct:
+    def test_cumplimiento_justo_debajo_102(self):
+        assert categorizar_cumplimiento(1.0199, id_indicador="121") == "Cumplimiento"
+
+    def test_alerta_limite_inferior_102(self):
+        assert categorizar_cumplimiento(1.02, id_indicador="121") == "Alerta"
+
+    def test_alerta_limite_superior_110(self):
+        assert categorizar_cumplimiento(1.10, id_indicador="121") == "Alerta"
+
+    def test_peligro_justo_encima_110(self):
+        assert categorizar_cumplimiento(1.1001, id_indicador="121") == "Peligro"
+
+    def test_aplica_a_todos_los_ids_curados(self):
+        for id_ in ("121", "207", "377", "561"):
+            assert categorizar_cumplimiento(1.05, id_indicador=id_) == "Alerta"
+
+    def test_no_aplica_a_id_fuera_de_lista(self):
+        # Aunque el indicador sea de sentido Negativo, si su ID no está en
+        # IDS_NEGATIVO_PCT se usa el régimen Regular (ej. 104 Tasa de accidentalidad)
+        assert categorizar_cumplimiento(1.10, id_indicador="104") == "Sobrecumplimiento"
 
 
 # ── calcular_tendencia ─────────────────────────────────────────────────────────

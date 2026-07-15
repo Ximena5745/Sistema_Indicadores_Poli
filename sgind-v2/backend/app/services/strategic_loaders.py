@@ -13,10 +13,14 @@ PENDIENTE = "Pendiente de reporte"
 NO_APLICA = "No aplica"
 METRICA = "metrica"
 
+# Desde la fusión 2026-07-14, la clasificación de negocio vive en la hoja
+# "Catalogo Indicadores" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Indicadores por CMI.xlsx' (archivado en
+# data/raw/_archivados/).
 _CMI_PATHS = [
-    "raw/Indicadores por CMI.xlsx",
-    "raw/Excel_Entrada/CMI.xlsx",
+    "raw/Catalogo de Indicadores.xlsx",
 ]
+_CMI_SHEET = "Catalogo Indicadores"
 _CONSOLIDADO_PATHS = [
     "output/Resultados Consolidados.xlsx",
     "output/Resultados Consolidados VALORES.xlsx",
@@ -62,19 +66,19 @@ class StrategicLoaders:
             if not path:
                 return pd.DataFrame()
             try:
-                df = self._excel.read_excel(path, sheet_name="Worksheet")
+                df = self._excel.read_excel(path, sheet_name=_CMI_SHEET)
             except Exception:
                 return pd.DataFrame()
             df.columns = [str(c).strip() for c in df.columns]
             c_id = find_col(df, ["Id", "ID"])
             c_ind = find_col(df, ["Indicador"])
-            c_linea = find_col(df, ["Linea", "Línea", "LINEA", "LÍNEA", "Linea estrategica"])
-            c_obj = find_col(df, ["Objetivo", "OBJETIVO"])
-            c_plan = find_col(df, ["Indicadores Plan estrategico"])
+            c_linea = find_col(df, ["Linea", "Línea", "LINEA", "LÍNEA", "Linea estrategica", "Linea_Estrategica"])
+            c_obj = find_col(df, ["Objetivo", "OBJETIVO", "Objetivo_Estrategico"])
+            c_plan = find_col(df, ["Indicadores Plan estrategico", "Indicadores_Plan_Estrategico"])
             c_proyecto = find_col(df, ["Proyecto", "PROYECTO"])
             c_factor = find_col(df, ["FACTOR", "Factor"])
             c_car = find_col(df, ["CARACTERISTICA", "Caracteristica", "CARACTERÍSTICA"])
-            c_cna = find_col(df, ["Indicadores CNA", "FlagCNA", "CNA"])
+            c_cna = find_col(df, ["Indicadores CNA", "FlagCNA", "CNA", "CNA_SNIES"])
             if not c_id:
                 return pd.DataFrame()
             cols = [c for c in [c_id, c_ind, c_linea, c_obj, c_plan, c_proyecto, c_factor, c_car, c_cna] if c]
@@ -100,7 +104,7 @@ class StrategicLoaders:
             if not path:
                 return pd.DataFrame(columns=["Factor", "Caracteristica"])
             try:
-                df = self._excel.read_excel(path, sheet_name="Worksheet")
+                df = self._excel.read_excel(path, sheet_name=_CMI_SHEET)
             except Exception:
                 return pd.DataFrame(columns=["Factor", "Caracteristica"])
             df.columns = [str(c).strip() for c in df.columns]
@@ -123,13 +127,13 @@ class StrategicLoaders:
             if not path:
                 return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
             try:
-                df = self._excel.read_excel(path, sheet_name="Worksheet")
+                df = self._excel.read_excel(path, sheet_name=_CMI_SHEET)
             except Exception:
                 return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
             df.columns = [str(c).strip() for c in df.columns]
-            c_linea = find_col(df, ["Linea", "Línea", "LINEA"])
-            c_obj = find_col(df, ["Objetivo", "OBJETIVO"])
-            c_meta = find_col(df, ["Meta Estratégica", "META ESTRATEGICA", "Meta estrategica"])
+            c_linea = find_col(df, ["Linea", "Línea", "LINEA", "Linea_Estrategica"])
+            c_obj = find_col(df, ["Objetivo", "OBJETIVO", "Objetivo_Estrategico"])
+            c_meta = find_col(df, ["Meta Estratégica", "META ESTRATEGICA", "Meta estrategica", "Meta_Estrategica"])
             if not c_linea or not c_obj:
                 return pd.DataFrame(columns=["Linea", "Objetivo", "Meta_Estrategica"])
             cols = [c_linea, c_obj] + ([c_meta] if c_meta else [])
@@ -199,7 +203,10 @@ class StrategicLoaders:
                     axis=1,
                 )
             out["cumplimiento_pct"] = pd.to_numeric(out["cumplimiento_dec"], errors="coerce") * 100
-            es_metrica = out.get("Tipo_Registro", pd.Series(dtype=str)).astype(str).str.lower() == METRICA
+            if "Tipo_Registro" in out.columns:
+                es_metrica = out["Tipo_Registro"].astype(str).str.lower() == METRICA
+            else:
+                es_metrica = pd.Series(False, index=out.index)
             out["Nivel de cumplimiento"] = out.apply(
                 lambda r: categorizar_cumplimiento(r["cumplimiento_dec"], id_indicador=r.get("Id")),
                 axis=1,

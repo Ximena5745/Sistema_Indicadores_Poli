@@ -10,10 +10,12 @@ import pandas as pd
 from app.core.ttl_cache import cache_get
 from app.services.excel_reader import ExcelReaderService
 
-_CMI_CANDIDATES = [
-    "raw/Indicadores por CMI.xlsx",
-    "raw/Excel_Entrada/CMI.xlsx",
-]
+# Desde la fusión 2026-07-14, la clasificación de negocio vive en la hoja
+# "Catalogo Indicadores" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Indicadores por CMI.xlsx' (archivado en
+# data/raw/_archivados/).
+_CMI_PATH = "raw/Catalogo de Indicadores.xlsx"
+_CMI_SHEET = "Catalogo Indicadores"
 
 _WORKSHEET_CACHE: dict[str, tuple[float, pd.DataFrame]] = {}
 _KAWAK_IDS_CACHE: dict[tuple[str, int], tuple[float, frozenset[str]]] = {}
@@ -64,21 +66,14 @@ class CMIFilterService:
     def __init__(self, excel: ExcelReaderService) -> None:
         self._excel = excel
 
-    def _resolve_cmi_path(self) -> str | None:
-        for candidate in _CMI_CANDIDATES:
-            if (self._excel.data_root / candidate).exists():
-                return candidate
-        return None
-
     def load_cmi_worksheet(self) -> pd.DataFrame:
         root = str(self._excel.data_root.resolve())
 
         def _load() -> pd.DataFrame:
-            path = self._resolve_cmi_path()
-            if not path:
+            if not (self._excel.data_root / _CMI_PATH).exists():
                 return pd.DataFrame()
             try:
-                df = self._excel.read_excel(path, sheet_name="Worksheet")
+                df = self._excel.read_excel(_CMI_PATH, sheet_name=_CMI_SHEET)
                 df.columns = [str(c).strip() for c in df.columns]
                 return df
             except Exception:
@@ -91,7 +86,9 @@ class CMIFilterService:
         if df.empty:
             return set()
         col_plan = next(
-            (c for c in df.columns if "plan estrateg" in c.lower() or c == "Indicadores Plan estrategico"),
+            (c for c in df.columns
+             if "plan estrateg" in c.lower().replace("_", " ")
+             or c in ("Indicadores Plan estrategico", "Indicadores_Plan_Estrategico")),
             None,
         )
         if not col_plan or "Proyecto" not in df.columns or "Id" not in df.columns:

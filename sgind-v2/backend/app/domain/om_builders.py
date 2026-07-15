@@ -193,6 +193,7 @@ def merge_om_registros(
             "tipo_accion_color": TIPO_ACCION_COLORS.get(tipo_accion, TIPO_ACCION_COLORS["Sin acción"]),
             "tiene_om": tiene_om,
             "numero_om": str(numero_om) if numero_om else "",
+            "om_id": om.get("id"),
             "avance_om": avance_om,
             "row_bg": "#FFF5F5" if cat == "Peligro" else ("#FFFBEB" if cat == "Alerta" else "#FFFFFF"),
         })

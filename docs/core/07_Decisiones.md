@@ -66,13 +66,19 @@ def preparar_cna_con_cierre():
 
 ```python
 def categorizar_cumplimiento(cumplimiento, id_indicador=None):
-    # Detectar tipo de indicador (PA vs Regular)
+    # Detectar tipo de indicador (Plan Anual vs Negativo-Porcentual vs Regular)
     # Aplicar lógica especial si aplica
     # Calcular categoría final
     return categoria
 ```
 
 **Archivo:** [`core/semantica.py`](../../core/semantica.py)
+
+**Actualización (jul-2026):** se agregó un tercer régimen, **Negativo-Porcentual**
+(`IDS_NEGATIVO_PCT` en `core/config.py`, lista curada: `121, 207, 377, 561`), con
+umbrales < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro. Precedencia:
+Plan Anual > Negativo-Porcentual > Regular. Detalle completo en
+[`02_Logica_Indicadores.md`](02_Logica_Indicadores.md).
 
 ---
 

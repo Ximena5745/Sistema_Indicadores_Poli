@@ -1,9 +1,9 @@
 import pandas as pd
 
-# Cargar Indicadores por CMI
+# Cargar Catalogo Indicadores (fusionado 2026-07-13, antes 'Indicadores por CMI.xlsx')
 try:
-    df_cmi = pd.read_excel('data/raw/Indicadores por CMI.xlsx')
-    print('=== Indicadores por CMI ===')
+    df_cmi = pd.read_excel('data/raw/Catalogo de Indicadores.xlsx', sheet_name='Catalogo Indicadores')
+    print('=== Catalogo Indicadores ===')
     print(f'Total registros: {len(df_cmi)}')
     print(f'Columnas: {list(df_cmi.columns)}')
     print(f'Primeras 5 filas:')
@@ -13,9 +13,9 @@ except Exception as e:
 
 print('\n' + '='*60)
 
-# Cargar Ficha Técnica
+# Cargar Ficha Técnica (fusionada 2026-07-13 en 'Ficha Tecnica Detalle')
 try:
-    df_ficha = pd.read_excel('data/raw/Ficha_Tecnica_Indicadores.xlsx')
+    df_ficha = pd.read_excel('data/raw/Catalogo de Indicadores.xlsx', sheet_name='Ficha Tecnica Detalle')
     print('=== Ficha Técnica Indicadores ===')
     print(f'Total registros: {len(df_ficha)}')
     print(f'Columnas: {list(df_ficha.columns)}')

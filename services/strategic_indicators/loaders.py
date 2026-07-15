@@ -29,7 +29,12 @@ from .utils import (
 
 # Rutas de datos
 ROOT = Path(__file__).resolve().parents[2]
-RAW_XLSX = ROOT / "data" / "raw" / "Indicadores por CMI.xlsx"
+# Desde la fusión 2026-07-14, la clasificación de negocio vive en la hoja
+# "Catalogo Indicadores" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Indicadores por CMI.xlsx' (archivado en
+# data/raw/_archivados/).
+RAW_XLSX = ROOT / "data" / "raw" / "Catalogo de Indicadores.xlsx"
+RAW_SHEET = "Catalogo Indicadores"
 OUT_XLSX = ROOT / "data" / "output" / "Resultados Consolidados.xlsx"
 
 
@@ -60,7 +65,7 @@ def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
         return pd.DataFrame(columns=(base_cols + ["Id"] if include_ids else base_cols))
     
     try:
-        df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
+        df = pd.read_excel(RAW_XLSX, sheet_name=RAW_SHEET, engine="openpyxl")
     except Exception:
         base_cols = ["Linea", "Objetivo", "Meta_Estrategica"]
         return pd.DataFrame(columns=(base_cols + ["Id"] if include_ids else base_cols))
@@ -78,6 +83,7 @@ def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
             "LINEA ESTRATEGICA",
             "LÍNEA ESTRATÉGICA",
             "Linea estrategica",
+            "Linea_Estrategica",
         ],
     )
     c_obj = _find_col(
@@ -88,6 +94,7 @@ def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
             "OBJETIVO ESTRATEGICO",
             "OBJETIVO ESTRATÉGICO",
             "Objetivo estrategico",
+            "Objetivo_Estrategico",
         ],
     )
     c_meta_est = _find_col(
@@ -98,6 +105,7 @@ def load_pdi_catalog(include_ids: bool = False) -> pd.DataFrame:
             "Meta estrategica",
             "Meta estratégica",
             "Meta Estratégica",
+            "Meta_Estrategica",
         ],
     )
     
@@ -151,7 +159,7 @@ def load_cna_catalog() -> pd.DataFrame:
         return pd.DataFrame(columns=["Factor", "Caracteristica"])
 
     try:
-        df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
+        df = pd.read_excel(RAW_XLSX, sheet_name=RAW_SHEET, engine="openpyxl")
     except Exception:
         return pd.DataFrame(columns=["Factor", "Caracteristica"])
 
@@ -199,7 +207,7 @@ def load_worksheet_flags() -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        df = pd.read_excel(RAW_XLSX, sheet_name="Worksheet", engine="openpyxl")
+        df = pd.read_excel(RAW_XLSX, sheet_name=RAW_SHEET, engine="openpyxl")
     except Exception:
         return pd.DataFrame()
 
@@ -218,6 +226,7 @@ def load_worksheet_flags() -> pd.DataFrame:
             "Línea estratégica",
             "LINEA ESTRATEGICA",
             "LÍNEA ESTRATÉGICA",
+            "Linea_Estrategica",
         ],
     )
     c_obj = _find_col(
@@ -229,12 +238,13 @@ def load_worksheet_flags() -> pd.DataFrame:
             "Objetivo estratégico",
             "OBJETIVO ESTRATEGICO",
             "OBJETIVO ESTRATÉGICO",
+            "Objetivo_Estrategico",
         ],
     )
     c_factor = _find_col(df, ["FACTOR", "Factor"])
     c_car = _find_col(df, ["CARACTERISTICA", "Caracteristica", "CARACTERÍSTICA"])
-    c_plan = _find_col(df, ["Indicadores Plan estrategico"])
-    c_cna = _find_col(df, ["CNA"])
+    c_plan = _find_col(df, ["Indicadores Plan estrategico", "Indicadores_Plan_Estrategico"])
+    c_cna = _find_col(df, ["CNA", "CNA_SNIES"])
     c_proyecto = _find_col(df, ["Proyecto", "PROYECTO"])
     c_subproceso = _find_col(df, ["Subproceso", "SUBPROCESO"])
 
@@ -519,6 +529,6 @@ def load_proyectos_consolidados() -> pd.DataFrame:
     )
     out.loc[es_metrica, "Nivel de cumplimiento"] = NO_APLICA
     out.loc[out["cumplimiento_pct"].isna() & ~es_metrica, "Nivel de cumplimiento"] = PENDIENTE
-    
+
     out = out[out["Id"] != ""].copy()
     return out.reset_index(drop=True)

@@ -45,8 +45,13 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+import consolidar_api  # noqa: E402  — regenera Consolidado_API_Kawak.xlsx / Indicadores Kawak.xlsx
+
 # ── ETL modules ───────────────────────────────────────────────────
-from etl.config import AÑO_CIERRE_ACTUAL, OUTPUT_FILE, OUTPUT_DIR  # noqa: E402
+from etl.config import (  # noqa: E402
+    AÑO_CIERRE_ACTUAL, OUTPUT_FILE, OUTPUT_DIR,
+    SERIES_SUBINDICADORES_MAP, CRONOGRAMA_SERIES_FLAT,
+)
 from etl.normalizacion import _id_str  # noqa: E402
 from etl.validation_gate import validar_consolidado_api_entrada  # noqa: E402
 from etl.agent5_corrections import AGENT5Corrections  # noqa: E402
@@ -58,6 +63,7 @@ from etl.fuentes import (                          # noqa: E402
     cargar_mapa_procesos,
     cargar_lmi_reporte,
     cargar_consolidado_api_kawak_lookup,
+    cargar_periodicidad_kawak_por_año,
 )
 from etl.catalogo import (                         # noqa: E402
     cargar_catalogo_completo,
@@ -86,6 +92,8 @@ from etl.builders import (                         # noqa: E402
     construir_registros_historico,
     construir_registros_semestral,
     construir_registros_cierres,
+    expandir_series_como_subindicadores,
+    extraer_cronograma_proyectos,
 )
 from etl.workbook_io import workbook_local_copy   # noqa: E402
 from etl.versioning import VersionManager         # noqa: E402
@@ -216,6 +224,19 @@ def main() -> None:
     metrics_collector = MetricsCollector(OUTPUT_DIR.parent / "artifacts")
     metrics_collector.start_pipeline()
 
+    # ── 0.5 Regenerar consolidados intermedios desde fuentes crudas ──
+    # Reconstruye Indicadores Kawak.xlsx y Consolidado_API_Kawak.xlsx desde
+    # data/raw/Kawak/*.xlsx y data/raw/API/*.xlsx en CADA corrida, para que
+    # una base recién cargada en API/Kawak siempre se refleje sin depender
+    # de que alguien ejecute consolidar_api.py manualmente antes.
+    logger.info("0.5 Regenerando consolidados intermedios (Kawak/API)…")
+    try:
+        consolidar_api.consolidar_kawak()
+        consolidar_api.consolidar_api()
+    except Exception as e:
+        logger.error(f"❌ Error regenerando consolidados intermedios: {e}")
+        raise
+
     # ── 1. Cargar fuente principal ────────────────────────────────
     logger.info("1. Cargando fuente consolidada API/Kawak…")
     step1 = metrics_collector.start_step("cargar_fuente")
@@ -251,6 +272,8 @@ def main() -> None:
     metadatos_cmi   = cargar_metadatos_cmi()
     mapa_procesos   = cargar_mapa_procesos()
     ids_metrica     = cargar_lmi_reporte()
+    kawak_por_año   = cargar_periodicidad_kawak_por_año()
+    logger.info("   kawak_por_año: %d entradas (Id, Año)", len(kawak_por_año))
 
     api_kawak_lookup = cargar_consolidado_api_kawak_lookup(extraccion_map)
     logger.info("   api_kawak_lookup: %d entradas", len(api_kawak_lookup))
@@ -343,8 +366,22 @@ def main() -> None:
     # ── 9. Preparar fuentes para builders ─────────────────────────
     logger.info("9. Preparando fuentes para builders…")
     # Llaves existentes (calculadas desde Id+Fecha reales)
-    llaves_hist = llaves_de_df(df_hist_ex)
-    llaves_sem  = llaves_de_df(df_sem_ex)
+    llaves_hist    = llaves_de_df(df_hist_ex)
+    llaves_sem     = llaves_de_df(df_sem_ex)
+    llaves_cierres = llaves_de_df(df_cierres_ex)
+
+    # ── 9.5 Excluir llaves de sub-indicadores y proyectos para forzar
+    #        regeneración con valores correctos (variables PAGE/PEGE, PARPR/PAEPR)
+    _ids_regenerar = set(SERIES_SUBINDICADORES_MAP.keys()) | set(CRONOGRAMA_SERIES_FLAT.values())
+    def _excluir_llaves(llaves: set, ids: set) -> set:
+        return {lv for lv in llaves if not any(lv.startswith(id_ + "-") for id_ in ids)}
+    llaves_hist    = _excluir_llaves(llaves_hist,    _ids_regenerar)
+    llaves_sem     = _excluir_llaves(llaves_sem,     _ids_regenerar)
+    llaves_cierres = _excluir_llaves(llaves_cierres, _ids_regenerar)
+    logger.info(
+        "9.5 Forzando regeneración de %d IDs (sub-indicadores + proyectos)",
+        len(_ids_regenerar),
+    )
 
     # Normalizar fecha en df_api
     df_api["fecha"] = pd.to_datetime(df_api["fecha"], errors="coerce")
@@ -373,6 +410,8 @@ def main() -> None:
         api_kawak_lookup=api_kawak_lookup,
         variables_campo_map=variables_campo_map,
         tipo_indicador_map=tipo_indicador_map,
+        metadatos_cmi=metadatos_cmi,
+        kawak_por_año=kawak_por_año,
     )
     logger.info("   Histórico: %d nuevos, %d omitidos, %d NA", len(regs_hist), skip_h, na_h)
 
@@ -386,6 +425,8 @@ def main() -> None:
         tipo_calculo_map=tipo_calculo_map,
         variables_campo_map=variables_campo_map,
         tipo_indicador_map=tipo_indicador_map,
+        metadatos_cmi=metadatos_cmi,
+        kawak_por_año=kawak_por_año,
     )
     logger.info("   Semestral: %d nuevos, %d omitidos, %d NA", len(regs_sem), skip_s, na_s)
 
@@ -399,12 +440,42 @@ def main() -> None:
         tipo_calculo_map=tipo_calculo_map,
         variables_campo_map=variables_campo_map,
         tipo_indicador_map=tipo_indicador_map,
+        metadatos_cmi=metadatos_cmi,
+        kawak_por_año=kawak_por_año,
     )
     logger.info("   Cierres:   %d nuevos, %d omitidos, %d NA", len(regs_cierres), skip_c, na_c)
 
-    # ── 10.5 APLICAR CORRECCIONES AGENT 5 (hallazgos críticos) ──────
-    regs_hist, regs_sem, regs_cierres, reporte_agent5 = apply_agent5_corrections_to_registros(
+    # ── 10.5 APLICAR CORRECCIONES AGENT 5 solo a indicadores principales ──
+    # Se aplica ANTES de añadir sub-indicadores y proyectos para que estos
+    # mantengan su escala porcentual (0-100) sin ser capeados incorrectamente
+    regs_hist, regs_sem, regs_cierres, _ = apply_agent5_corrections_to_registros(
         regs_hist, regs_sem, regs_cierres, trail, logger
+    )
+
+    # ── 10.4 Expandir series como sub-indicadores ─────────────────
+    logger.info("10.4 Expandiendo series como sub-indicadores…")
+    regs_sub_hist    = expandir_series_como_subindicadores(df_api, llaves_hist,   modo="historico", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_sub_sem     = expandir_series_como_subindicadores(df_api, llaves_sem,    modo="semestral", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_sub_cierres = expandir_series_como_subindicadores(df_api, llaves_cierres, modo="cierres", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_hist    += regs_sub_hist
+    regs_sem     += regs_sub_sem
+    regs_cierres += regs_sub_cierres
+    logger.info(
+        "   Sub-indicadores: +%d histórico, +%d semestral, +%d cierres",
+        len(regs_sub_hist), len(regs_sub_sem), len(regs_sub_cierres),
+    )
+
+    # ── 10.45 Extraer proyectos cronograma desde series de padres ────
+    logger.info("10.45 Extrayendo proyectos cronograma (441/509/603)…")
+    regs_proy_hist    = extraer_cronograma_proyectos(df_api, llaves_hist,    modo="historico", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_proy_sem     = extraer_cronograma_proyectos(df_api, llaves_sem,     modo="semestral", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_proy_cierres = extraer_cronograma_proyectos(df_api, llaves_cierres, modo="cierres", metadatos_cmi=metadatos_cmi, kawak_por_año=kawak_por_año)
+    regs_hist    += regs_proy_hist
+    regs_sem     += regs_proy_sem
+    regs_cierres += regs_proy_cierres
+    logger.info(
+        "   Proyectos cronograma: +%d histórico, +%d semestral (jun), +%d cierres (dic/último)",
+        len(regs_proy_hist), len(regs_proy_sem), len(regs_proy_cierres),
     )
     
     # ── 10.6 VALIDACIÓN INTERMEDIA (post-construcción) ──────────────

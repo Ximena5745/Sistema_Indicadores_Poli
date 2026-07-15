@@ -17,9 +17,17 @@ interface CmiProcesosFichaModalProps {
   ficha: CMIProcesosFichaIndicador | null;
   loading?: boolean;
   onClose: () => void;
+  onDownloadPdf?: () => void;
+  downloadingPdf?: boolean;
 }
 
-export function CmiProcesosFichaModal({ ficha, loading, onClose }: CmiProcesosFichaModalProps) {
+export function CmiProcesosFichaModal({
+  ficha,
+  loading,
+  onClose,
+  onDownloadPdf,
+  downloadingPdf,
+}: CmiProcesosFichaModalProps) {
   if (!ficha && !loading) return null;
 
   const tipoColor = ficha?.tipo_proceso_color ?? "#1A3A5C";
@@ -29,9 +37,21 @@ export function CmiProcesosFichaModal({ ficha, loading, onClose }: CmiProcesosFi
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <h3 className="text-lg font-bold text-poli-navy">Ficha — CMI por Procesos</h3>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            {onDownloadPdf && ficha && (
+              <button
+                type="button"
+                onClick={onDownloadPdf}
+                disabled={downloadingPdf}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {downloadingPdf ? "Generando…" : "Descargar PDF"}
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
+              ✕
+            </button>
+          </div>
         </div>
 
         {loading ? (

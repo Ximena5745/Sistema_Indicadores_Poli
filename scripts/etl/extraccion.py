@@ -487,8 +487,17 @@ def _extraer_registro(
             if is_na_record(row_dict):
                 return meta_v, None, "na_record", True
             return meta_v, ejec_v, "variables_campo", False
+        # El símbolo de ejecución configurado para este indicador no aparece
+        # en las variables de este período: no hay dato real, no se adivina
+        # con el heurístico genérico (evita tomar otra variable —p.ej. la de
+        # meta— como si fuera ejecución).
+        meta_v = nan2none(pd.to_numeric(row_dict.get("meta"), errors="coerce")
+                          if not _es_vacio(row_dict.get("meta")) else None)
+        if is_na_record(row_dict):
+            return meta_v, None, "na_record", True
+        return meta_v, None, "sin_resultado", False
 
-    # 3) Fallback heurística
+    # 3) Fallback heurística (solo si no hay mapeo canónico de símbolos)
     patron_fb = patron_cfg or {"patron": "VARIABLES", "simbolo_ejec": "", "simbolo_meta": ""}
     return determinar_meta_ejec(row_dict, hist_meta_escala, patron_fb)
 

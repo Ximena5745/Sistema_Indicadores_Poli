@@ -99,11 +99,16 @@
 
 | Categoría | Color | Uso |
 |-----------|-------|-----|
-| Peligro | `#D32F2F` 🔴 | Cumplimiento < 80% |
-| Alerta | `#FBAF17` 🟡 | Cumplimiento 80-99% |
-| Cumplimiento | `#43A047` 🟢 | Cumplimiento 100%+ |
-| Sobrecumplimiento | `#6699FF` 🔵 | Cumplimiento ≥ 105% |
+| Peligro | `#D32F2F` 🔴 | Cumplimiento < 80% (régimen Regular) |
+| Alerta | `#FBAF17` 🟡 | Cumplimiento 80-99% (régimen Regular) |
+| Cumplimiento | `#43A047` 🟢 | Cumplimiento 100%+ (régimen Regular) |
+| Sobrecumplimiento | `#6699FF` 🔵 | Cumplimiento ≥ 105% (régimen Regular) |
 | Sin Dato | `#9E9E9E` ⚪ | Sin información |
+
+> Los mismos colores aplican a los otros dos regímenes de categorización
+> (Plan Anual y Negativo-Porcentual), pero con cortes de porcentaje distintos
+> — ver la tabla completa de los 3 regímenes en
+> [`02_Logica_Indicadores.md`](02_Logica_Indicadores.md).
 
 ### 2.3 Personalización
 

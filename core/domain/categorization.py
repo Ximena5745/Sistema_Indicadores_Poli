@@ -24,11 +24,14 @@ import logging
 # Importar configuración (IDS_PLAN_ANUAL y umbrales dinámicos)
 from core.config import (
     IDS_PLAN_ANUAL,
+    IDS_NEGATIVO_PCT,
     UMBRAL_PELIGRO,
     UMBRAL_ALERTA,
     UMBRAL_SOBRECUMPLIMIENTO,
     UMBRAL_ALERTA_PA,
     UMBRAL_SOBRECUMPLIMIENTO_PA,
+    UMBRAL_ALERTA_NEG_PCT,
+    UMBRAL_PELIGRO_NEG_PCT,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,10 +56,12 @@ def categorizar_cumplimiento(cumplimiento, id_indicador=None):
     Lógica ÚNICA y oficial de categorización de cumplimiento.
 
     Soporta:
-    - Plan Anual: umbral 95%, máximo 100%
-    - Regular:    umbral 100%, máximo 130%
+    - Plan Anual:          umbral 95%, máximo 100%
+    - Negativo-Porcentual: umbral 102%/110%, lista curada de IDs (IDS_NEGATIVO_PCT)
+    - Regular:              umbral 100%, máximo 130%
 
     IDs Plan Anual se cargan DINÁMICAMENTE del Excel.
+    IDs Negativo-Porcentual son una lista curada fija (core/config.py:IDS_NEGATIVO_PCT).
 
     Parámetros
     ----------
@@ -65,7 +70,7 @@ def categorizar_cumplimiento(cumplimiento, id_indicador=None):
         Acepta strings con "%" (ej: "95%") y formatos latinoamericanos.
 
     id_indicador : str, int, opcional
-        ID del indicador para auto-detectar si es Plan Anual.
+        ID del indicador para auto-detectar si es Plan Anual o Negativo-Porcentual.
         Si None, se asume régimen Regular.
 
     Retorna
@@ -83,6 +88,9 @@ def categorizar_cumplimiento(cumplimiento, id_indicador=None):
 
     >>> categorizar_cumplimiento(1.05, id_indicador="373")  # PA no tiene sobrecump
     'Cumplimiento'
+
+    >>> categorizar_cumplimiento(1.05, id_indicador="121")  # Negativo-Porcentual
+    'Alerta'
     """
     # Validar NaN - manejar tipos complejos
     try:
@@ -97,6 +105,12 @@ def categorizar_cumplimiento(cumplimiento, id_indicador=None):
     es_plan_anual = False
     if id_indicador is not None:
         es_plan_anual = str(id_indicador).strip() in IDS_PLAN_ANUAL
+
+    # Auto-detectar régimen Negativo-Porcentual (lista curada). Plan Anual tiene
+    # precedencia si un ID estuviera en ambas listas.
+    es_negativo_pct = False
+    if not es_plan_anual and id_indicador is not None:
+        es_negativo_pct = str(id_indicador).strip() in IDS_NEGATIVO_PCT
 
     # Convertir a float - incluye manejo de strings
     try:
@@ -131,6 +145,14 @@ def categorizar_cumplimiento(cumplimiento, id_indicador=None):
         else:
             # Los PA no pueden sobrecumplir (máximo 100%)
             return CategoriaCumplimiento.SOBRECUMPLIMIENTO.value
+    elif es_negativo_pct:
+        # ═══ NEGATIVO-PORCENTUAL: < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro ═══
+        if c < UMBRAL_ALERTA_NEG_PCT:
+            return CategoriaCumplimiento.CUMPLIMIENTO.value
+        elif c <= UMBRAL_PELIGRO_NEG_PCT:
+            return CategoriaCumplimiento.ALERTA.value
+        else:
+            return CategoriaCumplimiento.PELIGRO.value
     else:
         # ═══ REGULAR: umbral 100%, máximo 130% ═════════════════════════════════
         if c < UMBRAL_PELIGRO:

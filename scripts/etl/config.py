@@ -9,9 +9,11 @@ Fallback: core/config.py → valores hardcodeados por defecto.
 """
 from __future__ import annotations
 
+import html as _html_mod
+import re
 import sys
 from pathlib import Path
-from typing import FrozenSet
+from typing import Dict, FrozenSet
 
 _ROOT = Path(__file__).parent.parent.parent  # raíz del proyecto
 
@@ -68,6 +70,62 @@ else:
         str(x) for x in _BIZ.get("ids_tope_100", _DEFAULT_TOPE_100)
     )
 
+# ── Series → sub-indicadores ──────────────────────────────────────
+def _cargar_series_subindicadores() -> Dict[str, str]:
+    """Carga config/series_subindicadores.toml → {"420.1": "SGC", ...}"""
+    raw = _load_toml(_ROOT / "config" / "series_subindicadores.toml")
+    return {str(k): str(v) for k, v in raw.get("subindicadores", {}).items()}
+
+
+def _normalizar_nombre_serie(nombre: str) -> str:
+    """Normaliza serie para comparación resistente a encoding:
+    1. Decodifica entidades HTML (&oacute; → ó).
+    2. Reemplaza NBSP y caracteres de reemplazo Unicode (U+FFFD).
+    3. Descarta caracteres no-ASCII (tildes/acentos → vacío).
+    4. Lowercase + colapsa espacios múltiples.
+    """
+    s = _html_mod.unescape(str(nombre).strip())
+    s = s.replace("\xa0", " ").replace("�", "")
+    s = s.encode("ascii", errors="ignore").decode("ascii")
+    return re.sub(r"\s+", " ", s.lower().strip())
+
+
+SERIES_SUBINDICADORES_MAP: Dict[str, str] = _cargar_series_subindicadores()
+
+# Índice inverso: parent_id → {nombre_normalizado → sub_id}
+_PARENT_SERIES_INDEX: Dict[str, Dict[str, str]] = {}
+for _sub_id, _serie_nombre in SERIES_SUBINDICADORES_MAP.items():
+    _parent = _sub_id.split(".")[0]
+    _PARENT_SERIES_INDEX.setdefault(_parent, {})[
+        _normalizar_nombre_serie(_serie_nombre)
+    ] = _sub_id
+
+
+# ── Cronograma de proyectos estratégicos ─────────────────────────
+def _cargar_cronograma_proyectos():
+    """Carga [cronograma_proyectos] del TOML.
+    Retorna:
+        padres: {año_int → id_padre_str}   ej. {2025: "509"}
+        series: {nombre_serie_norm → id_proyecto_str}
+    """
+    raw = _load_toml(_ROOT / "config" / "series_subindicadores.toml")
+    cp = raw.get("cronograma_proyectos", {})
+    padres: Dict[int, str] = {
+        int(yr): str(pid) for yr, pid in cp.get("padres", {}).items()
+    }
+    series: Dict[str, str] = {
+        _normalizar_nombre_serie(k): str(v)
+        for k, v in cp.get("series", {}).items()
+    }
+    return padres, series
+
+
+CRONOGRAMA_PADRES: Dict[int, str]
+_CRONOGRAMA_SERIES_FLAT: Dict[str, str]
+CRONOGRAMA_PADRES, _CRONOGRAMA_SERIES_FLAT = _cargar_cronograma_proyectos()
+# Alias público para uso externo (valores = IDs de proyectos, ej. "910")
+CRONOGRAMA_SERIES_FLAT: Dict[str, str] = _CRONOGRAMA_SERIES_FLAT
+
 # ── Rutas ─────────────────────────────────────────────────────────
 BASE_PATH = _ROOT / "data" / "raw"
 OUTPUT_DIR = _ROOT / "data" / "output"
@@ -77,3 +135,8 @@ INPUT_FILE        = BASE_PATH / "Resultados_Consolidados_Fuente.xlsx"
 OUTPUT_FILE       = OUTPUT_DIR / "Resultados Consolidados.xlsx"
 KAWAK_CAT_FILE    = BASE_PATH / "Fuentes Consolidadas" / "Indicadores Kawak.xlsx"
 CONSOLIDADO_API_KW = BASE_PATH / "Fuentes Consolidadas" / "Consolidado_API_Kawak.xlsx"
+
+# Directorio maestro de indicadores (fusión 2026-07-14): hoja 'Catalogo
+# Indicadores' + 'Ficha Tecnica Detalle'. Archivo separado de INPUT_FILE
+# (que sigue siendo la fuente de Consolidado Historico/Semestral/Cierres).
+CATALOGO_MAESTRO_FILE = BASE_PATH / "Catalogo de Indicadores.xlsx"

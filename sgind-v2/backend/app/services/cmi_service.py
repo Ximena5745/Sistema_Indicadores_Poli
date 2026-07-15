@@ -54,7 +54,6 @@ from app.domain.procesos_builders import (
     default_anio_procesos,
     default_mes,
     filter_by_anio_mes,
-    generate_ficha_narrativa_heuristica,
     get_prev_month_for_year,
     latest_per_indicator,
     mes_nombre,
@@ -66,13 +65,16 @@ from app.domain.resumen_builders import ensure_nivel_cumplimiento
 from app.domain.strategic_processors import StrategicProcessors
 from app.services.excel_reader import ExcelReaderService
 from app.services.indicator_service import IndicatorService
+from app.services.narrativa_ia_service import generar_narrativa_ficha
 from app.services.strategic_loaders import StrategicLoaders
 from app.services.tracking_cache import get_tracking_dataframe
 
-_FICHA_PATHS = [
-    "raw/Ficha_Tecnica.xlsx",
-    "raw/Ficha_Tecnica_Indicadores.xlsx",
-]
+# Desde la fusión 2026-07-14, la ficha técnica vive en la hoja
+# "Ficha Tecnica Detalle" del directorio maestro dedicado (Catalogo de
+# Indicadores.xlsx), no en 'Ficha_Tecnica_Indicadores.xlsx' (archivado en
+# data/raw/_archivados/).
+_FICHA_PATH = "raw/Catalogo de Indicadores.xlsx"
+_FICHA_SHEET = "Ficha Tecnica Detalle"
 
 _YEAR_PREPARED_CACHE: dict[tuple[str, int, bool], tuple[float, pd.DataFrame]] = {}
 
@@ -105,14 +107,11 @@ class CMIService:
         if df.empty or "Id" not in df.columns:
             return df
         ft: pd.DataFrame | None = None
-        for rel in _FICHA_PATHS:
-            path = self._excel.data_root / rel
-            if path.exists():
-                try:
-                    ft = self._excel.read_excel(rel)
-                    break
-                except Exception:
-                    continue
+        if (self._excel.data_root / _FICHA_PATH).exists():
+            try:
+                ft = self._excel.read_excel(_FICHA_PATH, sheet_name=_FICHA_SHEET)
+            except Exception:
+                ft = None
         if ft is None or ft.empty:
             return df
 
@@ -245,6 +244,19 @@ class CMIService:
         record = df_to_records(match)[0]
         record["historico"] = historico
         record["linea_color"] = linea_color(str(row.get("Linea", "")))
+        cump = row.get("cumplimiento_pct")
+        try:
+            cump_f = float(cump) if cump is not None else None
+        except (TypeError, ValueError):
+            cump_f = None
+        record["narrativa_ia"] = generar_narrativa_ficha(
+            nombre=str(row.get("Indicador", "")),
+            meta=row.get("Meta"),
+            ejecucion=row.get("Ejecucion"),
+            nivel=str(row.get("Nivel de cumplimiento", "")),
+            cumplimiento=cump_f,
+            proceso=str(row.get("Linea", "")) or None,
+        )
         return record
 
     def _load_tracking(self) -> pd.DataFrame:
@@ -622,7 +634,7 @@ class CMIService:
             cump_f = float(cump) if cump is not None else None
         except (TypeError, ValueError):
             cump_f = None
-        record["narrativa_ia"] = generate_ficha_narrativa_heuristica(
+        record["narrativa_ia"] = generar_narrativa_ficha(
             nombre=str(row.get("Indicador", "")),
             meta=row.get("Meta"),
             ejecucion=row.get("Ejecucion"),

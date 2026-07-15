@@ -55,7 +55,7 @@ class TestCasosEspeciales:
 
     def test_negativo_ejec_0_plan_anual_retorna_100(self):
         """Negativo & Ejec=0 (Plan Anual) debe retornar 1.0"""
-        resultado = recalcular_cumplimiento_faltante(1.6, 0, sentido="Negativo", id_indicador="45")
+        resultado = recalcular_cumplimiento_faltante(1.6, 0, sentido="Negativo", id_indicador="1")
         assert resultado == 1.0, f"Esperado 1.0, obtenido {resultado}"
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -80,7 +80,7 @@ class TestCasosEspeciales:
     def test_positivo_150_pct_plan_anual_tope_100(self):
         """Positivo PA: ejec=150, meta=100 → 1.5 (150%, pero tope PA 1.0)"""
         resultado = recalcular_cumplimiento_faltante(
-            100, 150, sentido="Positivo", id_indicador="45"
+            100, 150, sentido="Positivo", id_indicador="1"
         )
         assert resultado == 1.0, f"Esperado 1.0 (tope PA), obtenido {resultado}"
 

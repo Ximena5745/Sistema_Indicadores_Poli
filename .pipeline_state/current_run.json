@@ -1,0 +1,169 @@
+{
+  "step_01": {
+    "nombre": "Cargar Fuente",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:16:52.757663",
+    "resultado": {
+      "filas_cargadas": "12,784",
+      "columnas_encontradas": [
+        "Id",
+        "Indicador",
+        "clasificacion",
+        "Sentido",
+        "Proceso",
+        "descripcion",
+        "responsable",
+        "estado",
+        "Tipo",
+        "fecha"
+      ],
+      "fechas_rango": "2022-01-31 → 2026-12-31",
+      "ids_unicos": 301,
+      "columnas_faltantes": []
+    }
+  },
+  "_last_updated": "2026-06-23T01:19:01.482110",
+  "step_02": {
+    "nombre": "Validar Contrato",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:16:53.581091",
+    "resultado": {
+      "status_validacion": "warning",
+      "errores_criticos": 0,
+      "advertencias": 3,
+      "filas_con_fecha_invalida": 0
+    }
+  },
+  "step_03_04": {
+    "nombre": "Catálogo + Metadatos",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:16:57.325756",
+    "resultado": {
+      "paso_03_indicadores_catalogo": 549,
+      "paso_03_tipo_calculo_dist": {
+        "Cierre": 313,
+        "Acumulado": 102,
+        "Promedio": 134
+      },
+      "paso_04_kawak_validos": 1361,
+      "paso_04_procesos_mapeados": 53,
+      "paso_04_api_lookup_entradas": 3087,
+      "paso_04_sin_metadato": 0
+    }
+  },
+  "step_05": {
+    "nombre": "Abrir Workbook",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:17:30.338890",
+    "resultado": {
+      "fuente_usada": "Resultados Consolidados.xlsx",
+      "llaves_historico": "2,285",
+      "llaves_semestral": "1,436",
+      "llaves_cierres": "1,003",
+      "signos_preservados": "4237",
+      "rango_fechas_existente": "2022-01-31 → 2024-12-31",
+      "indicadores_con_signo": 970,
+      "version_seguridad": "creada"
+    }
+  },
+  "step_06": {
+    "nombre": "Construir Registros",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:17:38.561395",
+    "resultado": {
+      "historico_nuevos": 1198,
+      "historico_descartados": 10360,
+      "semestral_nuevos": 578,
+      "cierres_nuevos": 858,
+      "total_nuevos_a_insertar": 2634
+    }
+  },
+  "step_07": {
+    "nombre": "AGENT5 Correcciones",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:17:39.283290",
+    "resultado": {
+      "ejecuciones_recortadas": 0,
+      "metas_en_cero": 0,
+      "alertas_generadas": 0,
+      "ids_con_alerta": []
+    }
+  },
+  "step_08": {
+    "nombre": "Validación Intermedia",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:17:40.000191",
+    "resultado": {
+      "total_validados": 2634,
+      "total_descartados": 3,
+      "historico_ok": 1198,
+      "semestral_ok": 578,
+      "cierres_ok": 858,
+      "motivos_descarte": {
+        "Campos faltantes en HISTORICO": 1,
+        "Campos faltantes en SEMESTRAL": 1,
+        "Campos faltantes en CIERRES": 1
+      }
+    }
+  },
+  "step_09_10": {
+    "nombre": "Escribir + Reparar",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:17:51.296189",
+    "resultado": {
+      "paso_09_hist_insertados": 1198,
+      "paso_09_sem_insertados": 578,
+      "paso_09_cierres_insertados": 858,
+      "paso_09_duplicados_bloqueados": 0,
+      "dry_run": false
+    }
+  },
+  "step_11": {
+    "nombre": "Deduplicar + Fórmulas",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:18:47.590455",
+    "resultado": {
+      "filas_historico": 3435,
+      "filas_semestral": 2012,
+      "filas_cierres": 1388,
+      "duplicados_eliminados_hist": 49,
+      "duplicados_eliminados_sem": 10,
+      "duplicados_eliminados_cierres": 474
+    }
+  },
+  "step_12": {
+    "nombre": "Actualizar Catálogo",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:18:54.207819",
+    "resultado": {
+      "indicadores_en_catalogo": 547,
+      "campos_escritos": 12,
+      "hoja_limpiada_y_regenerada": true
+    }
+  },
+  "step_13": {
+    "nombre": "Guardar",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:19:00.332596",
+    "resultado": {
+      "archivo_principal": "Resultados Consolidados.xlsx (1.1 MB)",
+      "archivo_valores": "Resultados Consolidados VALORES.xlsx (0.9 MB)",
+      "backup": "Resultados Consolidados.bak.xlsx",
+      "total_filas_historico": 3435,
+      "total_filas_semestral": 2012,
+      "total_filas_cierres": 1388,
+      "dry_run": false
+    }
+  },
+  "step_14_15": {
+    "nombre": "Auditoría + Respaldo",
+    "status": "ok",
+    "timestamp": "2026-06-23T01:19:01.482105",
+    "resultado": {
+      "audit_guardado": "artifacts\\audit\\20260623_011901.json",
+      "pasos_ok": 12,
+      "pasos_con_error": 0,
+      "respaldo_creado": "data\\output\\.versiones\\Resultados Consolidados_v20260623_011901_post_consolidacion.xlsx"
+    }
+  }
+}

@@ -28,18 +28,20 @@ def get_cmi_estrategico_ids() -> set[str]:
     """
     df = load_cmi_worksheet()
     if df.empty:
-        print("Advertencia: El DataFrame cargado desde 'Indicadores por CMI.xlsx' está vacío.")
+        print("Advertencia: El DataFrame cargado desde 'Catalogo Indicadores' está vacío.")
         return set()
 
-    # Verificar columnas necesarias
-    required_columns = ["Indicadores Plan estrategico", "Proyecto", "Id"]
+    # Verificar columnas necesarias (nombre nuevo tras la fusión 2026-07-13;
+    # se acepta también el nombre legacy por compatibilidad)
+    col_plan = "Indicadores_Plan_Estrategico" if "Indicadores_Plan_Estrategico" in df.columns else "Indicadores Plan estrategico"
+    required_columns = [col_plan, "Proyecto", "Id"]
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
-        print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Indicadores por CMI.xlsx'.")
+        print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Catalogo Indicadores'.")
         return set()
 
     # Aplicar filtros con normalizacion de banderas
-    flag_estrategico = _normalize_flag_series(df["Indicadores Plan estrategico"])
+    flag_estrategico = _normalize_flag_series(df[col_plan])
     flag_proyecto = _normalize_flag_series(df["Proyecto"])
     mask = (flag_estrategico == 1) & (flag_proyecto != 1)
 
@@ -81,7 +83,7 @@ def get_cmi_procesos_ids(
     required_columns = ["Subprocesos", "Id"]
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
-        print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Indicadores por CMI.xlsx'.")
+        print(f"Error: Faltan las columnas requeridas {missing_columns} en 'Catalogo Indicadores'.")
         return set()
 
     flag_subprocesos = _normalize_flag_series(df["Subprocesos"])

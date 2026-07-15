@@ -33,6 +33,22 @@ MESES_ES = {
 
 # ── Fuente principal (Consolidado_API_Kawak.xlsx) ─────────────────
 
+def _read_excel_fast(path: Path) -> pd.DataFrame:
+    """Lee un xlsx usando calamine si está disponible (10-20× más rápido que openpyxl)."""
+    csv_cache = path.with_suffix(".csv")
+    try:
+        if csv_cache.exists() and csv_cache.stat().st_mtime >= path.stat().st_mtime:
+            logger.info(f"   Leyendo desde caché CSV: {csv_cache.name}")
+            return pd.read_csv(csv_cache, low_memory=False)
+    except (TypeError, AttributeError):
+        pass
+    try:
+        import python_calamine  # noqa: F401
+        return pd.read_excel(path, engine="calamine")
+    except ImportError:
+        return pd.read_excel(path, engine="openpyxl")
+
+
 def cargar_fuente_consolidada() -> pd.DataFrame:
     """Lee Consolidado_API_Kawak.xlsx generado por consolidar_api.py."""
     if not CONSOLIDADO_API_KW.exists():
@@ -41,7 +57,7 @@ def cargar_fuente_consolidada() -> pd.DataFrame:
             "  Ejecutar primero: python scripts/consolidar_api.py"
         )
         return pd.DataFrame()
-    df = pd.read_excel(CONSOLIDADO_API_KW)
+    df = _read_excel_fast(CONSOLIDADO_API_KW)
     df = df.dropna(subset=["fecha"])
     df["fecha"] = pd.to_datetime(df["fecha"])
     if "clasificacion" in df.columns:
@@ -206,14 +222,21 @@ def cargar_lmi_reporte() -> Set[str]:
 
 
 def cargar_kawak_validos() -> Optional[Set[Tuple[str, int]]]:
-    """Set de tuplas (id_str, año) válidos. None = sin filtro."""
+    """
+    Set de tuplas (id_str, año) válidos. None = sin filtro.
+
+    Si el catálogo Kawak no cubre AÑO_CIERRE_ACTUAL (ej. xls corrupto),
+    complementa automáticamente con los IDs presentes en Consolidado_API_Kawak.
+    """
+    from .config import AÑO_CIERRE_ACTUAL
     if not KAWAK_CAT_FILE.exists():
         logger.warning(
             f"  No se encontró {KAWAK_CAT_FILE.name}; filtro Kawak desactivado."
         )
         return None
     try:
-        df = pd.read_excel(KAWAK_CAT_FILE)
+        df = pd.read_excel(KAWAK_CAT_FILE, engine="calamine"
+                           if _calamine_disponible() else "openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         col_id  = next((c for c in df.columns if c.lower() == "id"), None)
         col_año = next(
@@ -231,10 +254,140 @@ def cargar_kawak_validos() -> Optional[Set[Tuple[str, int]]]:
                 continue
             if id_s:
                 validos.add((id_s, año))
+
+        # Si el año actual no está cubierto por el catálogo Kawak,
+        # agregar los IDs presentes en el API consolidado para ese año.
+        años_catalogo = {a for _, a in validos}
+        if AÑO_CIERRE_ACTUAL not in años_catalogo and CONSOLIDADO_API_KW.exists():
+            try:
+                df_api = _read_excel_fast(CONSOLIDADO_API_KW)
+                df_api.columns = [str(c).strip() for c in df_api.columns]
+                col_api_id  = next((c for c in df_api.columns if c.upper() == "ID"), None)
+                col_api_fec = next((c for c in df_api.columns if c.lower() == "fecha"), None)
+                if col_api_id and col_api_fec:
+                    fechas = pd.to_datetime(df_api[col_api_fec], errors="coerce")
+                    mask = fechas.dt.year == AÑO_CIERRE_ACTUAL
+                    ids_api = df_api.loc[mask, col_api_id].map(_id_str).dropna().unique()
+                    n_antes = len(validos)
+                    for id_s in ids_api:
+                        validos.add((id_s, AÑO_CIERRE_ACTUAL))
+                    logger.info(
+                        f"  kawak_validos: catálogo Kawak no tiene {AÑO_CIERRE_ACTUAL} "
+                        f"(archivo .xls posiblemente corrupto). "
+                        f"Se agregaron {len(validos) - n_antes} IDs desde API consolidado."
+                    )
+            except Exception as e_api:
+                logger.warning(f"  No se pudo complementar kawak_validos desde API: {e_api}")
+
+        # Extender con sub-indicadores (ej. "420.1" para cada año en que "420" es válido).
+        # Sin esto, purgar_filas_invalidas() los elimina en la segunda ejecución.
+        from .config import _PARENT_SERIES_INDEX, CRONOGRAMA_PADRES, _CRONOGRAMA_SERIES_FLAT
+        n_sub = 0
+        for (padre_id, año) in list(validos):
+            for sub_id in _PARENT_SERIES_INDEX.get(padre_id, {}).values():
+                if (sub_id, año) not in validos:
+                    validos.add((sub_id, año))
+                    n_sub += 1
+        if n_sub:
+            logger.info(f"  kawak_validos: +{n_sub} entradas de sub-indicadores agregadas.")
+
+        # Extender con proyectos cronograma (IDs 1-928 extraídos de padres 441/509/603).
+        # Estos IDs no tienen filas propias en Kawak; deben ser válidos para cada año
+        # en que su padre esté presente (ej. "509" válido en 2025 → proyecto "914" válido en 2025).
+        _padre_a_año = {pid: yr for yr, pid in CRONOGRAMA_PADRES.items()}
+        proj_ids = set(_CRONOGRAMA_SERIES_FLAT.values())
+        n_proj = 0
+        for (padre_id, año) in list(validos):
+            if _padre_a_año.get(padre_id) == año:
+                for proj_id in proj_ids:
+                    if (proj_id, año) not in validos:
+                        validos.add((proj_id, año))
+                        n_proj += 1
+        if n_proj:
+            logger.info(f"  kawak_validos: +{n_proj} entradas de proyectos cronograma agregadas.")
+
+        # Extender con proyectos manuales (Proyecto=1 en el directorio maestro
+        # — hoja 'Catalogo Indicadores' de Catalogo de Indicadores.xlsx,
+        # antes 'Indicadores por CMI.xlsx' — que NO tienen generador dinámico
+        # vía cronograma_proyectos, ej. PRY-1..PRY-24).
+        # Sin filas propias en Kawak ni serie de padre API, purgar_filas_invalidas()
+        # los eliminaría en cada corrida si no se exceptúan aquí. Se validan para
+        # cualquier año (floor amplio) — el propio filtro de "año futuro" en
+        # purgar_filas_invalidas ya cubre el límite superior.
+        try:
+            from .config import CATALOGO_MAESTRO_FILE
+            if CATALOGO_MAESTRO_FILE.exists():
+                df_cmi = pd.read_excel(CATALOGO_MAESTRO_FILE, sheet_name="Catalogo Indicadores")
+                if "Proyecto" in df_cmi.columns and "Id" in df_cmi.columns:
+                    ids_proyecto_manual = {
+                        _id_str(v) for v in df_cmi.loc[df_cmi["Proyecto"] == 1, "Id"].dropna()
+                    } - proj_ids
+                    n_manual = 0
+                    for id_s in ids_proyecto_manual:
+                        for año in range(2000, AÑO_CIERRE_ACTUAL + 1):
+                            if (id_s, año) not in validos:
+                                validos.add((id_s, año))
+                                n_manual += 1
+                    if n_manual:
+                        logger.info(
+                            f"  kawak_validos: +{n_manual} entradas de proyectos "
+                            f"manuales (sin generador) agregadas."
+                        )
+        except Exception as e_manual:
+            logger.warning(f"  No se pudo extender kawak_validos con proyectos manuales: {e_manual}")
+
         return validos
     except Exception as e:
         logger.warning(f"  Error leyendo {KAWAK_CAT_FILE.name}: {e}")
         return None
+
+
+def _calamine_disponible() -> bool:
+    try:
+        import python_calamine  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def cargar_periodicidad_kawak_por_año() -> Dict[Tuple[str, int], str]:
+    """{(id_str, año): periodicidad} desde 'Indicadores Kawak.xlsx'
+    (KAWAK_CAT_FILE) — el consolidado de data/raw/Kawak/<año>.xlsx generado
+    por scripts/consolidar_api.py::consolidar_kawak(). Es la fuente primaria
+    de Periodicidad para las hojas Historico/Semestral/Cierres, resuelta por
+    el año de cada registro (NO Consolidado_API_Kawak.xlsx)."""
+    result: Dict[Tuple[str, int], str] = {}
+    if not KAWAK_CAT_FILE.exists():
+        return result
+    try:
+        df = pd.read_excel(KAWAK_CAT_FILE, engine="calamine"
+                            if _calamine_disponible() else "openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        col_id  = next((c for c in df.columns if c.lower() == "id"), None)
+        col_año = next(
+            (c for c in df.columns if c.lower() in ("año", "anio", "year")), None
+        )
+        col_per = next((c for c in df.columns if c.lower() == "periodicidad"), None)
+        if not col_id or not col_año or not col_per:
+            logger.warning(
+                f"  Columnas Id/Año/Periodicidad no encontradas en {KAWAK_CAT_FILE.name}."
+            )
+            return result
+        for _, row in df.iterrows():
+            id_s = _id_str(row.get(col_id))
+            if not id_s:
+                continue
+            try:
+                año = int(float(row.get(col_año)))
+            except (TypeError, ValueError):
+                continue
+            per = str(row.get(col_per, "") or "").strip()
+            if not per or per.lower() == "nan":
+                continue
+            result[(id_s, año)] = per
+    except Exception as e:
+        logger.warning(f"  Error leyendo periodicidad Kawak/año de {KAWAK_CAT_FILE.name}: {e}")
+    return result
 
 
 # ── Metadatos maestros ────────────────────────────────────────────
@@ -267,8 +420,14 @@ def cargar_metadatos_kawak() -> Dict:
         except Exception as e:
             logger.warning(f"  Error leyendo {KAWAK_CAT_FILE.name}: {e}")
 
-    path25 = BASE_PATH / "Kawak" / "2025.xlsx"
-    if path25.exists():
+    from .config import AÑO_CIERRE_ACTUAL
+    _kw_año = AÑO_CIERRE_ACTUAL
+    _kw_candidates = [
+        BASE_PATH / "Kawak" / f"{_kw_año}.xlsx",
+        BASE_PATH / "Kawak" / f"{_kw_año}.xls",
+    ]
+    path25 = next((p for p in _kw_candidates if p.exists()), None)
+    if path25 is not None:
         try:
             df25     = pd.read_excel(path25)
             clas_col = next((c for c in df25.columns if "Clasificaci" in c), None)
@@ -287,16 +446,22 @@ def cargar_metadatos_kawak() -> Dict:
                     "tipo_calculo":  str(row.get(tc_col, "")) if tc_col else "",
                 }
         except Exception as e:
-            logger.warning(f"  Error leyendo Kawak/2025.xlsx: {e}")
+            logger.warning(f"  Error leyendo Kawak/{_kw_año}.xlsx/.xls: {e}")
     return meta
 
 
 def cargar_metadatos_cmi() -> Dict:
-    path = BASE_PATH / "Indicadores por CMI.xlsx"
-    if not path.exists():
+    """Clasificación de negocio (línea, subproceso, proyecto, etc.).
+
+    Desde la fusión 2026-07-14, vive en la hoja 'Catalogo Indicadores' del
+    directorio maestro dedicado (data/raw/Catalogo de Indicadores.xlsx),
+    no en 'Indicadores por CMI.xlsx' (archivado en data/raw/_archivados/).
+    """
+    from .config import CATALOGO_MAESTRO_FILE
+    if not CATALOGO_MAESTRO_FILE.exists():
         return {}
     try:
-        df = pd.read_excel(path, sheet_name="Worksheet")
+        df = pd.read_excel(CATALOGO_MAESTRO_FILE, sheet_name="Catalogo Indicadores")
     except Exception:
         return {}
     clas_col = next((c for c in df.columns if "Clasificaci" in c), None)
@@ -313,6 +478,7 @@ def cargar_metadatos_cmi() -> Dict:
             "periodicidad":  str(row.get("Periodicidad", "")),
             "sentido":       str(row.get("Sentido", "")),
             "tipo_calculo":  "",
+            "proyecto":      row.get("Proyecto"),
         }
     return meta
 
@@ -361,7 +527,7 @@ def cargar_consolidado_api_kawak_lookup(
         logger.warning(f"  No se encontró {CONSOLIDADO_API_KW.name}; lookup desactivado.")
         return {}
     try:
-        df = pd.read_excel(CONSOLIDADO_API_KW)
+        df = _read_excel_fast(CONSOLIDADO_API_KW)
         df.columns = [str(c).strip() for c in df.columns]
         col_id   = next((c for c in df.columns if c.upper() == "ID"), None)
         col_fec  = next((c for c in df.columns if c.lower() == "fecha"), None)

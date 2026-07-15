@@ -12,6 +12,7 @@ from app.schemas.common import (
     CMIProcesosDashboardResponse,
     CMIProcesosFiltrosResponse,
     CMIProcesosResponse,
+    FichaIndicadorResponse,
 )
 from app.services.cmi_service import CMIService
 from app.services.excel_reader import ExcelReaderService
@@ -42,7 +43,7 @@ async def cmi_estrategico_dashboard(
     return CMIDashboardResponse(**service.get_dashboard(anio=anio, mes=mes, corte=corte))
 
 
-@router.get("/indicador/{indicador_id}")
+@router.get("/indicador/{indicador_id}", response_model=FichaIndicadorResponse)
 async def cmi_indicador_ficha(
     indicador_id: str,
     anio: int = Query(...),
@@ -50,11 +51,11 @@ async def cmi_indicador_ficha(
     corte: str | None = Query(None),
     _user: User = Depends(require_reader),
     service: CMIService = Depends(_cmi_service),
-) -> dict:
+) -> FichaIndicadorResponse:
     ficha = service.get_indicador_ficha(indicador_id, anio=anio, mes=mes, corte=corte)
     if ficha is None:
         raise HTTPException(status_code=404, detail="Indicador no encontrado para el corte seleccionado")
-    return ficha
+    return FichaIndicadorResponse(**ficha)
 
 
 @router.get("/estrategico", response_model=CMIEstrategicoResponse)
@@ -102,7 +103,7 @@ async def cmi_procesos_dashboard(
     )
 
 
-@router.get("/procesos/indicador/{indicador_id}")
+@router.get("/procesos/indicador/{indicador_id}", response_model=FichaIndicadorResponse)
 async def cmi_procesos_indicador_ficha(
     indicador_id: str,
     anio: int = Query(...),
@@ -112,7 +113,7 @@ async def cmi_procesos_indicador_ficha(
     subproceso: str | None = Query(None),
     _user: User = Depends(require_reader),
     service: CMIService = Depends(_cmi_service),
-) -> dict:
+) -> FichaIndicadorResponse:
     ficha = service.get_procesos_indicador_ficha(
         indicador_id,
         anio=anio,
@@ -123,7 +124,7 @@ async def cmi_procesos_indicador_ficha(
     )
     if ficha is None:
         raise HTTPException(status_code=404, detail="Indicador no encontrado para CMI por Procesos")
-    return ficha
+    return FichaIndicadorResponse(**ficha)
 
 
 @router.get("/procesos/export")

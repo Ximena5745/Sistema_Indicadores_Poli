@@ -86,6 +86,26 @@ class TestPlanAnualCategorization:
         assert categorizar_cumplimiento(1.00, id_indicador=id_regular) == "Cumplimiento"
 
 
+class TestNegativoPctCategorization:
+    """Régimen Negativo-Porcentual: lista curada de IDs (IDS_NEGATIVO_PCT).
+
+    < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro
+    """
+
+    def test_cumplimiento_bajo_102(self):
+        assert categorizar_cumplimiento(1.0199, id_indicador="121") == "Cumplimiento"
+
+    def test_alerta_entre_102_y_110(self):
+        assert categorizar_cumplimiento(1.05, id_indicador="207") == "Alerta"
+
+    def test_peligro_sobre_110(self):
+        assert categorizar_cumplimiento(1.15, id_indicador="377") == "Peligro"
+
+    def test_id_fuera_de_lista_no_aplica_regimen(self):
+        # ID no está en IDS_NEGATIVO_PCT -> se usa el régimen Regular
+        assert categorizar_cumplimiento(1.15, id_indicador="561999") == "Sobrecumplimiento"
+
+
 class TestNaNAndInvalidInputs:
     """Tests para NaN y valores invalidos."""
 

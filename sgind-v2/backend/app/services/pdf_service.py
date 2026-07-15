@@ -43,9 +43,22 @@ _SEMAFORO_MAP: dict[str, colors.HexColor] = {
     "sin_dato": C_SINDAT,
 }
 
+_SEMAFORO_HEX: dict[str, str] = {
+    "sobrecumplimiento": "#3b82f6",
+    "cumplimiento": "#22c55e",
+    "alerta": "#f59e0b",
+    "peligro": "#ef4444",
+    "sin dato": "#6b7280",
+    "sin_dato": "#6b7280",
+}
+
 
 def _semaforo_color(estado: str | None) -> colors.HexColor:
     return _SEMAFORO_MAP.get((estado or "").lower(), C_SINDAT)
+
+
+def _semaforo_hex(estado: str | None) -> str:
+    return _SEMAFORO_HEX.get((estado or "").lower(), "#6b7280")
 
 
 # ── Estilos ───────────────────────────────────────────────────────────────────
@@ -482,4 +495,109 @@ def generar_informe_procesos(
                 story.append(Spacer(1, 0.2 * cm))
 
     doc.build(story, onFirstPage=_on_page_landscape, onLaterPages=_on_page_landscape)
+    return buf.getvalue()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reporte 3 — Ficha individual de indicador
+# ─────────────────────────────────────────────────────────────────────────────
+
+def generar_ficha_indicador(
+    ficha: dict[str, Any],
+    generated_at: str = "",
+) -> bytes:
+    """
+    Genera PDF de la ficha individual de un indicador (CMI Estratégico / Procesos).
+
+    Args:
+        ficha: dict con los mismos datos que devuelve el modal de ficha
+            (Id, Indicador, Linea, Meta, Ejecucion, cumplimiento_pct,
+            "Nivel de cumplimiento", Descripcion, historico, ...).
+        generated_at: timestamp ISO (solo informativo)
+
+    Returns:
+        Bytes del PDF generado.
+    """
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
+    styles = _make_styles()
+    story: list[Any] = []
+
+    indicador_id = ficha.get("Id") or ficha.get("id") or ""
+    nombre = ficha.get("Indicador") or ficha.get("indicador") or "Indicador"
+    linea = ficha.get("Linea") or ficha.get("Proceso") or ""
+
+    story.append(Paragraph(f"Ficha del indicador {indicador_id}", styles["title"]))
+    subtitle_parts = [nombre]
+    if linea:
+        subtitle_parts.append(str(linea))
+    if generated_at:
+        subtitle_parts.append(f"Generado: {generated_at}")
+    story.append(Paragraph(" · ".join(str(p) for p in subtitle_parts), styles["subtitle"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=C_POLI))
+    story.append(Spacer(1, 0.4 * cm))
+
+    def _fmt(v: Any) -> str:
+        if v is None:
+            return "—"
+        try:
+            return f"{float(v):.1f}"
+        except (TypeError, ValueError):
+            return str(v)
+
+    meta = ficha.get("Meta") or ficha.get("meta")
+    ejecucion = ficha.get("Ejecucion") or ficha.get("ejecucion")
+    cumplimiento = ficha.get("cumplimiento_pct")
+    nivel = ficha.get("Nivel de cumplimiento") or ficha.get("Estado") or "Sin dato"
+
+    kpi_items = [
+        ("Meta", _fmt(meta), None),
+        ("Ejecución", _fmt(ejecucion), None),
+        ("Cumplimiento", f"{float(cumplimiento):.1f}%" if isinstance(cumplimiento, (int, float)) else "—", "#1A3A5C"),
+        ("Nivel", str(nivel), _semaforo_hex(nivel)),
+    ]
+    story.append(_kpi_row(kpi_items, styles))
+    story.append(Spacer(1, 0.4 * cm))
+
+    descripcion = ficha.get("Descripcion") or ficha.get("descripcion")
+    if descripcion and isinstance(descripcion, str):
+        story.append(Paragraph("Descripción", styles["section"]))
+        story.append(Paragraph(descripcion, styles["body"]))
+        story.append(Spacer(1, 0.3 * cm))
+
+    historico = ficha.get("historico") or []
+    if historico:
+        story.append(Paragraph("Histórico", styles["section"]))
+        headers = ["Periodo", "Meta", "Ejecución", "Cumplimiento"]
+        col_widths = [4 * cm, 4 * cm, 4 * cm, 4 * cm]
+        rows: list[list] = [[Paragraph(h, styles["cell_bold"]) for h in headers]]
+        for item in historico:
+            rows.append([
+                Paragraph(str(item.get("periodo", "")), styles["cell"]),
+                Paragraph(_fmt(item.get("meta")), styles["cell"]),
+                Paragraph(_fmt(item.get("ejecucion")), styles["cell"]),
+                Paragraph(_fmt(item.get("cumplimiento")), styles["cell"]),
+            ])
+        t = Table(rows, colWidths=col_widths, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), C_POLI),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, C_BG_HEADER]),
+            ("GRID", (0, 0), (-1, -1), 0.3, C_BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t)
+    else:
+        story.append(Paragraph("Sin histórico disponible para este indicador.", styles["body"]))
+
+    doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
     return buf.getvalue()

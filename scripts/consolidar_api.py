@@ -214,12 +214,17 @@ def consolidar_api() -> None:
     df_total = df_total.sort_values(["ID", "fecha"]).reset_index(drop=True)
 
     df_total.to_excel(_OUT_API, index=False)
+    # Guardar CSV cache para lecturas rápidas (evita openpyxl en el ETL)
+    _OUT_API.with_suffix(".csv").write_text(
+        df_total.to_csv(index=False), encoding="utf-8"
+    )
 
     print(f"  -----------------------------------------------------")
     print(f"  Total registros : {len(df_total):,}")
     print(f"  IDs únicos      : {df_total['ID'].nunique():,}")
     print(f"  Rango fechas    : {df_total['fecha'].min().date()} -> {df_total['fecha'].max().date()}")
     print(f"  [OK] {_OUT_API.relative_to(_ROOT)}")
+    print(f"  [OK] {_OUT_API.with_suffix('.csv').relative_to(_ROOT)} (caché CSV)")
 
 
 # -----------------------------------------------------------------------------
@@ -227,6 +232,17 @@ def consolidar_api() -> None:
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    consolidar_kawak()
-    consolidar_api()
-    print("\n[COMPLETADO]")
+    import sys
+    try:
+        consolidar_kawak()
+        consolidar_api()
+        print("\n[COMPLETADO]")
+        sys.exit(0)
+    except KeyboardInterrupt:
+        print("\n[INTERRUMPIDO]")
+        sys.exit(1)
+    except Exception as exc:
+        import traceback
+        print(f"\n[ERROR] {exc}")
+        traceback.print_exc()
+        sys.exit(1)

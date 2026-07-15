@@ -86,9 +86,10 @@ Las fases están documentadas en `sgind-v2/docs/`:
 | Concepto | Streamlit | SGIND v2 |
 |----------|-----------|----------|
 | Cálculo cumplimiento | `scripts/etl/cumplimiento.py` | `app/domain/calculos.py` (misma lógica) |
-| Categorización | `core/domain/categorization.py` | `app/domain/categorization.py` (idéntica) |
+| Categorización | `core/domain/categorization.py` | `app/domain/categorization.py` (idéntica, 3 regímenes: Regular/Plan Anual/Negativo-Porcentual) |
 | Umbrales semaforización | `core/config.py` | `app/domain/constants.py` |
 | IDs Plan Anual | Dinámico desde Excel | Mismo origen, configurado vía `settings.py` |
+| IDs Negativo-Porcentual (jul-2026) | `IDS_NEGATIVO_PCT` en `core/config.py` (lista curada fija) | `IDS_NEGATIVO_PCT` en `app/domain/constants.py` (misma lista, mantenida en sincronía manual — no hay import compartido entre ambos codebases) |
 | Auth | OIDC Streamlit-auth library | MSAL / OAuth2 propio en FastAPI |
 | Plan Mejoramiento | Manual/editorial (no en código) | `plan_mejoramiento_service.py` + endpoint REST |
 | Predicciones | `scripts/analytics/predictor.py` (no integrado) | No migrado aún |

@@ -4,6 +4,7 @@ from fastapi.responses import Response
 from app.api.deps import get_excel_service
 from app.core.security import require_reader
 from app.models.user import User
+from app.schemas.common import SeguimientoDashboardResponse, SeguimientoFiltrosResponse
 from app.services.excel_reader import ExcelReaderService
 from app.services.seguimiento_service import SeguimientoService
 
@@ -14,16 +15,16 @@ def _service(excel: ExcelReaderService = Depends(get_excel_service)) -> Seguimie
     return SeguimientoService(excel)
 
 
-@router.get("/filtros")
+@router.get("/filtros", response_model=SeguimientoFiltrosResponse)
 async def seguimiento_filtros(
     _user: User = Depends(require_reader),
     service: SeguimientoService = Depends(_service),
-) -> dict:
+) -> SeguimientoFiltrosResponse:
     """Devuelve años, meses, procesos y estados disponibles."""
-    return service.get_filtros()
+    return SeguimientoFiltrosResponse(**service.get_filtros())
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=SeguimientoDashboardResponse)
 async def seguimiento_dashboard(
     anio: int | None = Query(None),
     mes: int | None = Query(None, ge=1, le=12),
@@ -31,8 +32,8 @@ async def seguimiento_dashboard(
     estado: str | None = Query(None),
     _user: User = Depends(require_reader),
     service: SeguimientoService = Depends(_service),
-) -> dict:
-    return service.get_dashboard(anio=anio, mes=mes, proceso=proceso, estado=estado)
+) -> SeguimientoDashboardResponse:
+    return SeguimientoDashboardResponse(**service.get_dashboard(anio=anio, mes=mes, proceso=proceso, estado=estado))
 
 
 @router.get("/export")

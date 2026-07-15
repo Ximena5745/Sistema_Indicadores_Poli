@@ -69,7 +69,7 @@ def render_cmi_estrategico(latest: pd.DataFrame, mapping: pd.DataFrame):
     have = mapping.columns.tolist()
     for req in ['Linea', 'Objetivo', 'Meta']:
         if req not in have:
-            st.info(f'El mapeo no contiene la columna `{req}`; revisar `Indicadores por CMI.xlsx`.')
+            st.info(f'El mapeo no contiene la columna `{req}`; revisar la hoja `Catalogo Indicadores` de `Catalogo de Indicadores.xlsx`.')
             return
 
     # Agrupar por Linea/Objetivo

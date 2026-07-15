@@ -192,7 +192,8 @@ class TestCargaDinamicaIDS_PLAN_ANUAL:
         resultado = _cargar_ids_plan_anual()
         assert isinstance(resultado, frozenset)
         assert len(resultado) > 0, (
-            "IDS_PLAN_ANUAL vacío. Verificar que data/raw/Indicadores por CMI.xlsx exista."
+            "IDS_PLAN_ANUAL vacío. Verificar que data/raw/Resultados_Consolidados_Fuente.xlsx "
+            "(hoja 'Catalogo Indicadores') exista."
         )
 
     def test_todos_ids_son_strings(self):
@@ -224,8 +225,8 @@ class TestCargaDinamicaIDS_PLAN_ANUAL:
             "Plan anual": [1, 0, 1, 0],
             "Proyecto":   [0, 1, 0, 0],
         })
-        excel_path = tmp_path / "Indicadores por CMI.xlsx"
-        df.to_excel(excel_path, index=False, engine="openpyxl")
+        excel_path = tmp_path / "Catalogo de Indicadores.xlsx"
+        df.to_excel(excel_path, sheet_name="Catalogo Indicadores", index=False, engine="openpyxl")
 
         monkeypatch.setattr(cfg_module, "DATA_RAW", tmp_path)
         resultado = cfg_module._cargar_ids_plan_anual()
