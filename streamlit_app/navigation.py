@@ -32,15 +32,17 @@ def render_sidebar_navigation() -> str:
             unsafe_allow_html=True,
         )
 
+        # Iconos vectoriales nativos de Streamlit (Material Symbols) — no
+        # emoji, no glifos Unicode que puedan no tener soporte de fuente.
         menu_items = [
-            ("📊  Resumen General", "Resumen General"),
-            ("🎯  CMI Estratégico", "CMI Estratégico"),
-            ("⚙️  CMI por Procesos", "CMI por Procesos"),
-            ("📄  Informe por Procesos", "Informe por Procesos"),
-            ("📈  Plan de Mejoramiento", "Plan de Mejoramiento"),
-            (None, None),  # separador visual
-            ("🔍  Seguimiento Operativo", "Seguimiento Operativo"),
-            ("🗂️  Gestión OM", "Gestión OM"),
+            (":material/dashboard:", "Resumen General", "Resumen General"),
+            (":material/insights:", "CMI Estratégico", "CMI Estratégico"),
+            (":material/account_tree:", "CMI por Procesos", "CMI por Procesos"),
+            (":material/description:", "Informe por Procesos", "Informe por Procesos"),
+            (":material/trending_up:", "Plan de Mejoramiento", "Plan de Mejoramiento"),
+            (None, None, None),  # separador visual
+            (":material/monitoring:", "Seguimiento Operativo", "Seguimiento Operativo"),
+            (":material/folder_open:", "Gestión OM", "Gestión OM"),
         ]
 
         # Obtener menú actual desde sesión o parámetros
@@ -50,13 +52,14 @@ def render_sidebar_navigation() -> str:
         if hasattr(st, "query_params") and st.query_params.get("cmi_linea"):
             menu = "CMI Estratégico"
 
-        for i, (label, value) in enumerate(menu_items):
+        for i, (icon, label, value) in enumerate(menu_items):
             if label is None:
                 st.markdown("<div class='sidebar-v2-empty'></div>", unsafe_allow_html=True)
                 continue
             is_active = value == menu
             if st.button(
                 label,
+                icon=icon,
                 key=f"sidebar_nav_btn_{i}",
                 use_container_width=True,
                 type="primary" if is_active else "secondary",
