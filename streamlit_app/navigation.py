@@ -33,14 +33,14 @@ def render_sidebar_navigation() -> str:
         )
 
         menu_items = [
-            ("◫  Resumen General", "Resumen General"),
-            ("⌂  CMI Estratégico", "CMI Estratégico"),
-            ("◷  CMI por Procesos", "CMI por Procesos"),
-            ("◯  Informe por Procesos", "Informe por Procesos"),
-            ("◐  Plan de Mejoramiento", "Plan de Mejoramiento"),
+            ("📊  Resumen General", "Resumen General"),
+            ("🎯  CMI Estratégico", "CMI Estratégico"),
+            ("⚙️  CMI por Procesos", "CMI por Procesos"),
+            ("📄  Informe por Procesos", "Informe por Procesos"),
+            ("📈  Plan de Mejoramiento", "Plan de Mejoramiento"),
             (None, None),  # separador visual
-            ("◧  Seguimiento Operativo", "Seguimiento Operativo"),
-            ("◈  Gestión OM", "Gestión OM"),
+            ("🔍  Seguimiento Operativo", "Seguimiento Operativo"),
+            ("🗂️  Gestión OM", "Gestión OM"),
         ]
 
         # Obtener menú actual desde sesión o parámetros
