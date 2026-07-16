@@ -166,6 +166,21 @@ def get_last_data_row(ws) -> int:
     return last
 
 
+def worksheet_a_dataframe(ws) -> pd.DataFrame:
+    """Reconstruye un DataFrame desde el estado ACTUAL de un worksheet openpyxl.
+
+    Necesario para recalcular llaves/escalas después de purgar_filas_invalidas():
+    un pd.read_excel() hecho antes del purge queda desactualizado respecto a las
+    filas que el purge acaba de borrar del workbook en memoria.
+    """
+    filas = list(ws.iter_rows(values_only=True))
+    if not filas:
+        return pd.DataFrame()
+    header = [str(c) if c is not None else "" for c in filas[0]]
+    datos = filas[1:]
+    return pd.DataFrame(datos, columns=header)
+
+
 def llaves_de_df(df: pd.DataFrame, id_col: str = "Id", fecha_col: str = "Fecha") -> Set[str]:
     """Calcula LLAVEs desde Id+Fecha (valores reales, no la col LLAVE con fórmulas)."""
     if df.empty or id_col not in df.columns or fecha_col not in df.columns:

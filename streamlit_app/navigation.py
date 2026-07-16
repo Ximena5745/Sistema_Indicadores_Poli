@@ -32,53 +32,39 @@ def render_sidebar_navigation() -> str:
             unsafe_allow_html=True,
         )
 
-        menu_labels = [
-            "◫  Resumen General",
-            "⌂  CMI Estratégico",
-            "◷  CMI por Procesos",
-            "◯  Informe por Procesos",
-            "◐  Plan de Mejoramiento",
-            "─────────────────────",
-            "◧  Seguimiento Operativo",
-            "◈  Gestión OM",
+        menu_items = [
+            ("◫  Resumen General", "Resumen General"),
+            ("⌂  CMI Estratégico", "CMI Estratégico"),
+            ("◷  CMI por Procesos", "CMI por Procesos"),
+            ("◯  Informe por Procesos", "Informe por Procesos"),
+            ("◐  Plan de Mejoramiento", "Plan de Mejoramiento"),
+            (None, None),  # separador visual
+            ("◧  Seguimiento Operativo", "Seguimiento Operativo"),
+            ("◈  Gestión OM", "Gestión OM"),
         ]
-        menu_map = {
-            "◫  Resumen General": "Resumen General",
-            "⌂  CMI Estratégico": "CMI Estratégico",
-            "◷  CMI por Procesos": "CMI por Procesos",
-            "◯  Informe por Procesos": "Informe por Procesos",
-            "◐  Plan de Mejoramiento": "Plan de Mejoramiento",
-            "─────────────────────": "divider",
-            "◧  Seguimiento Operativo": "Seguimiento Operativo",
-            "◈  Gestión OM": "Gestión OM",
-        }
 
-        # Filtrar opciones válidas (sin separador visual)
-        display_options = [opt for opt in menu_labels if not opt.startswith("─")]
-        current_index = 0
-        
         # Obtener menú actual desde sesión o parámetros
-        menu = "Resumen General"
-        
+        menu = st.session_state.get("sidebar_nav_menu", "Resumen General")
+
         # Deep-link desde CTA: abrir directamente el módulo si viene en query params
         if hasattr(st, "query_params") and st.query_params.get("cmi_linea"):
             menu = "CMI Estratégico"
-            st.session_state["sidebar_nav"] = "⌂  CMI Estratégico"
-        
-        if menu in menu_map.values():
-            for i, opt in enumerate(display_options):
-                if menu_map.get(opt) == menu:
-                    current_index = i
-                    break
 
-        selected_menu = st.radio(
-            "navegación",
-            options=display_options,
-            index=current_index,
-            key="sidebar_nav",
-            label_visibility="collapsed",
-        )
-        menu = menu_map[selected_menu]
+        for i, (label, value) in enumerate(menu_items):
+            if label is None:
+                st.markdown("<div class='sidebar-v2-empty'></div>", unsafe_allow_html=True)
+                continue
+            is_active = value == menu
+            if st.button(
+                label,
+                key=f"sidebar_nav_btn_{i}",
+                use_container_width=True,
+                type="primary" if is_active else "secondary",
+            ):
+                menu = value
+                st.session_state["sidebar_nav_menu"] = value
+
+        st.session_state["sidebar_nav_menu"] = menu
 
         # Footer con información de actualización
         updated_at = datetime.now().strftime("%d/%m/%Y %H:%M")

@@ -79,6 +79,7 @@ from etl.formulas_excel import (                               # noqa: E402
 )
 from etl.escritura import (                        # noqa: E402
     llaves_de_df, deduplicar_sheet, escribir_filas, escribir_hoja_nueva,
+    worksheet_a_dataframe,
 )
 from etl.purga import (                            # noqa: E402
     purgar_filas_invalidas,
@@ -351,6 +352,17 @@ def main() -> None:
         purgar_filas_invalidas(ws, nom, kawak_validos)
 
     limpiar_cierres_existentes(ws_cierres)
+
+    # ── 7.5 Releer estado post-purge ────────────────────────────────
+    # CRÍTICO: df_hist_ex/df_sem_ex/df_cierres_ex (paso 6) se leyeron ANTES
+    # del purge de arriba. Si se usan tal cual para calcular llaves_hist/
+    # sem/cierres (paso 9), los builders creen que una fila recién purgada
+    # "ya existe" (su llave sigue en el set) y NUNCA la reconstruyen: el
+    # dato se pierde en vez de regenerarse. Se recalculan aquí desde el
+    # estado real y actual del workbook.
+    df_hist_ex = worksheet_a_dataframe(ws_hist)
+    df_sem_ex = worksheet_a_dataframe(ws_sem)
+    df_cierres_ex = worksheet_a_dataframe(ws_cierres)
 
     # ── 8. Construir escalas históricas ───────────────────────────
     logger.info("8. Construyendo escalas históricas…")
