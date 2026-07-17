@@ -800,7 +800,7 @@ def _available_years(df: pd.DataFrame) -> list[int]:
     if df.empty or "Año" not in df.columns:
         return []
     years = pd.to_numeric(df["Año"], errors="coerce").dropna().astype(int).unique().tolist()
-    allowed = [y for y in sorted(years) if y in {2022, 2023, 2024, 2025}]
+    allowed = [y for y in sorted(years) if y in {2022, 2023, 2024, 2025, 2026}]
     return allowed or sorted(years)
 
 
@@ -1915,8 +1915,8 @@ def _build_table_retos_por_linea(linea_summary):
 def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_improvements_e, worst_declines_e, _periodo_txt):
     """Renderiza las tablas según la categoría."""
     
-    _th = "color:#475569;padding:0.4rem 0.5rem;border-bottom:2px solid #E2E8F0;font-size:0.78rem;font-weight:700;text-align:left;"
-    _footer_style = "margin:0.6rem 0 0 0;font-size:0.73rem;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:0.45rem;"
+    _th = "color:#475569;padding:0.4rem 0.5rem;border-bottom:2px solid #E2E8F0;font-size:0.9rem;font-weight:700;text-align:left;"
+    _footer_style = "margin:0.6rem 0 0 0;font-size:0.8rem;color:#94A3B8;border-top:1px solid #F1F5F9;padding-top:0.45rem;"
     
     if category == "Proyectos":
         # Fichas por Línea con proyectos
@@ -1995,25 +1995,25 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
                 
                 rows_html += f"""
                 <tr>
-                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;font-size:0.85rem;color:#1F2937;">{proyecto}</td>
-                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:0.85rem;color:#6B7280;">{pct_esperado if pct_esperado == '-' else f'{pct_esperado:.0f}%'}</td>
-                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:0.85rem;color:#6B7280;">{pct_real if pct_real == '-' else f'{pct_real:.1f}%'}</td>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;font-size:0.95rem;color:#1F2937;">{proyecto}</td>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:0.95rem;color:#6B7280;">{pct_esperado if pct_esperado == '-' else f'{pct_esperado:.0f}%'}</td>
+                    <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;font-size:0.95rem;color:#6B7280;">{pct_real if pct_real == '-' else f'{pct_real:.1f}%'}</td>
                     <td style="padding:10px;border-bottom:1px solid #E5E7EB;text-align:center;">
-                        <span style="background:{color_cumpl};color:white;padding:4px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">
+                        <span style="background:{color_cumpl};color:white;padding:4px 10px;border-radius:12px;font-size:0.9rem;font-weight:600;">
                             {cumplimiento_tope:.1f}%
                         </span>
                     </td>
                 </tr>
                 """
-            
+
             tabla_html = """<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:1.5rem;">
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr style="background:#F3F4F6;">
-                            <th style="padding:12px 10px;text-align:left;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">Proyecto</th>
-                            <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Avance Esperado</th>
-                            <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Avance Real</th>
-                            <th style="padding:12px 10px;text-align:center;font-size:0.75rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Cumplimiento</th>
+                            <th style="padding:12px 10px;text-align:left;font-size:0.85rem;font-weight:700;color:#6B7280;text-transform:uppercase;">Proyecto</th>
+                            <th style="padding:12px 10px;text-align:center;font-size:0.85rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Avance Esperado</th>
+                            <th style="padding:12px 10px;text-align:center;font-size:0.85rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Avance Real</th>
+                            <th style="padding:12px 10px;text-align:center;font-size:0.85rem;font-weight:700;color:#6B7280;text-transform:uppercase;">% Cumplimiento</th>
                         </tr>
                     </thead>
                     <tbody>""" + rows_html + """</tbody>
@@ -2279,7 +2279,7 @@ _LINEA_COLORS_BADGE = {
 
 def _build_trend_rows_with_linea(rows: list[dict], positive: bool) -> str:
     if not rows:
-        return "<tr><td colspan='3' style='color:#94A3B8;font-size:0.8rem;padding:0.6rem;'>Sin datos comparativos</td></tr>"
+        return "<tr><td colspan='3' style='color:#94A3B8;font-size:0.9rem;padding:0.6rem;'>Sin datos comparativos</td></tr>"
     out = ""
     for row in rows[:5]:
         change = float(row.get("change", 0.0) or 0.0)
@@ -2308,11 +2308,11 @@ def _build_trend_rows_with_linea(rows: list[dict], positive: bool) -> str:
         )
         out += (
             "<tr style='border-bottom:1px solid #F1F5F9;'>"
-            f"<td style='padding:0.45rem 0.5rem;font-size:0.82rem;color:#1E293B;'>{row.get('name', '')}</td>"
+            f"<td style='padding:0.45rem 0.5rem;font-size:0.92rem;color:#1E293B;'>{row.get('name', '')}</td>"
             f"<td style='padding:0.45rem 0.4rem;'>{badge}</td>"
             f"<td style='padding:0.4rem 0.5rem;'>"
             f"<span style='background:{val_bg};color:{val_color};border-radius:6px;"
-            f"padding:3px 8px;font-weight:700;font-size:0.82rem;white-space:nowrap;'>{sign}{change:.1f}%</span>"
+            f"padding:3px 8px;font-weight:700;font-size:0.92rem;white-space:nowrap;'>{sign}{change:.1f}%</span>"
             f"</td>"
             "</tr>"
         )
@@ -2344,6 +2344,8 @@ def render():
         """,
         unsafe_allow_html=True,
     )
+    CONSOLIDADO_RANGO_LABEL = "Consolidado 2022-2025"
+
     # Filtros generales — contenedor nativo, sin HTML wrappers
     _rg_sels = render_filter_panel(
         filters=[
@@ -2351,7 +2353,7 @@ def render():
                 "key": "anio",
                 "label": "Año",
                 "type": "segmented_control",
-                "options": years,
+                "options": years + [CONSOLIDADO_RANGO_LABEL],
                 "default": years[-1],
                 "include_all": False,
             },
@@ -2359,7 +2361,7 @@ def render():
                 "key": "vista",
                 "label": "Vista",
                 "type": "segmented_control",
-                "options": ["Indicadores", "Proyectos", "Plan de Retos", "Consolidado"],
+                "options": ["Consolidado", "Plan de Retos", "Proyectos", "Indicadores"],
                 "default": "Indicadores",
                 "include_all": False,
             },
@@ -2368,7 +2370,9 @@ def render():
         key_prefix="rg",
         n_cols=2,
     )
-    year_estrategico = _rg_sels["anio"] or years[-1]
+    _anio_sel = _rg_sels["anio"]
+    usar_consolidado_rango = _anio_sel == CONSOLIDADO_RANGO_LABEL
+    year_estrategico = years[-1] if usar_consolidado_rango else (_anio_sel or years[-1])
     categoria = _rg_sels["vista"] or "Indicadores"
 
     active_filters_text = build_active_summary(
@@ -2602,7 +2606,9 @@ def render():
         return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
     
     # --- Carga de datos usando función unificada ---
-    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(categoria, safe_year_estrategico)
+    linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico = _load_base_data_by_type(
+        categoria, safe_year_estrategico, use_all_years=usar_consolidado_rango
+    )
 
     # --- CHIPS DE MÉTRICAS (parametrizados por categoría) ---
     def _get_chip_config(category: str, linea_summary, pdi_estrategico):
@@ -3088,7 +3094,6 @@ def render():
     
     narrativa, estado_color, estado_icon = _generate_narrative(categoria, linea_summary, pdi_for_narrative, historico_df, counts_e, count_total_e, health_rate_e)
 
-    # ── Narrativa ejecutiva (antes de gráficas y fichas) ───────────────────────
     st.markdown(
         f"""
         <div style='
@@ -3100,10 +3105,6 @@ def render():
             box-shadow: 0 4px 18px rgba(37,99,235,0.10);
             margin-bottom: 1.2rem;
         '>
-            <div style='display:flex; align-items:center; gap:0.5rem; margin-bottom:0.55rem;'>
-                <span style='font-size:1.25rem;'>{estado_icon}</span>
-                <span style='font-size:1rem;font-weight:800;color:#1E3A5F;letter-spacing:0.01em;'>Narrativa Ejecutiva</span>
-            </div>
             <p style='margin:0;font-size:0.93rem;line-height:1.65;color:#1E293B;'>{narrativa}</p>
         </div>
         """,

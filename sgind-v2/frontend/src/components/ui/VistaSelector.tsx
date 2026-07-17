@@ -11,7 +11,7 @@ interface VistaSelectorProps {
   onChange: (vista: string) => void;
 }
 
-export function VistaSelector({ vista, vistas = ["indicadores", "proyectos", "retos", "consolidado"], onChange }: VistaSelectorProps) {
+export function VistaSelector({ vista, vistas = ["consolidado", "retos", "proyectos", "indicadores"], onChange }: VistaSelectorProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {vistas.map((v) => (

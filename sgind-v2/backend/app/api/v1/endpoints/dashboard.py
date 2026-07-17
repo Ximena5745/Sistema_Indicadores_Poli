@@ -232,10 +232,11 @@ async def get_yoy(
 async def get_resumen_completo(
     anio: int = Query(...),
     vista: str = Query("indicadores"),
+    rango: bool = Query(False),
     _user: User = Depends(require_reader),
     dashboard: DashboardService = Depends(_dashboard_service),
 ) -> dict:
-    return dashboard.get_resumen_completo(anio=anio, vista=vista)
+    return dashboard.get_resumen_completo(anio=anio, vista=vista, rango=rango)
 
 
 @router.get("/narrativa")

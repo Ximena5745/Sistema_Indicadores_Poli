@@ -21,9 +21,9 @@ function TrendTable({
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">Sin variaciones para mostrar.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="w-full text-base">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+            <tr className="border-b border-slate-100 text-left text-sm text-slate-500">
               <th className="pb-2 pr-2">Indicador</th>
               <th className="pb-2 pr-2">Línea</th>
               <th className="pb-2 text-right">Variación</th>

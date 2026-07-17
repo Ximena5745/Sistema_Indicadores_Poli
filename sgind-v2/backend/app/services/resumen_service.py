@@ -34,7 +34,7 @@ from app.services.etl_pipeline import ETLPipelineService
 from app.services.excel_reader import ExcelReaderService
 from app.services.retos_loaders import RetosLoaders
 
-VISTAS = ("indicadores", "proyectos", "retos", "consolidado")
+VISTAS = ("consolidado", "retos", "proyectos", "indicadores")
 
 _LINE_COLORS = {
     "Talento Humano": "#E63946",
@@ -158,7 +158,7 @@ class ResumenService:
             if anio_col
             else []
         )
-        allowed = [y for y in anios if y in {2022, 2023, 2024, 2025}]
+        allowed = [y for y in anios if y in {2022, 2023, 2024, 2025, 2026}]
         anios_out = allowed or anios
         periodos: list[str] = []
         for col in ("Mes", "Periodo"):
@@ -389,7 +389,7 @@ class ResumenService:
             "parrafos": parrafos,
         }
 
-    def get_resumen_completo(self, *, anio: int, vista: str = "indicadores") -> dict[str, Any]:
+    def get_resumen_completo(self, *, anio: int, vista: str = "indicadores", rango: bool = False) -> dict[str, Any]:
         """Payload unificado alineado con streamlit resumen_general.py."""
         vista_norm = (vista or "indicadores").strip().lower()
         meses = {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
@@ -484,10 +484,42 @@ class ResumenService:
             }
 
         if vista_norm == "consolidado":
-            pdi_df = ensure_nivel_cumplimiento(self._strategic.preparar_pdi_con_cierre(anio, 12))
-            proy_df = ensure_nivel_cumplimiento(self._strategic.preparar_proyectos_con_cierre(anio, 12))
-            ret_linea_df, ret_obj_df = self._retos.load_retos_data(anio)
-            ret_planes_df = self._retos.load_planes(anio)
+            if rango:
+                anios_rango = [2022, 2023, 2024, 2025]
+                pdi_parts = [
+                    ensure_nivel_cumplimiento(self._strategic.preparar_pdi_con_cierre(y, 12)) for y in anios_rango
+                ]
+                pdi_parts = [p for p in pdi_parts if p is not None and not p.empty]
+                pdi_df = pd.concat(pdi_parts, ignore_index=True) if pdi_parts else pd.DataFrame()
+                if not pdi_df.empty and "Id" in pdi_df.columns:
+                    pdi_df = pdi_df.drop_duplicates(subset=["Id"], keep="last")
+
+                proy_parts = [
+                    ensure_nivel_cumplimiento(self._strategic.preparar_proyectos_con_cierre(y, 12)) for y in anios_rango
+                ]
+                proy_parts = [p for p in proy_parts if p is not None and not p.empty]
+                proy_df = pd.concat(proy_parts, ignore_index=True) if proy_parts else pd.DataFrame()
+                if not proy_df.empty and "Id" in proy_df.columns:
+                    proy_df = proy_df.drop_duplicates(subset=["Id"], keep="last")
+
+                ret_linea_parts, ret_obj_parts, ret_planes_parts = [], [], []
+                for y in anios_rango:
+                    ld, od = self._retos.load_retos_data(y)
+                    if ld is not None and not ld.empty:
+                        ret_linea_parts.append(ld)
+                    if od is not None and not od.empty:
+                        ret_obj_parts.append(od)
+                    pl = self._retos.load_planes(y)
+                    if pl is not None and not pl.empty:
+                        ret_planes_parts.append(pl)
+                ret_linea_df = pd.concat(ret_linea_parts, ignore_index=True) if ret_linea_parts else pd.DataFrame()
+                ret_obj_df = pd.concat(ret_obj_parts, ignore_index=True) if ret_obj_parts else pd.DataFrame()
+                ret_planes_df = pd.concat(ret_planes_parts, ignore_index=True) if ret_planes_parts else pd.DataFrame()
+            else:
+                pdi_df = ensure_nivel_cumplimiento(self._strategic.preparar_pdi_con_cierre(anio, 12))
+                proy_df = ensure_nivel_cumplimiento(self._strategic.preparar_proyectos_con_cierre(anio, 12))
+                ret_linea_df, ret_obj_df = self._retos.load_retos_data(anio)
+                ret_planes_df = self._retos.load_planes(anio)
 
             s1 = build_linea_summary(pdi_df, unique_count_col="Id", count_col_name="N_Indicadores")
             s2 = build_linea_summary(proy_df, unique_count_col="Id", count_col_name="N_Proyectos")

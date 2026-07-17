@@ -21,6 +21,7 @@ export default function ResumenGeneralPage() {
   const showDevLogin = isDevLoginEnabled();
   const [anio, setAnio] = useState<number>(2025);
   const [vista, setVista] = useState("indicadores");
+  const [rango, setRango] = useState(false);
 
   const filtrosQuery = useQuery({
     queryKey: ["dashboard-filtros"],
@@ -42,14 +43,14 @@ export default function ResumenGeneralPage() {
   });
 
   const resumenQuery = useQuery({
-    queryKey: ["resumen-completo", anioEfectivo, vista],
-    queryFn: () => fetchResumenCompleto({ anio: anioEfectivo, vista }),
+    queryKey: ["resumen-completo", anioEfectivo, vista, rango],
+    queryFn: () => fetchResumenCompleto({ anio: anioEfectivo, vista, rango }),
     enabled: ready && isAuthenticated,
   });
 
   const needsAuth = ready && !isAuthenticated;
   const showLoading = !ready || (isAuthenticated && resumenQuery.isFetching && !resumenQuery.data);
-  const years = filtrosQuery.data?.anios ?? [2022, 2023, 2024, 2025];
+  const years = filtrosQuery.data?.anios ?? [2022, 2023, 2024, 2025, 2026];
   const [pdfLoading, setPdfLoading] = useState(false);
 
   async function handleDownloadPdf() {
@@ -93,7 +94,16 @@ export default function ResumenGeneralPage() {
       <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Año</p>
-          <YearSegmentedControl years={years} anio={anioEfectivo} onChange={setAnio} />
+          <YearSegmentedControl
+            years={years}
+            anio={anioEfectivo}
+            rango={rango}
+            onChange={(y) => {
+              setRango(false);
+              setAnio(y);
+            }}
+            onSelectRango={() => setRango(true)}
+          />
         </div>
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Vista</p>
@@ -104,7 +114,7 @@ export default function ResumenGeneralPage() {
           />
         </div>
         <p className="text-xs text-slate-500">
-          Filtros activos: Año {anioEfectivo} · Vista{" "}
+          Filtros activos: Año {rango ? "Consolidado 2022-2025" : anioEfectivo} · Vista{" "}
           {vista === "indicadores"
             ? "Indicadores"
             : vista === "proyectos"

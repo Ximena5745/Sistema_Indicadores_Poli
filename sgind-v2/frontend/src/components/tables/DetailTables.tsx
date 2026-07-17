@@ -44,9 +44,9 @@ export function DetailTables({ vista, rows }: DetailTablesProps) {
               {linea}
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-base">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-slate-100 text-left text-sm uppercase tracking-wide text-slate-500">
                     <th className="px-4 py-2">ID</th>
                     <th className="px-4 py-2">Proyecto</th>
                     <th className="px-4 py-2">Cumplimiento</th>
@@ -56,7 +56,7 @@ export function DetailTables({ vista, rows }: DetailTablesProps) {
                 <tbody>
                   {items.map((item) => (
                     <tr key={item.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-4 py-2 font-mono text-xs text-slate-600">{item.id}</td>
+                      <td className="px-4 py-2 font-mono text-sm text-slate-600">{item.id}</td>
                       <td className="px-4 py-2 text-slate-800">{item.nombre}</td>
                       <td className="px-4 py-2 font-semibold text-slate-700">{item.cumplimiento}%</td>
                       <td className="px-4 py-2">
@@ -99,9 +99,9 @@ export function DetailTables({ vista, rows }: DetailTablesProps) {
           Cumplimiento por línea estratégica
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-base">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-100 text-left text-sm uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2">Línea</th>
                 <th className="px-4 py-2">Cumplimiento</th>
                 <th className="px-4 py-2">Nivel</th>

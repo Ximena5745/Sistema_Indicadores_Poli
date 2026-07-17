@@ -123,71 +123,22 @@ html body [data-baseweb="option"][aria-selected="true"] {
     color: var(--fp-primary) !important;
 }
 
-/* ── Pills ──────────────────────────────────────────────────────── */
-html body [data-testid="stPillsOption"],
-html body button[data-testid="stPillsOption"],
-html body [data-testid="stPills"] button,
-html body div[data-baseweb="pills"] button,
-html body .stContainer [data-testid="stPills"] button,
-html body .stContainer div[data-baseweb="pills"] button {
-    font-size: 0.8rem !important;
-    font-weight: 700 !important;
-    padding: 3px 13px !important;
-    border-radius: 999px !important;
-    border: 1.5px solid var(--fp-border) !important;
-    background: #DBEAFE !important;
-    color: var(--fp-accent-a) !important;
-    transition: all 0.15s ease !important;
-    box-shadow: 0 1px 3px rgba(0,119,204,0.10) !important;
-}
-html body [data-testid="stPillsOption"][aria-pressed="true"],
-html body button[data-testid="stPillsOption"][aria-pressed="true"],
-html body [data-testid="stPillsOption"][aria-selected="true"],
-html body button[data-testid="stPillsOption"][aria-selected="true"],
-html body [data-testid="stPills"] button[aria-pressed="true"],
-html body [data-testid="stPills"] button[aria-selected="true"],
-html body div[data-baseweb="pills"] button[aria-pressed="true"],
-html body div[data-baseweb="pills"] button[aria-selected="true"],
-html body .stContainer [data-testid="stPills"] button[aria-pressed="true"],
-html body .stContainer [data-testid="stPills"] button[aria-selected="true"],
-html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"],
-html body .stContainer div[data-baseweb="pills"] button[aria-selected="true"] {
-    background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
-    color: #FFFFFF !important;
-    border-color: var(--fp-sel-border) !important;
-    box-shadow: 0 3px 10px rgba(0,119,204,0.40) !important;
-    font-weight: 800 !important;
-}
-html body [data-testid="stPills"] button[aria-pressed="true"] > div,
-html body [data-testid="stPills"] button[aria-selected="true"] > div,
-html body [data-testid="stPills"] button[aria-pressed="true"] > span,
-html body [data-testid="stPills"] button[aria-selected="true"] > span,
-html body div[data-baseweb="pills"] button[aria-pressed="true"] > div,
-html body div[data-baseweb="pills"] button[aria-selected="true"] > div,
-html body div[data-baseweb="pills"] button[aria-pressed="true"] > span,
-html body div[data-baseweb="pills"] button[aria-selected="true"] > span,
-html body .stContainer [data-testid="stPills"] button[aria-pressed="true"] > div,
-html body .stContainer [data-testid="stPills"] button[aria-selected="true"] > div,
-html body .stContainer [data-testid="stPills"] button[aria-pressed="true"] > span,
-html body .stContainer [data-testid="stPills"] button[aria-selected="true"] > span,
-html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] > div,
-html body .stContainer div[data-baseweb="pills"] button[aria-selected="true"] > div,
-html body .stContainer div[data-baseweb="pills"] button[aria-pressed="true"] > span,
-html body .stContainer div[data-baseweb="pills"] button[aria-selected="true"] > span {
-    color: #FFFFFF !important;
-}
-
-/* ── Segmented control ──────────────────────────────────────────── */
-html body [data-testid="stSegmentedControl"] > div,
-html body div[data-baseweb="segmented-control"] {
+/* ── Pills / Segmented control ────────────────────────────────────
+   Streamlit >=1.5x renderiza AMBOS widgets (st.pills y
+   st.segmented_control) sobre el mismo componente ButtonGroup:
+   contenedor [data-testid="stButtonGroup"], opciones con
+   role="radio"/"checkbox" y aria-checked="true|false" (NO usan ya
+   aria-pressed ni los testids stSegmentedControl/stPills/stBaseButton-*
+   de versiones previas). Por eso el estado seleccionado no se pintaba. */
+html body [data-testid="stButtonGroup"] {
     background: #DBEAFE !important;
     border: 1.5px solid var(--fp-border) !important;
     border-radius: 10px !important;
     padding: 2px !important;
+    gap: 2px !important;
 }
-html body [data-testid="stSegmentedControl"] button,
-html body div[data-baseweb="segmented-control"] button,
-html body [role="radiogroup"] button {
+html body [data-testid="stButtonGroup"] [role="radio"],
+html body [data-testid="stButtonGroup"] [role="checkbox"] {
     font-size: 0.8rem !important;
     font-weight: 700 !important;
     border-radius: 7px !important;
@@ -197,49 +148,27 @@ html body [role="radiogroup"] button {
     transition: all 0.15s ease !important;
     min-height: 34px !important;
     padding: 0.35rem 0.85rem !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
 }
-html body [data-testid="stSegmentedControl"] button:hover,
-html body div[data-baseweb="segmented-control"] button:hover,
-html body [role="radiogroup"] button:hover {
+html body [data-testid="stButtonGroup"] [role="radio"]:hover,
+html body [data-testid="stButtonGroup"] [role="checkbox"]:hover {
     color: var(--fp-primary) !important;
     background: var(--fp-primary-soft) !important;
 }
-html body [data-testid="stSegmentedControl"] button[aria-pressed="true"],
-html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"],
-html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"],
-html body div[data-baseweb="segmented-control"] button[aria-pressed="true"],
-html body div[data-baseweb="segmented-control"] button[kind="segmented_controlActive"],
-html body div[data-baseweb="segmented-control"] button[data-testid="stBaseButton-segmented_controlActive"],
-html body [role="radiogroup"] button[aria-pressed="true"],
-html body [role="radiogroup"] button[kind="segmented_controlActive"],
-html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] {
+html body [data-testid="stButtonGroup"] [role="radio"][aria-checked="true"],
+html body [data-testid="stButtonGroup"] [role="checkbox"][aria-checked="true"] {
     background: linear-gradient(135deg, var(--fp-sel-start) 0%, var(--fp-sel-end) 100%) !important;
     color: #FFFFFF !important;
     border-color: var(--fp-sel-border) !important;
-    box-shadow: 0 3px 10px rgba(0,119,204,0.28) !important;
+    box-shadow: 0 3px 10px rgba(0,119,204,0.40) !important;
     font-weight: 800 !important;
 }
-html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > div,
-html body [data-testid="stSegmentedControl"] button[aria-pressed="true"] > span,
-html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] > div,
-html body [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] > span,
-html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] > div,
-html body [data-testid="stSegmentedControl"] button[data-testid="stBaseButton-segmented_controlActive"] > span,
-html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > div,
-html body div[data-baseweb="segmented-control"] button[aria-pressed="true"] > span,
-html body [role="radiogroup"] button[kind="segmented_controlActive"] > div,
-html body [role="radiogroup"] button[kind="segmented_controlActive"] > span,
-html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] > div,
-html body [role="radiogroup"] button[data-testid="stBaseButton-segmented_controlActive"] > span {
+html body [data-testid="stButtonGroup"] [role="radio"][aria-checked="true"] *,
+html body [data-testid="stButtonGroup"] [role="checkbox"][aria-checked="true"] * {
     color: #FFFFFF !important;
 }
-html body [role="radiogroup"] button {
-    box-shadow: none !important;
-}
-
-html body [data-testid="stSegmentedControl"],
-html body [data-testid="stPills"],
-html body [role="radiogroup"] {
+html body [data-testid="stButtonGroup"] {
     --primary-color: var(--fp-primary) !important;
 }
 
@@ -247,8 +176,7 @@ html body [role="radiogroup"] {
 html body .stSelectbox,
 html body .stTextInput,
 html body .stMultiSelect,
-html body [data-testid="stPills"],
-html body [data-testid="stSegmentedControl"] {
+html body [data-testid="stButtonGroup"] {
     margin-bottom: 0 !important;
     margin-top: 0 !important;
     padding-bottom: 0 !important;
@@ -263,8 +191,7 @@ html body .stContainer [data-testid="stVerticalBlock"] > div { gap: 0.04rem !imp
 html body .stContainer [data-testid="stBlock"] { margin-bottom: 0.04rem !important; padding: 0 !important; }
 html body .stContainer .stSelectbox,
 html body .stContainer .stTextInput,
-html body .stContainer [data-testid="stPills"],
-html body .stContainer [data-testid="stSegmentedControl"] {
+html body .stContainer [data-testid="stButtonGroup"] {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
 }

@@ -298,8 +298,8 @@ export default function GestionOMPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-800 text-xs uppercase text-white">
+              <table className="min-w-full text-left text-base">
+                <thead className="bg-slate-800 text-sm uppercase text-white">
                   <tr>
                     {[
                       "Id",
@@ -324,7 +324,7 @@ export default function GestionOMPage() {
                 <tbody>
                   {data.filas.map((row) => (
                     <tr key={row.id} style={{ backgroundColor: row.row_bg }}>
-                      <td className="px-3 py-2 font-mono text-xs">{row.id}</td>
+                      <td className="px-3 py-2 font-mono text-sm">{row.id}</td>
                       <td className="max-w-[200px] truncate px-3 py-2" title={row.indicador}>
                         {row.indicador}
                       </td>

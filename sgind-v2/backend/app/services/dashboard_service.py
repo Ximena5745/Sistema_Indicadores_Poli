@@ -105,6 +105,6 @@ class DashboardService:
     def get_narrativa(self, anio: int | None = None, vista: str = "indicadores") -> dict:
         return self._resumen.get_narrativa(anio=anio, vista=vista)
 
-    def get_resumen_completo(self, anio: int, vista: str = "indicadores") -> dict:
-        return self._resumen.get_resumen_completo(anio=anio, vista=vista)
+    def get_resumen_completo(self, anio: int, vista: str = "indicadores", rango: bool = False) -> dict:
+        return self._resumen.get_resumen_completo(anio=anio, vista=vista, rango=rango)
 

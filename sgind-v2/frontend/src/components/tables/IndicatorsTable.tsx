@@ -34,8 +34,8 @@ export function IndicatorsTable({ items, total }: IndicatorsTableProps) {
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <table className="min-w-full text-left text-base">
+          <thead className="bg-slate-50 text-sm uppercase text-slate-500">
             <tr>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Indicador</th>
@@ -47,7 +47,7 @@ export function IndicatorsTable({ items, total }: IndicatorsTableProps) {
           <tbody className="divide-y divide-slate-100">
             {items.map((row, idx) => (
               <tr key={`${row.Id}-${idx}`} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.Id}</td>
+                <td className="px-4 py-3 font-mono text-sm text-slate-600">{row.Id}</td>
                 <td className="max-w-xs truncate px-4 py-3 text-slate-800" title={row.Indicador}>
                   {row.Indicador ?? "—"}
                 </td>
