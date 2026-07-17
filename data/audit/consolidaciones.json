@@ -12184,5 +12184,432 @@
       "registros_cierres": 893,
       "total_nuevos": 2489
     }
+  },
+  {
+    "timestamp": "2026-07-15T23:36:57.132564",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-15T23:36:57.132539",
+      "registros_api": 12888
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:36:59.988025",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:38:04.366245",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:38:04.428343",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:38:04.482641",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:41:20.282614",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 2391,
+      "registros_semestral": 1175,
+      "registros_cierres": 1191,
+      "total_nuevos": 4757
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:50:59.225983",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-15T23:50:59.225957",
+      "registros_api": 12888
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:51:03.720107",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:51:25.686309",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:51:25.740734",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:51:25.809190",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:57:27.675482",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1055,
+      "registros_semestral": 531,
+      "registros_cierres": 1186,
+      "total_nuevos": 2772
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:58:58.136422",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-15T23:58:58.136397",
+      "registros_api": 12888
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:59:02.637929",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:59:23.385705",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:59:23.443442",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-15T23:59:23.506897",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T00:06:15.870926",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1055,
+      "registros_semestral": 531,
+      "registros_cierres": 1186,
+      "total_nuevos": 2772
+    }
+  },
+  {
+    "timestamp": "2026-07-16T02:42:57.390545",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-16T02:42:57.390510",
+      "registros_api": 12888
+    }
+  },
+  {
+    "timestamp": "2026-07-16T02:43:02.728263",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T02:43:38.842920",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T02:43:38.923134",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T02:43:39.025193",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T15:16:55.279904",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1055,
+      "registros_semestral": 531,
+      "registros_cierres": 1186,
+      "total_nuevos": 2772
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:29:03.106589",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-16T21:29:03.106567",
+      "registros_api": 12913
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:29:06.466060",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:29:28.164907",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:29:28.219318",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:29:28.280854",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:37:09.873697",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1098,
+      "registros_semestral": 553,
+      "registros_cierres": 1203,
+      "total_nuevos": 2854
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:54:11.014303",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-16T21:54:11.014266",
+      "registros_api": 12913
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:54:16.147003",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:54:41.636669",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:54:41.690507",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T21:54:41.753208",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:00:50.031899",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1055,
+      "registros_semestral": 531,
+      "registros_cierres": 1203,
+      "total_nuevos": 2789
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:09:18.840724",
+    "evento": "consolidacion_iniciada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "a\u00f1o_cierre": 2026,
+      "timestamp_inicio": "2026-07-16T22:09:18.840691",
+      "registros_api": 12913
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:09:23.185337",
+    "evento": "cambio_datos_backup",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "tabla": "Resultados Consolidados",
+      "registros_afectados": 0,
+      "descripcion": "Versi\u00f3n de seguridad previa a consolidaci\u00f3n"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:09:43.444509",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Historico"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:09:43.497709",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Semestral"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:09:43.557827",
+    "evento": "validacion_intermedia_error",
+    "usuario": "etl_script",
+    "exitoso": false,
+    "detalles": {
+      "error": "Validaci\u00f3n post-construcci\u00f3n fallida para Cierres"
+    }
+  },
+  {
+    "timestamp": "2026-07-16T22:15:33.141455",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1055,
+      "registros_semestral": 531,
+      "registros_cierres": 1203,
+      "total_nuevos": 2789
+    }
   }
 ]

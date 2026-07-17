@@ -191,7 +191,7 @@ UMBRAL_SOBRECUMPLIMIENTO_PA = 1.00  # tope 100%
 
 # ── Indicadores con tope de cumplimiento 100% (no sobrecumplimiento) ──────────
 # Indicadores de sentido Negativo cuyo cumplimiento no debe superar el 100%.
-IDS_TOPE_100 = {"208", "218"}
+IDS_TOPE_100 = {"208", "218", "92", "104", "106", "124", "125", "126", "127", "128", "272"}
 
 # ── Indicadores Negativo-Porcentual (régimen 102%/110%) ───────────────────────
 # Lista curada (jul-2026): < 102% Cumplimiento | 102-110% Alerta | > 110% Peligro

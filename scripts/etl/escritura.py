@@ -305,6 +305,7 @@ def escribir_filas(
 
         if es_na:
             ejec = None
+            meta = None
         ejec_signo = SIGNO_NA if es_na else sg["ejec_signo"]
 
         if es_metrica:

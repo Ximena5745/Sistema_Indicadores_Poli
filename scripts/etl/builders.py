@@ -21,6 +21,7 @@ from .extraccion import (
     _ejec_corrected_from_row, _meta_corrected_from_row, _extraer_registro,
     extraer_por_simbolo,
 )
+from .fuentes import cargar_estado_proyectos
 from .normalizacion import _id_str, limpiar_html, make_llave, nan2none, parse_json_safe
 from .periodos import _fecha_es_periodo_valido, ultimo_dia_mes
 
@@ -417,9 +418,16 @@ def extraer_cronograma_proyectos(
             proj_id = _CRONOGRAMA_SERIES_FLAT.get(nombre_norm)
             if proj_id is None:
                 continue
+            if cargar_estado_proyectos().get(proj_id, "").lower() == "historico":
+                continue
 
-            # Extraer avance real (PARPR) y esperado (PAEPR) desde variables
-            # Se almacenan en escala porcentual (0-100), igual que el resto del consolidado
+            # Extraer avance real (PARPR) y esperado (PAEPR) desde variables.
+            # Se almacenan en escala porcentual (0-100), igual que el resto del consolidado.
+            # No se cae a serie["resultado"]/serie["meta"] si faltan: "resultado" es
+            # un % ya pre-calculado (no la ejecución real) y "meta" viene hardcodeado
+            # a un valor fijo idéntico para todos los proyectos/meses (ej. 90) — usarlos
+            # como sustituto produce Meta/Ejecución falsos en vez de marcar es_na
+            # (feedback 2026-07-15).
             vars_dict = {
                 v.get("simbolo", ""): v.get("valor")
                 for v in serie.get("variables", [])
@@ -428,15 +436,11 @@ def extraer_cronograma_proyectos(
             parpr = vars_dict.get("PARPR")
             paepr = vars_dict.get("PAEPR")
             try:
-                ejec = float(parpr) if parpr is not None else (
-                    float(serie["resultado"]) if serie.get("resultado") is not None else None
-                )
+                ejec = float(parpr) if parpr is not None else None
             except (TypeError, ValueError):
                 ejec = None
             try:
-                meta = float(paepr) if paepr is not None else (
-                    float(serie["meta"]) if serie.get("meta") is not None else None
-                )
+                meta = float(paepr) if paepr is not None else None
             except (TypeError, ValueError):
                 meta = None
 
@@ -730,11 +734,17 @@ def construir_registros_semestral(
         df_agg_src = df_base[df_base["_ids"].isin(ids_agg)].copy()
         agg_records = df_agg_src.to_dict(orient="records")
         df_agg_src["_ejec_corr"] = [
-            _ejec_corrected_from_row(rec, extraccion_map, api_kawak_lookup)
+            _ejec_corrected_from_row(
+                rec, extraccion_map, api_kawak_lookup,
+                variables_campo_map, tipo_indicador_map,
+            )
             for rec in agg_records
         ]
         df_agg_src["_meta_corr"] = [
-            _meta_corrected_from_row(rec, extraccion_map, api_kawak_lookup)
+            _meta_corrected_from_row(
+                rec, extraccion_map, api_kawak_lookup,
+                variables_campo_map, tipo_indicador_map,
+            )
             for rec in agg_records
         ]
 
@@ -841,7 +851,10 @@ def construir_registros_cierres(
             grupo = grupo.sort_values("fecha")
             ejecs = []
             for _, r in grupo.iterrows():
-                ev = _ejec_corrected_from_row(r, extraccion_map, api_kawak_lookup)
+                ev = _ejec_corrected_from_row(
+                    r, extraccion_map, api_kawak_lookup,
+                    variables_campo_map, tipo_indicador_map,
+                )
                 if ev is not None:
                     try:   ejecs.append(float(ev))
                     except: pass
@@ -852,7 +865,10 @@ def construir_registros_cierres(
 
             metas_corr = []
             for _, r in grupo.iterrows():
-                mv = _meta_corrected_from_row(r, extraccion_map, api_kawak_lookup)
+                mv = _meta_corrected_from_row(
+                    r, extraccion_map, api_kawak_lookup,
+                    variables_campo_map, tipo_indicador_map,
+                )
                 if mv is not None:
                     try:   metas_corr.append(float(mv))
                     except: pass

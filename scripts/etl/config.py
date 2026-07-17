@@ -42,7 +42,7 @@ _DEFAULT_PLAN_ANUAL = [
     "373", "390", "414", "415", "416", "417",
     "418", "420", "469", "470", "471",
 ]
-_DEFAULT_TOPE_100 = ["208", "218"]
+_DEFAULT_TOPE_100 = ["208", "218", "92", "104", "106", "124", "125", "126", "127", "128", "272"]
 
 # Intentar importar desde core/config.py primero (fuente de verdad de la app)
 _core_plan: FrozenSet[str] | None = None

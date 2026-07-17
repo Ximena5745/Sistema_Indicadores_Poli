@@ -295,11 +295,19 @@ def cargar_kawak_validos() -> Optional[Set[Tuple[str, int]]]:
         # Estos IDs no tienen filas propias en Kawak; deben ser válidos para cada año
         # en que su padre esté presente (ej. "509" válido en 2025 → proyecto "914" válido en 2025).
         _padre_a_año = {pid: yr for yr, pid in CRONOGRAMA_PADRES.items()}
+        _estado_proy = cargar_estado_proyectos()
         proj_ids = set(_CRONOGRAMA_SERIES_FLAT.values())
+        # Los "Historico" quedan fuera de la whitelist a propósito: purgar_filas_invalidas()
+        # debe poder eliminar sus filas residuales (ver extraer_cronograma_proyectos()
+        # en builders.py, que ya no las regenera — feedback 2026-07-15).
+        proj_ids_activos = {
+            pid for pid in proj_ids
+            if _estado_proy.get(pid, "").strip().lower() != "historico"
+        }
         n_proj = 0
         for (padre_id, año) in list(validos):
             if _padre_a_año.get(padre_id) == año:
-                for proj_id in proj_ids:
+                for proj_id in proj_ids_activos:
                     if (proj_id, año) not in validos:
                         validos.add((proj_id, año))
                         n_proj += 1
@@ -448,6 +456,38 @@ def cargar_metadatos_kawak() -> Dict:
         except Exception as e:
             logger.warning(f"  Error leyendo Kawak/{_kw_año}.xlsx/.xls: {e}")
     return meta
+
+
+_ESTADO_PROYECTOS_CACHE: Optional[Dict[str, str]] = None
+
+
+def cargar_estado_proyectos() -> Dict[str, str]:
+    """{"PRY-12": "Historico", ...} desde el catálogo maestro.
+
+    Proyectos marcados "Historico" (legado/cerrados) siguen apareciendo en
+    las series JSON del padre de cronograma con PARPR/PAEPR=0 todos los
+    meses — Kawak no los retira de la lista aunque ya no estén activos.
+    Se usa para excluirlos tanto de la extracción (builders.py) como de
+    la whitelist de kawak_validos (más abajo), para que sus filas viejas
+    puedan purgarse en vez de sobrevivir indefinidamente (feedback 2026-07-15).
+    """
+    global _ESTADO_PROYECTOS_CACHE
+    if _ESTADO_PROYECTOS_CACHE is not None:
+        return _ESTADO_PROYECTOS_CACHE
+    estado: Dict[str, str] = {}
+    try:
+        from .config import CATALOGO_MAESTRO_FILE
+        if CATALOGO_MAESTRO_FILE.exists():
+            df = pd.read_excel(CATALOGO_MAESTRO_FILE, sheet_name="Catalogo Indicadores")
+            df.columns = [str(c).strip() for c in df.columns]
+            for _, row in df.iterrows():
+                id_val = str(row.get("Id", "") or "").strip()
+                if id_val.startswith("PRY-"):
+                    estado[id_val] = str(row.get("Estado", "") or "").strip()
+    except Exception as e:
+        logger.warning(f"  No se pudo leer Estado de proyectos: {e}")
+    _ESTADO_PROYECTOS_CACHE = estado
+    return estado
 
 
 def cargar_metadatos_cmi() -> Dict:

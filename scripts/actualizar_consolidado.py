@@ -88,6 +88,8 @@ from etl.purga import (                            # noqa: E402
     reparar_meta_vacia,
     reparar_multiserie,
     reparar_semestral_agregados,
+    reparar_desglose_variables,
+    reparar_metas_fijas,
 )
 from etl.builders import (                         # noqa: E402
     construir_registros_historico,
@@ -538,15 +540,35 @@ def main() -> None:
     logger.info("12. Reparando valores y recalculando…")
     for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
         reparar_meta_vacia(ws, api_kawak_lookup, nom)
-        reparar_multiserie(ws, api_kawak_lookup, tipo_calculo_map, nom)
+        reparar_multiserie(
+            ws, api_kawak_lookup, tipo_calculo_map, nom,
+            extraccion_map, tipo_indicador_map,
+        )
 
     if tipo_calculo_map:
         reparar_semestral_agregados(
-            ws_sem, df_api, extraccion_map, tipo_calculo_map, "Semestral"
+            ws_sem, df_api, extraccion_map, tipo_calculo_map, "Semestral",
+            variables_campo_map, tipo_indicador_map,
         )
         reparar_semestral_agregados(
-            ws_cierres, df_api, extraccion_map, tipo_calculo_map, "Cierres"
+            ws_cierres, df_api, extraccion_map, tipo_calculo_map, "Cierres",
+            variables_campo_map, tipo_indicador_map,
         )
+
+    # ── 12.5 Reparar Desglose Variables y metas fijas (última pasada) ──
+    reparar_desglose_variables(
+        ws_hist, df_api, extraccion_map, variables_campo_map, tipo_indicador_map, "Historico"
+    )
+    reparar_desglose_variables(
+        ws_sem, df_api, extraccion_map, variables_campo_map, tipo_indicador_map, "Semestral",
+        tipo_calculo_map=tipo_calculo_map,
+    )
+    reparar_desglose_variables(
+        ws_cierres, df_api, extraccion_map, variables_campo_map, tipo_indicador_map, "Cierres",
+        tipo_calculo_map=tipo_calculo_map,
+    )
+    for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
+        reparar_metas_fijas(ws, nom)
 
     # ── 13. Deduplicar y reescribir fórmulas ─────────────────────
     logger.info("13. Deduplicando y reescribiendo fórmulas…")

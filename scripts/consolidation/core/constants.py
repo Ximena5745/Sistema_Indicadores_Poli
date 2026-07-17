@@ -76,7 +76,7 @@ EXT_SERIES_TIPOS: FrozenSet[str] = frozenset([
 
 EXT_DESGLOSE_SERIES: str = 'Desglose Series'
 
-IDS_DESGLOSE_VAR_DIRECTO: FrozenSet[str] = frozenset({'122'})
+IDS_DESGLOSE_VAR_DIRECTO: FrozenSet[str] = frozenset()
 
 # ── Mapeo de Columnas ─────────────────────────────────────────────────
 COL_ALIASES: Dict[str, str] = {

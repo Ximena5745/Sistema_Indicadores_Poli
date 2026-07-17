@@ -43,7 +43,10 @@ _EXT_SERIES_TIPOS: FrozenSet[str] = frozenset([
     _EXT_SER_SUM_VAR, _EXT_SER_AVG_RES, _EXT_SER_AVG_VAR, _EXT_SER_SUM_RES,
 ])
 _EXT_DESGLOSE_SERIES = "Desglose Series"
-_IDS_DESGLOSE_VAR_DIRECTO: FrozenSet[str] = frozenset({"122"})
+_IDS_DESGLOSE_VAR_DIRECTO: FrozenSet[str] = frozenset()
+
+# ── Metas fijas por regla de negocio (ignoran el valor reportado) ─────────
+_IDS_META_FIJA: Dict[str, float] = {"121": 100.0}
 
 
 # ── Extracción básica ─────────────────────────────────────────────
@@ -232,13 +235,10 @@ def determinar_meta_ejec(
             'series_sum_fallback'|'na_record'|'skip'|'sin_resultado'
     """
     # ── N/A ─────────────────────────────────────────────────────
+    # Registros "No Aplica" no reportan Ejecución ni Meta para el período:
+    # ambas se dejan en blanco (evita mostrar una Meta obsoleta/espuria).
     if is_na_record(row_api):
-        meta_api = row_api.get("meta")
-        meta_val = nan2none(
-            pd.to_numeric(meta_api, errors="coerce")
-            if not _es_vacio(meta_api) else None
-        )
-        return meta_val, None, "na_record", True
+        return None, None, "na_record", True
 
     resultado   = row_api.get("resultado")
     meta_api    = row_api.get("meta")
@@ -337,6 +337,36 @@ def _extraer_registro(
     variables_campo_map: Optional[Dict] = None,
     tipo_indicador_map: Optional[Dict] = None,
 ) -> Tuple[Optional[float], Optional[float], str, bool]:
+    """Extrae (meta, ejec, fuente, es_na); aplica _IDS_META_FIJA al resultado."""
+    meta, ejec, fuente, es_na = _extraer_registro_impl(
+        row, hist_escalas,
+        config_patrones=config_patrones,
+        extraccion_map=extraccion_map,
+        api_kawak_lookup=api_kawak_lookup,
+        variables_campo_map=variables_campo_map,
+        tipo_indicador_map=tipo_indicador_map,
+    )
+    if hasattr(row, "to_dict"):
+        row_dict = row.to_dict()
+    elif hasattr(row, "_asdict"):
+        row_dict = row._asdict()
+    else:
+        row_dict = row
+    id_s = _id_str(row_dict.get("Id") or row_dict.get("ID"))
+    if id_s in _IDS_META_FIJA:
+        meta = _IDS_META_FIJA[id_s]
+    return meta, ejec, fuente, es_na
+
+
+def _extraer_registro_impl(
+    row: Any,
+    hist_escalas: Dict,
+    config_patrones: Optional[Dict] = None,
+    extraccion_map: Optional[Dict] = None,
+    api_kawak_lookup: Optional[Dict] = None,
+    variables_campo_map: Optional[Dict] = None,
+    tipo_indicador_map: Optional[Dict] = None,
+) -> Tuple[Optional[float], Optional[float], str, bool]:
     """
     Extrae (meta, ejec, fuente, es_na) para una fila de fuente.
 
@@ -393,7 +423,7 @@ def _extraer_registro(
         if ejec is None:
             return meta, None, "sin_resultado", False
         if is_na_record(row_dict):
-            return meta, None, "na_record", True
+            return None, None, "na_record", True
         return meta, ejec, "series_extraccion", False
 
     # ── Desglose Series ──────────────────────────────────────────
@@ -417,7 +447,7 @@ def _extraer_registro(
         if ejec is None:
             return meta, None, "sin_resultado", False
         if is_na_record(row_dict):
-            return meta, None, "na_record", True
+            return None, None, "na_record", True
         return meta, ejec, "desglose_series", False
 
     # ── Consolidado_API_Kawak (o vacío) ──────────────────────────
@@ -442,6 +472,7 @@ def _extraer_registro(
     _tipo_ind = (tipo_indicador_map or {}).get(id_s, "")
     _usar_api_directo = (
         _tipo_ind == "Tipo 1" or id_s in _IDS_DESGLOSE_VAR_DIRECTO
+        or id_s in _IDS_META_FIJA
     )
 
     if _usar_api_directo:
@@ -464,7 +495,7 @@ def _extraer_registro(
         if res_v is None:
             return meta_v, None, "sin_resultado", False
         if is_na_record(row_dict):
-            return meta_v, None, "na_record", True
+            return None, None, "na_record", True
         return meta_v, res_v, "api_kawak_directo", False
 
     # 1) Config_Patrones override
@@ -494,7 +525,7 @@ def _extraer_registro(
         meta_v = nan2none(pd.to_numeric(row_dict.get("meta"), errors="coerce")
                           if not _es_vacio(row_dict.get("meta")) else None)
         if is_na_record(row_dict):
-            return meta_v, None, "na_record", True
+            return None, None, "na_record", True
         return meta_v, None, "sin_resultado", False
 
     # 3) Fallback heurística (solo si no hay mapeo canónico de símbolos)
@@ -504,10 +535,24 @@ def _extraer_registro(
 
 # ── Helpers para builders/purga ───────────────────────────────────
 
+def _usa_variables_canonico(id_s: str, ext: Optional[str], tipo_indicador_map: Optional[Dict]) -> bool:
+    """True si el indicador debe extraerse por símbolo desde Variables (no API-directo)."""
+    if ext != "Desglose Variables":
+        return False
+    tipo_ind = (tipo_indicador_map or {}).get(id_s, "")
+    usar_api_directo = (
+        tipo_ind == "Tipo 1" or id_s in _IDS_DESGLOSE_VAR_DIRECTO
+        or id_s in _IDS_META_FIJA
+    )
+    return not usar_api_directo
+
+
 def _ejec_corrected_from_row(
     row: Any,
     extraccion_map: Optional[Dict],
     api_kawak_lookup: Optional[Dict],
+    variables_campo_map: Optional[Dict] = None,
+    tipo_indicador_map: Optional[Dict] = None,
 ) -> Optional[float]:
     """Ejecución correcta para una fila del df_fuente (para agregados)."""
     row_d = row.to_dict() if hasattr(row, "to_dict") else row
@@ -520,6 +565,17 @@ def _ejec_corrected_from_row(
         ejec = _calc_ejec_series(row_d.get("series"), ext)
         if ejec is not None:
             return ejec
+
+    if _usa_variables_canonico(id_s, ext, tipo_indicador_map):
+        simbs_ejec = (variables_campo_map or {}).get(id_s, {}).get("ejec", [])
+        if simbs_ejec:
+            vars_list = parse_json_safe(row_d.get("variables"))
+            ejec_v = _extraer_por_simbolos(vars_list, simbs_ejec) if vars_list else None
+            if ejec_v is not None:
+                return ejec_v
+            # Símbolo configurado pero ausente en este período: no hay dato
+            # real que sumar/promediar (evita mezclar con el campo crudo).
+            return None
 
     if api_kawak_lookup:
         try:
@@ -537,6 +593,8 @@ def _meta_corrected_from_row(
     row: Any,
     extraccion_map: Optional[Dict],
     api_kawak_lookup: Optional[Dict],
+    variables_campo_map: Optional[Dict] = None,
+    tipo_indicador_map: Optional[Dict] = None,
 ) -> Optional[float]:
     """Meta correcta para una fila del df_fuente (para agregados)."""
     row_d = row.to_dict() if hasattr(row, "to_dict") else row
@@ -549,6 +607,17 @@ def _meta_corrected_from_row(
         meta = _calc_meta_series(row_d.get("series"), ext)
         if meta is not None:
             return meta
+
+    if _usa_variables_canonico(id_s, ext, tipo_indicador_map):
+        campo_info = (variables_campo_map or {}).get(id_s, {})
+        simbs_ejec = campo_info.get("ejec", [])
+        simbs_meta = campo_info.get("meta", [])
+        if simbs_ejec:
+            vars_list = parse_json_safe(row_d.get("variables"))
+            meta_v = _extraer_por_simbolos(vars_list, simbs_meta) if (vars_list and simbs_meta) else None
+            if meta_v is not None:
+                return meta_v
+            return None
 
     if api_kawak_lookup:
         try:

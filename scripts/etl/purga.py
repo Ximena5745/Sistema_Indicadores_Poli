@@ -13,7 +13,10 @@ import pandas as pd
 
 from .config import AÑO_CIERRE_ACTUAL
 from .escritura import _ejec_score, get_last_data_row
-from .extraccion import _ejec_corrected_from_row, _meta_corrected_from_row
+from .extraccion import (
+    _ejec_corrected_from_row, _meta_corrected_from_row,
+    _usa_variables_canonico, _IDS_META_FIJA,
+)
 from .formulas_excel import _build_col_map
 from .normalizacion import _id_str, make_llave
 from .periodos import ultimo_dia_mes
@@ -250,10 +253,18 @@ def reparar_multiserie(
     api_kawak_lookup: Dict,
     tipo_calculo_map: Dict,
     nombre: str = "",
+    extraccion_map: Optional[Dict] = None,
+    tipo_indicador_map: Optional[Dict] = None,
 ) -> int:
     """
     Para indicadores multiserie (TipoCalculo definido), sobreescribe Meta
     y Ejecucion con valores del lookup, incluso si ya tienen valor.
+
+    Excluye indicadores 'Desglose Variables' canónicos (se extraen por
+    símbolo, no por el campo crudo resultado/meta del lookup — ver
+    reparar_desglose_variables) y los de Meta fija por regla de negocio
+    (ver _IDS_META_FIJA / reparar_metas_fijas), para no sobreescribirlos
+    con el valor crudo equivocado.
     """
     if not api_kawak_lookup or not tipo_calculo_map:
         return 0
@@ -282,6 +293,8 @@ def reparar_multiserie(
         id_s = _id_str(row[idx_id - 1].value)
         if id_s not in tipo_calculo_map:
             continue
+        if _usa_variables_canonico(id_s, (extraccion_map or {}).get(id_s), tipo_indicador_map):
+            continue
         try:
             fecha_key = pd.to_datetime(row[idx_fecha - 1].value).normalize()
         except Exception:
@@ -294,10 +307,13 @@ def reparar_multiserie(
         ejec_cell = row[idx_ejec - 1]
         meta_lookup, ejec_lookup = vals
 
-        if meta_lookup is not None and meta_cell.value != meta_lookup:
-            meta_cell.value = meta_lookup
-            meta_cell.number_format = "General"
-            n_meta += 1
+        # Meta fija por regla de negocio (ver _IDS_META_FIJA): nunca se
+        # sobreescribe con el valor crudo del lookup, sólo con reparar_metas_fijas.
+        if id_s not in _IDS_META_FIJA:
+            if meta_lookup is not None and meta_cell.value != meta_lookup:
+                meta_cell.value = meta_lookup
+                meta_cell.number_format = "General"
+                n_meta += 1
         if ejec_lookup is not None and ejec_cell.value != ejec_lookup:
             ejec_cell.value = ejec_lookup
             n_ejec += 1
@@ -309,12 +325,144 @@ def reparar_multiserie(
     return n_meta
 
 
+def reparar_desglose_variables(
+    ws,
+    df_fuente_api: pd.DataFrame,
+    extraccion_map: Dict,
+    variables_campo_map: Dict,
+    tipo_indicador_map: Dict,
+    nombre: str = "",
+    tipo_calculo_map: Optional[Dict] = None,
+) -> int:
+    """
+    Para indicadores 'Desglose Variables' canónicos, recalcula Meta y
+    Ejecucion desde los símbolos de la hoja Variables — corrige el efecto
+    de reparar_multiserie (versiones previas del pipeline), que sobreescribía
+    con el campo crudo resultado/meta en vez del símbolo real.
+
+    Si se pasa tipo_calculo_map, excluye los IDs Promedio/Acumulado: esos
+    se agregan por período en reparar_semestral_agregados y no deben
+    pisarse aquí con el valor de un único mes.
+    """
+    ids_canonico = {
+        ids for ids, ext in (extraccion_map or {}).items()
+        if _usa_variables_canonico(ids, ext, tipo_indicador_map)
+    }
+    if tipo_calculo_map:
+        ids_agg = {
+            ids for ids, tc in tipo_calculo_map.items()
+            if str(tc).strip().lower() in ("promedio", "acumulado")
+        }
+        ids_canonico -= ids_agg
+    if not ids_canonico:
+        return 0
+
+    lookup: Dict = {}
+    for _, r in df_fuente_api.iterrows():
+        id_s = _id_str(r.get("Id") or r.get("ID", ""))
+        if id_s not in ids_canonico:
+            continue
+        try:
+            fecha_key = pd.to_datetime(r["fecha"]).normalize()
+        except Exception:
+            continue
+        ejec_v = _ejec_corrected_from_row(
+            r, extraccion_map, None, variables_campo_map, tipo_indicador_map
+        )
+        meta_v = _meta_corrected_from_row(
+            r, extraccion_map, None, variables_campo_map, tipo_indicador_map
+        )
+        lookup[(id_s, fecha_key)] = (ejec_v, meta_v)
+
+    cm = _build_col_map(ws)
+    idx_id    = cm.get("Id")
+    idx_fecha = cm.get("Fecha")
+    idx_meta  = cm.get("Meta")
+    idx_ejec  = cm.get("Ejecucion")
+    idx_tiporeg = cm.get("Tipo_Registro") or cm.get("TipoRegistro")
+    idx_ejecs   = cm.get("Ejecucion_Signo") or cm.get("EjecS")
+    if not all([idx_id, idx_fecha, idx_meta, idx_ejec]):
+        return 0
+
+    n_meta = n_ejec = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        tipo_reg = row[idx_tiporeg - 1].value if idx_tiporeg else None
+        ejec_sgn = row[idx_ejecs - 1].value if idx_ejecs else None
+        if str(tipo_reg or "").strip().lower() == "no aplica" \
+                or str(ejec_sgn or "").strip().lower() == "no aplica":
+            continue
+        id_s = _id_str(row[idx_id - 1].value)
+        if id_s not in ids_canonico:
+            continue
+        try:
+            fecha_key = pd.to_datetime(row[idx_fecha - 1].value).normalize()
+        except Exception:
+            continue
+        vals = lookup.get((id_s, fecha_key))
+        if vals is None:
+            continue
+        ejec_v, meta_v = vals
+
+        meta_cell = row[idx_meta - 1]
+        ejec_cell = row[idx_ejec - 1]
+        if meta_v is not None and meta_cell.value != meta_v:
+            meta_cell.value = meta_v
+            meta_cell.number_format = "General"
+            n_meta += 1
+        if ejec_v is not None and ejec_cell.value != ejec_v:
+            ejec_cell.value = ejec_v
+            n_ejec += 1
+
+    if n_meta or n_ejec:
+        logger.info(f"  [{nombre}] Desglose Variables corregido: Meta={n_meta} Ejec={n_ejec}")
+    else:
+        logger.info(f"  [{nombre}] Desglose Variables: sin correcciones.")
+    return n_meta + n_ejec
+
+
+def reparar_metas_fijas(ws, nombre: str = "") -> int:
+    """
+    Fuerza la Meta de indicadores con regla de negocio de meta fija
+    (ver _IDS_META_FIJA) en TODAS las filas existentes, incluso si ya
+    tenían un valor distinto — última pasada, siempre gana.
+    """
+    if not _IDS_META_FIJA:
+        return 0
+    cm = _build_col_map(ws)
+    idx_id   = cm.get("Id")
+    idx_meta = cm.get("Meta")
+    if not all([idx_id, idx_meta]):
+        return 0
+
+    n = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        id_s = _id_str(row[idx_id - 1].value)
+        meta_fija = _IDS_META_FIJA.get(id_s)
+        if meta_fija is None:
+            continue
+        meta_cell = row[idx_meta - 1]
+        if meta_cell.value != meta_fija:
+            meta_cell.value = meta_fija
+            meta_cell.number_format = "General"
+            n += 1
+
+    if n:
+        logger.info(f"  [{nombre}] Metas fijas forzadas: {n}")
+    return n
+
+
 def reparar_semestral_agregados(
     ws,
     df_fuente_api: pd.DataFrame,
     extraccion_map: Dict,
     tipo_calculo_map: Dict,
     nombre: str = "",
+    variables_campo_map: Optional[Dict] = None,
+    tipo_indicador_map: Optional[Dict] = None,
 ) -> int:
     """
     Para indicadores Promedio/Acumulado, recalcula Meta y Ejecucion
@@ -338,8 +486,12 @@ def reparar_semestral_agregados(
             fecha = pd.to_datetime(r["fecha"])
         except Exception:
             continue
-        ejec_v = _ejec_corrected_from_row(r, extraccion_map, None)
-        meta_v = _meta_corrected_from_row(r, extraccion_map, None)
+        ejec_v = _ejec_corrected_from_row(
+            r, extraccion_map, None, variables_campo_map, tipo_indicador_map
+        )
+        meta_v = _meta_corrected_from_row(
+            r, extraccion_map, None, variables_campo_map, tipo_indicador_map
+        )
         monthly[(id_s, fecha.year, fecha.month)] = (ejec_v, meta_v)
 
     cm = _build_col_map(ws)

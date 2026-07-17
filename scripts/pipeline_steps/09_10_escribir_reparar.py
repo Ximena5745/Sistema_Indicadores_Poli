@@ -49,7 +49,10 @@ import openpyxl  # noqa: E402
 from _state import save_state, load_json  # noqa: E402
 from etl.config import OUTPUT_FILE, INPUT_FILE  # noqa: E402
 from etl.escritura import escribir_filas, llaves_de_df  # noqa: E402
-from etl.purga import reparar_meta_vacia, reparar_multiserie, reparar_semestral_agregados  # noqa: E402
+from etl.purga import (  # noqa: E402
+    reparar_meta_vacia, reparar_multiserie, reparar_semestral_agregados,
+    reparar_desglose_variables, reparar_metas_fijas,
+)
 from etl.catalogo import cargar_catalogo_completo  # noqa: E402
 from etl.fuentes import cargar_consolidado_api_kawak_lookup, cargar_lmi_reporte  # noqa: E402
 
@@ -97,9 +100,11 @@ def main():
             signos[k] = {sk: None if sv in ("None", "nan", "") else sv for sk, sv in v.items()}
 
         log("INFO", "Cargando catálogo y lookup...")
-        cat_data         = cargar_catalogo_completo()
-        extraccion_map   = cat_data["extraccion_map"]
-        tipo_calculo_map = cat_data["tipo_calculo_map"]
+        cat_data            = cargar_catalogo_completo()
+        extraccion_map      = cat_data["extraccion_map"]
+        tipo_calculo_map    = cat_data["tipo_calculo_map"]
+        variables_campo_map = cat_data["variables_campo_map"]
+        tipo_indicador_map  = cat_data["tipo_indicador_map"]
         api_kawak_lookup = cargar_consolidado_api_kawak_lookup(extraccion_map)
         ids_metrica      = cargar_lmi_reporte()
 
@@ -146,18 +151,51 @@ def main():
         if not args.dry_run:
             for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
                 reparar_meta_vacia(ws, api_kawak_lookup, nom)
-                reparar_multiserie(ws, api_kawak_lookup, tipo_calculo_map, nom)
+                reparar_multiserie(
+                    ws, api_kawak_lookup, tipo_calculo_map, nom,
+                    extraccion_map, tipo_indicador_map,
+                )
 
-            if tipo_calculo_map:
-                df_api_state = None
+            df_api_state = None
+            try:
+                from _state import load_df
+                df_api_state = load_df("df_api")
+                df_api_state["fecha"] = pd.to_datetime(df_api_state["fecha"], errors="coerce")
+            except Exception as e:
+                log("WARN", f"No se pudo cargar df_api para reparaciones de agregados: {e}")
+
+            if tipo_calculo_map and df_api_state is not None:
                 try:
-                    from _state import load_df
-                    df_api_state = load_df("df_api")
-                    df_api_state["fecha"] = pd.to_datetime(df_api_state["fecha"], errors="coerce")
-                    reparar_semestral_agregados(ws_sem, df_api_state, extraccion_map, tipo_calculo_map, "Semestral")
-                    reparar_semestral_agregados(ws_cierres, df_api_state, extraccion_map, tipo_calculo_map, "Cierres")
+                    reparar_semestral_agregados(
+                        ws_sem, df_api_state, extraccion_map, tipo_calculo_map, "Semestral",
+                        variables_campo_map, tipo_indicador_map,
+                    )
+                    reparar_semestral_agregados(
+                        ws_cierres, df_api_state, extraccion_map, tipo_calculo_map, "Cierres",
+                        variables_campo_map, tipo_indicador_map,
+                    )
                 except Exception as e:
                     log("WARN", f"No se pudo reparar agregados semestrales: {e}")
+
+            if df_api_state is not None:
+                try:
+                    reparar_desglose_variables(
+                        ws_hist, df_api_state, extraccion_map, variables_campo_map,
+                        tipo_indicador_map, "Historico",
+                    )
+                    reparar_desglose_variables(
+                        ws_sem, df_api_state, extraccion_map, variables_campo_map,
+                        tipo_indicador_map, "Semestral", tipo_calculo_map=tipo_calculo_map,
+                    )
+                    reparar_desglose_variables(
+                        ws_cierres, df_api_state, extraccion_map, variables_campo_map,
+                        tipo_indicador_map, "Cierres", tipo_calculo_map=tipo_calculo_map,
+                    )
+                except Exception as e:
+                    log("WARN", f"No se pudo reparar Desglose Variables: {e}")
+
+            for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
+                reparar_metas_fijas(ws, nom)
         else:
             log("INFO", "Modo --dry-run: reparaciones NO aplicadas")
 
