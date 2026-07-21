@@ -800,7 +800,7 @@ def _available_years(df: pd.DataFrame) -> list[int]:
     if df.empty or "Año" not in df.columns:
         return []
     years = pd.to_numeric(df["Año"], errors="coerce").dropna().astype(int).unique().tolist()
-    allowed = [y for y in sorted(years) if y in {2022, 2023, 2024, 2025, 2026}]
+    allowed = [y for y in sorted(years) if y in {2022, 2023, 2024, 2025}]
     return allowed or sorted(years)
 
 
@@ -2344,7 +2344,7 @@ def render():
         """,
         unsafe_allow_html=True,
     )
-    CONSOLIDADO_RANGO_LABEL = "Consolidado 2022-2025"
+    CONSOLIDADO_RANGO_LABEL = "Cierre PDI 2022-2025"
 
     # Filtros generales — contenedor nativo, sin HTML wrappers
     _rg_sels = render_filter_panel(
@@ -2582,14 +2582,17 @@ def render():
                             else:
                                 pdi_proy = pd.concat([pdi_proy, cierres_proy], ignore_index=True) if not pdi_proy.empty else cierres_proy
 
-                retos_linea, retos_obj = _load_plan_retos_data(int(y))
-                if not retos_linea.empty:
-                    linea_df = pd.concat([linea_df, retos_linea], ignore_index=True) if not linea_df.empty else retos_linea
-                if not retos_obj.empty:
-                    obj_df = pd.concat([obj_df, retos_obj], ignore_index=True) if not obj_df.empty else retos_obj
-                plane_rows = _load_plan_retos_planes(int(y))
-                if not plane_rows.empty:
-                    planes_df = pd.concat([planes_df, plane_rows], ignore_index=True) if not planes_df.empty else plane_rows
+                # Retos: para el rango "Cierre PDI" solo se toma el cierre del último año
+                # (no se promedia entre años, igual que Indicadores/Proyectos)
+                if not use_all_years or y == max(years_to_load):
+                    retos_linea, retos_obj = _load_plan_retos_data(int(y))
+                    if not retos_linea.empty:
+                        linea_df = pd.concat([linea_df, retos_linea], ignore_index=True) if not linea_df.empty else retos_linea
+                    if not retos_obj.empty:
+                        obj_df = pd.concat([obj_df, retos_obj], ignore_index=True) if not obj_df.empty else retos_obj
+                    plane_rows = _load_plan_retos_planes(int(y))
+                    if not plane_rows.empty:
+                        planes_df = pd.concat([planes_df, plane_rows], ignore_index=True) if not planes_df.empty else plane_rows
 
             s1 = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             cols = [c for c in ["Linea", "Objetivo", "cumplimiento_pct"] if c in pdi_estrategico.columns]
@@ -2678,18 +2681,15 @@ def render():
             ]
         
         elif category == "Plan de Retos":
-            # Retos: Plan de Retos, % Meta esperada, % Ejecución real, Cumplimiento
-            ret_count_col = "N_Retos" if "N_Retos" in linea_summary.columns else "N_Indicadores"
-            total_retos = int(linea_summary[ret_count_col].sum()) if not linea_summary.empty and ret_count_col in linea_summary.columns else 0
-            if total_retos == 0:
-                total_retos = _load_plan_retos_area_count(int(year_estrategico))
+            # Retos: Áreas con retos (no cantidad de retos), % Meta esperada, % Ejecución real, Cumplimiento
+            total_areas_retos = _load_plan_retos_area_count(int(year_estrategico))
 
             meta_prom = 100.0
             ejec_prom = linea_summary["Cumpl_Promedio"].mean() if not linea_summary.empty else 0
             cumpl_prom = ejec_prom
 
             return [
-                (total_retos, "Plan de Retos", "#0B5FFF"),
+                (total_areas_retos, "Áreas con Retos", "#0B5FFF"),
                 (f"{meta_prom:.0f}%", "% Meta Esperada", "#173D66"),
                 (f"{ejec_prom:.0f}%", "% Ejecución Real", "#F59E0B"),
                 (f"{cumpl_prom:.0f}%", "Cumplimiento", "#16A34A"),
@@ -2704,14 +2704,12 @@ def render():
                 total_ind = pdi_estrategico["Id"].nunique()
             
             total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
-            total_retos = int(linea_summary["N_Retos"].sum()) if not linea_summary.empty and "N_Retos" in linea_summary.columns else 0
-            if total_retos == 0:
-                total_retos = _load_plan_retos_area_count(int(year_estrategico))
+            total_areas_retos = _load_plan_retos_area_count(int(year_estrategico))
             return [
                 (f"{avg_cumpl:.1f}%", "Cumplimiento PDI", "#0B5FFF"),
                 (total_ind, "Indicadores", "#173D66"),
                 (total_proy, "Proyectos", "#16A34A"),
-                (total_retos, "Plan de Retos", "#F59E0B"),
+                (total_areas_retos, "Áreas con Retos", "#F59E0B"),
             ]
         
         return []
