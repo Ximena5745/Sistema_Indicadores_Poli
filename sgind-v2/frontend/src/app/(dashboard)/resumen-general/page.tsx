@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SunburstPlotlyChart } from "@/components/charts/SunburstPlotlyChart";
-import { ProyectosGanttChart } from "@/components/charts/ProyectosGanttChart";
 import { DetailTables } from "@/components/tables/DetailTables";
 import { TrendVariationTables } from "@/components/tables/TrendVariationTables";
 import { ChipRow } from "@/components/ui/ChipRow";
@@ -176,19 +175,6 @@ export default function ResumenGeneralPage() {
 
           {(vista === "proyectos" || vista === "retos") && resumenQuery.data.tabla_detalle && (
             <DetailTables vista={vista} rows={resumenQuery.data.tabla_detalle} />
-          )}
-
-          {vista === "proyectos" && resumenQuery.data.gantt_proyectos && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-1 text-sm font-semibold text-slate-800">
-                Cronograma de Proyectos PDI
-              </h3>
-              <p className="mb-3 text-xs text-slate-500">
-                Vigencia activa por proyecto entre {resumenQuery.data.gantt_proyectos.anio_min} y{" "}
-                {resumenQuery.data.gantt_proyectos.anio_max}
-              </p>
-              <ProyectosGanttChart data={resumenQuery.data.gantt_proyectos} />
-            </div>
           )}
 
           {vista === "indicadores" && (

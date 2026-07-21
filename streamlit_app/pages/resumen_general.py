@@ -1815,72 +1815,6 @@ def _sparkline_svg(color: str, up: bool = True) -> str:
     )
 
 
-def _build_gantt_for_proyectos(pdi_estrategico, linea_summary):
-    """Construye visualización tipo Gantt para proyectos (2022-2025).
-    
-    Filtra cierres por IDs de proyectos del CMI.
-    Llave: ID que cruza Indicadores por CMI (Proyecto=1) con Consolidado Cierres.
-    """
-    if pdi_estrategico.empty or "cumplimiento_pct" not in pdi_estrategico.columns:
-        return None
-    
-    from services.strategic_indicators import load_cierres, load_worksheet_flags
-    cierres = load_cierres()
-    if cierres.empty:
-        return None
-    
-    ids_proy = _get_proyectos_ids()
-    cierres_proy = cierres[cierres["Id"].astype(str).isin(ids_proy)].copy()
-    cierres_proy = cierres_proy[cierres_proy["Anio"].notna() & (cierres_proy["Anio"] < 2026)]
-    
-    if cierres_proy.empty:
-        return None
-    
-    cierres_proy = cierres_proy.sort_values("Fecha").drop_duplicates(subset=["Id"], keep="last")
-    
-    base = load_worksheet_flags()
-    if not base.empty and "Linea" in base.columns:
-        base_norm = base.copy()
-        base_norm["Id"] = base_norm["Id"].apply(lambda x: str(int(x)) if isinstance(x, float) else str(x).strip())
-        cierres_proy = cierres_proy.merge(base_norm[["Id", "Linea"]].drop_duplicates(subset=["Id"]), on="Id", how="left")
-    
-    cierres_proy["Anio_int"] = cierres_proy["Anio"].astype(int)
-    
-    fig = go.Figure()
-    
-    años = [2022, 2023, 2024, 2025]
-    for _, row in cierres_proy.iterrows():
-        proyecto = row.get("Indicador", "Sin nombre")[:30]
-        linea = row.get("Linea", "Sin línea")
-        cumplimiento = row.get("cumplimiento_pct", 0)
-        anio = row.get("Anio_int", 2025)
-        
-        color = "#16A34A" if cumplimiento >= 100 else ("#F59E0B" if cumplimiento >= 50 else "#DC2626")
-        
-        fig.add_trace(go.Bar(
-            x=[cumplimiento],
-            y=[proyecto],
-            orientation='h',
-            marker_color=color,
-            text=f"{cumplimiento:.1f}%",
-            textposition='outside',
-            name=str(anio),
-            hovertemplate=f"<b>{proyecto}</b><br>Línea: {linea}<br>Año: {anio}<br>Cumplimiento: {cumplimiento:.1f}%<extra></extra>"
-        ))
-    
-    fig.update_layout(
-        title="Proyectos por Línea - Cumplimiento Último Registro (2022-2025)",
-        xaxis_title="% Cumplimiento",
-        yaxis_title="Proyecto",
-        xaxis_range=[0, 130],
-        height=max(300, len(cierres_proy) * 30),
-        showlegend=False,
-        margin=dict(l=200, r=40, t=50, b=40)
-    )
-    
-    return fig
-
-
 def _build_table_retos_por_linea(linea_summary):
     """Construye tabla de retos por línea."""
     if linea_summary.empty:
@@ -1933,12 +1867,12 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
         st.markdown("### Proyectos por Línea Estratégica")
         
         strategic_defs = [
-            {"key": "expansion", "label": "Expansion"},
-            {"key": "transformacion_organizacional", "label": "Transformacion organizacional"},
-            {"key": "calidad", "label": "Calidad"},
-            {"key": "experiencia", "label": "Experiencia"},
-            {"key": "sostenibilidad", "label": "Sostenibilidad"},
-            {"key": "educacion_para_toda_la_vida", "label": "Educacion para toda la vida"},
+            {"key": "expansion", "label": "Expansion", "color": LINEA_COLORS["Expansión"]},
+            {"key": "transformacion_organizacional", "label": "Transformacion organizacional", "color": LINEA_COLORS["Transformación organizacional"]},
+            {"key": "calidad", "label": "Calidad", "color": LINEA_COLORS["Calidad"]},
+            {"key": "experiencia", "label": "Experiencia", "color": LINEA_COLORS["Experiencia"]},
+            {"key": "sostenibilidad", "label": "Sostenibilidad", "color": LINEA_COLORS["Sostenibilidad"]},
+            {"key": "educacion_para_toda_la_vida", "label": "Educacion para toda la vida", "color": LINEA_COLORS["Educación para toda la vida"]},
         ]
         
         def _norm_key(s):
@@ -1958,7 +1892,10 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
             
             proyectos_linea = proyectos_linea.sort_values("Indicador")
             
-            st.markdown(f"### {def_linea['label']} ({len(proyectos_linea)} proyectos)")
+            st.markdown(
+                f"<h3 style='color:{def_linea['color']};'>{def_linea['label']} ({len(proyectos_linea)} proyectos)</h3>",
+                unsafe_allow_html=True,
+            )
             
             # Construir tabla HTML
             rows_html = ""
@@ -2027,8 +1964,8 @@ def _render_tables_by_category(category, pdi_estrategico, linea_summary, best_im
         st.markdown("### Retos por Línea Estratégica")
         _build_table_retos_por_linea(linea_summary)
     
-    elif category in ["Indicadores", "Proyectos"]:
-        # Tablas originales de indicadores que mejoraron / en riesgo
+    elif category == "Indicadores":
+        # Tablas originales de indicadores que mejoraron / en riesgo (no aplica a Proyectos)
         best_rows_html = _build_trend_rows_with_linea(best_improvements_e, positive=True)
         worst_rows_html = _build_trend_rows_with_linea(worst_declines_e, positive=False)
         
@@ -2890,29 +2827,23 @@ def render():
         except Exception as e:
             st.warning(f"No se pudo generar el gráfico Sunburst: {str(e)[:100]}")
 
-    # --- Tablas de variación (solo para Indicadores y Proyectos, no para Consolidado) ---
+    # --- Tablas de variación (solo para Indicadores; no aplica a Proyectos/Retos/Consolidado) ---
     best_improvements_e = []
     worst_declines_e = []
     prev_year_e = year_estrategico - 1
     prev_month_e = _latest_month_for_year(consolidado, prev_year_e)
-    if categoria in ["Indicadores", "Proyectos"] and not pdi_base_df.empty and prev_month_e:
+    if categoria == "Indicadores" and not pdi_base_df.empty and prev_month_e:
         prev_df = preparar_pdi_con_cierre(prev_year_e, prev_month_e)
         if prev_df is None or prev_df.empty:
             prev_df = pd.DataFrame()
-        elif categoria == "Indicadores":
+        else:
             prev_df = filter_df_for_cmi_estrategico(prev_df, id_column="Id")
-        elif categoria == "Proyectos":
-            ids_proy = _get_proyectos_ids()
-            if "Id" in prev_df.columns:
-                prev_df = prev_df[prev_df["Id"].astype(str).isin(ids_proy)].copy()
-            else:
-                prev_df = pd.DataFrame()
-        
+
         # Defensiva CRÍTICA: limpiar columnas duplicadas antes de pasar a _compute_trends
         prev_df = _clean_duplicates(prev_df)
-        
+
         best_improvements_e, worst_declines_e = _compute_trends(pdi_base_df, prev_df)
-    # Para Plan de Retos y Consolidado, no hay variación por Id
+    # Para Proyectos, Plan de Retos y Consolidado, no hay variación por Id
 
     # --- Chips de salud y narrativa ejecutiva ---
     count_col = "N_Proyectos" if categoria == "Proyectos" else "N_Indicadores"

@@ -1,5 +1,6 @@
 export interface ProyectoDetalleRow {
   linea: string;
+  linea_color?: string;
   id: string;
   nombre: string;
   cumplimiento: number;
@@ -40,14 +41,16 @@ export function DetailTables({ vista, rows }: DetailTablesProps) {
         <h3 className="text-sm font-semibold text-slate-800">Detalle por línea estratégica</h3>
         {Array.from(grouped.entries()).map(([linea, items]) => (
           <div key={linea} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+            <div
+              className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-semibold"
+              style={{ color: items[0]?.linea_color || "#334155" }}
+            >
               {linea}
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-base">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-sm uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-2">ID</th>
                     <th className="px-4 py-2">Proyecto</th>
                     <th className="px-4 py-2">Cumplimiento</th>
                     <th className="px-4 py-2">Estado</th>
@@ -56,7 +59,6 @@ export function DetailTables({ vista, rows }: DetailTablesProps) {
                 <tbody>
                   {items.map((item) => (
                     <tr key={item.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-4 py-2 font-mono text-sm text-slate-600">{item.id}</td>
                       <td className="px-4 py-2 text-slate-800">{item.nombre}</td>
                       <td className="px-4 py-2 font-semibold text-slate-700">{item.cumplimiento}%</td>
                       <td className="px-4 py-2">

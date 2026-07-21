@@ -12,7 +12,6 @@ from app.domain.linea_order import linea_sort_key
 from app.domain.resumen_builders import (
     build_linea_summary,
     build_linea_summary_retos,
-    build_proyectos_gantt,
     build_proyectos_tabla,
     build_retos_tabla,
     build_strategy_cards,
@@ -432,7 +431,6 @@ class ResumenService:
             }
 
         if vista_norm == "proyectos":
-            proy_all = self._strategic.load_proyectos()
             proy_df = ensure_nivel_cumplimiento(self._strategic.preparar_proyectos_con_cierre(anio, 12))
             chips = get_chip_config_proyectos(proy_df)
             linea_summary = build_linea_summary(proy_df, unique_count_col="Id", count_col_name="N_Proyectos")
@@ -442,7 +440,6 @@ class ResumenService:
             objetivo_df = proy_df[objetivo_cols].copy() if objetivo_cols else pd.DataFrame()
             sunburst = build_sunburst_plotly(objetivo_df)
             narrativa = generate_narrative_proyectos(proy_df, linea_summary)
-            gantt = build_proyectos_gantt(proy_all)
 
             return {
                 "anio": anio,
@@ -454,7 +451,6 @@ class ResumenService:
                 "mejoraron": [],
                 "en_riesgo": [],
                 "periodo_comparacion": "",
-                "gantt_proyectos": gantt,
                 "total_indicadores": chips[0]["value"] if chips else 0,
                 "tabla_detalle": build_proyectos_tabla(proy_df),
             }

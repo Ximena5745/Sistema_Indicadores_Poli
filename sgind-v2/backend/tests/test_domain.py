@@ -73,29 +73,6 @@ def test_enriquecer_dataframe():
     assert out.loc[out["Id"] == "100", "Categoria"].iloc[0] == "Peligro"
 
 
-def test_build_proyectos_gantt_span():
-    from app.domain.resumen_builders import build_proyectos_gantt
-
-    df = pd.DataFrame({
-        "Id": ["1", "1", "2", "2"],
-        "Indicador": ["Proyecto A", "Proyecto A", "Proyecto B", "Proyecto B"],
-        "Linea": ["Calidad", "Calidad", "Experiencia", "Experiencia"],
-        "Anio": [2022, 2024, 2023, 2025],
-        "cumplimiento_pct": [50.0, 100.0, 0.0, 80.0],
-    })
-    gantt = build_proyectos_gantt(df, anio_min=2022, anio_max=2026)
-    assert gantt["anio_min"] == 2022
-    assert len(gantt["items"]) == 2
-
-    proy_a = next(item for item in gantt["items"] if item["id"] == "1")
-    assert proy_a["anio_inicio"] == 2022
-    assert proy_a["anio_fin"] == 2024
-    assert proy_a["duracion_anios"] == 3
-    assert proy_a["anios_activos"] == [2022, 2024]
-    assert proy_a["cumplimiento"] == 100.0
-    assert proy_a["estado"] == "Cerrado"
-
-
 def test_retos_category_umbral_95():
     from app.domain.resumen_builders import _retos_category
 

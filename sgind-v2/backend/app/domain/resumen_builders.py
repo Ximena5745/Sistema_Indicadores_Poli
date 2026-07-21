@@ -877,68 +877,6 @@ def generate_narrative_consolidado(
     }
 
 
-def build_proyectos_gantt(
-    proy_df: pd.DataFrame,
-    *,
-    anio_min: int = 2022,
-    anio_max: int = 2026,
-) -> dict[str, Any]:
-    """Cronograma de proyectos: vigencia activa por año dentro del horizonte PDI."""
-    empty = {"anio_min": anio_min, "anio_max": anio_max, "items": []}
-    if proy_df.empty or "Id" not in proy_df.columns:
-        return empty
-
-    work = proy_df.copy()
-    work["Anio"] = pd.to_numeric(work.get("Anio"), errors="coerce")
-    work = work[work["Anio"].between(anio_min, anio_max)]
-    if work.empty:
-        return empty
-
-    sort_cols = ["Id"]
-    if "Fecha" in work.columns:
-        sort_cols.append("Fecha")
-    elif "Mes" in work.columns:
-        sort_cols.append("Mes")
-    work = work.sort_values(sort_cols)
-
-    items: list[dict[str, Any]] = []
-    for project_id, group in work.groupby("Id", sort=False):
-        anios = sorted({int(a) for a in group["Anio"].dropna().unique()})
-        if not anios:
-            continue
-
-        latest = group.iloc[-1]
-        nombre = str(latest.get("Indicador") or project_id).strip()
-        linea = str(latest.get("Linea") or "Sin línea").strip()
-        cumpl = _safe_pct(latest.get("cumplimiento_pct"), default=0.0) or 0.0
-        estado = "Planeación"
-        if cumpl > 0:
-            estado = "Cerrado" if cumpl >= 100 else "En ejecución"
-
-        linea_key = norm_key(linea)
-        linea_color = LINEA_COLORS_BADGE.get(linea_key, "#64748B")
-        anio_inicio = min(anios)
-        anio_fin = max(anios)
-
-        items.append(
-            {
-                "id": str(project_id),
-                "nombre": nombre,
-                "linea": linea,
-                "linea_color": linea_color,
-                "anio_inicio": anio_inicio,
-                "anio_fin": anio_fin,
-                "duracion_anios": anio_fin - anio_inicio + 1,
-                "anios_activos": anios,
-                "cumplimiento": cumpl,
-                "estado": estado,
-            }
-        )
-
-    items.sort(key=lambda x: (linea_sort_key(x["linea"]), x["nombre"].lower()))
-    return {"anio_min": anio_min, "anio_max": anio_max, "items": items}
-
-
 def build_proyectos_tabla(proy_df: pd.DataFrame) -> list[dict]:
     if proy_df.empty:
         return []
@@ -958,6 +896,7 @@ def build_proyectos_tabla(proy_df: pd.DataFrame) -> list[dict]:
             rows.append(
                 {
                     "linea": str(linea or row.get("Linea", "")),
+                    "linea_color": LINEA_COLORS_BADGE.get(norm_key(str(linea or row.get("Linea", ""))), "#64748B"),
                     "id": str(row.get("Id", "")),
                     "nombre": str(row.get("Indicador", row.get("Id", ""))),
                     "cumplimiento": round(float(cumpl), 1) if pd.notna(cumpl) else 0.0,
