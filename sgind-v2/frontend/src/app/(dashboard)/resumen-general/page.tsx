@@ -50,7 +50,7 @@ export default function ResumenGeneralPage() {
 
   const needsAuth = ready && !isAuthenticated;
   const showLoading = !ready || (isAuthenticated && resumenQuery.isFetching && !resumenQuery.data);
-  const years = filtrosQuery.data?.anios ?? [2022, 2023, 2024, 2025, 2026];
+  const years = (filtrosQuery.data?.anios ?? [2022, 2023, 2024, 2025, 2026]).filter((y) => y !== 2026);
   const [pdfLoading, setPdfLoading] = useState(false);
 
   async function handleDownloadPdf() {
@@ -114,7 +114,7 @@ export default function ResumenGeneralPage() {
           />
         </div>
         <p className="text-xs text-slate-500">
-          Filtros activos: Año {rango ? "Consolidado 2022-2025" : anioEfectivo} · Vista{" "}
+          Filtros activos: Año {rango ? "Cierre PDI 2022-2025" : anioEfectivo} · Vista{" "}
           {vista === "indicadores"
             ? "Indicadores"
             : vista === "proyectos"

@@ -18,7 +18,7 @@ export function Sidebar() {
         <p className="mt-1 text-xs text-slate-300">SGIND v2 — Migración</p>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-6">
         <ul className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
