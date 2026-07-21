@@ -2465,24 +2465,24 @@ def render():
         elif category == "Proyectos":
             # Proyectos: Carga desde "Consolidado Cierres" (fuente oficial actualizada)
             # Dinámico: si se agregan/quitan datos de proyectos, se actualizan automáticamente
-            from services.strategic_indicators import load_proyectos_consolidados
-            
+            from services.strategic_indicators import load_proyectos_consolidados, cierre_por_corte
+
             pdi_proy = pd.DataFrame()
             ids_proy = _get_proyectos_ids()  # IDs del CMI marcados con Proyecto==1
-            
+
             if ids_proy:
                 # Cargar todos los datos de "Consolidado Cierres" (ya incluye proyectos)
                 consolidado = load_proyectos_consolidados()
-                
+
                 if not consolidado.empty and "Id" in consolidado.columns:
                     # Filtrar por IDs de proyectos del CMI
                     consolidado["Id"] = consolidado["Id"].astype(str)
                     pdi_proy = consolidado[consolidado["Id"].isin(ids_proy)].copy()
-                    
+
                     # Asegurar que tengan Línea/Objetivo (también si están vacíos)
                     linea_vacia = (
-                        "Linea" not in pdi_proy.columns 
-                        or pdi_proy["Linea"].isna().all() 
+                        "Linea" not in pdi_proy.columns
+                        or pdi_proy["Linea"].isna().all()
                         or (pdi_proy["Linea"].astype(str).str.strip() == "").all()
                     )
                     if not pdi_proy.empty and linea_vacia:
@@ -2494,8 +2494,8 @@ def render():
                             if merge_cols:
                                 base_to_merge = base_norm[["Id"] + merge_cols].drop_duplicates(subset=["Id"])
                                 pdi_proy = pdi_proy.merge(base_to_merge, on="Id", how="left", suffixes=("", "_cmi"))
-                                
-                                # Resolver sufijos de merge -也需要填充空字符串
+
+                                # Resolver sufijos de merge -también hay que rellenar strings vacíos
                                 for col in pdi_proy.columns:
                                     if col.endswith("_cmi"):
                                         base_col = col[:-4]
@@ -2504,9 +2504,13 @@ def render():
                                             mask_vacio = (pdi_proy[base_col].astype(str).str.strip() == "") | pdi_proy[base_col].isna()
                                             pdi_proy.loc[mask_vacio, base_col] = pdi_proy.loc[mask_vacio, col]
                                         pdi_proy = pdi_proy.drop(col, axis=1)
-                    
-                    # Deduplicar por Id (mantener último)
-                    pdi_proy = pdi_proy.sort_values("Id", na_position="last").drop_duplicates(subset=["Id"], keep="last")
+
+                    # Cierre por corte: solo proyectos con reporte hasta el año
+                    # seleccionado (activos/con avance ese año), igual que Indicadores.
+                    # Antes se deduplicaba ordenando por "Id" (alfabético, sin
+                    # relación con el año) y el resultado no cambiaba con el filtro.
+                    corte_anio = max(years_to_load) if use_all_years else int(year)
+                    pdi_proy = cierre_por_corte(pdi_proy, corte_anio, 12)
             
             # Defensiva CRÍTICA: limpiar columnas duplicadas antes de retornar
             pdi_proy = _clean_duplicates(pdi_proy)
@@ -2704,7 +2708,9 @@ def render():
                 total_ind = pdi_estrategico["Id"].nunique()
             
             total_proy = int(linea_summary["N_Proyectos"].sum()) if not linea_summary.empty and "N_Proyectos" in linea_summary.columns else 0
-            total_areas_retos = _load_plan_retos_area_count(int(year_estrategico))
+            # Consolidado siempre muestra el número final de áreas con retos
+            # (cierre 2025), sin importar qué año esté activo en el filtro.
+            total_areas_retos = _load_plan_retos_area_count(int(years[-1]))
             return [
                 (f"{avg_cumpl:.1f}%", "Cumplimiento PDI", "#0B5FFF"),
                 (total_ind, "Indicadores", "#173D66"),
@@ -2838,7 +2844,8 @@ def render():
             # Para consolidado, obtener número de áreas con retos
             retos_value = None
             if categoria == "Consolidado":
-                retos_value = _load_plan_retos_area_count(int(year_estrategico)) if 'year_estrategico' in dir() else 0
+                # Consolidado siempre muestra el número final de áreas con retos (cierre 2025)
+                retos_value = _load_plan_retos_area_count(int(years[-1]))
             elif categoria == "Plan de Retos":
                 retos_value = n_retos
             

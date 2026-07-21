@@ -159,6 +159,21 @@ def _preparar_indicadores_con_cierre(
     cierres_cut = cierre_por_corte(cierres, anio, mes)
     cierres_cut["Id"] = cierres_cut["Id"].apply(_normalize_id_value)
 
+    # El catálogo de flags es el vigente HOY; para años históricos hay que
+    # excluir los indicadores que aún no existían (sin esto, el total
+    # siempre queda fijo en el tamaño del catálogo actual). Se usa el primer
+    # año con cierre reportado por Id como proxy de "existe desde".
+    cierres_all = cierres.copy()
+    cierres_all["Id"] = cierres_all["Id"].apply(_normalize_id_value)
+    if "Anio" in cierres_all.columns:
+        primer_anio = pd.to_numeric(cierres_all["Anio"], errors="coerce").groupby(
+            cierres_all["Id"]
+        ).min()
+        vigentes = primer_anio[primer_anio <= int(anio)].index
+        indicators = indicators[indicators["Id"].isin(vigentes)].copy()
+        if indicators.empty:
+            return pd.DataFrame()
+
     # Merge con cierres
     result = indicators[["Id", "Indicador"] + catalog_merge_cols].merge(
         cierres_cut,
