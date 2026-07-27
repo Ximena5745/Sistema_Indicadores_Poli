@@ -1329,11 +1329,14 @@ def main():
     print(f"    Catálogos: {list(catalogo_por_anio.keys())}  "
           f"→ {total_ids} entradas ({', '.join(f'{y}:{len(c)}' for y,c in catalogo_por_anio.items())})")
 
-    # Catálogo unificado para normalizar el lookup Kawak (periodicidad por ID)
+    # Catálogo unificado para normalizar el lookup Kawak (periodicidad por ID).
+    # Recorre los años en orden ASCENDENTE y sobrescribe: el catálogo del año
+    # más reciente gana. Necesario porque la periodicidad de un indicador puede
+    # cambiar de un año a otro (ej. Anual → Semestral) y normalizar_kawak_lookup
+    # debe usar la vigente, no la más antigua encontrada.
     catalogo_unificado: Dict[str, str] = {}
-    for cat in catalogo_por_anio.values():
-        for kid, perio in cat.items():
-            catalogo_unificado.setdefault(kid, perio)
+    for year in sorted(catalogo_por_anio.keys()):
+        catalogo_unificado.update(catalogo_por_anio[year])
 
     # Normalizar Kawak lookup al mes de CIERRE del período según periodicidad
     kawak_lookup_norm = normalizar_kawak_lookup(kawak_lookup, catalogo_unificado)
