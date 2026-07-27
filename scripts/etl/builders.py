@@ -563,10 +563,39 @@ def construir_registros_poblacion(
         df = df[df["fecha"].dt.month.isin([6, 12])]
     elif modo == "cierres":
         df["_año"] = df["fecha"].dt.year
+
+        def _fila_tiene_ejec(id_s: str, row) -> bool:
+            if id_s in _SIMBOLOS_MATRICULAS_NUEVOS:
+                vars_list = parse_json_safe(row.get("variables")) or []
+                simb_ejec, _ = _SIMBOLOS_MATRICULAS_NUEVOS[id_s]
+                return extraer_por_simbolo(vars_list, simb_ejec) is not None
+            if id_s == "274":
+                series_list = parse_json_safe(row.get("series")) or []
+                for serie in series_list:
+                    if not isinstance(serie, dict):
+                        continue
+                    if str(serie.get("nombre", "")).strip() not in _SERIES_ANTIGUOS_TODAS:
+                        continue
+                    for v in serie.get("variables", []):
+                        if isinstance(v, dict) and v.get("simbolo") == "TEMS" and v.get("valor") is not None:
+                            return True
+                return False
+            return False
+
         grupos = []
         for (_id_s, año), grp in df.groupby(["_id_s", "_año"]):
-            dec_rows = grp[grp["fecha"].dt.month == 12]
-            candidato = (dec_rows if not dec_rows.empty else grp).sort_values("fecha").tail(1)
+            # Solo se consideran candidatas las filas con ejecución real: una
+            # fila de diciembre "placeholder" (meta ya cargada, sin ejecución
+            # porque el período aún no cierra) no debe ganarle a la última
+            # fila con dato real de un período anterior. Caso real: 379/
+            # 381-384 traen fila 2026-12-31 sin NENTM/ENMPP mientras 274 solo
+            # reporta hasta 2026-06-30 — sin este filtro, cada serie fuente
+            # queda anclada a una fecha distinta y la suma de 14/14.x nunca
+            # coincide (indicador desaparece del cierre del año en curso).
+            grp_validas = grp[grp.apply(lambda r: _fila_tiene_ejec(_id_s, r), axis=1)]
+            base = grp_validas if not grp_validas.empty else grp
+            dec_rows = base[base["fecha"].dt.month == 12]
+            candidato = (dec_rows if not dec_rows.empty else base).sort_values("fecha").tail(1)
             grupos.append(candidato)
         if not grupos:
             return []
