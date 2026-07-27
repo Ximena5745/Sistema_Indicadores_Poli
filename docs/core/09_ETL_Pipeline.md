@@ -74,30 +74,45 @@ python scripts/consolidar_api.py
 
 ### Fases Internas (main function)
 
+Numeración tal como aparece en los comentarios `# ── N. ──` de `main()` —
+no es estrictamente ascendente porque algunos sub-pasos (10.4x) deben
+ejecutarse en un orden distinto al de su número (ver nota en 10.5).
+
 | # | Fase | Función/módulo | Descripción |
 |---|------|----------------|-------------|
-| 1 | Cargar fuente | `fuentes.cargar_fuente_consolidada()` | Lee `Consolidado_API_Kawak.xlsx`, normaliza columnas, construye campo `LLAVE` |
-| 1.5 | Validar entrada | `validation_gate.validar_consolidado_api_entrada()` | Gate LAYER 1: bloquea pipeline si datos inválidos |
+| 0.5 | Regenerar intermedios | `consolidar_api.consolidar_kawak()/consolidar_api()` | Reconstruye `Indicadores Kawak.xlsx`/`Consolidado_API_Kawak.xlsx` desde `data/raw/Kawak\|API/*.xlsx` en cada corrida |
+| 1 | Cargar fuente | `fuentes.cargar_fuente_consolidada()` | Lee `Consolidado_API_Kawak.xlsx`, normaliza columnas |
+| 1.5 | Validar entrada | `validation_gate.validar_consolidado_api_entrada()` | Gate LAYER 1: bloquea el pipeline (`sys.exit`) si los datos de entrada son inválidos |
 | 2 | Cargar catálogo | `catalogo.cargar_catalogo_completo()` | `extraccion_map`, `tipo_calculo_map`, `tipo_indicador_map`, `variables_campo_map` |
-| 3 | Metadatos auxiliares | múltiples en `fuentes.py` | `kawak_validos`, `metadatos_kawak`, `metadatos_cmi`, `mapa_procesos`, `ids_metrica`, `api_kawak_lookup` |
+| 3 | Metadatos auxiliares | múltiples en `fuentes.py` | `kawak_validos`, `metadatos_kawak`, `metadatos_cmi`, `mapa_procesos`, `ids_metrica`, `kawak_por_año`, `api_kawak_lookup` |
 | 4 | Config patrones | `catalogo.cargar_config_patrones()` | Patrones AVG/SUM por indicador |
-| 4.5 | Init versionado | `VersionManager`, `AuditTrail`, `EmailNotifier` | Backup pre-modificación, trail de auditoría |
+| 4.5 | Init versionado/auditoría | `VersionManager`, `AuditTrail`, `EmailNotifier` | |
 | 5 | Abrir workbook | `workbook_io.workbook_local_copy()` | Copia local segura, abre con openpyxl |
-| 5.5 | Backup de versión | `vm.crear_version(tag="pre_consolidacion")` | Guarda hasta 5 versiones anteriores |
-| 6 | Leer existentes | `pd.read_excel()` x3 hojas | Obtiene `llaves_existentes` para cada hoja |
-| 7 | Construir registros | `builders.*` | Genera registros nuevos para Histórico, Semestral, Cierres |
-| 7.5 | Correcciones AGENT5 | `AGENT5Corrections` | Cap ejecución > 1.3, flag Meta=0 |
-| 8 | Validar intermedio | `validate_after_build_records()` | Gate LAYER 2: valida integridad de registros construidos |
-| 9 | Purgar inválidos | `purga.purgar_filas_invalidas()` | Elimina filas futuras y fuera del catálogo Kawak |
-| 10 | Limpiar/dedup | `purga.limpiar_cierres_existentes()`, `_dedup_cierres_por_año()` | Normaliza hoja Cierres |
-| 11 | Reparar Meta vacía | `purga.reparar_meta_vacia()`, `reparar_multiserie()`, `reparar_semestral_agregados()` | Rellena celdas vacías con datos del lookup |
-| 12 | Calcular signos | `signos.obtener_signos()` | Determina signo (%, ENT, etc.) por indicador |
-| 13 | Validar pre-escritura | `validate_before_write()` | Gate LAYER 3: valida filas antes de escribir |
-| 14 | Escribir filas | `escritura.escribir_filas()` x3 | Escribe en Histórico, Semestral, Cierres |
-| 15 | Ordenar y limpiar | `escritura.limpiar_ordenar_hoja()` x3 | Deduplica, reordena, reescribe fórmulas |
-| 16 | Guardar workbook | `wb.save()` | Persiste el workbook con todos los cambios |
-| 17 | Métricas finales | `MetricsCollector.finish_pipeline()` | Guarda métricas en `artifacts/` |
-| 18 | Notificaciones | `EmailNotifier.send_summary()` | Envía resumen si SMTP configurado |
+| 5.5 | Backup de versión | `vm.crear_version(tag="pre_consolidacion")` | Guarda hasta 5 versiones anteriores en `.versiones/` |
+| 6 | Leer hojas existentes | `pd.read_excel()` x3 hojas | Para calcular signos (`obtener_signos`) |
+| 7 | Purgar filas inválidas | `purga.purgar_filas_invalidas()`, `purgar_filas_antes_fecha_desde()`, `limpiar_cierres_existentes()` | Elimina filas futuras, fuera del catálogo Kawak, y anteriores a `Fecha Desde` (ficha técnica) sin dato real |
+| 7.5 | Releer estado post-purge | `worksheet_a_dataframe()` x3 | Recalcula `df_hist_ex`/`df_sem_ex`/`df_cierres_ex` desde el workbook YA purgado (evita que builders traten una fila purgada como "ya existente") |
+| 8 | Escalas históricas | — | `hist_escalas` (Meta/Ejecucion por Id) para heurísticas de extracción |
+| 9 | Preparar llaves | `escritura.llaves_de_df()` | `llaves_hist/sem/cierres` desde Id+Fecha reales |
+| 9.5 | Forzar regeneración | — | Excluye de `llaves_*` los IDs de sub-indicadores/proyectos/población/274 para que builders los reconstruyan siempre con la lógica correcta |
+| 10 | Construir registros | `builders.construir_registros_historico/semestral/cierres()` | Genera registros nuevos para las 3 hojas |
+| 10.5 | Correcciones AGENT5 | `AGENT5Corrections` | Solo señala Meta=0/NULL (ya NO recorta Ejecucion/Meta — quitado 2026-07-25); IDs 274/274.x excluidos (`_IDS_SUMA_VARIABLES_SERIES`). Corre ANTES de 10.4-10.46 para no marcar sub-indicadores/población |
+| 10.4 | Sub-indicadores desde series | `builders.expandir_series_como_subindicadores()` | Series JSON → filas 420.1, 274.1-274.4, etc. |
+| 10.45 | Proyectos cronograma | `builders.extraer_cronograma_proyectos()` | Padres 441/509/603 → proyectos hijos |
+| 10.46 | Total Población | `builders.construir_registros_poblacion()` | Indicador 14 y 14.1-14.4 |
+| 10.6 | Validar post-construcción | `validate_after_build_records()` | Gate LAYER 2 (no bloqueante, solo registra en `trail`) |
+| 10.7 | Validar pre-escritura | `validate_before_write()` | Gate LAYER 3 (no bloqueante) |
+| 11 | Escribir filas | `escritura.escribir_filas()` x3 | Escribe en Histórico, Semestral, Cierres |
+| 12 | Reparar valores | `reparar_meta_vacia()`, `reparar_meta_capeada_agent5()`, `reparar_ejecucion_capeada_agent5()`, `reparar_multiserie()`, `reparar_semestral_agregados()` | Rellena vacíos y corrige residuos del capping AGENT5 obsoleto |
+| 12.5 | Reparar Desglose Variables / metas fijas | `reparar_desglose_variables()`, `reparar_metas_fijas()` | Última pasada antes de deduplicar |
+| 12.6 | Repetir purga Fecha Desde | `purgar_filas_antes_fecha_desde()` | Los builders pueden recrear en el mismo run filas que el paso 7 purgó |
+| 13 | Deduplicar y reescribir fórmulas | `escritura.limpiar_ordenar_hoja()` x3 | Ordena por Id+Fecha, reescribe fórmulas de Año/Mes/Cumplimiento/LLAVE |
+| 14 | Actualizar Catálogo Indicadores | `catalogo.construir_catalogo()` | Reescribe la hoja `Catalogo Indicadores` |
+| 15 | Guardar | `wb.save()` + materializar copia "VALORES" | Persiste el workbook; genera `Resultados Consolidados VALORES.xlsx` (fórmulas resueltas a valores) |
+
+En caso de excepción durante el guardado, se intenta rollback automático a
+la última versión (`vm.restaurar_ultima_version()`) y se notifica por email
+si `EmailNotifier` está configurado.
 
 ### Hojas del Workbook de Salida
 

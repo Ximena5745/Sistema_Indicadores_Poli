@@ -55,6 +55,7 @@ from etl.config import (  # noqa: E402
 from etl.normalizacion import _id_str  # noqa: E402
 from etl.validation_gate import validar_consolidado_api_entrada  # noqa: E402
 from etl.agent5_corrections import AGENT5Corrections  # noqa: E402
+from etl.extraccion import _IDS_SUMA_VARIABLES_SERIES  # noqa: E402
 from etl.fuentes import (                          # noqa: E402
     cargar_fuente_consolidada,
     cargar_kawak_validos,
@@ -64,6 +65,7 @@ from etl.fuentes import (                          # noqa: E402
     cargar_lmi_reporte,
     cargar_consolidado_api_kawak_lookup,
     cargar_periodicidad_kawak_por_año,
+    cargar_fecha_desde_ficha,
 )
 from etl.catalogo import (                         # noqa: E402
     cargar_catalogo_completo,
@@ -83,9 +85,13 @@ from etl.escritura import (                        # noqa: E402
 )
 from etl.purga import (                            # noqa: E402
     purgar_filas_invalidas,
+    purgar_filas_antes_fecha_desde,
     limpiar_cierres_existentes,
     _dedup_cierres_por_año,
     reparar_meta_vacia,
+    reparar_meta_capeada_agent5,
+    reparar_ejecucion_capeada_agent5,
+    reparar_signos_desde_catalogo,
     reparar_multiserie,
     reparar_semestral_agregados,
     reparar_desglose_variables,
@@ -122,7 +128,7 @@ def apply_agent5_corrections_to_registros(
     Aplicar correcciones AGENT 5 a los registros antes de escribir.
 
     HALLAZGOS CRÍTICOS:
-    1. Ejecución > 1.3 → Capping automático
+    1. Ejecución > 1.3 → Solo se señala (no se recorta, ver agent5_corrections.py)
     2. Meta = 0 → Flagging para revisión
 
     Args:
@@ -153,41 +159,57 @@ def apply_agent5_corrections_to_registros(
             logger.info(f"   {nombre_hoja}: sin registros, omitiendo")
             continue
 
+        # IDs excluidos del capping 0-1.3: su Meta/Ejecución son conteos
+        # brutos de variables (no una razón porcentual), p.ej. 274
+        # (suma de TEMS/TEP de sus series) — ver _IDS_SUMA_VARIABLES_SERIES.
+        regs_excluir = [r for r in regs if _id_str(r.get("Id")) in _IDS_SUMA_VARIABLES_SERIES]
+        regs_corregibles = [r for r in regs if _id_str(r.get("Id")) not in _IDS_SUMA_VARIABLES_SERIES]
+
+        if not regs_corregibles:
+            if nombre_hoja == "Historico":
+                regs_hist = regs_excluir
+            elif nombre_hoja == "Semestral":
+                regs_sem = regs_excluir
+            elif nombre_hoja == "Cierres":
+                regs_cierres = regs_excluir
+            continue
+
         # Convertir lista de dicts a DataFrame
-        df_temp = pd.DataFrame(regs)
+        df_temp = pd.DataFrame(regs_corregibles)
 
         # Aplicar correcciones
         df_corregido, reporte_correcciones = AGENT5Corrections.apply_all_corrections(df_temp)
 
         # Registrar hallazgos en audit trail
-        if reporte_correcciones.get("ejecucion_capping", 0) > 0:
+        # (claves alineadas con AGENT5Corrections.apply_all_corrections: antes
+        # decían "ejecucion_capping"/"meta_zero_count", que nunca existieron
+        # en el dict devuelto — estos dos registros de auditoría nunca se
+        # habían disparado)
+        if reporte_correcciones.get("ejecucion_excedidas", 0) > 0:
             trail.registrar_cambio_datos(
-                tipo_cambio="corrección_crítica",
+                tipo_cambio="información",
                 tabla=f"Consolidado {nombre_hoja}",
-                registros_afectados=reporte_correcciones["ejecucion_capping"],
-                descripcion=f"Capping ejecución > 1.3 a máximo 1.3",
+                registros_afectados=reporte_correcciones["ejecucion_excedidas"],
+                descripcion="Ejecución > 1.3 detectada (no se recorta, escala propia del indicador)",
                 usuario="etl_agent5",
             )
-            logger.warning(
-                f"   ⚠️  {nombre_hoja}: {reporte_correcciones['ejecucion_capping']} "
-                "registros con ejecución capeada"
-            )
 
-        if reporte_correcciones.get("meta_zero_count", 0) > 0:
+        if reporte_correcciones.get("meta_cero", 0) > 0:
             trail.registrar_cambio_datos(
                 tipo_cambio="validación_crítica",
                 tabla=f"Consolidado {nombre_hoja}",
-                registros_afectados=reporte_correcciones["meta_zero_count"],
-                descripcion=f"Detectados {reporte_correcciones['meta_zero_count']} registros con meta=0 (requiere revisión)",
+                registros_afectados=reporte_correcciones["meta_cero"],
+                descripcion=f"Detectados {reporte_correcciones['meta_cero']} registros con meta=0 (requiere revisión)",
                 usuario="etl_agent5",
             )
             logger.error(
-                f"   🔴 {nombre_hoja}: {reporte_correcciones['meta_zero_count']} "
+                f"   🔴 {nombre_hoja}: {reporte_correcciones['meta_cero']} "
                 "registros con META=0 detectados (revisar manualmente)"
             )
 
-        # Convertir DataFrame corregido de vuelta a lista de dicts
-        regs_corregidos = df_corregido.to_dict(orient="records")
+        # Convertir DataFrame corregido de vuelta a lista de dicts, re-agregando
+        # los excluidos del capping (sin pasar por AGENT5)
+        regs_corregidos = df_corregido.to_dict(orient="records") + regs_excluir
 
         # Actualizar referencia (aunque sea local, se retorna)
         if nombre_hoja == "Historico":
@@ -344,14 +366,23 @@ def main() -> None:
             df_hist_ex = pd.read_excel(xls, sheet_name="Consolidado Historico")
             df_sem_ex = pd.read_excel(xls, sheet_name="Consolidado Semestral")
             df_cierres_ex = pd.read_excel(xls, sheet_name="Consolidado Cierres")
-    signos = obtener_signos(df_hist_ex, df_sem_ex, df_cierres_ex)
+    formato_valores_map = {
+        ids: ud.get("Formato_Valores", "")
+        for ids, ud in cat_data["user_data"].items()
+        if ud.get("Formato_Valores")
+    }
+    logger.info("   Formato_Valores (catálogo): %d indicadores", len(formato_valores_map))
+    signos = obtener_signos(df_hist_ex, df_sem_ex, df_cierres_ex, formato_valores_map)
     logger.info("   %d indicadores con signo", len(signos))
 
     # ── 7. Purgar filas inválidas ──────────────────────────────────
     logger.info("7. Purgando filas inválidas…")
+    fecha_desde_map = cargar_fecha_desde_ficha()
+    logger.info("   Fecha Desde (ficha técnica): %d indicadores", len(fecha_desde_map))
     for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
         _ensure_tipo_registro_header(ws)
         purgar_filas_invalidas(ws, nom, kawak_validos)
+        purgar_filas_antes_fecha_desde(ws, fecha_desde_map, nom)
 
     limpiar_cierres_existentes(ws_cierres)
 
@@ -392,6 +423,7 @@ def main() -> None:
         set(SERIES_SUBINDICADORES_MAP.keys())
         | set(CRONOGRAMA_SERIES_FLAT.values())
         | _IDS_POBLACION
+        | {"274"}
     )
     def _excluir_llaves(llaves: set, ids: set) -> set:
         return {lv for lv in llaves if not any(lv.startswith(id_ + "-") for id_ in ids)}
@@ -466,8 +498,10 @@ def main() -> None:
     logger.info("   Cierres:   %d nuevos, %d omitidos, %d NA", len(regs_cierres), skip_c, na_c)
 
     # ── 10.5 APLICAR CORRECCIONES AGENT 5 solo a indicadores principales ──
-    # Se aplica ANTES de añadir sub-indicadores y proyectos para que estos
-    # mantengan su escala porcentual (0-100) sin ser capeados incorrectamente
+    # Se aplica ANTES de añadir sub-indicadores y proyectos para que el
+    # flag de Meta=0/NULL no los alcance (274/274.x usan _IDS_SUMA_VARIABLES_
+    # SERIES y se excluyen aquí explícitamente por la misma razón — AGENT5
+    # ya no recorta valores, solo señala Meta=0/NULL para revisión manual)
     regs_hist, regs_sem, regs_cierres, _ = apply_agent5_corrections_to_registros(
         regs_hist, regs_sem, regs_cierres, trail, logger
     )
@@ -527,6 +561,20 @@ def main() -> None:
                     usuario="etl_script"
                 )
 
+    # ── 10.7 VALIDACIÓN PRE-ESCRITURA (Gate LAYER 3) ────────────────
+    logger.info("10.7 Validación pre-escritura…")
+    for nombre_hoja, regs in [("Historico", regs_hist), ("Semestral", regs_sem), ("Cierres", regs_cierres)]:
+        if regs:
+            validation = validate_before_write(pd.DataFrame(regs), nombre_hoja)
+            log_validation_result(validation)
+            if validation.status == "error":
+                logger.error(f"❌ Validación pre-escritura FALLIDA para {nombre_hoja}")
+                trail.registrar_error(
+                    evento="validacion_pre_escritura",
+                    error=f"Validación pre-escritura fallida para {nombre_hoja}",
+                    usuario="etl_script"
+                )
+
     # ── 11. Escribir nuevas filas ─────────────────────────────────
     logger.info("11. Escribiendo nuevas filas…")
     if regs_hist:
@@ -540,6 +588,9 @@ def main() -> None:
     logger.info("12. Reparando valores y recalculando…")
     for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
         reparar_meta_vacia(ws, api_kawak_lookup, nom)
+        reparar_meta_capeada_agent5(ws, df_api, nom)
+        reparar_ejecucion_capeada_agent5(ws, df_api, nom)
+        reparar_signos_desde_catalogo(ws, formato_valores_map, nom)
         reparar_multiserie(
             ws, api_kawak_lookup, tipo_calculo_map, nom,
             extraccion_map, tipo_indicador_map,
@@ -569,6 +620,14 @@ def main() -> None:
     )
     for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
         reparar_metas_fijas(ws, nom)
+
+    # ── 12.6 Repetir purga de Fecha Desde ────────────────────────────
+    # Los builders pueden reconstruir en este mismo run filas anteriores a
+    # Fecha Desde sin dato real, ya que su LLAVE quedó libre tras la purga
+    # del paso 7 (no saben de Fecha Desde). Segunda pasada tras escribir y
+    # reparar, antes de deduplicar/ordenar.
+    for ws, nom in [(ws_hist, "Historico"), (ws_sem, "Semestral"), (ws_cierres, "Cierres")]:
+        purgar_filas_antes_fecha_desde(ws, fecha_desde_map, nom)
 
     # ── 13. Deduplicar y reescribir fórmulas ─────────────────────
     logger.info("13. Deduplicando y reescribiendo fórmulas…")

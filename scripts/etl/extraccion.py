@@ -48,6 +48,43 @@ _IDS_DESGLOSE_VAR_DIRECTO: FrozenSet[str] = frozenset()
 # ── Metas fijas por regla de negocio (ignoran el valor reportado) ─────────
 _IDS_META_FIJA: Dict[str, float] = {"121": 100.0}
 
+# ── IDs padre cuya Meta/Ejecución propia se calcula sumando las variables
+# de sus series (no el resultado/meta ya agregado por la API). 274 no trae
+# variables propias (solo dentro de cada serie) — su Meta/Ejecución real es
+# la suma de TEP/TEMS de sus 4 series (mismos símbolos que usa
+# construir_registros_poblacion para el indicador 14).
+_IDS_SUMA_VARIABLES_SERIES: Dict[str, Tuple[str, str]] = {"274": ("TEMS", "TEP")}
+
+
+def _sumar_variables_series(
+    series_raw: Any, simb_ejec: str, simb_meta: str
+) -> Tuple[Optional[float], Optional[float]]:
+    """Suma las variables (por símbolo) de cada serie en el JSON."""
+    lst = parse_json_safe(series_raw)
+    if not lst:
+        return None, None
+    ejec_vals: List[float] = []
+    meta_vals: List[float] = []
+    for s in lst:
+        if not isinstance(s, dict):
+            continue
+        vars_dict = {
+            v.get("simbolo", ""): v.get("valor")
+            for v in s.get("variables", [])
+            if isinstance(v, dict)
+        }
+        e, m = vars_dict.get(simb_ejec), vars_dict.get(simb_meta)
+        try:
+            if e is not None:
+                ejec_vals.append(float(e))
+            if m is not None:
+                meta_vals.append(float(m))
+        except (TypeError, ValueError):
+            pass
+    ejec = sum(ejec_vals) if ejec_vals else None
+    meta = sum(meta_vals) if meta_vals else None
+    return meta, ejec
+
 
 # ── Extracción básica ─────────────────────────────────────────────
 
@@ -396,6 +433,16 @@ def _extraer_registro_impl(
             False,
         )
 
+    # Padres cuya propia Meta/Ejecución se calcula sumando variables de series
+    # (si el período trae series; si no, se sigue el flujo normal más abajo)
+    if id_s in _IDS_SUMA_VARIABLES_SERIES:
+        simb_ejec, simb_meta = _IDS_SUMA_VARIABLES_SERIES[id_s]
+        meta, ejec = _sumar_variables_series(row_dict.get("series"), simb_ejec, simb_meta)
+        if ejec is not None:
+            if is_na_record(row_dict):
+                return None, None, "na_record", True
+            return meta, ejec, "series_variables_sum", False
+
     extraccion = (extraccion_map or {}).get(id_s)
 
     # ── Series tipos calculados ──────────────────────────────────
@@ -561,6 +608,12 @@ def _ejec_corrected_from_row(
     id_s  = _id_str(row_d.get("Id") or row_d.get("ID", ""))
     ext   = (extraccion_map or {}).get(id_s)
 
+    if id_s in _IDS_SUMA_VARIABLES_SERIES:
+        simb_ejec, _simb_meta = _IDS_SUMA_VARIABLES_SERIES[id_s]
+        _meta_sv, ejec_sv = _sumar_variables_series(row_d.get("series"), simb_ejec, _simb_meta)
+        if ejec_sv is not None:
+            return ejec_sv
+
     if ext in _EXT_SERIES_TIPOS:
         ejec = _calc_ejec_series(row_d.get("series"), ext)
         if ejec is not None:
@@ -602,6 +655,12 @@ def _meta_corrected_from_row(
         return None
     id_s  = _id_str(row_d.get("Id") or row_d.get("ID", ""))
     ext   = (extraccion_map or {}).get(id_s)
+
+    if id_s in _IDS_SUMA_VARIABLES_SERIES:
+        _simb_ejec, simb_meta = _IDS_SUMA_VARIABLES_SERIES[id_s]
+        meta_sv, _ejec_sv = _sumar_variables_series(row_d.get("series"), _simb_ejec, simb_meta)
+        if meta_sv is not None:
+            return meta_sv
 
     if ext in _EXT_SERIES_TIPOS:
         meta = _calc_meta_series(row_d.get("series"), ext)

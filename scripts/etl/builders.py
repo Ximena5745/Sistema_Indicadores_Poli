@@ -183,6 +183,15 @@ _SIMBOLOS_PLAN_ANUAL: Dict[str, Tuple[str, str]] = {
     "471": ("PAGTH", "PEGTH"),
 }
 
+# Símbolos de variables (no Plan Anual) para padres cuyas series traen
+# conteos brutos en vez de "% avance"/"% esperado". 274 (Cumplimiento total
+# estudiantes antiguos) es un indicador de Población: sus series traen
+# TEMS (matriculados) / TEP (presupuestados) — ver _SIMBOLOS_MATRICULAS_NUEVOS
+# y construir_registros_poblacion(), que usa el mismo par para 14/14.1-14.4.
+_SIMBOLOS_SERIES_VARIABLES: Dict[str, Tuple[str, str]] = {
+    "274": ("TEMS", "TEP"),
+}
+
 
 def expandir_series_como_subindicadores(
     df_fuente: pd.DataFrame,
@@ -275,8 +284,9 @@ def expandir_series_como_subindicadores(
                 continue
 
             # Extraer avance real y esperado desde variables. Los símbolos
-            # varían por indicador padre (ver _SIMBOLOS_PLAN_ANUAL); solo si
-            # el padre no está en el mapa o las variables no existen se cae
+            # varían por indicador padre (ver _SIMBOLOS_PLAN_ANUAL /
+            # _SIMBOLOS_SERIES_VARIABLES); solo si el padre no está en
+            # ninguno de los dos mapas o las variables no existen se cae
             # a serie["resultado"]/serie["meta"] (que en la fuente NO son
             # avance real/esperado: "resultado" ya es un % de cumplimiento
             # pre-calculado y "meta" viene hardcodeado a 100).
@@ -286,7 +296,10 @@ def expandir_series_como_subindicadores(
                 for v in serie.get("variables", [])
                 if isinstance(v, dict)
             }
-            simb_avance, simb_esperado = _SIMBOLOS_PLAN_ANUAL.get(id_s, ("PAGE", "PEGE"))
+            if id_s in _SIMBOLOS_SERIES_VARIABLES:
+                simb_avance, simb_esperado = _SIMBOLOS_SERIES_VARIABLES[id_s]
+            else:
+                simb_avance, simb_esperado = _SIMBOLOS_PLAN_ANUAL.get(id_s, ("PAGE", "PEGE"))
             avance = vars_dict.get(simb_avance)
             esperado = vars_dict.get(simb_esperado)
             try:

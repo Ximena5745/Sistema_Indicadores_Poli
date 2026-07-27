@@ -490,6 +490,41 @@ def cargar_estado_proyectos() -> Dict[str, str]:
     return estado
 
 
+_FECHA_DESDE_CACHE: Optional[Dict[str, "pd.Timestamp"]] = None
+
+
+def cargar_fecha_desde_ficha() -> Dict:
+    """Fecha de inicio oficial de cada indicador según su ficha técnica.
+
+    Lee la columna 'Fecha Desde' de la hoja 'Ficha Tecnica Detalle' en
+    CATALOGO_MAESTRO_FILE (data/raw/Catalogo de Indicadores.xlsx). Se usa
+    para purgar del consolidado filas anteriores a esa fecha que no tengan
+    dato real (Meta y Ejecución en 0/vacío) — ver purga.purgar_filas_antes_fecha_desde.
+
+    Returns:
+        {id_str: pd.Timestamp} solo para indicadores con Fecha Desde válida.
+    """
+    global _FECHA_DESDE_CACHE
+    if _FECHA_DESDE_CACHE is not None:
+        return _FECHA_DESDE_CACHE
+    result: Dict[str, "pd.Timestamp"] = {}
+    try:
+        from .config import CATALOGO_MAESTRO_FILE
+        if CATALOGO_MAESTRO_FILE.exists():
+            df = pd.read_excel(CATALOGO_MAESTRO_FILE, sheet_name="Ficha Tecnica Detalle")
+            df.columns = [str(c).strip() for c in df.columns]
+            df["Fecha Desde"] = pd.to_datetime(df.get("Fecha Desde"), errors="coerce")
+            for _, row in df.iterrows():
+                id_s = _id_str(row.get("Id", ""))
+                fecha_desde = row.get("Fecha Desde")
+                if id_s and pd.notna(fecha_desde):
+                    result[id_s] = fecha_desde
+    except Exception as e:
+        logger.warning(f"  No se pudo leer 'Fecha Desde' de Ficha Tecnica Detalle: {e}")
+    _FECHA_DESDE_CACHE = result
+    return result
+
+
 def cargar_metadatos_cmi() -> Dict:
     """Clasificación de negocio (línea, subproceso, proyecto, etc.).
 

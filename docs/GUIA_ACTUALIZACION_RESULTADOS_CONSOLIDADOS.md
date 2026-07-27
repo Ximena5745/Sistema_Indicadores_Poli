@@ -157,8 +157,13 @@ Paso  6 — CONSTRUIR REGISTROS (paralelo)
          └─ construir_registros_cierres()
 
 Paso  7 — APLICAR CORRECCIONES (AGENT5)
-         Topa Ejecución > 1.3 → 1.3
-         Marca Meta = 0 para revisión
+         Ya NO recorta Ejecucion/Meta > umbral (2026-07-25: se quitó el
+         capping — destruía datos reales en su propia escala, ej. Ejecucion
+         de indicadores financieros en miles de millones). Solo marca
+         Meta = 0/NULL para revisión. Filas ya corrompidas por el capping
+         viejo se reparan de forma retroactiva con
+         reparar_meta_capeada_agent5() / reparar_ejecucion_capeada_agent5()
+         (paso 10, leyendo el valor real desde la fuente API).
 
 Paso  8 — VALIDACIÓN INTERMEDIA
          Valida registros post-construcción
@@ -417,12 +422,26 @@ Ejemplo: "150-2025-6-30"
 
 ## 12. Correcciones automáticas (AGENT5)
 
-El módulo AGENT5 aplica correcciones automáticas antes de escribir al Excel:
+El módulo AGENT5 aplica correcciones antes de escribir al Excel:
 
 | Corrección | Condición | Acción |
 |---|---|---|
-| **Tope de ejecución** | `Ejecucion > 1.3` | Se recorta a `1.3` y se genera alerta de revisión |
+| **Ejecución > 1.3** | Se detecta pero **no se recorta** (desde 2026-07-25) | Solo se informa (`ℹ️`); Ejecucion queda en la escala propia del indicador (%, conteo bruto, monto financiero) |
 | **Meta cero** | `Meta = 0` | Se marca para revisión manual (puede ser error o "cero defectos") |
+
+> El capping fijo a 1.3/1.0 se eliminó porque asumía que Ejecucion/Meta
+> siempre son una razón 0-1.3, cuando en realidad cada indicador usa su
+> propia escala (ver ID 274, financieros como OPEX/CAPEX/EBITDA, o
+> "Disminución de..." que puede ser negativo). El tope de **Cumplimiento**
+> (columna L/M) sigue aplicándose vía fórmula de hoja — eso no cambió.
+> IDs 274/274.1-274.4 están además excluidos de este módulo por completo
+> (`_IDS_SUMA_VARIABLES_SERIES` en `etl/extraccion.py`): su Meta/Ejecución
+> se calcula sumando variables de sus series, no vía AGENT5.
+>
+> Además, desde 2026-07-25 el pipeline purga filas anteriores a la
+> `Fecha Desde` oficial de cada indicador (hoja "Ficha Tecnica Detalle" del
+> catálogo maestro) cuando Meta y Ejecución están ambas en 0/vacío — ver
+> `purga.purgar_filas_antes_fecha_desde()`.
 
 ---
 
@@ -583,7 +602,7 @@ Meta = NULL
 | `ValidationError` al inicio | Columnas faltantes en `Consolidado_API_Kawak.xlsx` | Verificar que `consolidar_api.py` corrió correctamente |
 | Fechas rechazadas | Fecha no es último día del mes / mes no válido para periodicidad | Revisar datos crudos de la API; corregir en fuente |
 | `Meta = 0` en muchos indicadores | Datos de API incompletos o error de extracción | Revisar manualmente los registros marcados en el audit log |
-| Ejecución recortada a 1.3 | Valor de ejecución extraído es mayor a 1.3 | Revisar la lógica de extracción del indicador en cuestión; puede requerir ajuste en `Config_Patrones` |
+| Ejecución/Meta en `1.3`/`1.0` sin dato real detrás | Residuo del capping AGENT5 eliminado el 2026-07-25 (corrió en una versión anterior del script) | `reparar_ejecucion_capeada_agent5()`/`reparar_meta_capeada_agent5()` lo corrigen solos en la siguiente corrida; si el dato mensual real ya no existe en la fuente (ver IDs 208/214/218), la celda queda en blanco en vez de un valor inventado |
 | Duplicados no eliminados | LLAVE mal construida (Id con espacios o formato distinto) | Verificar normalización de IDs en la carga de la API |
 | Hoja vacía tras actualización | Todos los registros ya existían (sin datos nuevos) | Confirmar que hay datos nuevos en el período; verificar `año_cierre` en `settings.toml` |
 | Fórmulas con `#REF!` | Filas eliminadas durante deduplicación pero fórmulas no actualizadas | El paso 11 debería resolverlo automáticamente; si persiste, re-ejecutar el script |

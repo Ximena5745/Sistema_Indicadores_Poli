@@ -161,13 +161,18 @@ def validate_after_build_records(
         result.metrics["llaves_unicas"] = df["LLAVE"].nunique()
     
     # Check 2: Campos requeridos por capa
+    # NOTA: los registros de builders.py usan 'fecha' en minúscula (no
+    # 'Fecha') y layer_name llega capitalizado ("Historico"/"Semestral"/
+    # "Cierres") — antes esto causaba un falso "Campos faltantes: {'Fecha'}"
+    # en TODAS las corridas, porque ni la clave del dict ni el nombre de
+    # columna coincidían nunca.
     required_by_layer = {
-        "historico": ["Id", "Fecha", "Meta", "Ejecucion"],
-        "semestral": ["Id", "Fecha", "Meta", "Ejecucion"],
-        "cierres": ["Id", "Fecha", "Meta", "Ejecucion"]
+        "historico": ["Id", "fecha", "Meta", "Ejecucion"],
+        "semestral": ["Id", "fecha", "Meta", "Ejecucion"],
+        "cierres": ["Id", "fecha", "Meta", "Ejecucion"]
     }
-    
-    required = required_by_layer.get(layer_name, ["Id", "Fecha"])
+
+    required = required_by_layer.get(layer_name.lower(), ["Id", "fecha"])
     missing = set(required) - set(df.columns)
     if missing:
         result.errors.append(f"Campos faltantes en {layer_name}: {missing}")
@@ -236,8 +241,10 @@ def validate_before_write(
     
     result.metrics["total_registros"] = len(df)
     
-    # Check 1: Columnas esperadas
-    expected_cols = {"Id", "Fecha", "Meta", "Ejecucion"}
+    # Check 1: Columnas esperadas (los registros de builders.py usan 'fecha'
+    # en minúscula, no 'Fecha' — ver mismo bug corregido en
+    # validate_after_build_records)
+    expected_cols = {"Id", "fecha", "Meta", "Ejecucion"}
     missing = expected_cols - set(df.columns)
     if missing:
         result.errors.append(f"Columnas faltantes: {missing}")
@@ -255,9 +262,9 @@ def validate_before_write(
             result.checks_passed += 1
     
     # Check 3: Fechas válidas
-    if "Fecha" in df.columns:
+    if "fecha" in df.columns:
         try:
-            fechas = pd.to_datetime(df["Fecha"], errors="coerce")
+            fechas = pd.to_datetime(df["fecha"], errors="coerce")
             invalidas = fechas.isnull().sum()
             if invalidas > 0:
                 result.warnings.append(f"{invalidas} fechas inválidas")

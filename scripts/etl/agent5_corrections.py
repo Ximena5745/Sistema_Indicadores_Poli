@@ -30,17 +30,25 @@ class AGENT5Corrections:
     @staticmethod
     def apply_ejecucion_capping(df: pd.DataFrame, column: str = "Ejecucion") -> Tuple[pd.DataFrame, int]:
         """
-        CORRECCIÓN 1: Aplicar capping a ejecución.
+        CORRECCIÓN 1: Señalar Ejecución > 1.3 (dato faltante, no se corrige el valor).
 
-        Problema: Ejecución puede ser > 1.3 cuando hay sobrecumplimiento excesivo.
-        Solución: Limitar a máximo 1.3 (130%).
+        Ejecucion en este pipeline NO es una razón 0-1.3: se almacena en la
+        escala propia de cada indicador (porcentual 0-100, conteo bruto, o
+        en casos puntuales una razón pequeña como el ID 332). Un capping fijo
+        a 1.3 destruía ejecuciones reales como 96.5 → 1.3 o 93505 → 1.3,
+        disparando falsos Cumplimiento (hallado en IDs 569, 570, 611, 557,
+        208, etc. — ~843 valores afectados). El Cumplimiento/Cumplimiento
+        Real YA se capan al tope correspondiente (1.0 o 1.3) en la fórmula
+        de la hoja (ver formulas_excel.py); no hace falta capar también el
+        valor crudo de Ejecucion. Por eso esta función solo registra cuántos
+        valores exceden el umbral, sin reescribirlos.
 
         Args:
             df: DataFrame con columna Ejecucion
             column: Nombre de columna (default "Ejecucion")
 
         Returns:
-            Tuple (df_corregido, cantidad_valores_capeados)
+            Tuple (df_sin_cambios, cantidad_valores_excedidos)
         """
         df_copy = df.copy()
 
@@ -48,36 +56,28 @@ class AGENT5Corrections:
             logger.warning(f"Columna '{column}' no encontrada en DataFrame")
             return df_copy, 0
 
-        # Detectar valores > límite
-        mask_invalido = (df_copy[column].notna()) & (df_copy[column] > AGENT5Corrections.EJECUCION_MAX)
-        cantidad = mask_invalido.sum()
+        mask_excedida = (df_copy[column].notna()) & (df_copy[column] > AGENT5Corrections.EJECUCION_MAX)
+        cantidad = mask_excedida.sum()
 
         if cantidad > 0:
-            logger.warning(
-                f"🔴 CRÍTICO: {cantidad} valores de {column} > {AGENT5Corrections.EJECUCION_MAX}. Aplicando capping..."
+            logger.info(
+                f"ℹ️  {cantidad} valores de {column} > {AGENT5Corrections.EJECUCION_MAX} "
+                "(no se capan: son ejecuciones reales en su propia escala)"
             )
-
-            # Registrar valores antes de capping (para auditoría)
-            valores_originales = df_copy.loc[mask_invalido, column].tolist()
-            logger.info(f"   Valores originales (muestra): {valores_originales[:5]}")
-
-            # Aplicar capping
-            df_copy.loc[mask_invalido, column] = AGENT5Corrections.EJECUCION_MAX
-
-            # Verificación
-            valores_cappados = df_copy.loc[mask_invalido, column].tolist()
-            logger.info(f"   Valores cappados: {valores_cappados[:5]}")
-            logger.info(f"   ✅ Capping aplicado a {cantidad} registros")
 
         return df_copy, cantidad
 
     @staticmethod
     def validate_meta(df: pd.DataFrame, column: str = "Meta") -> Tuple[pd.DataFrame, int, int]:
         """
-        CORRECCIÓN 2: Validar meta está en rango (0, 1.0].
+        CORRECCIÓN 2: Validar Meta = 0/NULL (dato faltante, no se corrige el valor).
 
-        Problema: Meta = 0 es inválido (puede causar división por cero).
-        Solución: Validar que Meta > 0 y Meta ≤ 1.0.
+        Meta en este pipeline NO es una razón 0-1: se almacena en escala
+        porcentual (0-100, ej. Meta=100) o como conteo bruto (ej. 274, 14,
+        matrículas). Un capping fijo a 1.0 destruía metas legítimas como
+        Meta=100 → 1, disparando falsos Cumplimiento de miles por ciento
+        (hallado en IDs 551-555 y ~78 indicadores más). Por eso esta función
+        solo señala Meta=0/NULL (dato faltante real); no reescribe valores.
 
         Args:
             df: DataFrame con columna Meta
@@ -92,13 +92,9 @@ class AGENT5Corrections:
             logger.warning(f"Columna '{column}' no encontrada en DataFrame")
             return df_copy, 0, 0
 
-        # VALIDACIÓN 2a: Meta = 0 o NULL
+        # VALIDACIÓN: Meta = 0 o NULL
         mask_meta_cero = (df_copy[column].isna()) | (df_copy[column] == 0)
         cantidad_cero = mask_meta_cero.sum()
-
-        # VALIDACIÓN 2b: Meta > 1.0 (100%)
-        mask_meta_excedida = (df_copy[column].notna()) & (df_copy[column] > AGENT5Corrections.META_MAX)
-        cantidad_excedida = mask_meta_excedida.sum()
 
         if cantidad_cero > 0:
             logger.warning(
@@ -113,16 +109,7 @@ class AGENT5Corrections:
             else:
                 logger.warning(f"   RECOMENDACIÓN: Revisar metas en consolidado")
 
-        if cantidad_excedida > 0:
-            logger.warning(
-                f"🟠 ALTO: {cantidad_excedida} valores de {column} > 1.0 (>100%). Capping..."
-            )
-
-            # Aplicar capping a 1.0
-            df_copy.loc[mask_meta_excedida, column] = AGENT5Corrections.META_MAX
-            logger.info(f"   ✅ Capping aplicado a {cantidad_excedida} metas")
-
-        return df_copy, cantidad_cero, cantidad_excedida
+        return df_copy, cantidad_cero, 0
 
     @staticmethod
     def apply_all_corrections(df: pd.DataFrame, verbose: bool = True) -> Tuple[pd.DataFrame, dict]:
@@ -138,7 +125,7 @@ class AGENT5Corrections:
         """
         df_result = df.copy()
         reporte = {
-            "ejecucion_cappados": 0,
+            "ejecucion_excedidas": 0,
             "meta_cero": 0,
             "meta_excedidas": 0,
             "total_correcciones": 0
@@ -150,34 +137,29 @@ class AGENT5Corrections:
             logger.info("║  Hallazgos Críticos: Ejecución y Meta                          ║")
             logger.info("╚════════════════════════════════════════════════════════════════╝")
 
-        # Aplicar Corrección 1: Ejecución capping
+        # Aplicar Corrección 1: Ejecución (solo señala > 1.3, no reescribe)
         if "Ejecucion" in df_result.columns:
             if verbose:
-                logger.info("\n✓ CORRECCIÓN 1: Aplicar capping a Ejecucion (máx 1.3)")
+                logger.info("\n✓ CORRECCIÓN 1: Señalar Ejecucion > 1.3 (sin capping)")
             df_result, cantidad_exec = AGENT5Corrections.apply_ejecucion_capping(df_result)
-            reporte["ejecucion_cappados"] = cantidad_exec
+            reporte["ejecucion_excedidas"] = cantidad_exec
 
-        # Aplicar Corrección 2: Meta validación
+        # Aplicar Corrección 2: Meta validación (solo señala Meta=0/NULL)
         if "Meta" in df_result.columns:
             if verbose:
-                logger.info("\n✓ CORRECCIÓN 2: Validar Meta en rango (0, 1.0]")
+                logger.info("\n✓ CORRECCIÓN 2: Validar Meta = 0/NULL")
             df_result, meta_cero, meta_excedida = AGENT5Corrections.validate_meta(df_result)
             reporte["meta_cero"] = meta_cero
             reporte["meta_excedidas"] = meta_excedida
 
-        reporte["total_correcciones"] = sum([
-            reporte["ejecucion_cappados"],
-            reporte["meta_cero"],
-            reporte["meta_excedidas"]
-        ])
+        reporte["total_correcciones"] = reporte["meta_cero"]
 
         if verbose:
             logger.info("\n" + "="*70)
             logger.info("RESUMEN DE CORRECCIONES")
             logger.info("="*70)
-            logger.info(f"✅ Ejecucion cappados: {reporte['ejecucion_cappados']}")
+            logger.info(f"ℹ️  Ejecucion > 1.3 (sin tocar): {reporte['ejecucion_excedidas']}")
             logger.info(f"⚠️  Meta = 0 detectados: {reporte['meta_cero']}")
-            logger.info(f"✅ Meta excedidas (cappados): {reporte['meta_excedidas']}")
             logger.info(f"📊 TOTAL CORRECCIONES: {reporte['total_correcciones']}")
             logger.info("="*70)
 
@@ -193,14 +175,14 @@ class AGENT5Corrections:
         """
         all_ok = True
 
-        # Validar Ejecucion
+        # Ejecucion > 1.3 es válido en este pipeline (escala propia por
+        # indicador) — solo se informa, no se marca como fallo.
         if "Ejecucion" in df.columns:
-            valores_invalidos = df[(df["Ejecucion"].notna()) & (df["Ejecucion"] > AGENT5Corrections.EJECUCION_MAX)]
-            if len(valores_invalidos) > 0:
-                logger.error(f"❌ VALIDACIÓN FALLIDA: {len(valores_invalidos)} Ejecucion > {AGENT5Corrections.EJECUCION_MAX}")
-                all_ok = False
+            valores_excedidos = df[(df["Ejecucion"].notna()) & (df["Ejecucion"] > AGENT5Corrections.EJECUCION_MAX)]
+            if len(valores_excedidos) > 0:
+                logger.info(f"ℹ️  {len(valores_excedidos)} Ejecucion > {AGENT5Corrections.EJECUCION_MAX} (válido, no se capa)")
             else:
-                logger.info("✅ VALIDACIÓN OK: Ejecucion ≤ 1.3")
+                logger.info("✅ Ejecucion ≤ 1.3 en todos los registros")
 
         # Validar Meta
         if "Meta" in df.columns:

@@ -15,7 +15,7 @@ from .config import AÑO_CIERRE_ACTUAL
 from .escritura import _ejec_score, get_last_data_row
 from .extraccion import (
     _ejec_corrected_from_row, _meta_corrected_from_row,
-    _usa_variables_canonico, _IDS_META_FIJA,
+    _usa_variables_canonico, _IDS_META_FIJA, _IDS_SUMA_VARIABLES_SERIES,
 )
 from .formulas_excel import _build_col_map
 from .normalizacion import _id_str, make_llave
@@ -82,6 +82,67 @@ def purgar_filas_invalidas(
             f"  [{nombre}] {total} filas eliminadas "
             f"({n_kawak} por no estar en Indicadores Kawak)."
         )
+    return total
+
+
+# ── Purga de filas anteriores a la Fecha Desde de la ficha técnica ─
+
+def purgar_filas_antes_fecha_desde(
+    ws, fecha_desde_map: Dict, nombre: str = "hoja",
+) -> int:
+    """
+    Elimina filas de fecha anterior a la 'Fecha Desde' oficial del
+    indicador (ficha técnica), pero SOLO si no tienen dato real: Meta y
+    Ejecución ambas en 0 o vacías. Si hay un valor real reportado antes
+    de esa fecha, la fila se conserva (feedback: no destruir datos).
+    """
+    cm = _build_col_map(ws)
+    idx_id    = cm.get("Id",    1) - 1
+    idx_fecha = cm.get("Fecha", 6) - 1
+    idx_meta  = cm.get("Meta")
+    idx_ejec  = cm.get("Ejecucion")
+    if idx_meta is None or idx_ejec is None:
+        return 0
+    idx_meta -= 1
+    idx_ejec -= 1
+
+    def _vacio(v) -> bool:
+        if v is None:
+            return True
+        try:
+            return float(v) == 0.0
+        except (TypeError, ValueError):
+            return str(v).strip() in ("", "nan", "None")
+
+    filas_a_borrar = []
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        id_s = _id_str(row[idx_id].value) if len(row) > idx_id else None
+        fecha_desde = fecha_desde_map.get(id_s) if id_s else None
+        if fecha_desde is None:
+            continue
+        try:
+            fecha = pd.to_datetime(row[idx_fecha].value)
+        except Exception:
+            continue
+        if pd.isna(fecha) or fecha >= fecha_desde:
+            continue
+        meta_val = row[idx_meta].value if len(row) > idx_meta else None
+        ejec_val = row[idx_ejec].value if len(row) > idx_ejec else None
+        if _vacio(meta_val) and _vacio(ejec_val):
+            filas_a_borrar.append(row[0].row)
+
+    for r_idx in sorted(set(filas_a_borrar), reverse=True):
+        ws.delete_rows(r_idx)
+    total = len(set(filas_a_borrar))
+    if total:
+        logger.info(
+            f"  [{nombre}] {total} filas eliminadas por ser anteriores a "
+            "Fecha Desde (ficha técnica) sin dato real."
+        )
+    else:
+        logger.info(f"  [{nombre}] Sin filas anteriores a Fecha Desde para purgar.")
     return total
 
 
@@ -193,6 +254,188 @@ def _dedup_cierres_por_año(ws) -> int:
     return len(filas_a_borrar)
 
 
+# ── Reparar Meta corrompida por el antiguo capping AGENT5 ─────────
+
+def reparar_meta_capeada_agent5(ws, df_fuente_api, nombre: str = "") -> int:
+    """
+    Corrige Meta==1 dejado por versiones previas de AGENT5Corrections
+    (validate_meta capeaba cualquier Meta > 1.0 a 1.0, asumiendo razón
+    0-1; el Meta real de este pipeline es porcentual 0-100 o conteo
+    bruto — ver agent5_corrections.py). Esas filas ya existentes no se
+    regeneran solas porque su LLAVE ya está en el consolidado.
+
+    Restaura Meta desde el campo crudo 'meta' de la fuente API para esa
+    (Id, Fecha). Meta==1 nunca es un valor legítimo en este pipeline,
+    así que no hay riesgo de tocar datos correctos.
+    """
+    lookup: Dict = {}
+    for _, r in df_fuente_api.iterrows():
+        id_s = _id_str(r.get("Id") or r.get("ID", ""))
+        try:
+            fecha_key = pd.to_datetime(r["fecha"]).normalize()
+        except Exception:
+            continue
+        meta_raw = pd.to_numeric(r.get("meta"), errors="coerce")
+        if pd.notna(meta_raw):
+            lookup[(id_s, fecha_key)] = float(meta_raw)
+
+    cm = _build_col_map(ws)
+    idx_id    = cm.get("Id")
+    idx_fecha = cm.get("Fecha")
+    idx_meta  = cm.get("Meta")
+    if not all([idx_id, idx_fecha, idx_meta]):
+        return 0
+
+    n_fix = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        meta_cell = row[idx_meta - 1]
+        try:
+            if float(meta_cell.value) != 1.0:
+                continue
+        except (TypeError, ValueError):
+            continue
+
+        id_s = _id_str(row[idx_id - 1].value)
+        try:
+            fecha_key = pd.to_datetime(row[idx_fecha - 1].value).normalize()
+        except Exception:
+            continue
+        meta_correcta = lookup.get((id_s, fecha_key))
+        if meta_correcta is not None and meta_correcta != 1.0:
+            meta_cell.value = meta_correcta
+            meta_cell.number_format = "General"
+            n_fix += 1
+
+    if n_fix:
+        logger.info(f"  [{nombre}] Meta corregida (capping AGENT5 obsoleto): {n_fix}")
+    else:
+        logger.info(f"  [{nombre}] Sin Meta=1 residual de AGENT5.")
+    return n_fix
+
+
+def reparar_ejecucion_capeada_agent5(ws, df_fuente_api, nombre: str = "") -> int:
+    """
+    Corrige Ejecucion==1.3 dejado por versiones previas de AGENT5Corrections
+    (apply_ejecucion_capping capeaba cualquier Ejecucion > 1.3 a 1.3,
+    asumiendo razón 0-1.3; el Ejecucion real de este pipeline usa la
+    escala propia de cada indicador — porcentual, conteo bruto o incluso
+    montos financieros — ver agent5_corrections.py). Esas filas ya
+    existentes no se regeneran solas porque su LLAVE ya está en el
+    consolidado.
+
+    Restaura Ejecucion desde el campo crudo 'resultado' de la fuente API
+    para esa (Id, Fecha). Si el indicador es Promedio/Acumulado, el valor
+    correcto (agregado) se recalcula después en reparar_semestral_agregados/
+    reparar_multiserie, así que un valor de un solo mes aquí es solo
+    temporal y no queda como definitivo.
+    """
+    lookup: Dict = {}
+    for _, r in df_fuente_api.iterrows():
+        id_s = _id_str(r.get("Id") or r.get("ID", ""))
+        try:
+            fecha_key = pd.to_datetime(r["fecha"]).normalize()
+        except Exception:
+            continue
+        ejec_raw = pd.to_numeric(r.get("resultado"), errors="coerce")
+        if pd.notna(ejec_raw):
+            lookup[(id_s, fecha_key)] = float(ejec_raw)
+
+    cm = _build_col_map(ws)
+    idx_id    = cm.get("Id")
+    idx_fecha = cm.get("Fecha")
+    idx_ejec  = cm.get("Ejecucion")
+    if not all([idx_id, idx_fecha, idx_ejec]):
+        return 0
+
+    n_fix = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        ejec_cell = row[idx_ejec - 1]
+        try:
+            if float(ejec_cell.value) != 1.3:
+                continue
+        except (TypeError, ValueError):
+            continue
+
+        id_s = _id_str(row[idx_id - 1].value)
+        try:
+            fecha_key = pd.to_datetime(row[idx_fecha - 1].value).normalize()
+        except Exception:
+            continue
+        ejec_correcta = lookup.get((id_s, fecha_key))
+        if ejec_correcta is not None and ejec_correcta != 1.3:
+            ejec_cell.value = ejec_correcta
+            ejec_cell.number_format = "General"
+            n_fix += 1
+
+    if n_fix:
+        logger.info(f"  [{nombre}] Ejecucion corregida (capping AGENT5 obsoleto): {n_fix}")
+    else:
+        logger.info(f"  [{nombre}] Sin Ejecucion=1.3 residual de AGENT5.")
+    return n_fix
+
+
+# ── Reparar signos desincronizados del catálogo ────────────────────
+
+def reparar_signos_desde_catalogo(
+    ws, formato_valores_map: Dict, nombre: str = "",
+) -> int:
+    """
+    Corrige Meta_Signo/Ejecucion_Signo cuando difieren del Formato_Valores
+    del catálogo (hallado en 274 y 200+ ids más — el signo históricamente
+    solo se heredaba de la última fila real, sin cruzarse jamás contra el
+    catálogo, así que quedaba desincronizado cuando el formato real del
+    indicador cambiaba o nunca se sincronizó — feedback 2026-07-26).
+
+    No toca filas 'No Aplica' (su signo es un estado de período, no un
+    formato de valor) ni ids sin Formato_Valores definido en catálogo.
+    Sub-indicadores con Id decimal (274.1) heredan el formato de su padre.
+    """
+    if not formato_valores_map:
+        return 0
+    cm = _build_col_map(ws)
+    idx_id = cm.get("Id")
+    idx_ms = cm.get("MetaS")
+    idx_es = cm.get("EjecS")
+    if not all([idx_id, idx_ms, idx_es]):
+        return 0
+
+    n_fix = 0
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        if row[0].value is None:
+            continue
+        id_s = _id_str(row[idx_id - 1].value)
+        fv = formato_valores_map.get(id_s)
+        if not fv:
+            padre = id_s.split(".")[0]
+            if padre != id_s:
+                fv = formato_valores_map.get(padre)
+        if not fv:
+            continue
+
+        ms_cell = row[idx_ms - 1]
+        es_cell = row[idx_es - 1]
+        if str(ms_cell.value or "").strip().lower() == "no aplica" \
+                or str(es_cell.value or "").strip().lower() == "no aplica":
+            continue
+
+        if str(ms_cell.value or "").strip() != fv:
+            ms_cell.value = fv
+            n_fix += 1
+        if str(es_cell.value or "").strip() != fv:
+            es_cell.value = fv
+            n_fix += 1
+
+    if n_fix:
+        logger.info(f"  [{nombre}] Signos corregidos desde catálogo (Formato_Valores): {n_fix}")
+    else:
+        logger.info(f"  [{nombre}] Signos ya sincronizados con el catálogo.")
+    return n_fix
+
+
 # ── Reparar Meta / Ejecucion vacías ───────────────────────────────
 
 def reparar_meta_vacia(ws, api_kawak_lookup: Dict, nombre: str = "") -> int:
@@ -294,6 +537,8 @@ def reparar_multiserie(
         if id_s not in tipo_calculo_map:
             continue
         if _usa_variables_canonico(id_s, (extraccion_map or {}).get(id_s), tipo_indicador_map):
+            continue
+        if id_s in _IDS_SUMA_VARIABLES_SERIES:
             continue
         try:
             fecha_key = pd.to_datetime(row[idx_fecha - 1].value).normalize()
@@ -537,6 +782,17 @@ def reparar_semestral_agregados(
         metas = [m for m in metas if m is not None]
 
         if not ejecs:
+            # Sin dato mensual real para este período: si el valor actual es
+            # exactamente 1.3, es un residuo del capping AGENT5 obsoleto
+            # (ningún dato lo respalda) — se deja en blanco en vez de
+            # conservar una cifra fabricada.
+            ejec_cell = row[idx_ejec - 1]
+            try:
+                if float(ejec_cell.value) == 1.3:
+                    ejec_cell.value = None
+                    n_fix += 1
+            except (TypeError, ValueError):
+                pass
             continue
 
         ejec_agg = sum(ejecs) / len(ejecs) if patron == "AVG" else sum(ejecs)
