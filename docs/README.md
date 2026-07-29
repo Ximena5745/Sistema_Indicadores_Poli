@@ -1,7 +1,8 @@
 # 📚 Documentación SGIND - Mínimo Documentación Viable (MDV)
 
-> **Última actualización:** 22 de abril de 2026  
-> **Status:** ✅ FASE 3 COMPLETA | Reducción MDV aplicada: 81 → 7 documentos (91% reducción)
+> **Última actualización:** 28 de julio de 2026  
+> **Status:** ✅ FASE 3 COMPLETA | Reducción MDV aplicada: 81 → 7 documentos (91% reducción)  
+> **Cambios recientes:** 2026-07-28 - Mejoras en cálculo de indicadores, Planes Anuales dinámicos, Retos con tope 100%
 
 ---
 
@@ -59,9 +60,19 @@ Problemas resueltos (DRY, enums), decisiones arquitectónicas, lecciones.
 
 ## 🔗 Documentación de Referencia
 
+### Documentos Técnicos Específicos
+
 | Documento | Descripción |
 |-----------|-------------|
+| [LOGICA_INDICADORES_ESPECIALES.md](LOGICA_INDICADORES_ESPECIALES.md) | Lógica de cálculo: Matrículas nuevos, Estudiantes antiguos, Planes Anuales, Cronograma de proyectos |
+| [GUIA_ACTUALIZACION_RESULTADOS_CONSOLIDADOS.md](GUIA_ACTUALIZACION_RESULTADOS_CONSOLIDADOS.md) | Guía completa de actualización ETL, campos, fórmulas, validaciones |
+| [ACTUALIZACIONES_2026-07-28.md](ACTUALIZACIONES_2026-07-28.md) | Cambios implementados: Meta=0, Planes Anuales dinámicos, Retos Anuales tope 100% |
 | [GOVERNANCE.md](GOVERNANCE.md) | Políticas de documentación (SSOT, KISS) |
+
+### Documentación Histórica / Referencia
+
+| Documento | Descripción |
+|-----------|-------------|
 | [archive/FUENTES_DATOS_PROYECTO.md](archive/FUENTES_DATOS_PROYECTO.md) | Catálogo completo de fuentes con rutas |
 | [archive/FUENTES_POR_PAGINA.md](archive/FUENTES_POR_PAGINA.md) | Detalle de qué fuente/hoja usa cada página |
 | [archive/05-FASE2/FASE_2_PLAN.md](archive/05-FASE2/FASE_2_PLAN.md) | Plan detallado Fase 2 |
@@ -80,11 +91,27 @@ Problemas resueltos (DRY, enums), decisiones arquitectónicas, lecciones.
 
 ---
 
+## 🆕 Cambios Recientes (2026-07-28)
+
+**¿Qué cambió?** Tres mejoras principales al cálculo de indicadores:
+1. **Meta=0 → Cumplimiento 100%** - Validación automática en Paso 15.5
+2. **Planes Anuales dinámicos** - Detección inteligente de variables PAVAN/PEAVAN
+3. **Retos Anuales (ID 373)** - Tope de 100% (no 130%)
+
+👉 **Ver:** [ACTUALIZACIONES_2026-07-28.md](ACTUALIZACIONES_2026-07-28.md) para detalles completos
+
+---
+
 ## 🚀 Inicio Rápido
 
 ### Para entender el sistema
 1. [01_Arquitectura.md](core/01_Arquitectura.md) - Visión general
 2. [02_Logica_Indicadores.md](core/02_Logica_Indicadores.md) - Cómo se calculan los indicadores
+
+### Para entender los cambios recientes (2026-07-28)
+1. [ACTUALIZACIONES_2026-07-28.md](ACTUALIZACIONES_2026-07-28.md) - Resumen de 3 mejoras
+2. [LOGICA_INDICADORES_ESPECIALES.md](LOGICA_INDICADORES_ESPECIALES.md) - Lógica técnica de Planes Anuales
+3. [GUIA_ACTUALIZACION_RESULTADOS_CONSOLIDADOS.md](GUIA_ACTUALIZACION_RESULTADOS_CONSOLIDADOS.md) - Detalles de implementación
 
 ### Para desarrollo
 1. [03_Modelo_Datos.md](core/03_Modelo_Datos.md) - Fuentes y esquemas

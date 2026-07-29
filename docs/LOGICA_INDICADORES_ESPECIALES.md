@@ -360,13 +360,17 @@ Los sub-indicadores (ej. `420.1`, `420.2`) **no existen como filas independiente
 
 **Flujo de extracción para sub-indicadores:**
 
-⚠️ **Importante:** `serie["resultado"]` NO es la ejecución/avance real — es un
-% de cumplimiento ya pre-calculado por Kawak (`avance / esperado × 100`). Y
-`serie["meta"]` viene **hardcodeado a 100** en la fuente, no es el avance
-esperado real del período. La ejecución (Meta) y el avance (Ejecución) deben
-tomarse de las variables `variables[].simbolo` de la serie, usando el par
-`(símbolo avance, símbolo esperado)` de la tabla anterior para el indicador
-padre correspondiente — NO de `resultado`/`meta`.
+⚠️ **Importante (versión mejorada 2026-07-28):** La extracción ha sido optimizada con detección dinámica de variables. En lugar de búsqueda por símbolo fijo, el ETL ahora:
+
+1. Busca dinámicamente las variables PAVAN/PEAVAN de cada serie
+2. Normaliza nombres quitando acentos, espacios y convirtiendo a minúsculas
+3. Detecta si contienen palabras clave: "avance" (para ejecución) o "esperado" (para meta)
+4. Fallback: si la búsqueda por nombre falla, busca por los símbolos fijos conocidos
+5. Último recurso: si tampoco hay variables válidas, usa `resultado`/`meta` pre-calculados
+
+`serie["resultado"]` NO es la ejecución/avance real — es un % de cumplimiento ya pre-calculado por Kawak (`avance / esperado × 100`). Y `serie["meta"]` viene **hardcodeado a 100** en la fuente, no es el avance esperado real del período. 
+
+**La ejecución (Meta) y el avance (Ejecución) ahora se obtienen robustamente** usando la función `_extraer_plan_anual_generico()` en [`scripts/etl/extraccion.py`](../scripts/etl/extraccion.py), que maneja variaciones en nombres de variables sin necesidad de reconfiguración.
 
 ```
 Registro API: ID=420, fecha=2025-06-30
