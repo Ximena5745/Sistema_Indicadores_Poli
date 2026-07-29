@@ -1368,10 +1368,11 @@ def render():
             word-break:break-word;
             line-height:1.2;
             font-size:12px;
-            text-align:left;
+            text-align:center;
             min-height:34px;
             display:flex;
             align-items:center;
+            justify-content:center;
         }
         .om-cell {
             padding:7px 6px;

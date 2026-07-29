@@ -183,9 +183,11 @@ def _init_sqlite(db_path: Optional[Path] = None):
     )
     conn.commit()
 
-    # Ensure unique index exists for ON CONFLICT functionality
-    from .schema_manager import _ensure_sqlite_unique_index
+    # Ensure unique index exists for ON CONFLICT functionality, and migrate
+    # columns added after this table may have first been created elsewhere.
+    from .schema_manager import _ensure_sqlite_columns, _ensure_sqlite_unique_index
 
+    _ensure_sqlite_columns(conn)
     _ensure_sqlite_unique_index(conn)
     conn.close()
 
@@ -221,8 +223,9 @@ def _init_postgres():
     )
     conn.commit()
 
-    from .schema_manager import _ensure_postgres_unique_constraint
+    from .schema_manager import _ensure_postgres_columns, _ensure_postgres_unique_constraint
 
+    _ensure_postgres_columns(cur)
     _ensure_postgres_unique_constraint(cur)
     conn.commit()
     cur.close()

@@ -35,6 +35,43 @@ def _ensure_sqlite_unique_index(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+_COLUMNAS_ESPERADAS_REGISTROS_OM = {
+    "tipo_accion": "TEXT DEFAULT 'OM Kawak'",
+}
+
+
+def _ensure_sqlite_columns(conn: sqlite3.Connection) -> None:
+    """
+    Agrega a registros_om columnas que pueden faltar en bases de datos creadas
+    antes de que esas columnas existieran en el esquema.
+
+    CREATE TABLE IF NOT EXISTS es un no-op contra una tabla ya existente, así
+    que una base de datos antigua nunca recibe columnas añadidas después
+    (ej. tipo_accion) a menos que se migren explícitamente aquí.
+    """
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(registros_om)")
+    existentes = {row[1] for row in cur.fetchall()}
+    for columna, definicion in _COLUMNAS_ESPERADAS_REGISTROS_OM.items():
+        if columna not in existentes:
+            cur.execute(f"ALTER TABLE registros_om ADD COLUMN {columna} {definicion}")
+    conn.commit()
+
+
+def _ensure_postgres_columns(cur: Any) -> None:
+    """Equivalente PostgreSQL de _ensure_sqlite_columns (ver docstring)."""
+    cur.execute(
+        """
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'registros_om'
+        """
+    )
+    existentes = {row[0] for row in cur.fetchall()}
+    for columna, definicion in _COLUMNAS_ESPERADAS_REGISTROS_OM.items():
+        if columna not in existentes:
+            cur.execute(f"ALTER TABLE public.registros_om ADD COLUMN {columna} {definicion}")
+
+
 def _ensure_postgres_unique_constraint(cur: Any) -> None:
     """
     Creates a unique constraint for ON CONFLICT functionality in PostgreSQL.
