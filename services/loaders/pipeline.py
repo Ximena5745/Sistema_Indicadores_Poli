@@ -228,15 +228,18 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     _col_tipo_reg = next((c for c in ["TipoRegistro", "Tipo_Registro"] if c in df.columns), None)
     _col_ejec_signo = next((c for c in ["EjecS", "Ejecucion_Signo"] if c in df.columns), None)
 
-    # Detectar métricas
+    # Detectar métricas. Tipo_Registro no siempre está poblado (ej. Consolidado
+    # Historico lo trae vacío para filas que sí son métricas), así que el
+    # nombre del indicador ("... - (Metrica)") es una señal complementaria,
+    # no un fallback exclusivo: se combinan ambas con OR para no dejar pasar
+    # métricas cuando la columna existe pero viene en NaN.
+    _mask_metrica = pd.Series(False, index=df.index)
     if _col_tipo_reg:
-        _mask_metrica = df[_col_tipo_reg].astype(str).str.strip().str.lower() == "metrica"
-    elif "Indicador" in df.columns:
-        _mask_metrica = (
-            df["Indicador"].astype(str).str.lower().str.contains(r"\bmetrica\b", na=False)
+        _mask_metrica |= df[_col_tipo_reg].astype(str).str.strip().str.lower() == "metrica"
+    if "Indicador" in df.columns:
+        _mask_metrica |= df["Indicador"].astype(str).str.contains(
+            r"m[eé]trica", case=False, na=False, regex=True
         )
-    else:
-        _mask_metrica = pd.Series(False, index=df.index)
 
     # Detectar sin meta / No Aplica
     _mask_sin_meta = (
@@ -270,7 +273,12 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     _col_ejec = "Ejecucion" if "Ejecucion" in df.columns else ("Ejecución" if "Ejecución" in df.columns else None)
     _col_sentido = "Sentido" if "Sentido" in df.columns else None
     if _tiene_ejec and "Meta" in df.columns:
-        _calcular_mask = df["Cumplimiento_norm"].isna() & df["Meta"].notna() & df[_col_ejec].notna()
+        _calcular_mask = (
+            df["Cumplimiento_norm"].isna()
+            & df["Meta"].notna()
+            & df[_col_ejec].notna()
+            & ~_mask_metrica
+        )
         if _calcular_mask.any():
             def _calcular_fila(row):
                 sentido = row[_col_sentido] if _col_sentido and _col_sentido in row.index else "Positivo"

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from html import escape as _esc
 import json
 from pathlib import Path
 
@@ -371,10 +372,19 @@ def _cargar_indicadores_riesgo() -> pd.DataFrame:
     if "Categoria" in df.columns:
         df = df[df["Categoria"].isin(["Peligro", "Alerta"])].copy()
 
-    # Excluir Métricas y No Aplica
+    # Excluir Métricas y No Aplica. Tipo_Registro no siempre está poblado (ej.
+    # Consolidado Historico lo trae vacío en filas que sí son métricas), así
+    # que también se revisa el nombre del indicador ("... - (Metrica)") como
+    # señal complementaria — igual que en services/loaders/pipeline.py.
+    _excluir = pd.Series(False, index=df.index)
     if "Tipo_Registro" in df.columns:
         _tipo_norm = df["Tipo_Registro"].astype(str).str.strip().str.lower()
-        df = df[~_tipo_norm.isin(["metrica", "no aplica"])].copy()
+        _excluir |= _tipo_norm.isin(["metrica", "no aplica"])
+    if "Indicador" in df.columns:
+        _excluir |= df["Indicador"].astype(str).str.contains(
+            r"m[eé]trica", case=False, na=False, regex=True
+        )
+    df = df[~_excluir].copy()
 
     cols = [
         c
@@ -1177,6 +1187,342 @@ def _icono_cumplimiento(cumpl_val) -> str:
     return _dot_svg(obtener_color_categoria(categoria))
 
 
+def _render_tabla_actual(df_tabla: pd.DataFrame) -> None:
+    """Tabla actual: grid HTML armado a mano (badges de color, barra de avance,
+    botón de icono por fila para expandir el plan de acción de la OM)."""
+    # --- Tabla principal con encabezado visual e icono de expansión OM ---
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+
+    df_tabla_fmt = formatear_meta_ejecucion_df(
+        df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion"
+    )
+    rename_map = {
+        "Cumplimiento_pct": "Cumplimiento",
+        "avance_om": "Avance OM",
+        "tiene_om": "Ver más",
+        "tipo_accion": "Tipo de Acción",
+        "identificador": "OM",
+    }
+    df_tabla_fmt = df_tabla_fmt.rename(columns=rename_map)
+
+    cols_orden = [
+        "Id",
+        "Indicador",
+        "Subproceso",
+        "Periodicidad",
+        "Meta",
+        "Ejecucion",
+        "Cumplimiento",
+        "Categoria",
+        "Tipo de Acción",
+        "OM",
+        "Avance OM",
+    ]
+    cols_tabla = [c for c in cols_orden if c in df_tabla_fmt.columns]
+    df_view = df_tabla_fmt[
+        cols_tabla + (["Ver más"] if "Ver más" in df_tabla_fmt.columns else [])
+    ].copy()
+
+    if "Cumplimiento" in df_view.columns:
+        df_view["Cumplimiento"] = pd.to_numeric(df_view["Cumplimiento"], errors="coerce").round(1)
+
+    if "Avance OM" in df_view.columns:
+        df_view["Avance OM"] = pd.to_numeric(df_view["Avance OM"], errors="coerce")
+
+    if "OM" in df_view.columns:
+        df_view["OM"] = df_view["OM"].apply(lambda v: "" if pd.isna(v) else str(v))
+
+    st.markdown(
+        """
+        <style>
+        div[class*="st-key-om_header_bar"] {
+            background:#1e293b;
+            border-radius:6px 6px 0 0;
+            padding:2px 0;
+        }
+        .om-head {
+            background:transparent;
+            color:#fff;
+            font-weight:700;
+            padding:8px 6px;
+            border-right:1px solid #334155;
+            border-radius:0;
+            white-space:normal;
+            word-break:break-word;
+            line-height:1.2;
+            font-size:12px;
+            text-align:center;
+            min-height:34px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+        .om-cell {
+            padding:7px 6px;
+            border-bottom:1px solid #e2e8f0;
+            line-height:1.2;
+            font-size:13px;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        .om-cell-peligro { background:#FFF5F5; }
+        .om-cell-alerta { background:#FFFBEB; }
+        .om-center { text-align:center; }
+        .om-right { text-align:right; }
+        .om-avance-wrap {
+            min-width:80px;
+            max-width:100px;
+            margin:0 auto;
+        }
+        .om-badge {
+            display:inline-block;
+            padding:2px 8px;
+            border-radius:8px;
+            font-size:11px;
+            font-weight:700;
+            color:#fff;
+            white-space:nowrap;
+        }
+        .om-kawak { background:#2563EB; }
+        .om-reto { background:#D97706; }
+        .om-proy { background:#0EA5A4; }
+        .om-otro { background:#6B7280; }
+        .om-sin { background:#94A3B8; color:#0F172A; }
+        .om-icon-cell {
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            height:100%;
+        }
+        .om-ind-name {
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+            max-width:320px;
+            display:block;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Encabezado visual
+    encabezados = cols_orden + ["Ver más"]
+    anchos = [0.6, 4.0, 2.3, 1.0, 0.65, 0.7, 1.3, 0.85, 1.15, 0.55, 1.05, 0.6]
+    with st.container(key="om_header_bar"):
+        head_cols = st.columns(anchos, gap="small")
+        for i, h in enumerate(encabezados):
+            with head_cols[i]:
+                st.markdown(f"<div class='om-head'>{h}</div>", unsafe_allow_html=True)
+
+    # Filas con estilo + expansión por icono
+    for ridx, row in df_view.iterrows():
+        row_cols = st.columns(anchos, gap="small")
+
+        cat = str(row.get("Categoria", "")).strip()
+        cell_class = "om-cell om-cell-peligro" if cat == "Peligro" else "om-cell om-cell-alerta"
+
+        cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
+        if pd.isna(cumple_num):
+            cumple_txt = "—"
+        else:
+            dot = _dot_svg(obtener_color_categoria("Peligro")) if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
+            cumple_txt = f"{dot}{cumple_num:.1f}%"
+
+        tipo_raw = row.get("Tipo de Acción", "Sin acción")
+        if pd.isna(tipo_raw) or str(tipo_raw).strip().lower() in {"", "nan", "none"}:
+            tipo_raw = "Sin acción"
+        tipo_badge = badge_tipo_accion(str(tipo_raw))
+
+        avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
+        if pd.notna(avance_num) and abs(avance_num) <= 1.5:
+            avance_num = avance_num * 100
+        avance_txt = (
+            "<div class='om-avance-wrap'>"
+            + (barra_avance_om(float(avance_num)) if pd.notna(avance_num) else barra_avance_om(0))
+            + "</div>"
+        )
+
+        ind_name = str(row.get("Indicador", ""))
+        subproceso_val = str(row.get("Subproceso", ""))
+        meta_val = str(row.get("Meta", "")) or "—"
+        ejec_val = str(row.get("Ejecucion", "")) or "—"
+        om_val = (
+            ""
+            if pd.isna(row.get("OM")) or str(row.get("OM")).lower() == "nan"
+            else str(row.get("OM"))
+        )
+
+        valores = [
+            str(row.get("Id", "")),
+            f"<span class='om-ind-name'>{_esc(ind_name)}</span>",
+            subproceso_val,
+            str(row.get("Periodicidad", "")),
+            meta_val,
+            ejec_val,
+            cumple_txt,
+            cat,
+            tipo_badge,
+            om_val,
+            avance_txt,
+        ]
+        # Texto plano para tooltip (title) — permite ver el valor completo al
+        # pasar el mouse cuando la celda lo trunca con ellipsis.
+        titles = [
+            str(row.get("Id", "")),
+            ind_name,
+            subproceso_val,
+            str(row.get("Periodicidad", "")),
+            meta_val,
+            ejec_val,
+            "",
+            cat,
+            str(tipo_raw),
+            om_val,
+            "",
+        ]
+
+        for i, val in enumerate(valores):
+            with row_cols[i]:
+                extra = " om-center" if i in [3, 4, 5, 9] else ""
+                style_attr = ""
+                if i == 7:
+                    color = "#C62828" if cat == "Peligro" else "#F57F17"
+                    style_attr = f" style='font-weight:600;color:{color}'"
+                title_attr = f" title='{_esc(titles[i])}'" if titles[i] else ""
+                st.markdown(
+                    f"<div class='{cell_class}{extra}'{style_attr}{title_attr}>{val}</div>",
+                    unsafe_allow_html=True,
+                )
+
+        with row_cols[11]:
+            om_id = "" if pd.isna(row.get("OM")) else str(row.get("OM")).strip()
+            tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
+            if tiene_om and om_id and om_id.lower() != "nan":
+                st.markdown(f"<div class='{cell_class} om-icon-cell'>", unsafe_allow_html=True)
+                if st.button(
+                    "",
+                    icon=":material/description:",
+                    key=f"btn_om_{ridx}_{om_id}",
+                    help=f"Ver acciones OM {om_id}",
+                    type="tertiary",
+                ):
+                    active = st.session_state.get("om_expanded_row")
+                    st.session_state["om_expanded_row"] = (
+                        None if active == (ridx, om_id) else (ridx, om_id)
+                    )
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div class='{cell_class}'></div>", unsafe_allow_html=True)
+
+        if st.session_state.get("om_expanded_row") == (ridx, om_id):
+            plan_df = _cargar_plan_accion_para_om(om_id)
+            df_show = _normalizar_campos_plan_accion(plan_df)
+            if not df_show.empty:
+                st.markdown(f"##### Acciones asociadas a OM {om_id}")
+                st.dataframe(df_show, use_container_width=True, hide_index=True)
+                if st.button("Cerrar detalle", key=f"cerrar_detalle_{om_id}"):
+                    st.session_state["om_expanded_row"] = None
+                    st.rerun()
+            else:
+                st.info(f"OM {om_id} sin acciones asociadas.")
+
+
+def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
+    """Propuesta V2: tabla nativa st.dataframe (column_config + selección de fila)
+    para comparar contra el grid HTML armado a mano de la pestaña "Tabla actual".
+
+    Gana: tooltip nativo al truncar texto, columnas redimensionables por el
+    usuario, sin bugs de alineación/HTML. Pierde: badges de color reales para
+    "Tipo de Acción" (st.dataframe no soporta HTML embebido en celdas) — se
+    muestran como texto plano.
+    """
+    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+
+    df_fmt = formatear_meta_ejecucion_df(df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion")
+    df_fmt = df_fmt.rename(
+        columns={
+            "Cumplimiento_pct": "Cumplimiento",
+            "avance_om": "Avance OM",
+            "tipo_accion": "Tipo de Acción",
+            "identificador": "OM",
+        }
+    )
+
+    cols_v2 = [
+        "Id", "Indicador", "Subproceso", "Periodicidad", "Meta", "Ejecucion",
+        "Cumplimiento", "Categoria", "Tipo de Acción", "OM", "Avance OM",
+    ]
+    cols_v2 = [c for c in cols_v2 if c in df_fmt.columns]
+    df_v2 = df_fmt[cols_v2].copy().reset_index(drop=True)
+
+    if "Cumplimiento" in df_v2.columns:
+        df_v2["Cumplimiento"] = pd.to_numeric(df_v2["Cumplimiento"], errors="coerce").round(1)
+    if "Avance OM" in df_v2.columns:
+        _avance = pd.to_numeric(df_v2["Avance OM"], errors="coerce")
+        df_v2["Avance OM"] = _avance.apply(
+            lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5 else v
+        )
+    if "OM" in df_v2.columns:
+        df_v2["OM"] = df_v2["OM"].apply(lambda v: "" if pd.isna(v) else str(v))
+    if "Tipo de Acción" in df_v2.columns:
+        df_v2["Tipo de Acción"] = df_v2["Tipo de Acción"].apply(
+            lambda v: "Sin acción" if pd.isna(v) or str(v).strip().lower() in {"", "nan", "none"} else str(v)
+        )
+
+    seleccion = st.dataframe(
+        df_v2,
+        use_container_width=True,
+        hide_index=True,
+        height=min(560, 74 + len(df_v2) * 35),
+        column_config={
+            "Id": st.column_config.TextColumn("Id", width="small"),
+            "Indicador": st.column_config.TextColumn("Indicador", width="large"),
+            "Subproceso": st.column_config.TextColumn("Subproceso", width="medium"),
+            "Periodicidad": st.column_config.TextColumn("Periodicidad", width="small"),
+            "Meta": st.column_config.TextColumn("Meta", width="small"),
+            "Ejecucion": st.column_config.TextColumn("Ejecución", width="small"),
+            "Cumplimiento": st.column_config.ProgressColumn(
+                "Cumplimiento", min_value=0, max_value=130, format="%.1f%%"
+            ),
+            "Categoria": st.column_config.TextColumn("Categoría", width="small"),
+            "Tipo de Acción": st.column_config.TextColumn("Tipo de Acción", width="medium"),
+            "OM": st.column_config.TextColumn("OM", width="small"),
+            "Avance OM": st.column_config.ProgressColumn(
+                "Avance OM", min_value=0, max_value=100, format="%.1f%%"
+            ),
+        },
+        on_select="rerun",
+        selection_mode="single-row",
+        key="om_tabla_v2_select",
+    )
+
+    st.caption(
+        "Haz clic sobre una fila para ver el detalle de sus acciones OM "
+        "(reemplaza el botón de icono por fila de la tabla actual)."
+    )
+
+    filas_sel = list(seleccion.selection.rows) if seleccion is not None else []
+    if not filas_sel:
+        return
+
+    row = df_v2.iloc[filas_sel[0]]
+    om_id = str(row.get("OM", "")).strip()
+    st.markdown("---")
+    if not om_id or om_id.lower() == "nan":
+        st.info(f"El indicador {row.get('Id', '')} — {row.get('Indicador', '')} no tiene OM asociada.")
+        return
+
+    plan_df = _cargar_plan_accion_para_om(om_id)
+    df_show = _normalizar_campos_plan_accion(plan_df)
+    st.markdown(f"##### Acciones asociadas a OM {om_id}")
+    if not df_show.empty:
+        st.dataframe(df_show, use_container_width=True, hide_index=True)
+    else:
+        st.info(f"OM {om_id} sin acciones asociadas.")
+
+
 def render():
     st.title("Gestión OM")
     st.caption(
@@ -1307,251 +1653,12 @@ def render():
     k4.metric("Avance OM", f"{avance_prom:.1f}%" if con_om > 0 else "—")
     st.markdown("---")
 
-    # --- Tabla principal con encabezado visual e icono de expansión OM ---
-    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
-
-    df_tabla_fmt = formatear_meta_ejecucion_df(
-        df_tabla.copy(), meta_col="Meta", ejec_col="Ejecucion"
-    )
-    rename_map = {
-        "Cumplimiento_pct": "Cumplimiento",
-        "avance_om": "Avance OM",
-        "tiene_om": "Ver más",
-        "tipo_accion": "Tipo de Acción",
-        "identificador": "OM",
-    }
-    df_tabla_fmt = df_tabla_fmt.rename(columns=rename_map)
-
-    cols_orden = [
-        "Id",
-        "Indicador",
-        "Subproceso",
-        "Periodicidad",
-        "Meta",
-        "Ejecucion",
-        "Cumplimiento",
-        "Categoria",
-        "Tipo de Acción",
-        "OM",
-        "Avance OM",
-    ]
-    cols_tabla = [c for c in cols_orden if c in df_tabla_fmt.columns]
-    df_view = df_tabla_fmt[
-        cols_tabla + (["Ver más"] if "Ver más" in df_tabla_fmt.columns else [])
-    ].copy()
-
-    if "Cumplimiento" in df_view.columns:
-        df_view["Cumplimiento"] = pd.to_numeric(df_view["Cumplimiento"], errors="coerce").round(1)
-
-    if "Avance OM" in df_view.columns:
-        df_view["Avance OM"] = pd.to_numeric(df_view["Avance OM"], errors="coerce")
-
-    if "OM" in df_view.columns:
-        df_view["OM"] = df_view["OM"].apply(lambda v: "" if pd.isna(v) else str(v))
-
-    st.markdown(
-        """
-        <style>
-        div[class*="st-key-om_header_bar"] {
-            background:#1e293b;
-            border-radius:6px 6px 0 0;
-            padding:2px 0;
-        }
-        .om-head {
-            background:transparent;
-            color:#fff;
-            font-weight:700;
-            padding:8px 6px;
-            border-right:1px solid #334155;
-            border-radius:0;
-            white-space:normal;
-            word-break:break-word;
-            line-height:1.2;
-            font-size:12px;
-            text-align:center;
-            min-height:34px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-        }
-        .om-cell {
-            padding:7px 6px;
-            border-bottom:1px solid #e2e8f0;
-            line-height:1.2;
-            font-size:13px;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            white-space:nowrap;
-        }
-        .om-cell-peligro { background:#FFF5F5; }
-        .om-cell-alerta { background:#FFFBEB; }
-        .om-center { text-align:center; }
-        .om-right { text-align:right; }
-        .om-avance-wrap {
-            min-width:80px;
-            max-width:100px;
-            margin:0 auto;
-        }
-        .om-badge {
-            display:inline-block;
-            padding:2px 8px;
-            border-radius:8px;
-            font-size:11px;
-            font-weight:700;
-            color:#fff;
-            white-space:nowrap;
-        }
-        .om-kawak { background:#2563EB; }
-        .om-reto { background:#D97706; }
-        .om-proy { background:#0EA5A4; }
-        .om-otro { background:#6B7280; }
-        .om-sin { background:#94A3B8; color:#0F172A; }
-        .om-icon-cell {
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            height:100%;
-        }
-        .om-ind-name {
-            overflow:hidden;
-            text-overflow:ellipsis;
-            white-space:nowrap;
-            max-width:320px;
-            display:block;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Encabezado visual
-    encabezados = cols_orden + ["Ver más"]
-    anchos = [0.7, 3.0, 1.9, 1.35, 0.75, 1.05, 1.4, 1.05, 1.2, 0.6, 1.1, 0.85]
-    with st.container(key="om_header_bar"):
-        head_cols = st.columns(anchos, gap="small")
-        for i, h in enumerate(encabezados):
-            with head_cols[i]:
-                st.markdown(f"<div class='om-head'>{h}</div>", unsafe_allow_html=True)
-
-    # Filas con estilo + expansión por icono
-    for ridx, row in df_view.iterrows():
-        row_cols = st.columns(anchos, gap="small")
-
-        cat = str(row.get("Categoria", "")).strip()
-        cell_class = "om-cell om-cell-peligro" if cat == "Peligro" else "om-cell om-cell-alerta"
-
-        cumple_num = pd.to_numeric(row.get("Cumplimiento"), errors="coerce")
-        if pd.isna(cumple_num):
-            cumple_txt = "—"
-        else:
-            dot = _dot_svg(obtener_color_categoria("Peligro")) if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
-            cumple_txt = f"{dot}{cumple_num:.1f}%"
-
-        tipo_raw = row.get("Tipo de Acción", "Sin acción")
-        if pd.isna(tipo_raw) or str(tipo_raw).strip().lower() in {"", "nan", "none"}:
-            tipo_raw = "Sin acción"
-        tipo_badge = badge_tipo_accion(str(tipo_raw))
-
-        avance_num = pd.to_numeric(row.get("Avance OM"), errors="coerce")
-        if pd.notna(avance_num) and abs(avance_num) <= 1.5:
-            avance_num = avance_num * 100
-        avance_txt = (
-            "<div class='om-avance-wrap'>"
-            + (barra_avance_om(float(avance_num)) if pd.notna(avance_num) else barra_avance_om(0))
-            + "</div>"
-        )
-
-        ind_name = str(row.get("Indicador", ""))
-
-        valores = [
-            str(row.get("Id", "")),
-            f"<span class='om-ind-name' title='{ind_name}'>{ind_name}</span>",
-            str(row.get("Subproceso", "")),
-            str(row.get("Periodicidad", "")),
-            str(row.get("Meta", "")) or "—",
-            str(row.get("Ejecucion", "")) or "—",
-            cumple_txt,
-            cat,
-            tipo_badge,
-            (
-                ""
-                if pd.isna(row.get("OM")) or str(row.get("OM")).lower() == "nan"
-                else str(row.get("OM"))
-            ),
-            avance_txt,
-        ]
-
-        for i, val in enumerate(valores):
-            with row_cols[i]:
-                extra = " om-center" if i in [3, 4, 5, 9] else ""
-                if i == 7:
-                    color = "#C62828" if cat == "Peligro" else "#F57F17"
-                    extra += f" style='font-weight:600;color:{color}'"
-                st.markdown(f"<div class='{cell_class}{extra}'>{val}</div>", unsafe_allow_html=True)
-
-        with row_cols[11]:
-            om_id = "" if pd.isna(row.get("OM")) else str(row.get("OM")).strip()
-            tiene_om = str(row.get("Ver más", "0")) in {"1", "True", "true"}
-            if tiene_om and om_id and om_id.lower() != "nan":
-                st.markdown(f"<div class='{cell_class} om-icon-cell'>", unsafe_allow_html=True)
-                if st.button(
-                    "",
-                    icon=":material/description:",
-                    key=f"btn_om_{ridx}_{om_id}",
-                    help=f"Ver acciones OM {om_id}",
-                    type="tertiary",
-                ):
-                    active = st.session_state.get("om_expanded_row")
-                    st.session_state["om_expanded_row"] = (
-                        None if active == (ridx, om_id) else (ridx, om_id)
-                    )
-                st.markdown("</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div class='{cell_class}'></div>", unsafe_allow_html=True)
-
-        if st.session_state.get("om_expanded_row") == (ridx, om_id):
-            plan_df = _cargar_plan_accion_para_om(om_id)
-            df_show = _normalizar_campos_plan_accion(plan_df)
-            if not df_show.empty:
-                st.markdown(f"##### Acciones asociadas a OM {om_id}")
-                st.dataframe(df_show, use_container_width=True, hide_index=True)
-                if st.button("Cerrar detalle", key=f"cerrar_detalle_{om_id}"):
-                    st.session_state["om_expanded_row"] = None
-                    st.rerun()
-            else:
-                st.info(f"OM {om_id} sin acciones asociadas.")
-
-    # ── Vista alternativa: tabla interactiva ────────────────────────────────
-    with st.expander(
-        "Vista alternativa (tabla interactiva)", icon=":material/table_view:", expanded=False
-    ):
-        _st_cols = ["Id", "Indicador", "Subproceso", "Periodicidad",
-                    "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria",
-                    "tipo_accion", "identificador", "avance_om"]
-        _st_cols = [c for c in _st_cols if c in df_tabla.columns]
-        _df_st = df_tabla[_st_cols].copy()
-        _df_st = _df_st.rename(columns={
-            "Cumplimiento_pct": "Cumplimiento %",
-            "tipo_accion": "Tipo Acción",
-            "identificador": "OM",
-            "avance_om": "Avance OM %",
-        })
-        _col_cfg = {}
-        if "Cumplimiento %" in _df_st.columns:
-            _col_cfg["Cumplimiento %"] = st.column_config.ProgressColumn(
-                "Cumplimiento %", min_value=0, max_value=130, format="%.1f%%"
-            )
-        if "Avance OM %" in _df_st.columns:
-            _col_cfg["Avance OM %"] = st.column_config.ProgressColumn(
-                "Avance OM %", min_value=0, max_value=100, format="%.1f%%"
-            )
-        st.dataframe(
-            _df_st,
-            use_container_width=True,
-            height=min(400, 40 + len(_df_st) * 35),
-            column_config=_col_cfg if _col_cfg else None,
-            hide_index=True,
-        )
+    # Comparación: grid HTML actual vs. propuesta V2 con st.dataframe nativo.
+    tab_actual, tab_v2 = st.tabs(["Tabla actual", "V2 (Propuesta)"])
+    with tab_actual:
+        _render_tabla_actual(df_tabla)
+    with tab_v2:
+        _render_tabla_v2(df_tabla)
 
     st.markdown("---")
 
