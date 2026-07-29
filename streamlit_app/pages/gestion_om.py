@@ -1113,20 +1113,28 @@ def _generar_tabla_html(df: pd.DataFrame) -> str:
     return df_display
 
 
+def _dot_svg(color: str) -> str:
+    """Punto vectorial de estado (reemplaza íconos emoji por un indicador SVG)."""
+    return (
+        f"<svg width='8' height='8' viewBox='0 0 8 8' style='margin-right:4px;"
+        f"vertical-align:middle;flex:none;'><circle cx='4' cy='4' r='4' fill='{color}'/></svg>"
+    )
+
+
 def barra_avance_om(pct):
-    """Barra de progreso con color e ícono basado en cumplimiento normalizado.
+    """Barra de progreso con color e indicador de estado basado en cumplimiento normalizado.
     Usa core.semantica para consistencia."""
     if pd.isna(pct) or pct == 0:
         color = "#F3F4F6"
-        icon = "⚪"
-        return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>"""
+        dot = _dot_svg("#BDBDBD")
+        return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{dot}-</span></div>"""
 
     # MEJORA FASE 2: Usar wrapper centralizado
     categoria = normalizar_y_categorizar(pct, es_porcentaje=True)
     color = obtener_color_categoria(categoria)
-    icon = obtener_icono_categoria(categoria)
+    dot = _dot_svg(color)
 
-    return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:{min(100,pct)}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {pct:.1f}%</span></div>"""
+    return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:{min(100,pct)}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{dot}{pct:.1f}%</span></div>"""
 
 
 def barra_cumplimiento(pct):
@@ -1134,17 +1142,17 @@ def barra_cumplimiento(pct):
     Usa core.semantica para consistencia."""
     if pd.isna(pct):
         color = "#F3F4F6"
-        icon = "⚪"
-        return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{icon} -</span></div>"""
+        dot = _dot_svg("#BDBDBD")
+        return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:0;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#888;">{dot}-</span></div>"""
 
     n = float(pct)
     # MEJORA FASE 2: Usar wrapper centralizado
     categoria = normalizar_y_categorizar(n, es_porcentaje=True)
     color = obtener_color_categoria(categoria)
-    icon = obtener_icono_categoria(categoria)
+    dot = _dot_svg(color)
 
     width = 2 if n <= 0 else min(100, n)
-    return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:{width}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{icon} {n:.1f}%</span></div>"""
+    return f"""<div class="om-bar-bg"><div class="om-bar-fill" style="width:{width}%;background:{color}"></div><span style="position:absolute;left:8px;top:0;font-size:13px;font-weight:600;color:#222;">{dot}{n:.1f}%</span></div>"""
 
 
 def badge_tipo_accion(tipo):
@@ -1159,14 +1167,14 @@ def badge_tipo_accion(tipo):
 
 
 def _icono_cumplimiento(cumpl_val) -> str:
-    """Retorna ícono para cumplimiento (porcentaje).
+    """Retorna un punto SVG de color según la categoría de cumplimiento (porcentaje).
     Usa core.semantica para consistencia."""
     n = pd.to_numeric(cumpl_val, errors="coerce")
     if pd.isna(n):
-        return "⚪"
+        return _dot_svg("#BDBDBD")
     # MEJORA FASE 2: Usar wrapper centralizado
     categoria = normalizar_y_categorizar(n, es_porcentaje=True)
-    return obtener_icono_categoria(categoria)
+    return _dot_svg(obtener_color_categoria(categoria))
 
 
 def render():
@@ -1291,12 +1299,12 @@ def render():
     avance_prom = pd.to_numeric(df_tabla.get("avance_om", pd.Series(dtype=float)), errors="coerce").mean()
     avance_prom = 0.0 if pd.isna(avance_prom) else float(avance_prom)
 
-    st.markdown(f"### 📊 Indicadores en Riesgo — {mes_sel} {anio_sel}")
+    st.subheader(f"Indicadores en Riesgo — {mes_sel} {anio_sel}", divider="gray")
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("🔴 Peligro", total_peligro)
-    k2.metric("🟡 Alerta", total_alerta)
-    k3.metric("📋 Con OM", f"{con_om} / {total_registros}")
-    k4.metric("📊 Avance OM", f"{avance_prom:.1f}%" if con_om > 0 else "—")
+    k1.metric("Peligro", total_peligro)
+    k2.metric("Alerta", total_alerta)
+    k3.metric("Con OM", f"{con_om} / {total_registros}")
+    k4.metric("Avance OM", f"{avance_prom:.1f}%" if con_om > 0 else "—")
     st.markdown("---")
 
     # --- Tabla principal con encabezado visual e icono de expansión OM ---
@@ -1425,8 +1433,8 @@ def render():
         if pd.isna(cumple_num):
             cumple_txt = "—"
         else:
-            icon = "🔴" if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
-            cumple_txt = f"{icon} {cumple_num:.1f}%"
+            dot = _dot_svg(obtener_color_categoria("Peligro")) if cumple_num <= 0 else _icono_cumplimiento(cumple_num)
+            cumple_txt = f"{dot}{cumple_num:.1f}%"
 
         tipo_raw = row.get("Tipo de Acción", "Sin acción")
         if pd.isna(tipo_raw) or str(tipo_raw).strip().lower() in {"", "nan", "none"}:
@@ -1449,8 +1457,8 @@ def render():
             f"<span class='om-ind-name' title='{ind_name}'>{ind_name}</span>",
             str(row.get("Subproceso", "")),
             str(row.get("Periodicidad", "")),
-            meta_his_signo(row),
-            ejecucion_his_signo(row),
+            str(row.get("Meta", "")) or "—",
+            str(row.get("Ejecucion", "")) or "—",
             cumple_txt,
             cat,
             tipo_badge,
@@ -1476,7 +1484,8 @@ def render():
             if tiene_om and om_id and om_id.lower() != "nan":
                 st.markdown(f"<div class='{cell_class} om-icon-cell'>", unsafe_allow_html=True)
                 if st.button(
-                    "📋",
+                    "",
+                    icon=":material/description:",
                     key=f"btn_om_{ridx}_{om_id}",
                     help=f"Ver acciones OM {om_id}",
                     type="tertiary",
@@ -1502,7 +1511,9 @@ def render():
                 st.info(f"OM {om_id} sin acciones asociadas.")
 
     # ── Vista alternativa: tabla interactiva ────────────────────────────────
-    with st.expander("📋 Vista alternativa (tabla interactiva)", expanded=False):
+    with st.expander(
+        "Vista alternativa (tabla interactiva)", icon=":material/table_view:", expanded=False
+    ):
         _st_cols = ["Id", "Indicador", "Subproceso", "Periodicidad",
                     "Meta", "Ejecucion", "Cumplimiento_pct", "Categoria",
                     "tipo_accion", "identificador", "avance_om"]
@@ -1542,7 +1553,9 @@ def render():
     )
     selected_id = indicador_seleccionado.split(" - ")[0] if indicador_seleccionado else ""
 
-    if st.button("➕ Asociar nueva OM", use_container_width=True, type="primary"):
+    if st.button(
+        "Asociar nueva OM", icon=":material/add:", use_container_width=True, type="primary"
+    ):
         st.session_state["om_modal_open"] = True
         st.session_state["om_modal_indicator"] = selected_id
 
@@ -1602,7 +1615,9 @@ def render():
                 )
 
                 submitted = st.form_submit_button(
-                    "💾 Guardar Oportunidad de Mejora", use_container_width=True
+                    "Guardar Oportunidad de Mejora",
+                    icon=":material/save:",
+                    use_container_width=True,
                 )
 
         if submitted:
@@ -1620,7 +1635,7 @@ def render():
             if guardar_registro_om(payload):
                 st.session_state["om_modal_open"] = False
                 st.session_state["om_modal_indicator"] = ""
-                st.success(f"✅ Oportunidad de mejora guardada para indicador {indicador}")
+                st.success(f"Oportunidad de mejora guardada para indicador {indicador}")
                 st.rerun()
 
 
