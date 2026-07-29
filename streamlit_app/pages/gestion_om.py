@@ -1352,8 +1352,13 @@ def render():
     st.markdown(
         """
         <style>
-        .om-head {
+        div[class*="st-key-om_header_bar"] {
             background:#1e293b;
+            border-radius:6px 6px 0 0;
+            padding:2px 0;
+        }
+        .om-head {
+            background:transparent;
             color:#fff;
             font-weight:700;
             padding:8px 6px;
@@ -1421,10 +1426,11 @@ def render():
     # Encabezado visual
     encabezados = cols_orden + ["Ver más"]
     anchos = [0.7, 3.0, 1.9, 1.35, 0.75, 1.05, 1.4, 1.05, 1.2, 0.6, 1.1, 0.85]
-    head_cols = st.columns(anchos, gap="small")
-    for i, h in enumerate(encabezados):
-        with head_cols[i]:
-            st.markdown(f"<div class='om-head'>{h}</div>", unsafe_allow_html=True)
+    with st.container(key="om_header_bar"):
+        head_cols = st.columns(anchos, gap="small")
+        for i, h in enumerate(encabezados):
+            with head_cols[i]:
+                st.markdown(f"<div class='om-head'>{h}</div>", unsafe_allow_html=True)
 
     # Filas con estilo + expansión por icono
     for ridx, row in df_view.iterrows():
