@@ -358,6 +358,8 @@ Cumplimiento      = MIN(raw, TOPE)   ← con tope (columna L del Excel)
 Cumplimiento Real = raw              ← sin tope (columna M del Excel)
 ```
 
+> **Actualización 2026-07-28:** Estos casos especiales de Meta=0 están ahora **validados automáticamente en Paso 15.5** del ETL mediante la función `validar_cumplimiento_meta_cero()` en [`scripts/etl/formulas_excel.py`](../scripts/etl/formulas_excel.py). La validación asegura que la fórmula Excel generada maneje correctamente estos escenarios edge cases, especialmente para indicadores negativos donde la ejecución cero es un resultado deseable.
+
 ### 9.2 Topes dinámicos por indicador
 
 El valor del tope depende de la categoría del indicador:
@@ -365,10 +367,10 @@ El valor del tope depende de la categoría del indicador:
 | Categoría | TOPE | Indicadores |
 |---|---|---|
 | `IDS_PLAN_ANUAL` | 1.0 (100%) | IDs: 373, 390, 414, 415, 416, 417, 418, 420, 469, 470, 471 (año 2025) |
-| `IDS_TOPE_100` | 1.0 (100%) | IDs: 208, 218 |
+| `IDS_TOPE_100` | 1.0 (100%) | IDs: 208, 218, 92, 104, 106, 124, 125, 126, 127, 128, 272, **373** |
 | Resto de indicadores | 1.3 (130%) | Permite sobre-ejecución hasta 130% |
 
-> **Nota:** Los IDs de `IDS_PLAN_ANUAL` se actualizan anualmente en `config/settings.toml`.
+> **Nota actualizada (2026-07-28):** El ID 373 (Retos Anuales - Cumplimiento de planes anuales por líneas estratégicas) ahora está explícitamente en `IDS_TOPE_100`, garantizando un tope de 100% para este indicador y sus sub-indicadores (373.1-373.6). Los IDs de `IDS_PLAN_ANUAL` se actualizan anualmente en `config/settings.toml`.
 
 ### 9.3 Fórmula Excel generada
 
@@ -420,14 +422,24 @@ Ejemplo: "150-2025-6-30"
 
 ---
 
-## 12. Correcciones automáticas (AGENT5)
+## 12. Correcciones automáticas (AGENT5) + Paso 15.5 (Meta=0 Validation)
 
-El módulo AGENT5 aplica correcciones antes de escribir al Excel:
+El módulo AGENT5 aplica correcciones antes de escribir al Excel, seguido de una validación automática en Paso 15.5:
 
 | Corrección | Condición | Acción |
 |---|---|---|
 | **Ejecución > 1.3** | Se detecta pero **no se recorta** (desde 2026-07-25) | Solo se informa (`ℹ️`); Ejecucion queda en la escala propia del indicador (%, conteo bruto, monto financiero) |
 | **Meta cero** | `Meta = 0` | Se marca para revisión manual (puede ser error o "cero defectos") |
+
+**Paso 15.5 — Validación automática de cumplimiento con Meta=0** (nuevo 2026-07-28):
+
+Después de que AGENT5 procesa, el Paso 15.5 ejecuta `validar_cumplimiento_meta_cero()` que:
+- Detecta filas donde `Meta=0` o `Meta=NULL`
+- Valida que la fórmula Excel devuelva correctamente `1.0` (100%)
+- Especialmente importante para indicadores negativos donde ejecución cero es deseable
+- Reporta audit trail de ~413-415 indicadores validados
+
+Ver `scripts/etl/formulas_excel.py:validar_cumplimiento_meta_cero()` para detalles.
 
 > El capping fijo a 1.3/1.0 se eliminó porque asumía que Ejecucion/Meta
 > siempre son una razón 0-1.3, cuando en realidad cada indicador usa su
