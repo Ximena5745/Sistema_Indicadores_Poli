@@ -1359,10 +1359,14 @@ def render():
             padding:8px 6px;
             border-right:1px solid #334155;
             border-radius:0;
-            white-space:nowrap;
-            line-height:1.1;
-            font-size:13px;
+            white-space:normal;
+            word-break:break-word;
+            line-height:1.2;
+            font-size:12px;
             text-align:left;
+            min-height:34px;
+            display:flex;
+            align-items:center;
         }
         .om-cell {
             padding:7px 6px;
@@ -1416,7 +1420,7 @@ def render():
 
     # Encabezado visual
     encabezados = cols_orden + ["Ver más"]
-    anchos = [0.45, 3.5, 2.3, 1.0, 0.8, 0.85, 1.1, 0.9, 1.3, 0.65, 1.0, 0.4]
+    anchos = [0.7, 3.0, 1.9, 1.35, 0.75, 1.05, 1.4, 1.05, 1.2, 0.6, 1.1, 0.85]
     head_cols = st.columns(anchos, gap="small")
     for i, h in enumerate(encabezados):
         with head_cols[i]:
