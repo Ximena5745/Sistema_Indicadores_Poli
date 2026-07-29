@@ -1471,6 +1471,12 @@ def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
             lambda v: "Sin acción" if pd.isna(v) or str(v).strip().lower() in {"", "nan", "none"} else str(v)
         )
 
+    st.info(
+        "Selecciona el ☑ de una fila para ver ahí abajo el detalle de sus acciones OM "
+        "— es el equivalente al botón de icono por fila de la pestaña 'Tabla actual'.",
+        icon=":material/touch_app:",
+    )
+
     seleccion = st.dataframe(
         df_v2,
         use_container_width=True,
@@ -1498,18 +1504,15 @@ def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
         key="om_tabla_v2_select",
     )
 
-    st.caption(
-        "Haz clic sobre una fila para ver el detalle de sus acciones OM "
-        "(reemplaza el botón de icono por fila de la tabla actual)."
-    )
+    st.markdown("---")
 
     filas_sel = list(seleccion.selection.rows) if seleccion is not None else []
     if not filas_sel:
+        st.caption("Ningún indicador seleccionado todavía — el detalle de OM aparecerá aquí.")
         return
 
     row = df_v2.iloc[filas_sel[0]]
     om_id = str(row.get("OM", "")).strip()
-    st.markdown("---")
     if not om_id or om_id.lower() == "nan":
         st.info(f"El indicador {row.get('Id', '')} — {row.get('Indicador', '')} no tiene OM asociada.")
         return
