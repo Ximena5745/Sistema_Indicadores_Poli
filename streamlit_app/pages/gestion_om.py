@@ -1275,6 +1275,15 @@ def _render_tabla_actual(df_tabla: pd.DataFrame) -> None:
             max-width:100px;
             margin:0 auto;
         }
+        .om-bar-bg {
+            position:relative;
+            height:22px;
+            border-radius:4px;
+            overflow:hidden;
+            background:#F3F4F6;
+            min-width:70px;
+        }
+        .om-bar-fill { height:100%; }
         .om-badge {
             display:inline-block;
             padding:2px 8px;
@@ -1429,36 +1438,26 @@ def _render_tabla_actual(df_tabla: pd.DataFrame) -> None:
                 st.info(f"OM {om_id} sin acciones asociadas.")
 
 
-def _resaltar_fila_por_categoria(row):
-    """Tinta toda la fila del color claro de su Categoria (mismo estado visual
-    que las filas rosa/amarillo de la pestaña "Tabla actual")."""
-    from core.config import COLOR_CATEGORIA_CLARO
-
-    bg = COLOR_CATEGORIA_CLARO.get(str(row.get("Categoria", "")).strip(), "")
-    return [f"background-color: {bg}" if bg else "" for _ in row]
-
-
-def _resaltar_texto_categoria(val: str) -> str:
-    """Texto en negrita con el color oficial de la categoría (Peligro=rojo,
-    Alerta=naranja, etc.), para que el estado se lea sin depender del color
-    fijo (azul) de las barras de progreso nativas de st.dataframe."""
+def _badge_categoria(cat: str) -> str:
+    """Badge de color sólido para la Categoría (mismo criterio que barra_cumplimiento)."""
     from core.config import COLOR_CATEGORIA
 
-    color = COLOR_CATEGORIA.get(str(val).strip(), "")
-    return f"color: {color}; font-weight: 700" if color else ""
+    color = COLOR_CATEGORIA.get(str(cat).strip(), "#6B7280")
+    return f'<span class="om-badge" style="background:{color}">{_esc(str(cat))}</span>'
 
 
 def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
-    """Propuesta V2: tabla nativa st.dataframe (column_config + selección de fila)
-    para comparar contra el grid HTML armado a mano de la pestaña "Tabla actual".
+    """Propuesta V2: tabla HTML (Styler-friendly) para comparar contra el grid
+    armado a mano de la pestaña "Tabla actual".
 
-    Gana: tooltip nativo al truncar texto, columnas redimensionables por el
-    usuario, sin bugs de alineación/HTML. Pierde: badges de color reales para
-    "Tipo de Acción" (st.dataframe no soporta HTML embebido en celdas) — se
-    muestran como texto plano. El encabezado se renderiza en un canvas interno
-    de Streamlit (glide-data-grid): no hay forma soportada de recolorearlo por
-    CSS, así que el "estado" se transmite con el tinte de fila + texto en
-    negrita de Categoría en vez del encabezado.
+    A diferencia de la primera versión (basada en st.dataframe), esta usa una
+    tabla HTML propia porque el encabezado de st.dataframe se renderiza en un
+    canvas interno (glide-data-grid) que no admite recoloreo por CSS, y sus
+    columnas de progreso (ProgressColumn) sólo pintan en azul fijo sin importar
+    el nivel de cumplimiento. Reutiliza las mismas barras/badges de color que
+    la pestaña "Tabla actual" (barra_cumplimiento, barra_avance_om,
+    badge_tipo_accion) para que el estado (Peligro/Alerta/etc.) se vea en la
+    barra, no en el fondo de la fila.
     """
     from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
@@ -1479,13 +1478,6 @@ def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
     cols_v2 = [c for c in cols_v2 if c in df_fmt.columns]
     df_v2 = df_fmt[cols_v2].copy().reset_index(drop=True)
 
-    if "Cumplimiento" in df_v2.columns:
-        df_v2["Cumplimiento"] = pd.to_numeric(df_v2["Cumplimiento"], errors="coerce").round(1)
-    if "Avance OM" in df_v2.columns:
-        _avance = pd.to_numeric(df_v2["Avance OM"], errors="coerce")
-        df_v2["Avance OM"] = _avance.apply(
-            lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5 else v
-        )
     if "OM" in df_v2.columns:
         df_v2["OM"] = df_v2["OM"].apply(lambda v: "" if pd.isna(v) else str(v))
     if "Tipo de Acción" in df_v2.columns:
@@ -1494,56 +1486,70 @@ def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
         )
 
     st.info(
-        "Selecciona el ☑ de una fila para ver ahí abajo el detalle de sus acciones OM "
-        "— es el equivalente al botón de icono por fila de la pestaña 'Tabla actual'. "
-        "El color de fila y el texto de Categoría reflejan el estado (Peligro/Alerta); "
-        "las barras de progreso son de color fijo por límite de Streamlit.",
+        "Selecciona un indicador en la lista de abajo para ver el detalle de sus "
+        "acciones OM. La barra muestra el % y el color según su nivel de "
+        "cumplimiento (Peligro/Alerta/Cumplimiento/Sobrecumplimiento).",
         icon=":material/touch_app:",
     )
 
-    df_v2_estilo = df_v2.style.apply(_resaltar_fila_por_categoria, axis=1)
-    if "Categoria" in df_v2.columns:
-        df_v2_estilo = df_v2_estilo.map(_resaltar_texto_categoria, subset=["Categoria"])
+    df_render = df_v2.copy()
+    if "Cumplimiento" in df_render.columns:
+        _cumpl_num = pd.to_numeric(df_render["Cumplimiento"], errors="coerce").round(1)
+        df_render["Cumplimiento"] = _cumpl_num.apply(barra_cumplimiento)
+    if "Avance OM" in df_render.columns:
+        _avance_num = pd.to_numeric(df_render["Avance OM"], errors="coerce")
+        _avance_num = _avance_num.apply(lambda v: v * 100 if pd.notna(v) and abs(v) <= 1.5 else v)
+        df_render["Avance OM"] = _avance_num.apply(
+            lambda v: barra_avance_om(v) if pd.notna(v) else barra_avance_om(0)
+        )
+    if "Categoria" in df_render.columns:
+        df_render["Categoria"] = df_render["Categoria"].apply(_badge_categoria)
+    if "Tipo de Acción" in df_render.columns:
+        df_render["Tipo de Acción"] = df_render["Tipo de Acción"].apply(badge_tipo_accion)
+    if "Indicador" in df_render.columns:
+        df_render["Indicador"] = df_render["Indicador"].apply(
+            lambda v: f"<span class='om-ind-name' title='{_esc(str(v))}'>{_esc(str(v))}</span>"
+        )
 
-    seleccion = st.dataframe(
-        df_v2_estilo,
-        use_container_width=True,
-        hide_index=True,
-        height=min(560, 74 + len(df_v2) * 35),
-        column_config={
-            "Id": st.column_config.TextColumn("Id", width="small"),
-            "Indicador": st.column_config.TextColumn("Indicador", width="large"),
-            "Subproceso": st.column_config.TextColumn("Subproceso", width="medium"),
-            "Periodicidad": st.column_config.TextColumn("Periodicidad", width="small"),
-            "Meta": st.column_config.TextColumn("Meta", width="small"),
-            "Ejecucion": st.column_config.TextColumn("Ejecución", width="small"),
-            "Cumplimiento": st.column_config.ProgressColumn(
-                "Cumplimiento", min_value=0, max_value=130, format="%.1f%%"
-            ),
-            "Categoria": st.column_config.TextColumn("Categoría", width="small"),
-            "Tipo de Acción": st.column_config.TextColumn("Tipo de Acción", width="medium"),
-            "OM": st.column_config.TextColumn("OM", width="small"),
-            "Avance OM": st.column_config.ProgressColumn(
-                "Avance OM", min_value=0, max_value=100, format="%.1f%%"
-            ),
-        },
-        on_select="rerun",
-        selection_mode="single-row",
-        key="om_tabla_v2_select",
+    st.markdown(
+        """
+        <style>
+        .om-v2-wrap { overflow-x:auto; border:1px solid #334155; border-radius:8px; }
+        .om-v2-table { width:100%; border-collapse:collapse; font-size:13px; background:transparent; }
+        .om-v2-table thead th {
+            background:#1e293b; color:#fff; font-weight:700;
+            padding:8px 6px; text-align:center; border-right:1px solid #334155;
+            white-space:nowrap;
+        }
+        .om-v2-table tbody td {
+            padding:6px 8px; border-bottom:1px solid #e2e8f0;
+            vertical-align:middle; background:transparent;
+        }
+        .om-v2-table tbody tr:hover td { background:#f8fafc; }
+        .om-v2-table td:nth-child(1), .om-v2-table td:nth-child(4) { text-align:center; }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
+
+    html_table = df_render.to_html(escape=False, index=False, classes="om-v2-table", border=0)
+    st.markdown(f"<div class='om-v2-wrap'>{html_table}</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    filas_sel = list(seleccion.selection.rows) if seleccion is not None else []
-    if not filas_sel:
+    con_om = df_v2[df_v2["OM"].astype(str).str.strip().replace("nan", "") != ""] if "OM" in df_v2.columns else df_v2.iloc[0:0]
+    if con_om.empty:
+        st.caption("Ningún indicador con OM asociada en esta selección.")
+        return
+
+    opciones = con_om.apply(lambda r: f"{r['Id']} - {r['Indicador']} (OM {r['OM']})", axis=1).tolist()
+    elegido = st.selectbox("Ver detalle de OM", opciones, index=None, placeholder="Selecciona un indicador…")
+    if not elegido:
         st.caption("Ningún indicador seleccionado todavía — el detalle de OM aparecerá aquí.")
         return
 
-    row = df_v2.iloc[filas_sel[0]]
-    om_id = str(row.get("OM", "")).strip()
-    if not om_id or om_id.lower() == "nan":
-        st.info(f"El indicador {row.get('Id', '')} — {row.get('Indicador', '')} no tiene OM asociada.")
-        return
+    idx_elegido = opciones.index(elegido)
+    om_id = str(con_om.iloc[idx_elegido]["OM"]).strip()
 
     plan_df = _cargar_plan_accion_para_om(om_id)
     df_show = _normalizar_campos_plan_accion(plan_df)

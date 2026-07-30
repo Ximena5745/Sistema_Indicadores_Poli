@@ -248,6 +248,42 @@ def _cargar_rangos_kawak() -> pd.DataFrame:
     return df[["Id", "Fecha", "peligro", "alerta", "cumplimiento", "exceso"]]
 
 
+def _cargar_meta_disponible_kawak() -> pd.DataFrame:
+    """
+    Indica, por Id+Fecha, si el export crudo de Kawak trae 'meta' parametrizada
+    ese período.
+
+    Cuando 'meta' viene vacía en Kawak, el indicador está estableciendo su
+    línea base ese período (aún no tiene meta definida): no debe evaluarse
+    como incumplimiento aunque el pipeline reconstruya Meta/Ejecución más
+    adelante (p.ej. vía desglose de variables).
+
+    Retorna DataFrame [Id, Fecha, meta_kawak_presente] o vacío si el archivo
+    fuente no existe/no se puede leer.
+    """
+    path = DATA_RAW / "Fuentes Consolidadas" / "Consolidado_API_Kawak.xlsx"
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(path, engine="openpyxl")
+    except Exception:
+        return pd.DataFrame()
+
+    cols_necesarias = ["ID", "fecha", "meta"]
+    if not all(c in df.columns for c in cols_necesarias):
+        return pd.DataFrame()
+
+    df = df[cols_necesarias].copy()
+    df["Id"] = df["ID"].apply(id_a_str)
+    df["Fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.normalize()
+    df = df.dropna(subset=["Id", "Fecha"])
+    df["meta_kawak_presente"] = df["meta"].notna()
+    # Un mismo Id+Fecha puede repetirse en el export crudo; basta con que UNA
+    # fila traiga meta para considerarla disponible ese período.
+    df = df.groupby(["Id", "Fecha"], as_index=False)["meta_kawak_presente"].max()
+    return df
+
+
 def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     """
     FASE 5 - Cálculos y Categorización: Normalizar y categorizar cumplimiento.
@@ -380,6 +416,24 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
                     _categoria_override = _resultados.apply(lambda t: t[1])
                 df = df.drop(columns=["peligro", "alerta", "cumplimiento", "exceso"], errors="ignore")
 
+    # Excepción: indicador estableciendo línea base ese período (Kawak no
+    # trae 'meta' parametrizada), aunque el pipeline haya reconstruido
+    # Meta/Ejecución por otra vía (p.ej. desglose de variables). No se evalúa
+    # como incumplimiento: se marca "Sin dato" y sin ícono de cumplimiento.
+    _mask_linea_base = pd.Series(False, index=df.index)
+    if "Id" in df.columns and "Fecha" in df.columns:
+        meta_kawak = _cargar_meta_disponible_kawak()
+        if not meta_kawak.empty:
+            _idx_original = df.index
+            df["_id_key_kawak"] = df["Id"].astype(str)
+            df["_fecha_key_kawak"] = pd.to_datetime(df["Fecha"], errors="coerce").dt.normalize()
+            mk = meta_kawak.rename(columns={"Id": "_id_key_kawak", "Fecha": "_fecha_key_kawak"})
+            df = df.merge(mk, on=["_id_key_kawak", "_fecha_key_kawak"], how="left")
+            df.index = _idx_original
+            df = df.drop(columns=["_id_key_kawak", "_fecha_key_kawak"])
+            _mask_linea_base = (df["meta_kawak_presente"] == False) & ~_mask_metrica  # noqa: E712
+            df = df.drop(columns=["meta_kawak_presente"], errors="ignore")
+
     # Categorizar
     df["Categoria"] = df.apply(
         lambda r: categorizar_cumplimiento(
@@ -390,6 +444,9 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     )
     if _mask_override.any():
         df.loc[_mask_override, "Categoria"] = _categoria_override
+    if _mask_linea_base.any():
+        df.loc[_mask_linea_base, "Cumplimiento_norm"] = float("nan")
+        df.loc[_mask_linea_base, "Categoria"] = "Sin dato"
 
     # Fechas y tipos finales
     if "Fecha" in df.columns:
