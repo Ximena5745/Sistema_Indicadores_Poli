@@ -30,7 +30,11 @@ import pandas as pd
 from pathlib import Path
 
 from core.calculos import normalizar_cumplimiento
-from core.domain import categorizar_cumplimiento, recalcular_cumplimiento_faltante
+from core.domain import (
+    categorizar_cumplimiento,
+    cumplimiento_por_bandas_kawak,
+    recalcular_cumplimiento_faltante,
+)
 from core.config import DATA_RAW
 from services.procesos import obtener_proceso_padre
 from services.loaders.utils import renombrar_columnas, id_a_str, obtener_rename_map
@@ -210,6 +214,40 @@ def fase4_reconstruir_columnas_formula(df: pd.DataFrame) -> pd.DataFrame:
 # ═════════════════════════════════════════════════════════════════════════════
 
 
+def _cargar_rangos_kawak() -> pd.DataFrame:
+    """
+    Carga los rangos de semáforo (peligro/alerta/cumplimiento/exceso) parametrizados
+    por indicador y período en el export crudo de Kawak.
+
+    Se usan ÚNICAMENTE como respaldo para indicadores con Meta=0, donde el
+    cálculo estándar por ratio (Meta/Ejecución) no aplica — ver
+    core.domain.cumplimiento_por_bandas_kawak para el porqué.
+
+    Retorna DataFrame con columnas [Id, Fecha, peligro, alerta, cumplimiento,
+    exceso] o vacío si el archivo fuente no existe/no se puede leer.
+    """
+    path = DATA_RAW / "Fuentes Consolidadas" / "Consolidado_API_Kawak.xlsx"
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(path, engine="openpyxl")
+    except Exception:
+        return pd.DataFrame()
+
+    cols_necesarias = ["ID", "fecha", "peligro", "alerta", "cumplimiento", "exceso"]
+    if not all(c in df.columns for c in cols_necesarias):
+        return pd.DataFrame()
+
+    df = df[cols_necesarias].copy()
+    df["Id"] = df["ID"].apply(id_a_str)
+    df["Fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.normalize()
+    df = df.dropna(subset=["Id", "Fecha"])
+    # Un mismo Id+Fecha puede repetirse en el export crudo; quedarse con el
+    # último registro (más reciente en el orden del archivo).
+    df = df.drop_duplicates(subset=["Id", "Fecha"], keep="last")
+    return df[["Id", "Fecha", "peligro", "alerta", "cumplimiento", "exceso"]]
+
+
 def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
     """
     FASE 5 - Cálculos y Categorización: Normalizar y categorizar cumplimiento.
@@ -287,6 +325,61 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
                 )
             df.loc[_calcular_mask, "Cumplimiento_norm"] = df.loc[_calcular_mask].apply(_calcular_fila, axis=1)
 
+    # Override SOLO para Meta=0: el ratio Meta/Ejecución da un acantilado
+    # binario 0%/100% (ver recalcular_cumplimiento_faltante) que no refleja
+    # bien indicadores "menos es mejor" con meta cero. Se reemplaza por un
+    # valor proporcional usando los rangos de semáforo parametrizados en Kawak
+    # (peligro/alerta/cumplimiento/exceso) cuando están disponibles para ese
+    # Id+Fecha. No afecta ningún indicador con Meta≠0.
+    _mask_override = pd.Series(False, index=df.index)
+    _categoria_override = pd.Series(dtype=object)
+    if "Meta" in df.columns and "Id" in df.columns and "Fecha" in df.columns:
+        _meta_num = pd.to_numeric(df["Meta"], errors="coerce")
+        _mask_meta_cero = _meta_num == 0
+        if _mask_meta_cero.any():
+            rangos_kawak = _cargar_rangos_kawak()
+            if not rangos_kawak.empty:
+                # Claves temporales de cruce (no se puede usar directamente
+                # "Fecha" como right_on porque df ya tiene su propia columna
+                # "Fecha" sin normalizar, y colisionaría con la del merge).
+                _idx_original = df.index
+                df["_id_key_kawak"] = df["Id"].astype(str)
+                df["_fecha_key_kawak"] = pd.to_datetime(df["Fecha"], errors="coerce").dt.normalize()
+                rk = rangos_kawak.rename(columns={"Id": "_id_key_kawak", "Fecha": "_fecha_key_kawak"})
+                # left-merge sobre clave única (Id+Fecha deduplicado en
+                # _cargar_rangos_kawak) no multiplica filas ni reordena, pero
+                # pandas igual resetea el índice: se restaura explícitamente
+                # para que las máscaras booleanas calculadas antes del merge
+                # (_mask_meta_cero, _mask_metrica) sigan alineando por label.
+                df = df.merge(rk, on=["_id_key_kawak", "_fecha_key_kawak"], how="left")
+                df.index = _idx_original
+                df = df.drop(columns=["_id_key_kawak", "_fecha_key_kawak"])
+
+                _bandas_ok = df[["alerta", "cumplimiento", "exceso"]].notna().all(axis=1)
+                _mask_override = _mask_meta_cero & _bandas_ok & ~_mask_metrica
+                if _mask_override.any():
+                    def _fila_bandas_kawak(row):
+                        sentido = (
+                            row[_col_sentido] if _col_sentido and _col_sentido in row.index else "Positivo"
+                        )
+                        return cumplimiento_por_bandas_kawak(
+                            row[_col_ejec],
+                            sentido,
+                            alerta=row["alerta"],
+                            cumplimiento=row["cumplimiento"],
+                            exceso=row["exceso"],
+                            peligro=row.get("peligro"),
+                        )
+                    _resultados = df.loc[_mask_override].apply(_fila_bandas_kawak, axis=1)
+                    df.loc[_mask_override, "Cumplimiento_norm"] = _resultados.apply(lambda t: t[0])
+                    # La categoría se guarda para aplicarse DESPUÉS de la
+                    # categorización general (que de otro modo la pisaría: sus
+                    # umbrales universales asumen "Cumplimiento"=100-105%,
+                    # mientras que aquí el 100% es el punto "exceso" — ver
+                    # docstring de cumplimiento_por_bandas_kawak).
+                    _categoria_override = _resultados.apply(lambda t: t[1])
+                df = df.drop(columns=["peligro", "alerta", "cumplimiento", "exceso"], errors="ignore")
+
     # Categorizar
     df["Categoria"] = df.apply(
         lambda r: categorizar_cumplimiento(
@@ -295,6 +388,8 @@ def fase5_aplicar_calculos_cumplimiento(df: pd.DataFrame) -> pd.DataFrame:
         ),
         axis=1,
     )
+    if _mask_override.any():
+        df.loc[_mask_override, "Categoria"] = _categoria_override
 
     # Fechas y tipos finales
     if "Fecha" in df.columns:

@@ -15,7 +15,7 @@ from .categorization import (
     nivel_desde_cumplimiento,
 )
 
-from .health_metrics import recalcular_cumplimiento_faltante
+from .health_metrics import cumplimiento_por_bandas_kawak, recalcular_cumplimiento_faltante
 
 from .normalization import (
     normalizar_valor_a_porcentaje,
@@ -27,6 +27,7 @@ __all__ = [
     "categorizar_cumplimiento",
     "nivel_desde_cumplimiento",
     "recalcular_cumplimiento_faltante",
+    "cumplimiento_por_bandas_kawak",
     "normalizar_valor_a_porcentaje",
     "normalizar_y_categorizar",
 ]

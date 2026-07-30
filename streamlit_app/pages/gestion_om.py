@@ -1429,6 +1429,25 @@ def _render_tabla_actual(df_tabla: pd.DataFrame) -> None:
                 st.info(f"OM {om_id} sin acciones asociadas.")
 
 
+def _resaltar_fila_por_categoria(row):
+    """Tinta toda la fila del color claro de su Categoria (mismo estado visual
+    que las filas rosa/amarillo de la pestaña "Tabla actual")."""
+    from core.config import COLOR_CATEGORIA_CLARO
+
+    bg = COLOR_CATEGORIA_CLARO.get(str(row.get("Categoria", "")).strip(), "")
+    return [f"background-color: {bg}" if bg else "" for _ in row]
+
+
+def _resaltar_texto_categoria(val: str) -> str:
+    """Texto en negrita con el color oficial de la categoría (Peligro=rojo,
+    Alerta=naranja, etc.), para que el estado se lea sin depender del color
+    fijo (azul) de las barras de progreso nativas de st.dataframe."""
+    from core.config import COLOR_CATEGORIA
+
+    color = COLOR_CATEGORIA.get(str(val).strip(), "")
+    return f"color: {color}; font-weight: 700" if color else ""
+
+
 def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
     """Propuesta V2: tabla nativa st.dataframe (column_config + selección de fila)
     para comparar contra el grid HTML armado a mano de la pestaña "Tabla actual".
@@ -1436,7 +1455,10 @@ def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
     Gana: tooltip nativo al truncar texto, columnas redimensionables por el
     usuario, sin bugs de alineación/HTML. Pierde: badges de color reales para
     "Tipo de Acción" (st.dataframe no soporta HTML embebido en celdas) — se
-    muestran como texto plano.
+    muestran como texto plano. El encabezado se renderiza en un canvas interno
+    de Streamlit (glide-data-grid): no hay forma soportada de recolorearlo por
+    CSS, así que el "estado" se transmite con el tinte de fila + texto en
+    negrita de Categoría en vez del encabezado.
     """
     from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
 
@@ -1473,12 +1495,18 @@ def _render_tabla_v2(df_tabla: pd.DataFrame) -> None:
 
     st.info(
         "Selecciona el ☑ de una fila para ver ahí abajo el detalle de sus acciones OM "
-        "— es el equivalente al botón de icono por fila de la pestaña 'Tabla actual'.",
+        "— es el equivalente al botón de icono por fila de la pestaña 'Tabla actual'. "
+        "El color de fila y el texto de Categoría reflejan el estado (Peligro/Alerta); "
+        "las barras de progreso son de color fijo por límite de Streamlit.",
         icon=":material/touch_app:",
     )
 
+    df_v2_estilo = df_v2.style.apply(_resaltar_fila_por_categoria, axis=1)
+    if "Categoria" in df_v2.columns:
+        df_v2_estilo = df_v2_estilo.map(_resaltar_texto_categoria, subset=["Categoria"])
+
     seleccion = st.dataframe(
-        df_v2,
+        df_v2_estilo,
         use_container_width=True,
         hide_index=True,
         height=min(560, 74 + len(df_v2) * 35),
