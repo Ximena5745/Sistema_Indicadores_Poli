@@ -1,0 +1,15 @@
+﻿archivo,hoja,rows,columns,ids_unicos,fecha_min,fecha_max,cumplimiento_promedio,cumplimiento_mediana
+resultados_consolidados,Consolidado Historico,4170,19,529.0,2022-01-31,2026-12-31,,
+resultados_consolidados,Consolidado Semestral,2459,19,531.0,2022-06-30,2026-12-31,,
+resultados_consolidados,Consolidado Cierres,1502,19,532.0,2022-09-30,2026-12-31,,
+resultados_consolidados,Catalogo Indicadores,699,34,699.0,,,,
+seguimiento_reporte,Resumen,5,5,,,,,
+seguimiento_reporte,Seguimiento,874,22,343.0,,,,
+seguimiento_reporte,Semestral,415,24,196.0,,,,
+seguimiento_reporte,Trimestral,216,24,59.0,,,,
+seguimiento_reporte,Mensual,100,24,19.0,,,,
+seguimiento_reporte,Anual,115,24,63.0,,,,
+seguimiento_reporte,Bimestral,28,24,6.0,,,,
+seguimiento_reporte,Tracking Mensual,1232,39,353.0,,,,
+seguimiento_reporte,Consolidado Cierres,981,14,322.0,2022-09-30,2026-12-31,0.9993,1.0018
+seguimiento_reporte,Matriz Calor,322,23,322.0,,,,
