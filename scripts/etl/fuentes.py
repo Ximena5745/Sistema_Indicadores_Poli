@@ -350,6 +350,71 @@ def cargar_kawak_validos() -> Optional[Set[Tuple[str, int]]]:
         return None
 
 
+_AÑOS_ACTIVOS_KAWAK_CACHE: Optional[Dict[str, list]] = None
+
+
+def cargar_años_activos_kawak() -> Dict[str, list]:
+    """{id_str: [años]} en que el indicador aparece en 'Indicadores Kawak.xlsx'
+    (KAWAK_CAT_FILE), el consolidado de data/raw/Kawak/<año>.xlsx.
+
+    Kawak es la fuente de verdad de qué indicador estuvo activo cada año: si
+    un Id aparece en el Kawak de 2025 pero no en el de 2026, se dio de baja
+    (se dejó de reportar) para 2026. Se usa para:
+    - poblar la columna 'Años_Activo' del Catálogo de Indicadores.
+    - excluir de la validación Meta=0/NULL (AGENT5) los Ids que ya no están
+      activos en el año de cierre actual — ver cargar_ids_inactivos_kawak().
+    """
+    global _AÑOS_ACTIVOS_KAWAK_CACHE
+    if _AÑOS_ACTIVOS_KAWAK_CACHE is not None:
+        return _AÑOS_ACTIVOS_KAWAK_CACHE
+    result: Dict[str, set] = {}
+    if not KAWAK_CAT_FILE.exists():
+        _AÑOS_ACTIVOS_KAWAK_CACHE = {}
+        return {}
+    try:
+        df = pd.read_excel(KAWAK_CAT_FILE, engine="calamine"
+                           if _calamine_disponible() else "openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        col_id  = next((c for c in df.columns if c.lower() == "id"), None)
+        col_año = next(
+            (c for c in df.columns if c.lower() in ("año", "anio", "year")), None
+        )
+        if not col_id or not col_año:
+            logger.warning(f"  Columnas Id/Año no encontradas en {KAWAK_CAT_FILE.name}.")
+            _AÑOS_ACTIVOS_KAWAK_CACHE = {}
+            return {}
+        for _, row in df.iterrows():
+            id_s = _id_str(row[col_id])
+            try:
+                año = int(float(row[col_año]))
+            except (TypeError, ValueError):
+                continue
+            if id_s:
+                result.setdefault(id_s, set()).add(año)
+    except Exception as e:
+        logger.warning(f"  Error leyendo años activos de {KAWAK_CAT_FILE.name}: {e}")
+        _AÑOS_ACTIVOS_KAWAK_CACHE = {}
+        return {}
+    result_sorted = {k: sorted(v) for k, v in result.items()}
+    _AÑOS_ACTIVOS_KAWAK_CACHE = result_sorted
+    return result_sorted
+
+
+def cargar_ids_inactivos_kawak() -> Set[str]:
+    """Ids que estuvieron en Kawak en algún año anterior pero NO en
+    AÑO_CIERRE_ACTUAL — se dieron de baja (dejaron de reportarse en Kawak).
+
+    No confundir con Ids que simplemente aún no han empezado (sin años
+    anteriores): esos no se marcan inactivos, solo faltan por comenzar.
+    """
+    from .config import AÑO_CIERRE_ACTUAL
+    años_por_id = cargar_años_activos_kawak()
+    return {
+        id_s for id_s, años in años_por_id.items()
+        if AÑO_CIERRE_ACTUAL not in años and any(a < AÑO_CIERRE_ACTUAL for a in años)
+    }
+
+
 def _calamine_disponible() -> bool:
     try:
         import python_calamine  # noqa: F401
@@ -522,6 +587,36 @@ def cargar_fecha_desde_ficha() -> Dict:
     except Exception as e:
         logger.warning(f"  No se pudo leer 'Fecha Desde' de Ficha Tecnica Detalle: {e}")
     _FECHA_DESDE_CACHE = result
+    return result
+
+
+_IDS_BIENAL_CACHE: Optional[Set[str]] = None
+
+
+def cargar_ids_bienal() -> Set[str]:
+    """IDs con Frecuencia='Bienal' en la ficha técnica (medición cada 2 años).
+
+    Lee la columna 'Frecuencia' de la hoja 'Ficha Tecnica Detalle' en
+    CATALOGO_MAESTRO_FILE. Se usa para excluir estos indicadores de la
+    validación de Meta=0/NULL de AGENT5: en los años sin medición es
+    normal/esperado que no tengan meta ni ejecución cargadas.
+    """
+    global _IDS_BIENAL_CACHE
+    if _IDS_BIENAL_CACHE is not None:
+        return _IDS_BIENAL_CACHE
+    result: Set[str] = set()
+    try:
+        from .config import CATALOGO_MAESTRO_FILE
+        if CATALOGO_MAESTRO_FILE.exists():
+            df = pd.read_excel(CATALOGO_MAESTRO_FILE, sheet_name="Ficha Tecnica Detalle")
+            df.columns = [str(c).strip() for c in df.columns]
+            mask = df.get("Frecuencia", pd.Series(dtype=object)).astype(str).str.strip().str.lower() == "bienal"
+            for val in df.loc[mask, "Id"].dropna():
+                s = str(val).strip()
+                result.add(s[:-2] if s.endswith(".0") else s)
+    except Exception as e:
+        logger.warning(f"  No se pudo leer 'Frecuencia' de Ficha Tecnica Detalle: {e}")
+    _IDS_BIENAL_CACHE = result
     return result
 
 

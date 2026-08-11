@@ -101,13 +101,35 @@ def _cargar_tracking() -> pd.DataFrame:
     return df
 
 
+_VENTANA_ANIO = 2026
+_VENTANA_N_MESES = 7
+
+
+def _ultimos_n_meses(df: pd.DataFrame, anio: int, n: int) -> pd.DataFrame:
+    """Restringe el tracking a los últimos `n` meses disponibles de `anio`."""
+    if "Año" not in df.columns or "Mes" not in df.columns:
+        return df
+    df_anio = df[df["Año"] == anio]
+    meses_anio = sorted(df_anio["Mes"].dropna().unique().tolist())
+    ultimos = meses_anio[-n:] if len(meses_anio) > n else meses_anio
+    return df_anio[df_anio["Mes"].isin(ultimos)]
+
+
 def render():
     st.title("Seguimiento de Reportes")
-    st.caption("Vista operativa de reportes mensuales por estado, proceso y periodicidad.")
+    st.caption(
+        f"Vista operativa de reportes mensuales por estado, proceso y periodicidad "
+        f"— últimos {_VENTANA_N_MESES} meses de {_VENTANA_ANIO}."
+    )
 
     df = _cargar_tracking()
     if df.empty:
         st.error("No se encontró la hoja Tracking Mensual en data/output/Seguimiento_Reporte.xlsx.")
+        return
+
+    df = _ultimos_n_meses(df, _VENTANA_ANIO, _VENTANA_N_MESES)
+    if df.empty:
+        st.warning(f"No hay datos de {_VENTANA_ANIO} en el Tracking Mensual.")
         return
 
     _MESES_OPCIONES = [
@@ -133,8 +155,8 @@ def render():
         if "Estado" in df.columns else []
     )
 
-    default_year = 2025 if 2025 in anios else (anios[-1] if anios else "Todos")
-    default_mes = "Diciembre" if "Diciembre" in mes_names else (mes_names[-1] if mes_names else "Todos")
+    default_year = _VENTANA_ANIO if _VENTANA_ANIO in anios else (anios[-1] if anios else "Todos")
+    default_mes = "Todos"
 
     _filter_defs = [
         {

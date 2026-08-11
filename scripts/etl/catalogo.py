@@ -28,6 +28,7 @@ import numpy as np
 import pandas as pd
 
 from .config import CATALOGO_MAESTRO_FILE, INPUT_FILE, OUTPUT_FILE
+from .fuentes import cargar_años_activos_kawak
 from .normalizacion import (
     _fmt_val_raw, _id_str, limpiar_clasificacion, limpiar_html,
 )
@@ -275,6 +276,11 @@ def construir_catalogo(
     def _clean(v: object) -> str:
         return "" if (v is None or str(v).strip() in ("", "nan", "None")) else str(v).strip()
 
+    # Años en que cada Id estuvo activo en Kawak (fuente de verdad de
+    # actividad por año — ver cargar_ids_inactivos_kawak() en fuentes.py).
+    from .config import AÑO_CIERRE_ACTUAL
+    años_activos_map = cargar_años_activos_kawak()
+
     rows = []
     for ids, base in all_ids.items():
         kw  = metadatos_kawak.get(ids, {})
@@ -289,12 +295,15 @@ def construir_catalogo(
         asociacion      = _clean(ud.get("Asociacion",    ""))
         formato_valores = _clean(ud.get("Formato_Valores", "")) or "%"
         dvals = directorio_map.get(ids, {})
+        años_activos = años_activos_map.get(ids, [])
         row = {
             "Id": base["Id"], "Indicador": nombre, "Clasificacion": clasificacion,
             "Proceso": proceso, "Periodicidad": periodicidad, "Sentido": sentido,
             "Tipo_API": base["Tipo_API"], "Estado": base["Estado"], "Fuente": base["Fuente"],
             "TipoCalculo": tipo_calculo, "Asociacion": asociacion,
             "Formato_Valores": formato_valores,
+            "Años_Activo": ", ".join(str(a) for a in años_activos),
+            "Activo_Año_Actual": AÑO_CIERRE_ACTUAL in años_activos,
         }
         for col in DIRECTORIO_COLS:
             row[col] = dvals.get(col)

@@ -79,6 +79,12 @@ class AGENT5Corrections:
         (hallado en IDs 551-555 y ~78 indicadores más). Por eso esta función
         solo señala Meta=0/NULL (dato faltante real); no reescribe valores.
 
+        Meta=0 es un valor legítimo (no dato faltante) en indicadores de
+        Sentido="Negativo" tipo SST (ej. 106 Mortalidad, 127 Incidencia
+        Enfermedad Laboral): la meta institucional es cero accidentes/casos,
+        por lo que Meta=0 NO se señala para ellos. Meta=NULL (sin dato) sí
+        se sigue señalando en cualquier Sentido.
+
         Args:
             df: DataFrame con columna Meta
             column: Nombre de columna (default "Meta")
@@ -92,8 +98,13 @@ class AGENT5Corrections:
             logger.warning(f"Columna '{column}' no encontrada en DataFrame")
             return df_copy, 0, 0
 
-        # VALIDACIÓN: Meta = 0 o NULL
-        mask_meta_cero = (df_copy[column].isna()) | (df_copy[column] == 0)
+        if "Sentido" in df_copy.columns:
+            es_negativo = df_copy["Sentido"].astype(str).str.strip().str.lower() == "negativo"
+        else:
+            es_negativo = pd.Series(False, index=df_copy.index)
+
+        # VALIDACIÓN: Meta = NULL (siempre) o Meta = 0 (salvo Sentido=Negativo)
+        mask_meta_cero = df_copy[column].isna() | ((df_copy[column] == 0) & ~es_negativo)
         cantidad_cero = mask_meta_cero.sum()
 
         if cantidad_cero > 0:

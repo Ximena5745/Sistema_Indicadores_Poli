@@ -741,6 +741,24 @@ def _proceso_es_no_aplica(proceso: str) -> bool:
     return False
 
 
+def _parsear_vigencia_desde(v) -> Optional[date]:
+    """Parsea la columna 'Vigencia Desde' de Kawak a date, o None si vacía/no parseable."""
+    if v is None:
+        return None
+    try:
+        if pd.isna(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(v).strip()
+    if s in ("", "-", "nan", "NaN", "None"):
+        return None
+    try:
+        return pd.Timestamp(v).date()
+    except (ValueError, TypeError):
+        return None
+
+
 def construir_tracking_largo(
     catalogo_por_anio: Dict[int, Dict[str, str]],
     kawak_lookup: Dict,
@@ -800,9 +818,15 @@ def construir_tracking_largo(
                 continue
 
             # ── Regla 2: vigencia parcial ────────────────────────────────
-            if kid in IDS_VIGENCIA_DESDE:
-                if date(year, month, 1) < IDS_VIGENCIA_DESDE[kid]:
-                    continue
+            # Fuente primaria: columna "Vigencia Desde" que trae Kawak por
+            # indicador (data/raw/Kawak/<año>.xlsx) — ya presente en meta.
+            # IDS_VIGENCIA_DESDE queda como respaldo manual solo para IDs
+            # donde Kawak no trae la fecha (columna vacía).
+            vigencia_desde = _parsear_vigencia_desde(meta.get("Vigencia Desde"))
+            if vigencia_desde is None:
+                vigencia_desde = IDS_VIGENCIA_DESDE.get(kid)
+            if vigencia_desde and date(year, month, 1) < vigencia_desde:
+                continue
 
             # ── Regla 1: año vencido ─────────────────────────────────────
             if kid in IDS_AÑO_VENCIDO:

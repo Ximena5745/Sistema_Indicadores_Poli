@@ -43,8 +43,29 @@ def _ventana(periodicidad: str) -> int:
     return _VENTANA_MESES.get(_nm(periodicidad), 1)
 
 
+_VENTANA_ANIO = 2026
+_VENTANA_N_MESES = 7
+
+
+def _ultimos_n_meses(df: pd.DataFrame, anio: int, n: int) -> pd.DataFrame:
+    """Restringe el tracking a los últimos `n` meses disponibles de `anio`.
+
+    Paridad con streamlit_app/pages/seguimiento_reportes.py::_ultimos_n_meses.
+    """
+    if "Año" not in df.columns or "Mes" not in df.columns:
+        return df
+    df_anio = df[df["Año"] == anio]
+    meses_anio = sorted(df_anio["Mes"].dropna().unique().tolist())
+    ultimos = meses_anio[-n:] if len(meses_anio) > n else meses_anio
+    return df_anio[df_anio["Mes"].isin(ultimos)]
+
+
 def load_tracking(excel) -> pd.DataFrame:
-    """Carga hoja Tracking Mensual desde Seguimiento_Reporte.xlsx."""
+    """Carga hoja Tracking Mensual desde Seguimiento_Reporte.xlsx.
+
+    Restringido a los últimos _VENTANA_N_MESES meses de _VENTANA_ANIO — ver
+    streamlit_app/pages/seguimiento_reportes.py para la misma ventana.
+    """
     path = excel.data_root / _SEGUIMIENTO_PATH
     if not path.exists():
         return pd.DataFrame()
@@ -59,7 +80,7 @@ def load_tracking(excel) -> pd.DataFrame:
         df["Año"] = pd.to_numeric(df["Año"], errors="coerce").astype("Int64")
     if "Mes" in df.columns:
         df["Mes"] = pd.to_numeric(df["Mes"], errors="coerce").astype("Int64")
-    return df
+    return _ultimos_n_meses(df, _VENTANA_ANIO, _VENTANA_N_MESES)
 
 
 def detectar_vencidos(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -124,8 +145,8 @@ def build_filtros(df: pd.DataFrame) -> dict[str, Any]:
     meses_nombres = [MESES_NOMBRES[m - 1] for m in meses_nums if 1 <= m <= 12]
     procesos = sorted(df["Proceso"].dropna().astype(str).unique().tolist()) if "Proceso" in df.columns else []
     estados = sorted(df["Estado"].dropna().astype(str).unique().tolist()) if "Estado" in df.columns else []
-    default_year = 2025 if 2025 in anios else (anios[-1] if anios else None)
-    default_mes = 12 if 12 in meses_nums else (meses_nums[-1] if meses_nums else 12)
+    default_year = _VENTANA_ANIO if _VENTANA_ANIO in anios else (anios[-1] if anios else None)
+    default_mes = None
     return {
         "anios": anios,
         "anio_default": default_year,

@@ -34,7 +34,7 @@ import tempfile
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import openpyxl
 import pandas as pd
@@ -63,6 +63,8 @@ from etl.fuentes import (                          # noqa: E402
     cargar_metadatos_cmi,
     cargar_mapa_procesos,
     cargar_lmi_reporte,
+    cargar_ids_bienal,
+    cargar_ids_inactivos_kawak,
     cargar_consolidado_api_kawak_lookup,
     cargar_periodicidad_kawak_por_año,
     cargar_fecha_desde_ficha,
@@ -70,6 +72,7 @@ from etl.fuentes import (                          # noqa: E402
 from etl.catalogo import (                         # noqa: E402
     cargar_catalogo_completo,
     cargar_config_patrones,     # noqa: F401  re-export usado por orchestrator
+    cargar_directorio_maestro,
     construir_catalogo,
 )
 from etl.signos import obtener_signos                          # noqa: E402
@@ -122,7 +125,10 @@ logger = logging.getLogger(__name__)
 
 
 def apply_agent5_corrections_to_registros(
-    regs_hist: list, regs_sem: list, regs_cierres: list, trail, logger
+    regs_hist: list, regs_sem: list, regs_cierres: list, trail, logger,
+    ids_metrica: Optional[set] = None,
+    ids_inactivos: Optional[set] = None,
+    ids_bienal: Optional[set] = None,
 ) -> Tuple[list, list, list, dict]:
     """
     Aplicar correcciones AGENT 5 a los registros antes de escribir.
@@ -159,11 +165,27 @@ def apply_agent5_corrections_to_registros(
             logger.info(f"   {nombre_hoja}: sin registros, omitiendo")
             continue
 
-        # IDs excluidos del capping 0-1.3: su Meta/Ejecución son conteos
-        # brutos de variables (no una razón porcentual), p.ej. 274
-        # (suma de TEMS/TEP de sus series) — ver _IDS_SUMA_VARIABLES_SERIES.
-        regs_excluir = [r for r in regs if _id_str(r.get("Id")) in _IDS_SUMA_VARIABLES_SERIES]
-        regs_corregibles = [r for r in regs if _id_str(r.get("Id")) not in _IDS_SUMA_VARIABLES_SERIES]
+        # IDs excluidos de la validación de Meta=0/NULL:
+        # - _IDS_SUMA_VARIABLES_SERIES: su Meta/Ejecución son conteos
+        #   brutos de variables (no una razón porcentual), p.ej. 274
+        #   (suma de TEMS/TEP de sus series).
+        # - ids_metrica (lmi_reporte.xlsx): indicadores tipo "Métrica" son
+        #   cálculos puros sin meta asociada por definición (p.ej. 239, 574);
+        #   señalarlos como Meta=0 es un falso positivo.
+        # - ids_inactivos (Ind_Act=0 en directorio maestro): indicadores
+        #   dados de baja/históricos ya no reciben meta nueva; no tiene
+        #   sentido pedir revisión de una meta que nunca se va a cargar.
+        # - ids_bienal (Frecuencia='Bienal' en Ficha Tecnica Detalle):
+        #   se miden cada 2 años (p.ej. 157, 202, 361); en los años sin
+        #   medición es normal no tener Meta/Ejecución cargadas.
+        ids_excluidos = (
+            set(_IDS_SUMA_VARIABLES_SERIES)
+            | (ids_metrica or set())
+            | (ids_inactivos or set())
+            | (ids_bienal or set())
+        )
+        regs_excluir = [r for r in regs if _id_str(r.get("Id")) in ids_excluidos]
+        regs_corregibles = [r for r in regs if _id_str(r.get("Id")) not in ids_excluidos]
 
         if not regs_corregibles:
             if nombre_hoja == "Historico":
@@ -298,6 +320,23 @@ def main() -> None:
     metadatos_cmi   = cargar_metadatos_cmi()
     mapa_procesos   = cargar_mapa_procesos()
     ids_metrica     = cargar_lmi_reporte()
+    # Activo/inactivo se determina por año, con Kawak como fuente de verdad:
+    # si un Id estaba en el Kawak del año anterior y ya no está en el del
+    # año de cierre actual, se dio de baja. Se complementa (unión) con el
+    # flag manual Ind_Act=0 del directorio maestro, por si el catálogo Kawak
+    # aún no refleja una baja ya decidida administrativamente.
+    ids_inactivos_kawak = cargar_ids_inactivos_kawak()
+    ids_inactivos_manual = {
+        id_s for id_s, info in cargar_directorio_maestro().items()
+        if info.get("Ind_Act") in (0, 0.0, "0")
+    }
+    ids_inactivos   = ids_inactivos_kawak | ids_inactivos_manual
+    logger.info(
+        "   ids_inactivos: %d entradas (Kawak: %d, Ind_Act=0: %d)",
+        len(ids_inactivos), len(ids_inactivos_kawak), len(ids_inactivos_manual),
+    )
+    ids_bienal      = cargar_ids_bienal()
+    logger.info("   ids_bienal (Frecuencia=Bienal): %d entradas", len(ids_bienal))
     kawak_por_año   = cargar_periodicidad_kawak_por_año()
     logger.info("   kawak_por_año: %d entradas (Id, Año)", len(kawak_por_año))
 
@@ -503,7 +542,8 @@ def main() -> None:
     # SERIES y se excluyen aquí explícitamente por la misma razón — AGENT5
     # ya no recorta valores, solo señala Meta=0/NULL para revisión manual)
     regs_hist, regs_sem, regs_cierres, _ = apply_agent5_corrections_to_registros(
-        regs_hist, regs_sem, regs_cierres, trail, logger
+        regs_hist, regs_sem, regs_cierres, trail, logger,
+        ids_metrica=ids_metrica, ids_inactivos=ids_inactivos, ids_bienal=ids_bienal,
     )
 
     # ── 10.4 Expandir series como sub-indicadores ─────────────────
