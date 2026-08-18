@@ -90,7 +90,7 @@ ejecutarse en un orden distinto al de su número (ver nota en 10.5).
 | 5 | Abrir workbook | `workbook_io.workbook_local_copy()` | Copia local segura, abre con openpyxl |
 | 5.5 | Backup de versión | `vm.crear_version(tag="pre_consolidacion")` | Guarda hasta 5 versiones anteriores en `.versiones/` |
 | 6 | Leer hojas existentes | `pd.read_excel()` x3 hojas | Para calcular signos (`obtener_signos`) |
-| 7 | Purgar filas inválidas | `purga.purgar_filas_invalidas()`, `purgar_filas_antes_fecha_desde()`, `limpiar_cierres_existentes()` | Elimina filas futuras, fuera del catálogo Kawak, y anteriores a `Fecha Desde` (ficha técnica) sin dato real |
+| 7 | Purgar filas inválidas | `purga.purgar_filas_invalidas()`, `purgar_filas_antes_fecha_desde()`, `limpiar_cierres_existentes()` | Elimina filas futuras, fuera del catálogo Kawak **sin dato real**, y anteriores a `Fecha Desde` (ficha técnica) sin dato real |
 | 7.5 | Releer estado post-purge | `worksheet_a_dataframe()` x3 | Recalcula `df_hist_ex`/`df_sem_ex`/`df_cierres_ex` desde el workbook YA purgado (evita que builders traten una fila purgada como "ya existente") |
 | 8 | Escalas históricas | — | `hist_escalas` (Meta/Ejecucion por Id) para heurísticas de extracción |
 | 9 | Preparar llaves | `escritura.llaves_de_df()` | `llaves_hist/sem/cierres` desde Id+Fecha reales |

@@ -503,16 +503,45 @@ La función `extraer_cronograma_proyectos()` en `scripts/etl/builders.py`:
 4. Para cada fila, verifica que `fecha.year == año_correspondiente_al_padre`
 5. Parsea el JSON `series` de esa fila
 6. Para cada serie, normaliza el nombre y busca en `_CRONOGRAMA_SERIES_FLAT`
-7. Genera un registro con `Id = id_proyecto`, `Ejecucion = serie.resultado`, `Meta = serie.meta`
+7. Extrae `avance real` y `avance esperado` desde `serie["variables"][].simbolo/valor` —
+   **NO** desde `serie["resultado"]`/`serie["meta"]` (ver advertencia abajo) —
+   usando el par de símbolos correspondiente al padre (ver tabla siguiente)
+8. Genera un registro con `Id = id_proyecto`, `Ejecucion = avance_real`, `Meta = avance_esperado`;
+   si el símbolo esperado no aparece en `variables` para ese padre, el registro
+   queda `es_na=True` (Meta/Ejecucion vacíos) en vez de inventar un valor
 
 ```
-Ejemplo de expansión (ID 509, 2025-06-30):
-  serie: {"nombre": "Ecosistema E3", "resultado": 99.0, "meta": 90.0}
-    → nombre_norm = "ecosistema e3"
-    → proj_id    = "904"
-    → Registro: Id=904, Ejecucion=99.0, Meta=90.0, fecha=2025-06-30
-                 LLAVE="904-2025-06-30"
+Ejemplo de expansión (ID 603, 2026-04-30):
+  serie: {"nombre": "Gobierno de datos",
+          "variables": [{"simbolo": "PAEPROY", "valor": 41},
+                         {"simbolo": "PARPRO",  "valor": 41}]}
+    → nombre_norm = "gobierno de datos"
+    → proj_id    = "915"
+    → símbolos (padre 603) = ("PARPRO", "PAEPROY")
+    → Registro: Id=915, Ejecucion=41, Meta=41, fecha=2026-04-30
+                 LLAVE="915-2026-04-30"
 ```
+
+> ⚠️ **Los símbolos de variable NO son fijos entre años.** Kawak los cambió
+> para el padre de 2026: `PARPR`/`PAEPR` (2024/2025) pasaron a ser
+> `PARPRO`/`PAEPROY` (2026). El mapa `_SIMBOLOS_CRONOGRAMA_PROYECTOS` en
+> `builders.py` (mismo patrón que `_SIMBOLOS_PLAN_ANUAL`) asocia cada
+> `id_padre` con su par de símbolos:
+>
+> | id_padre (año) | símbolo avance real | símbolo avance esperado |
+> |---|---|---|
+> | 441 (2024) | `PARPR` | `PAEPR` |
+> | 509 (2025) | `PARPR` | `PAEPR` |
+> | 603 (2026) | `PARPRO` | `PAEPROY` |
+>
+> **Bug corregido 2026-08-12:** antes de este cambio, los símbolos estaban
+> hardcodeados a `PARPR`/`PAEPR` para todos los años. Como el padre 603
+> (2026) usa símbolos distintos, `vars_dict.get("PARPR"/"PAEPR")` devolvía
+> siempre `None` para los 13 proyectos activos en 2026 (PRY-26…PRY-54),
+> aunque el dato real sí venía en la fuente — todos quedaban `es_na=True`
+> con Meta/Ejecución vacíos. Si Kawak vuelve a cambiar los símbolos para
+> un año futuro, agregar la entrada correspondiente a
+> `_SIMBOLOS_CRONOGRAMA_PROYECTOS` en vez de asumir el par por defecto.
 
 **Normalización resistente a encoding:** el nombre de la serie en el API puede contener entidades HTML (`&oacute;`) o caracteres de reemplazo UTF-8 (`U+FFFD`). La función `_normalizar_nombre_serie()` decodifica HTML, elimina reemplazos Unicode y descarta acentos (ASCII-only) antes de comparar. Las entradas en el TOML se guardan en español correcto; ambos lados quedan normalizados de la misma forma.
 

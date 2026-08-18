@@ -6,6 +6,7 @@ desde los DataFrames históricos existentes.
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import Dict
 
 import pandas as pd
@@ -38,8 +39,18 @@ def obtener_signos(
     con Id decimal (274.1) que no están en el catálogo heredan el formato
     de su padre (274). 'No Aplica' sigue aplicándose por fila en tiempo de
     escritura (escritura.escribir_filas), no aquí — no se ve afectado.
+
+    dec_meta/dec_ejec (cantidad de decimales) NO siguen "última fila real
+    prevalece" (esa regla depende del orden de iteración [hist, sem,
+    cierres] y hace que Cierres siempre gane sin importar si su valor es
+    correcto). Se usa la moda de los valores NO-cero vistos por Id en
+    cualquier hoja — 0 es el default pasivo de escribir_filas, no una
+    señal real, así que solo se usa si nunca se vio otro valor
+    (feedback 2026-08-13, indicador 332 "Índice de rotación").
     """
     signos: Dict[str, Dict] = {}
+    dec_meta_counts: Dict[str, Counter] = {}
+    dec_ejec_counts: Dict[str, Counter] = {}
     col_ejec_candidates = [
         "Ejecucion_Signo", "Ejecución Signo", "Ejecucion Signo",
         "Ejecución s", "Ejecucion s",
@@ -60,6 +71,19 @@ def obtener_signos(
             if str(ejec_signo_raw).strip().lower() in ("no aplica", "n/a"):
                 ejec_signo_raw = SIGNO_NA
 
+            dm = row.get(col_dm, 0) if col_dm else 0
+            de = row.get(col_de, 0) if col_de else 0
+            try:
+                if dm:
+                    dec_meta_counts.setdefault(id_s, Counter())[int(dm)] += 1
+            except (TypeError, ValueError):
+                pass
+            try:
+                if de:
+                    dec_ejec_counts.setdefault(id_s, Counter())[int(de)] += 1
+            except (TypeError, ValueError):
+                pass
+
             # No sobreescribir signo real con No Aplica
             if (
                 ejec_signo_raw == SIGNO_NA
@@ -71,9 +95,15 @@ def obtener_signos(
             signos[id_s] = {
                 "meta_signo": row.get(col_ms, "%") if col_ms else "%",
                 "ejec_signo": ejec_signo_raw,
-                "dec_meta":   row.get(col_dm, 0) if col_dm else 0,
-                "dec_ejec":   row.get(col_de, 0) if col_de else 0,
+                "dec_meta":   0,
+                "dec_ejec":   0,
             }
+
+    for id_s, entry in signos.items():
+        cm = dec_meta_counts.get(id_s)
+        entry["dec_meta"] = cm.most_common(1)[0][0] if cm else 0
+        ce = dec_ejec_counts.get(id_s)
+        entry["dec_ejec"] = ce.most_common(1)[0][0] if ce else 0
 
     if formato_valores_map:
         for id_s, entry in signos.items():

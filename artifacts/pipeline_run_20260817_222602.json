@@ -1,0 +1,219 @@
+{
+  "run_id": "20260817_222602",
+  "settings": "config\\settings.toml",
+  "base_dir": "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli",
+  "elapsed_total_s": 637.902,
+  "ok": false,
+  "steps": [
+    {
+      "name": "consolidar_api",
+      "ok": true,
+      "returncode": 0,
+      "elapsed_s": 18.574,
+      "command": [
+        "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\.venv\\Scripts\\python.exe",
+        "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\scripts\\consolidar_api.py"
+      ]
+    },
+    {
+      "name": "actualizar_consolidado",
+      "ok": true,
+      "returncode": 0,
+      "elapsed_s": 610.859,
+      "command": [
+        "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\.venv\\Scripts\\python.exe",
+        "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\scripts\\actualizar_consolidado.py"
+      ]
+    },
+    {
+      "name": "generar_reporte",
+      "ok": true,
+      "returncode": 0,
+      "elapsed_s": 8.46,
+      "command": [
+        "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\.venv\\Scripts\\python.exe",
+        "C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\scripts\\generar_reporte.py"
+      ]
+    }
+  ],
+  "checks": {
+    "missing_outputs": [],
+    "sheets": {
+      "resultados_consolidados": {
+        "path": "data\\output\\Resultados Consolidados.xlsx",
+        "ok": true,
+        "sheet_count": 8,
+        "missing_sheets": []
+      },
+      "seguimiento_reporte": {
+        "path": "data\\output\\Seguimiento_Reporte.xlsx",
+        "ok": true,
+        "sheet_count": 10,
+        "missing_sheets": []
+      },
+      "fuentes_consolidadas_kawak_catalogo": {
+        "path": "data\\raw\\Fuentes Consolidadas\\Indicadores Kawak.xlsx",
+        "ok": true,
+        "sheet_count": null,
+        "missing_sheets": []
+      },
+      "fuentes_consolidadas_api_consolidado": {
+        "path": "data\\raw\\Fuentes Consolidadas\\Consolidado_API_Kawak.xlsx",
+        "ok": true,
+        "sheet_count": null,
+        "missing_sheets": []
+      }
+    },
+    "data_contracts": {
+      "enabled": true,
+      "strict": true,
+      "sources": {
+        "resultados_consolidados": {
+          "ok": false,
+          "error_count": 2,
+          "warning_count": 4,
+          "issue_count": 6,
+          "dataset_shape": [
+            8002,
+            36
+          ],
+          "issues": [
+            {
+              "level": "warning",
+              "sheet": "Consolidado Historico",
+              "column": "Periodicidad",
+              "row_count": 1,
+              "description": "Column 'Periodicidad' has values outside allowed set: ['Mensual', 'Trimestral', 'Semestral', 'Anual', 'Bimestral']"
+            },
+            {
+              "level": "warning",
+              "sheet": "Catalogo Indicadores",
+              "column": "Clasificacion",
+              "row_count": 87,
+              "description": "Column 'Clasificacion' has values outside allowed set: ['Estratégico', 'Operativo']"
+            },
+            {
+              "level": "warning",
+              "sheet": "Catalogo Indicadores",
+              "column": "Fuente",
+              "row_count": 89,
+              "description": "Column 'Fuente' has values outside allowed set: ['API', 'Historico']"
+            },
+            {
+              "level": "warning",
+              "sheet": "Catalogo Indicadores",
+              "column": "TipoCalculo",
+              "row_count": 11,
+              "description": "Column 'TipoCalculo' has values outside allowed set: ['Cierre', 'Promedio', 'Acumulado']"
+            },
+            {
+              "level": "error",
+              "sheet": "Catalogo Indicadores",
+              "column": "Periodicidad",
+              "row_count": 39,
+              "description": "Column 'Periodicidad' has 39 null values but is required"
+            },
+            {
+              "level": "error",
+              "sheet": "Catalogo Indicadores",
+              "column": "Estado",
+              "row_count": 89,
+              "description": "Column 'Estado' has 89 null values but is required"
+            }
+          ]
+        },
+        "plan_accion": {
+          "ok": false,
+          "error_count": 1,
+          "warning_count": 0,
+          "issue_count": 1,
+          "dataset_shape": [
+            0,
+            0
+          ],
+          "issues": [
+            {
+              "level": "error",
+              "sheet": null,
+              "column": null,
+              "row_count": 0,
+              "description": "Configured file not found: C:\\Users\\ximen\\OneDrive\\Proyectos_DS\\Sistema_Indicadores_Poli\\data\\raw\\Plan de accion\\PA_*.xlsx"
+            }
+          ]
+        },
+        "kawak_catalogo": {
+          "ok": false,
+          "error_count": 0,
+          "warning_count": 1,
+          "issue_count": 1,
+          "dataset_shape": [
+            2320,
+            9
+          ],
+          "issues": [
+            {
+              "level": "warning",
+              "sheet": "Sheet1",
+              "column": "Tipo",
+              "row_count": 2,
+              "description": "Column 'Tipo' has values outside allowed set: ['Eficacia', 'Eficiencia', 'Efectividad', 'Metrica', 'Financiero']"
+            }
+          ]
+        },
+        "indicadores_cmi": {
+          "ok": true,
+          "error_count": 0,
+          "warning_count": 0,
+          "issue_count": 0,
+          "dataset_shape": [
+            679,
+            36
+          ]
+        }
+      }
+    }
+  },
+  "qa": {
+    "enabled": true,
+    "primary_checks": {
+      "resultados_consolidados": [
+        {
+          "sheet": "Consolidado Historico",
+          "rows": 4552,
+          "cols_count": 19,
+          "missing_required_columns_ci": []
+        }
+      ],
+      "seguimiento_reporte": [
+        {
+          "sheet": "Tracking Mensual",
+          "rows": 1202,
+          "cols_count": 40,
+          "missing_required_columns_ci": []
+        }
+      ]
+    },
+    "previous_run": {
+      "run_id": "20260411_020911",
+      "report": "artifacts\\pipeline_run_20260411_020911.json"
+    },
+    "deltas_vs_previous": {
+      "resultados_consolidados": {
+        "Consolidado Historico": {
+          "rows_delta": 1915,
+          "rows_prev": 2637
+        }
+      },
+      "seguimiento_reporte": {
+        "Tracking Mensual": {
+          "rows_delta": 309,
+          "rows_prev": 893
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "log": "artifacts\\pipeline_run_20260817_222602.log",
+    "report": "artifacts\\pipeline_run_20260817_222602.json"
+  }
+}

@@ -67,7 +67,7 @@ resultados_consolidados:
         Periodicidad:
           tipo: "categorical"
           requerida: true
-          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral"]
+          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral", "Trianual"]
           descripcion: "Frecuencia de medición del indicador"
         Meta:
           tipo: "float"
@@ -136,7 +136,7 @@ resultados_consolidados:
         Periodicidad:
           tipo: "categorical"
           requerida: true
-          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral"]
+          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral", "Trianual"]
           descripcion: "Frecuencia de medición del indicador"
         Meta:
           tipo: "float"
@@ -180,8 +180,8 @@ resultados_consolidados:
         Clasificacion:
           tipo: "categorical"
           requerida: false
-          valores_permitidos: ["Estratégico", "Operativo"]
-          descripcion: "Nulo permitido en sub-indicadores (IDs con decimal como 108.2, 414.5)"
+          valores_permitidos: ["Estratégico", "Operativo", "Táctico"]
+          descripcion: "Nulo permitido en sub-indicadores (IDs con decimal como 108.2, 414.5). Táctico: sub-indicadores del Plan Anual 390 (390.x)"
         Proceso:
           tipo: "string"
           requerida: false
@@ -189,7 +189,7 @@ resultados_consolidados:
         Periodicidad:
           tipo: "categorical"
           requerida: true
-          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral"]
+          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral", "Trianual"]
         Sentido:
           tipo: "categorical"
           requerida: true
@@ -200,16 +200,25 @@ resultados_consolidados:
           valores_permitidos: ["Serie Unica", "Multiserie"]
         Estado:
           tipo: "categorical"
-          requerida: true
+          requerida: false
           valores_permitidos: ["Activo", "Historico"]
+          descripcion: "Nulo permitido para indicadores 'solo directorio' (Fuente = Directorio (sin datos)), pendientes de captura por el proceso dueño"
         Fuente:
           tipo: "categorical"
           requerida: true
-          valores_permitidos: ["API", "Historico"]
+          valores_permitidos: ["API", "Historico", "Directorio (sin datos)"]
+          descripcion: "Directorio (sin datos): indicador registrado en el directorio maestro sin datos de ejecución aún"
         TipoCalculo:
           tipo: "categorical"
           requerida: false
-          valores_permitidos: ["Cierre", "Promedio", "Acumulado"]
+          valores_permitidos:
+            - "Cierre"
+            - "Promedio"
+            - "Acumulado"
+            - "Aplicar la fórmula a cada serie y luego promediar los resultados"
+            - "Aplicar la fórmula a cada serie y luego sumar los resultados"
+            - "Sumar las variables de las series y luego a aplicar la fórmula"
+          descripcion: "Los valores de texto largo aplican a sub-indicadores multiserie con reglas de cálculo compuestas"
       validaciones:
         - "Todos los Id en Catalogo deben existir en Consolidado Semestral"
 
@@ -367,7 +376,7 @@ kawak_catalogo:
         Periodicidad:
           tipo: "categorical"
           requerida: true
-          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral"]
+          valores_permitidos: ["Mensual", "Trimestral", "Semestral", "Anual", "Bimestral", "Trianual"]
         Sentido:
           tipo: "categorical"
           requerida: true

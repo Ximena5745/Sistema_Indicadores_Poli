@@ -35,12 +35,30 @@ def purgar_filas_invalidas(
     Elimina filas donde:
       - La fecha es futura (año > AÑO_CIERRE_ACTUAL)
       - El campo Año contiene texto inválido
-      - El par (Id, año) no existe en el catálogo Kawak (si kawak_validos != None)
+      - El par (Id, año) no existe en el catálogo Kawak (si kawak_validos != None),
+        pero SOLO si la fila no tiene dato real: Meta y Ejecución ambas vacías/0.
+        El catálogo Kawak solo cubre años con reporte por API; años anteriores con
+        valor cargado manualmente en la fuente original (Resultados_Consolidados_
+        Fuente.xlsx) son datos reales y no deben destruirse (feedback 2026-08-13:
+        purga borró silenciosamente 2022 de indicadores 323/276/423 y otros que
+        empezaron a reportarse por API solo desde 2023).
     """
     cm = _build_col_map(ws)
     idx_id    = cm.get("Id",    1) - 1
     idx_fecha = cm.get("Fecha", 6) - 1
     idx_anio  = cm.get("Anio",  7) - 1
+    idx_meta  = cm.get("Meta")
+    idx_ejec  = cm.get("Ejecucion")
+    idx_meta  = idx_meta - 1 if idx_meta is not None else None
+    idx_ejec  = idx_ejec - 1 if idx_ejec is not None else None
+
+    def _vacio(v) -> bool:
+        if v is None:
+            return True
+        try:
+            return float(v) == 0.0
+        except (TypeError, ValueError):
+            return str(v).strip() in ("", "nan", "None")
 
     filas_a_borrar = []
     n_kawak = 0
@@ -71,8 +89,11 @@ def purgar_filas_invalidas(
             id_val = row[idx_id].value if len(row) > idx_id else None
             id_s   = _id_str(id_val) if id_val is not None else None
             if id_s and (id_s, año_fila) not in kawak_validos:
-                filas_a_borrar.append(row[0].row)
-                n_kawak += 1
+                meta_val = row[idx_meta].value if idx_meta is not None and len(row) > idx_meta else None
+                ejec_val = row[idx_ejec].value if idx_ejec is not None and len(row) > idx_ejec else None
+                if _vacio(meta_val) and _vacio(ejec_val):
+                    filas_a_borrar.append(row[0].row)
+                    n_kawak += 1
 
     for r_idx in sorted(set(filas_a_borrar), reverse=True):
         ws.delete_rows(r_idx)

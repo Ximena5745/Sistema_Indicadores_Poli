@@ -94,17 +94,25 @@ def validate_source_file(
         raise KeyError(f"No contract defined for '{source_name}'")
 
     contract = contracts[source_name]
-    source_path = file_path or (Path(__file__).parent.parent.parent / contract["archivo"])
-    source_path = Path(source_path)
-
     aggregate = ValidationReport(source_name=source_name, dataset_shape=(0, 0))
 
-    if not source_path.exists():
+    if file_path is not None:
+        source_paths = [Path(file_path)]
+    else:
+        configured = str(contract["archivo"])
+        base_dir = Path(__file__).parent.parent.parent
+        if "*" in configured or "?" in configured:
+            configured_path = Path(configured)
+            source_paths = sorted((base_dir / configured_path.parent).glob(configured_path.name))
+        else:
+            source_paths = [base_dir / configured]
+
+    if not source_paths:
         aggregate.add_issue(
             ValidationIssue(
                 level="error",
                 rule="Source File Missing",
-                description=f"Configured file not found: {source_path}",
+                description=f"Configured file not found: {base_dir / contract['archivo']}",
             )
         )
         return aggregate
@@ -112,34 +120,47 @@ def validate_source_file(
     total_rows = 0
     total_cols = 0
 
-    if contract.get("tipo") == "excel":
-        workbook = pd.ExcelFile(source_path)
-        declared_sheets = contract.get("hojas", {})
-        for sheet_name, sheet_spec in declared_sheets.items():
-            if sheet_name not in workbook.sheet_names:
-                aggregate.add_issue(
-                    ValidationIssue(
-                        level="error",
-                        rule="Required Sheet Missing",
-                        sheet=sheet_name,
-                        description=f"Sheet '{sheet_name}' not found in {source_path.name}",
-                    )
-                )
-                continue
+    for source_path in source_paths:
+        source_path = Path(source_path)
 
-            df = pd.read_excel(source_path, sheet_name=sheet_name)
+        if not source_path.exists():
+            aggregate.add_issue(
+                ValidationIssue(
+                    level="error",
+                    rule="Source File Missing",
+                    description=f"Configured file not found: {source_path}",
+                )
+            )
+            continue
+
+        if contract.get("tipo") == "excel":
+            workbook = pd.ExcelFile(source_path)
+            declared_sheets = contract.get("hojas", {})
+            for sheet_name, sheet_spec in declared_sheets.items():
+                if sheet_name not in workbook.sheet_names:
+                    aggregate.add_issue(
+                        ValidationIssue(
+                            level="error",
+                            rule="Required Sheet Missing",
+                            sheet=sheet_name,
+                            description=f"Sheet '{sheet_name}' not found in {source_path.name}",
+                        )
+                    )
+                    continue
+
+                df = pd.read_excel(source_path, sheet_name=sheet_name)
+                total_rows += len(df)
+                total_cols = max(total_cols, len(df.columns))
+                sheet_report = validate_dataset(df, source_name, sheet_name=sheet_name)
+                for issue in sheet_report.issues:
+                    aggregate.add_issue(issue)
+        else:
+            df = pd.read_csv(source_path)
             total_rows += len(df)
             total_cols = max(total_cols, len(df.columns))
-            sheet_report = validate_dataset(df, source_name, sheet_name=sheet_name)
+            sheet_report = validate_dataset(df, source_name)
             for issue in sheet_report.issues:
                 aggregate.add_issue(issue)
-    else:
-        df = pd.read_csv(source_path)
-        total_rows = len(df)
-        total_cols = len(df.columns)
-        sheet_report = validate_dataset(df, source_name)
-        for issue in sheet_report.issues:
-            aggregate.add_issue(issue)
 
     aggregate.dataset_shape = (total_rows, total_cols)
     return aggregate

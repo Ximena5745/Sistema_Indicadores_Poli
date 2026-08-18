@@ -337,6 +337,17 @@ def expandir_series_como_subindicadores(
 
 # ── Proyectos cronograma (extrae series de padres 441/509/603) ─────
 
+# Símbolos de "avance real" y "avance esperado" por indicador padre de
+# cronograma de proyectos. Verificados contra data/raw/API/{año}.xlsx —
+# Kawak cambió los símbolos para el padre 2026 (603): "PARPRO"/"PAEPROY"
+# en vez de "PARPR"/"PAEPR" usados en 2024/2025 (441/509).
+_SIMBOLOS_CRONOGRAMA_PROYECTOS: Dict[str, Tuple[str, str]] = {
+    "441": ("PARPR", "PAEPR"),
+    "509": ("PARPR", "PAEPR"),
+    "603": ("PARPRO", "PAEPROY"),
+}
+
+
 def extraer_cronograma_proyectos(
     df_fuente: pd.DataFrame,
     llaves_existentes: Set[str],
@@ -411,6 +422,11 @@ def extraer_cronograma_proyectos(
         if pd.isna(fecha):
             continue
 
+        id_padre = getattr(row, "id_padre", "")
+        simb_avance, simb_esperado = _SIMBOLOS_CRONOGRAMA_PROYECTOS.get(
+            id_padre, ("PARPR", "PAEPR")
+        )
+
         series_list = _parse_series(getattr(row, "series", None))
         if not series_list:
             continue
@@ -434,7 +450,8 @@ def extraer_cronograma_proyectos(
             if cargar_estado_proyectos().get(proj_id, "").lower() == "historico":
                 continue
 
-            # Extraer avance real (PARPR) y esperado (PAEPR) desde variables.
+            # Extraer avance real y esperado desde variables. Los símbolos
+            # varían por indicador padre (ver _SIMBOLOS_CRONOGRAMA_PROYECTOS).
             # Se almacenan en escala porcentual (0-100), igual que el resto del consolidado.
             # No se cae a serie["resultado"]/serie["meta"] si faltan: "resultado" es
             # un % ya pre-calculado (no la ejecución real) y "meta" viene hardcodeado
@@ -446,14 +463,14 @@ def extraer_cronograma_proyectos(
                 for v in serie.get("variables", [])
                 if isinstance(v, dict)
             }
-            parpr = vars_dict.get("PARPR")
-            paepr = vars_dict.get("PAEPR")
+            avance = vars_dict.get(simb_avance)
+            esperado = vars_dict.get(simb_esperado)
             try:
-                ejec = float(parpr) if parpr is not None else None
+                ejec = float(avance) if avance is not None else None
             except (TypeError, ValueError):
                 ejec = None
             try:
-                meta = float(paepr) if paepr is not None else None
+                meta = float(esperado) if esperado is not None else None
             except (TypeError, ValueError):
                 meta = None
 
