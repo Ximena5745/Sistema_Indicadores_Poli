@@ -144,6 +144,17 @@
 "471.6" = "DIRECTOR DE GESTION DE TALENTO"
 "471.7" = "DIRECTOR DE COMUN. EXTERNAS SED MEDELLIN"
 
+# ── ID 386: Cumplimiento Meta comercial Educación para toda la vida por línea ──
+# Series: 4 líneas de ingresos (3 confirmadas en Kawak 2026, 1 prevista dic-2026)
+# Variables: ITEEPV (ingresos ejecutados $), ITPEPV (ingresos presupuestados $)
+# Nota: a diferencia de los padres de Plan Anual (373/390/414-420/469-471) que
+# traen % de avance, estas series traen montos en $ — se usa _SIMBOLOS_SERIES_VARIABLES
+# en builders.py para interpretarlas correctamente.
+"386.1" = "B2B"
+"386.2" = "B2G"
+"386.3" = "Otros ingresos (Cursos -Opciones de grado)"
+"386.4" = "B2B-B2C"
+
 # ════════════════════════════════════════════════════════════════════
 # CRONOGRAMA DE PROYECTOS ESTRATÉGICOS
 # ════════════════════════════════════════════════════════════════════
