@@ -2356,17 +2356,17 @@ def render():
                 for y in years_to_load:
                     df_y = preparar_pdi_con_cierre(y, 12)
                     if df_y is not None and not df_y.empty:
-                        df_y = filter_df_for_cmi_estrategico(df_y, id_column="Id")
+                        df_y = filter_df_for_cmi_estrategico(df_y, id_column="Id", year=y)
                         if not df_y.empty:
                             pdi_estrategico = pd.concat([pdi_estrategico, df_y], ignore_index=True) if not pdi_estrategico.empty else df_y
             else:
                 pdi_estrategico = preparar_pdi_con_cierre(int(year), 12)
-            
+
             if pdi_estrategico is None or pdi_estrategico.empty:
                 return linea_summary, objetivo_df, pdi_base_df, historico_df, pdi_estrategico
-            
+
             raw_pdi = pdi_estrategico.copy()
-            pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id")
+            pdi_estrategico = filter_df_for_cmi_estrategico(pdi_estrategico, id_column="Id", year=int(year))
             linea_summary = _build_linea_summary_from_df(pdi_estrategico, unique_count_col="Id")
             objetivo_df = pdi_estrategico[[c for c in ["Linea","Objetivo","cumplimiento_pct"] if c in pdi_estrategico.columns]].copy()
             pdi_base_df = pdi_estrategico.copy()
@@ -2386,11 +2386,26 @@ def render():
                         cierres["Id"] = cierres["Id"].astype(str)
                         df_cmi = df_cmi.copy()
                         df_cmi["Id"] = df_cmi["Id"].astype(str)
-                        id_linea = df_cmi[["Id", "Linea"]].drop_duplicates(subset=["Id"])
+                        # Incluir PDI_2022_2026 y PDI_2026_2030 en el merge para filtrar por ciclo
+                        merge_cols = ["Id", "Linea"]
+                        if "PDI_2022_2026" in df_cmi.columns:
+                            merge_cols.append("PDI_2022_2026")
+                        if "PDI_2026_2030" in df_cmi.columns:
+                            merge_cols.append("PDI_2026_2030")
+                        id_linea = df_cmi[merge_cols].drop_duplicates(subset=["Id"])
                         cierres_con_linea = cierres.merge(id_linea, on="Id", how="left")
                     else:
                         cierres_con_linea = cierres
-                    cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
+                    # Filtro de ciclo PDI por Anio del DataFrame (múltiples años mezclados)
+                    if "PDI_2022_2026" in cierres_con_linea.columns and "PDI_2026_2030" in cierres_con_linea.columns:
+                        es_ciclo_viejo = pd.to_numeric(cierres_con_linea.get("Anio", 9999), errors="coerce") < 2026
+                        pdi_2022_vals = pd.to_numeric(cierres_con_linea["PDI_2022_2026"], errors="coerce") == 1
+                        pdi_2026_vals = pd.to_numeric(cierres_con_linea["PDI_2026_2030"], errors="coerce") == 1
+                        mask = (es_ciclo_viejo & pdi_2022_vals) | (~es_ciclo_viejo & pdi_2026_vals)
+                        cierres_con_linea = cierres_con_linea[mask]
+                    else:
+                        # Fallback: usar el filtro escalar estándar sin ciclo PDI
+                        cierres_con_linea = filter_df_for_cmi_estrategico(cierres_con_linea, id_column="Id")
                     if "cumplimiento_pct" not in cierres_con_linea.columns:
                         cierres_con_linea["cumplimiento_pct"] = cierres_con_linea.apply(
                             lambda r: r["Ejecucion"] / r["Meta"] * 100 if r.get("Meta") and r["Meta"] != 0 else None, axis=1
@@ -2481,7 +2496,7 @@ def render():
                 pdi_year = preparar_pdi_con_cierre(int(y), 12)
                 if pdi_year is None or pdi_year.empty:
                     continue
-                pdi_year = filter_df_for_cmi_estrategico(pdi_year, id_column="Id")
+                pdi_year = filter_df_for_cmi_estrategico(pdi_year, id_column="Id", year=int(y))
                 if not pdi_year.empty:
                     pdi_estrategico = pd.concat([pdi_estrategico, pdi_year], ignore_index=True) if not pdi_estrategico.empty else pdi_year
 

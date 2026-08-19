@@ -155,6 +155,14 @@
 "386.3" = "Otros ingresos (Cursos -Opciones de grado)"
 "386.4" = "B2B-B2C"
 
+# ── ID 523: Ingresos totales de educación para la vida (sucesor de 386, PDI 2026-2030) ──
+# Series: 3 líneas de ingresos, reorganizadas respecto a 386
+# Variables: IEE (ingresos ejecutados $), IPE (ingresos presupuestados $) — símbolos propios
+# Nota: Datos en Kawak desde 2025; hijo automático desde Kawak 2026-06-30 y adelante
+"523.1" = "B2B- B2C"
+"523.2" = "B2G"
+"523.3" = "Opciones de grado"
+
 # ════════════════════════════════════════════════════════════════════
 # CRONOGRAMA DE PROYECTOS ESTRATÉGICOS
 # ════════════════════════════════════════════════════════════════════

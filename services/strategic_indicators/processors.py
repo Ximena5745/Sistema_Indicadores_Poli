@@ -174,6 +174,18 @@ def _preparar_indicadores_con_cierre(
         if indicators.empty:
             return pd.DataFrame()
 
+    # Filtro de ciclo PDI: año < 2026 → PDI_2022_2026==1; año >= 2026 → PDI_2026_2030==1
+    if anio < 2026:
+        if "PDI_2022_2026" in indicators.columns:
+            pdi_vals = _normalize_flag_series(indicators["PDI_2022_2026"])
+            indicators = indicators[pdi_vals == 1].copy()
+    else:
+        if "PDI_2026_2030" in indicators.columns:
+            pdi_vals = _normalize_flag_series(indicators["PDI_2026_2030"])
+            indicators = indicators[pdi_vals == 1].copy()
+    if indicators.empty:
+        return pd.DataFrame()
+
     # Merge con cierres
     result = indicators[["Id", "Indicador"] + catalog_merge_cols].merge(
         cierres_cut,

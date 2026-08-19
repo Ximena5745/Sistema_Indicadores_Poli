@@ -248,6 +248,8 @@ def load_worksheet_flags() -> pd.DataFrame:
     c_cna = _find_col(df, ["CNA", "CNA_SNIES"])
     c_proyecto = _find_col(df, ["Proyecto", "PROYECTO"])
     c_subproceso = _find_col(df, ["Subproceso", "SUBPROCESO"])
+    c_pdi_2022_2026 = _find_col(df, ["PDI_2022_2026"])
+    c_pdi_2026_2030 = _find_col(df, ["PDI_2026_2030"])
 
     needed = [c for c in [c_id, c_ind, c_linea, c_obj, c_factor, c_car, c_plan, c_cna] if c]
     optional_cols = []
@@ -255,6 +257,10 @@ def load_worksheet_flags() -> pd.DataFrame:
         optional_cols.append(c_proyecto)
     if c_subproceso:
         optional_cols.append(c_subproceso)
+    if c_pdi_2022_2026:
+        optional_cols.append(c_pdi_2022_2026)
+    if c_pdi_2026_2030:
+        optional_cols.append(c_pdi_2026_2030)
 
     if not needed:
         return pd.DataFrame()
@@ -274,6 +280,10 @@ def load_worksheet_flags() -> pd.DataFrame:
         rename_map[c_proyecto] = "Proyecto"
     if c_subproceso:
         rename_map[c_subproceso] = "Subproceso"
+    if c_pdi_2022_2026:
+        rename_map[c_pdi_2022_2026] = "PDI_2022_2026"
+    if c_pdi_2026_2030:
+        rename_map[c_pdi_2026_2030] = "PDI_2026_2030"
 
     out = out.rename(columns=rename_map)
     if "Linea" in out.columns:

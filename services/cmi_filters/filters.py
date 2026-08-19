@@ -20,11 +20,17 @@ from .utils import _normalize_flag_series, _normalize_id_value
 # ============================================================================
 
 
-def get_cmi_estrategico_ids() -> set[str]:
+def get_cmi_estrategico_ids(year: Optional[int] = None) -> set[str]:
     """
     Retorna el conjunto de IDs de indicadores para CMI Estratégico.
 
     Criterio: Indicadores Plan estrategico == 1 AND Proyecto != 1
+
+    Si `year` se provee:
+      - año < 2026: requiere PDI_2022_2026 == 1
+      - año >= 2026: requiere PDI_2026_2030 == 1
+
+    Sin `year`: retorna la unión de ambos ciclos (compatibilidad retro)
     """
     df = load_cmi_worksheet()
     if df.empty:
@@ -46,6 +52,17 @@ def get_cmi_estrategico_ids() -> set[str]:
     mask = (flag_estrategico == 1) & (flag_proyecto != 1)
 
     filtered = df[mask]
+
+    # Filtro de ciclo PDI si se provee year
+    if year is not None:
+        if year < 2026:
+            if "PDI_2022_2026" in filtered.columns:
+                pdi_vals = _normalize_flag_series(filtered["PDI_2022_2026"])
+                filtered = filtered[pdi_vals == 1]
+        else:
+            if "PDI_2026_2030" in filtered.columns:
+                pdi_vals = _normalize_flag_series(filtered["PDI_2026_2030"])
+                filtered = filtered[pdi_vals == 1]
 
     # Limpiar IDs
     ids = set()
@@ -149,13 +166,14 @@ def get_cmi_procesos_subprocesos(map_df: pd.DataFrame) -> set[str]:
 # ============================================================================
 
 
-def filter_df_for_cmi_estrategico(df: pd.DataFrame, id_column: str = "Id") -> pd.DataFrame:
+def filter_df_for_cmi_estrategico(df: pd.DataFrame, id_column: str = "Id", year: Optional[int] = None) -> pd.DataFrame:
     """
     Filtra un DataFrame para quedarse solo con indicadores de CMI Estratégico.
 
     Args:
         df: DataFrame a filtrar
         id_column: Nombre de la columna que contiene el ID del indicador
+        year: Año para filtrar por ciclo PDI (opcional; sin pasar, retorna unión de ciclos)
 
     Returns:
         DataFrame filtrado
@@ -163,7 +181,7 @@ def filter_df_for_cmi_estrategico(df: pd.DataFrame, id_column: str = "Id") -> pd
     if df.empty or id_column not in df.columns:
         return df
 
-    valid_ids = get_cmi_estrategico_ids()
+    valid_ids = get_cmi_estrategico_ids(year=year)
     if not valid_ids:
         return df
 
