@@ -678,6 +678,21 @@ def main() -> None:
     limpiar_ordenar_hoja(ws_sem, "Semestral", ordenar_por=["Id", "Fecha"])
     limpiar_ordenar_hoja(ws_cierres, "Cierres", ordenar_por=["Id", "Fecha"])
 
+    # ── 13.5 Normalizar encabezados entre hojas ───────────────────
+    # Corrige variantes de etiqueta (ej. "Semestre"→"Periodo", "Llave"→"LLAVE")
+    # para que las 3 hojas queden con el mismo encabezado. COL_ALIASES ya
+    # resolvía ambas variantes al mismo campo; esto solo alinea el texto visible.
+    from etl.validation_gate import normalizar_encabezados_consolidados
+
+    resultado_encabezados = normalizar_encabezados_consolidados(
+        {"Historico": ws_hist, "Semestral": ws_sem, "Cierres": ws_cierres}
+    )
+    if resultado_encabezados.warning_count:
+        logger.info(
+            "13.5. %d encabezado(s) normalizado(s) entre hojas",
+            resultado_encabezados.warning_count,
+        )
+
     # ── 14. Actualizar Catálogo Indicadores ───────────────────────
     logger.info("14. Actualizando Catálogo Indicadores…")
     df_catalogo = construir_catalogo(df_api, df_hist_ex, metadatos_kawak, metadatos_cmi)

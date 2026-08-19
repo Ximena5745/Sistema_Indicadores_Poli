@@ -191,6 +191,59 @@ def validar_consolidado_api_entrada(
     return result
 
 
+
+# Etiqueta canónica a escribir en el encabezado por cada campo interno
+# (ver COL_ALIASES en normalizacion.py — varias etiquetas mapean al mismo campo).
+_ENCABEZADOS_CANONICOS: dict[str, str] = {
+    "Semestre": "Periodo",
+    "LLAVE": "LLAVE",
+}
+
+
+def normalizar_encabezados_consolidados(hojas: dict) -> ValidationResult:
+    """
+    Asegura que las hojas Historico/Semestral/Cierres usen el mismo texto de
+    encabezado para columnas equivalentes (ej. "Semestre" vs "Periodo",
+    "Llave" vs "LLAVE"), reescribiendo la celda cuando difiere de la canónica.
+
+    No requiere tocar lógica de lectura: COL_ALIASES ya resuelve ambas
+    variantes al mismo campo interno, esto solo corrige el texto visible.
+
+    Args:
+        hojas: {nombre_hoja: worksheet} — ej. {"Historico": ws_hist, ...}
+
+    Returns:
+        ValidationResult con un warning por cada encabezado corregido.
+    """
+    from .normalizacion import COL_ALIASES
+
+    result = ValidationResult(status="ok")
+
+    for nombre, ws in hojas.items():
+        header_row = next(ws.iter_rows(min_row=1, max_row=1))
+        for cell in header_row:
+            if cell.value is None:
+                continue
+            actual = str(cell.value).strip()
+            campo = COL_ALIASES.get(actual)
+            if campo is None:
+                continue  # columna desconocida: no tocar
+            canonico = _ENCABEZADOS_CANONICOS.get(campo)
+            if canonico is not None and actual != canonico:
+                cell.value = canonico
+                result.warnings.append(
+                    f"{nombre}: encabezado '{actual}' → '{canonico}' (columna {cell.column_letter})"
+                )
+                result.warning_count += 1
+
+    if result.warning_count:
+        result.status = "warning"
+        for warn in result.warnings:
+            logger.info("Encabezado normalizado — %s", warn)
+
+    return result
+
+
 def validar_consolidado_salida(
     df: pd.DataFrame, min_rows: int = 100
 ) -> ValidationResult:
