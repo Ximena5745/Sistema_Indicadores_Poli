@@ -15060,5 +15060,17 @@
       "registros_afectados": "31",
       "descripcion": "Detectados 31 registros con meta=0 (requiere revisi\u00f3n)"
     }
+  },
+  {
+    "timestamp": "2026-08-18T21:26:10.970794",
+    "evento": "consolidacion_completada",
+    "usuario": "etl_script",
+    "exitoso": true,
+    "detalles": {
+      "registros_historico": 1378,
+      "registros_semestral": 691,
+      "registros_cierres": 1439,
+      "total_nuevos": 3508
+    }
   }
 ]
