@@ -94,7 +94,7 @@ def render():
         mes = CORTE_SEMESTRAL[corte]
 
         df = preparar_pdi_con_cierre(int(anio), int(mes))
-        df = filter_df_for_cmi_estrategico(df, id_column="Id")
+        df = filter_df_for_cmi_estrategico(df, id_column="Id", year=int(anio))
 
         # Deduplicar por Id para evitar indicadores repetidos (mantener registro más reciente)
         if not df.empty and "Id" in df.columns:

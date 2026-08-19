@@ -170,7 +170,7 @@ def render():
     df = preparar_pdi_con_cierre(int(anio), int(mes))
 
     # ═══ FILTRO GLOBAL CMI ═══
-    df = filter_df_for_cmi_estrategico(df, id_column="Id")
+    df = filter_df_for_cmi_estrategico(df, id_column="Id", year=int(anio))
 
     if df.empty:
         st.warning("No hay indicadores de CMI Estratégico para el corte seleccionado.")

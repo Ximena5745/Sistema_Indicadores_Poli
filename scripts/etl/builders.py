@@ -188,8 +188,14 @@ _SIMBOLOS_PLAN_ANUAL: Dict[str, Tuple[str, str]] = {
 # estudiantes antiguos) es un indicador de Población: sus series traen
 # TEMS (matriculados) / TEP (presupuestados) — ver _SIMBOLOS_MATRICULAS_NUEVOS
 # y construir_registros_poblacion(), que usa el mismo par para 14/14.1-14.4.
+# 386 (Educación para toda la vida) trae ITEEPV (ingresos ejecutados EPV $)
+# e ITPEPV (ingresos presupuestados EPV $) en lugar de % de cumplimiento.
+# 523 (Ingresos totales educación para la vida, sucesor 2026-2030) trae
+# IEE (ingresos ejecutados) e IPE (ingresos presupuestados) — simbolos propios.
 _SIMBOLOS_SERIES_VARIABLES: Dict[str, Tuple[str, str]] = {
     "274": ("TEMS", "TEP"),
+    "386": ("ITEEPV", "ITPEPV"),
+    "523": ("IEE", "IPE"),
 }
 
 
