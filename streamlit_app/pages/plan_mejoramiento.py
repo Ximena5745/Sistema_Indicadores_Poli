@@ -17,14 +17,16 @@ from services.plan_mejoramiento_loader import (
     aggregate_trend_by,
     build_indicador_series,
     compute_evolucion_agregada,
+    compute_evolucion_por_segmento,
     compute_trend_table,
     get_caracteristicas_for_factor,
     get_factor_options,
     load_metricas_raw,
 )
 from streamlit_app.components.plan_mejoramiento_charts import (
-    TREND_COLORS,
     chart_evolucion_agregada,
+    chart_global_donut,
+    chart_heatmap_periodo,
     chart_sunburst_jerarquia,
     chart_trend_detail,
     chart_trend_ranking,
@@ -37,7 +39,7 @@ from streamlit_app.pages.plan_mejoramiento_utils import (
     format_ejecucion,
     trend_badge_html,
 )
-from streamlit_app.utils.cna_icons import factor_icon_html, factor_icon_path
+from streamlit_app.utils.cna_icons import factor_icon_html, factor_style
 
 DRILL_KEYS = [
     "pm_drill_factor",
@@ -179,73 +181,133 @@ def _render_alerts(trend_ind: pd.DataFrame) -> None:
         )
 
 
+def _narrative_insight(pct_fav: float, pct_desfav: float, mejor: str, peor: str, n_alertas: int) -> str:
+    tono = "favorable" if pct_fav >= pct_desfav else "de atención"
+    texto = (
+        f"El Plan de Mejoramiento muestra un panorama <b>{tono}</b>: "
+        f"<b>{pct_fav:.0f}%</b> de los indicadores con dato avanzan en la dirección esperada. "
+        f"<b>{_short(mejor, 45)}</b> lidera el desempeño"
+    )
+    if peor and peor != mejor:
+        texto += f", mientras <b>{_short(peor, 45)}</b> concentra las mayores oportunidades de mejora"
+    texto += "."
+    if n_alertas:
+        texto += f" Hay <b>{n_alertas}</b> indicador(es) que requieren atención prioritaria."
+    return texto
+
+
+def _inject_factor_pill_css(factores: list[dict]) -> None:
+    """CSS por factor, dirigido a `.st-key-pm_factor_btn_<n>` (la clase que
+    Streamlit agrega automáticamente a un widget cuando se le pasa `key=`).
+    Convierte el st.button nativo en la píldora de color de Consolidado.png
+    sin agregar ningún elemento visual aparte — ícono y botón son el mismo
+    nodo del DOM.
+    """
+    rules = []
+    for f in factores:
+        style = factor_style(f["num"])
+        bg, fg = style["bg"], style["fg"]
+        key = f"pm_factor_btn_{f['num']}"
+        rules.append(
+            f".st-key-{key} button {{"
+            f"background:{bg} !important;"
+            f"border:none !important;"
+            f"border-radius:999px !important;"
+            f"padding:16px 22px !important;"
+            f"min-height:68px !important;"
+            f"width:100% !important;"
+            f"justify-content:flex-start !important;"
+            f"gap:14px !important;"
+            f"box-shadow:0 2px 10px rgba(0,0,0,0.16) !important;"
+            f"transition:transform .12s ease, box-shadow .12s ease !important;"
+            f"}}"
+            f".st-key-{key} button:hover {{"
+            f"transform:translateY(-2px);"
+            f"box-shadow:0 8px 18px rgba(0,0,0,0.24) !important;"
+            f"}}"
+            f".st-key-{key} button p {{"
+            f"color:{fg} !important;font-weight:700 !important;"
+            f"font-size:0.9rem !important;text-align:left !important;white-space:normal !important;"
+            f"}}"
+            f".st-key-{key} button svg {{ fill:{fg} !important; width:28px !important; height:28px !important; flex-shrink:0; }}"
+        )
+    st.markdown(f"<style>{''.join(rules)}</style>", unsafe_allow_html=True)
+
+
+def _render_factor_pill_grid(factores: list[dict], agg_factor: pd.DataFrame) -> None:
+    _inject_factor_pill_css(factores)
+    agg_lookup = agg_factor.set_index("Factor") if agg_factor is not None and not agg_factor.empty else pd.DataFrame()
+
+    n_cols = 3
+    for i in range(0, len(factores), n_cols):
+        fila = factores[i : i + n_cols]
+        cols = st.columns(len(fila))
+        for col, f in zip(cols, fila):
+            with col:
+                style = factor_style(f["num"])
+                if f["label"] in agg_lookup.index:
+                    pct = agg_lookup.loc[f["label"], "pct_favorable"]
+                    label = f"{f['nombre']} · {pct:.0f}% favorable"
+                else:
+                    label = f"{f['nombre']} · Sin dato"
+                st.button(
+                    label,
+                    icon=f":material/{style['icon']}:",
+                    key=f"pm_factor_btn_{f['num']}",
+                    on_click=_go,
+                    args=("pm_drill_factor", f["label"]),
+                    use_container_width=True,
+                )
+
+
 def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
     factores = get_factor_options()
     trend_ind = compute_trend_table(periodo_filtered, level="indicador")
     agg_factor = aggregate_trend_by(trend_ind, "Factor")
 
     con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    total_ind = trend_ind["Indicador"].nunique() if not trend_ind.empty else 0
     pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
     pct_desfav = (con_dato["Tendencia"] == "desfavorable").mean() * 100 if not con_dato.empty else 0.0
     mejor = agg_factor.iloc[0]["Factor"] if not agg_factor.empty else "—"
     peor = agg_factor.iloc[-1]["Factor"] if not agg_factor.empty else "—"
+    alerts = build_alerts(trend_ind)
+    n_danger = len([a for a in alerts if a["level"] == "danger"])
 
-    kpi_cols = st.columns(4)
-    with kpi_cols[0]:
-        kpi_card("Indicadores con dato", total_ind, show_progress=False)
-    with kpi_cols[1]:
-        kpi_card("% Favorable global", f"{pct_fav:.0f}%", show_progress=False)
-    with kpi_cols[2]:
-        kpi_card("% Desfavorable global", f"{pct_desfav:.0f}%", show_progress=False)
-    with kpi_cols[3]:
-        st.markdown("**Mejor / peor factor**")
-        st.caption(f"↑ {_short(mejor, 32)}")
-        st.caption(f"↓ {_short(peor, 32)}")
+    # ── Hero: narrativa ejecutiva + dona de composición global ─────────────
+    hero_cols = st.columns([3, 2])
+    with hero_cols[0]:
+        st.markdown(
+            f"<div style='background:linear-gradient(135deg,#EFF6FF 0%,#F8FAFF 100%);"
+            f"border:1px solid #DCE8FA;border-radius:14px;padding:20px 22px;height:100%;"
+            f"font-size:1.05rem;line-height:1.55;color:#1A2B3C;'>{_narrative_insight(pct_fav, pct_desfav, mejor, peor, n_danger)}</div>",
+            unsafe_allow_html=True,
+        )
+    with hero_cols[1]:
+        st.plotly_chart(chart_global_donut(agg_factor), use_container_width=True)
 
-    _render_alerts(trend_ind)
+    if n_danger:
+        render_alert_strip(
+            f"{n_danger} indicador(es) muestran comportamiento desfavorable en el último periodo reportado.",
+            level="danger",
+        )
 
-    st.subheader("Ranking de Factores")
-    st.caption("Cada barra suma 100% — el color muestra la proporción de indicadores, sin importar cuántos tenga cada factor.")
-    st.plotly_chart(chart_trend_ranking(agg_factor, "Factor"), use_container_width=True)
+    # ── Los 12 Factores CNA — grid de píldoras (basado en assets/CNA/Consolidado.png) ──
+    # Ícono + nombre + % son UN solo st.button (icon= nativo), nunca dos
+    # elementos apilados; el color de cada píldora viene de la misma paleta
+    # institucional del material CNA, vía CSS dirigido a la clase estable
+    # `st-key-<key>` que Streamlit asigna a cada widget con `key=`.
+    st.subheader("Los 12 Factores CNA")
+    st.caption("Haz clic en un factor para explorar sus características e indicadores.")
+    _render_factor_pill_grid(factores, agg_factor)
 
-    st.subheader("Explorar por Factor")
-    st.caption("Selecciona un factor para ver sus características e indicadores")
-    agg_lookup = agg_factor.set_index("Factor") if not agg_factor.empty else pd.DataFrame()
-    n_cols = 4
-    for i in range(0, len(factores), n_cols):
-        fila = factores[i : i + n_cols]
-        cols = st.columns(len(fila))
-        for col, f in zip(cols, fila):
-            with col:
-                with st.container(border=True):
-                    st.image(str(factor_icon_path(f["num"])), use_container_width=True)
-                    if f["label"] in agg_lookup.index:
-                        pct = agg_lookup.loc[f["label"], "pct_favorable"]
-                        color = TREND_COLORS["favorable"] if pct >= 50 else TREND_COLORS["desfavorable"]
-                        st.markdown(
-                            f"<div style='text-align:center;font-size:0.78rem;font-weight:700;color:{color};'>"
-                            f"{pct:.0f}% favorable</div>",
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        st.markdown(
-                            "<div style='text-align:center;font-size:0.78rem;color:#9E9E9E;'>Sin dato</div>",
-                            unsafe_allow_html=True,
-                        )
-                    st.button(
-                        _short(f["nombre"], 28),
-                        key=f"pm_factor_btn_{f['num']}",
-                        on_click=_go,
-                        args=("pm_drill_factor", f["label"]),
-                        use_container_width=True,
-                    )
+    # ── Heatmap Factor × Periodo — dónde y cuándo mejoró/estancó cada uno ──
+    st.subheader("Evolución por Factor y Periodo")
+    st.caption("Cada celda es el % de indicadores favorables de ese factor en ese periodo — permite ver patrones temporales de un vistazo.")
+    evo_factor = compute_evolucion_por_segmento(periodo_filtered, "Factor")
+    st.plotly_chart(chart_heatmap_periodo(evo_factor, "Factor"), use_container_width=True)
 
-    evo = compute_evolucion_agregada(periodo_filtered)
-    st.plotly_chart(
-        chart_evolucion_agregada(evo, "Evolución global — % indicadores con tendencia favorable"),
-        use_container_width=True,
-    )
+    with st.expander("Ver ranking detallado en barras"):
+        st.plotly_chart(chart_trend_ranking(agg_factor, "Factor"), use_container_width=True)
 
     with st.expander("Ver mapa jerárquico completo"):
         _render_sunburst(trend_ind)
@@ -340,8 +402,9 @@ def section_factor(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str
                     use_container_width=True,
                 )
 
-    evo = compute_evolucion_agregada(df_factor)
-    st.plotly_chart(chart_evolucion_agregada(evo, f"Evolución — {factor}"), use_container_width=True)
+    st.subheader("Evolución por Característica y Periodo")
+    evo_car = compute_evolucion_por_segmento(df_factor, "Caracteristica")
+    st.plotly_chart(chart_heatmap_periodo(evo_car, "Caracteristica"), use_container_width=True)
 
 
 def section_caracteristica(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, caracteristica: str) -> None:

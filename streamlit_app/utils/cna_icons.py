@@ -15,6 +15,30 @@ import streamlit as st
 
 ASSETS_CNA_DIR = Path(__file__).resolve().parents[2] / "assets" / "CNA"
 
+# Identidad visual por factor — paleta y pictograma tomados de
+# assets/CNA/Consolidado.png (el mismo mapa de color se usa en Tablero.png).
+# icon = nombre de Material Symbol (sin emoji, por convención del proyecto).
+FACTOR_STYLE: dict[int, dict[str, str]] = {
+    1: {"icon": "fingerprint", "bg": "#EC0677", "fg": "#FFFFFF"},
+    2: {"icon": "visibility", "bg": "#1CA8E0", "fg": "#FFFFFF"},
+    3: {"icon": "eco", "bg": "#FBA919", "fg": "#FFFFFF"},
+    4: {"icon": "fact_check", "bg": "#17D6E0", "fg": "#0E2F4C"},
+    5: {"icon": "account_tree", "bg": "#0E2F4C", "fg": "#FFFFFF"},
+    6: {"icon": "query_stats", "bg": "#39B54A", "fg": "#FFFFFF"},
+    7: {"icon": "volunteer_activism", "bg": "#7E1E9C", "fg": "#FFFFFF"},
+    8: {"icon": "public", "bg": "#1C6B3B", "fg": "#FFFFFF"},
+    9: {"icon": "favorite", "bg": "#E31E3C", "fg": "#FFFFFF"},
+    10: {"icon": "co_present", "bg": "#FFCC00", "fg": "#3A2E00"},
+    11: {"icon": "person", "bg": "#C7C9CB", "fg": "#2E3538"},
+    12: {"icon": "school", "bg": "#4453D6", "fg": "#FFFFFF"},
+}
+
+DEFAULT_FACTOR_STYLE = {"icon": "category", "bg": "#1A3A5C", "fg": "#FFFFFF"}
+
+
+def factor_style(factor_num: int) -> dict[str, str]:
+    return FACTOR_STYLE.get(int(factor_num), DEFAULT_FACTOR_STYLE)
+
 
 @st.cache_data(ttl=None, show_spinner=False)
 def _load_icon_b64(factor_num: int) -> str | None:

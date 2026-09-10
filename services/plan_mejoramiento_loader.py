@@ -335,3 +335,29 @@ def compute_evolucion_agregada(df: pd.DataFrame, group_cols: list[str] | None = 
         .reset_index(name="pct_favorable")
     )
     return agg.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
+
+
+def compute_evolucion_por_segmento(df: pd.DataFrame, segment_col: str = "Factor") -> pd.DataFrame:
+    """% favorable por Periodo, desglosado por Factor o Característica.
+
+    Insumo del heatmap Factor×Periodo: una fila por (segmento, periodo) con
+    su % de indicadores favorables — permite ver EN QUÉ periodo cada factor
+    mejoró o se estancó, no solo el promedio global.
+    """
+    if df.empty or segment_col not in df.columns:
+        return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+
+    piezas = []
+    for valor in df[segment_col].dropna().unique():
+        sub = df[df[segment_col] == valor]
+        evo = compute_evolucion_agregada(sub)
+        if evo.empty:
+            continue
+        evo = evo.copy()
+        evo[segment_col] = valor
+        piezas.append(evo)
+
+    if not piezas:
+        return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+
+    return pd.concat(piezas, ignore_index=True)

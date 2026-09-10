@@ -200,6 +200,98 @@ def chart_trend_detail(df_serie: pd.DataFrame, titulo: str, sentido: str) -> go.
     return fig
 
 
+def chart_heatmap_periodo(df_seg: pd.DataFrame, segment_col: str, title: str = "") -> go.Figure:
+    """Heatmap segmento × periodo — dónde y cuándo mejoró o se estancó cada uno.
+
+    Reemplaza una línea agregada única por una matriz: cada fila es un
+    Factor/Característica, cada columna un Periodo, el color el % de
+    indicadores favorables en ese corte — permite leer patrones temporales
+    por categoría en un solo vistazo, en vez de 12 gráficos de línea.
+    """
+    if df_seg is None or df_seg.empty:
+        fig = go.Figure()
+        fig.update_layout(title="Sin datos suficientes para el heatmap")
+        return fig
+
+    pivot = df_seg.pivot_table(
+        index=segment_col, columns="Periodo", values="pct_favorable", aggfunc="mean"
+    )
+    orden_periodo = (
+        df_seg[["Periodo", "Periodo_anio", "Periodo_sem"]]
+        .drop_duplicates()
+        .sort_values(["Periodo_anio", "Periodo_sem"])["Periodo"]
+        .tolist()
+    )
+    pivot = pivot.reindex(columns=orden_periodo)
+
+    orden_filas = pivot.mean(axis=1, skipna=True).sort_values(ascending=True).index
+    pivot = pivot.loc[orden_filas]
+
+    fig = go.Figure(
+        go.Heatmap(
+            z=pivot.values,
+            x=pivot.columns,
+            y=[str(i) for i in pivot.index],
+            colorscale=[
+                [0, TREND_COLORS["desfavorable"]],
+                [0.5, TREND_COLORS["estable"]],
+                [1, TREND_COLORS["favorable"]],
+            ],
+            zmin=0,
+            zmax=100,
+            colorbar=dict(title="% favorable", ticksuffix="%"),
+            hovertemplate="<b>%{y}</b><br>%{x}: %{z:.0f}% favorable<extra></extra>",
+            hoverongaps=False,
+        )
+    )
+    fig.update_layout(
+        title=title,
+        margin=dict(l=10, r=10, t=50 if title else 10, b=10),
+        height=max(240, 32 * len(pivot.index) + 100),
+        xaxis=dict(type="category", side="bottom"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
+
+
+def chart_global_donut(agg_factor: pd.DataFrame) -> go.Figure:
+    """Dona de composición global favorable/estable/desfavorable/sin dato."""
+    fig = go.Figure()
+    if agg_factor is None or agg_factor.empty:
+        fig.update_layout(title="Sin datos disponibles")
+        return fig
+
+    totales = {
+        key: int(agg_factor[f"n_{key}"].sum()) for key in ("favorable", "estable", "desfavorable", "sin_datos")
+    }
+    fig.add_trace(
+        go.Pie(
+            labels=[TREND_LABELS[k] for k in totales],
+            values=list(totales.values()),
+            hole=0.62,
+            marker=dict(colors=[TREND_COLORS[k] for k in totales]),
+            textinfo="percent",
+            hovertemplate="<b>%{label}</b>: %{value} indicadores (%{percent})<extra></extra>",
+        )
+    )
+    total_con_dato = totales["favorable"] + totales["estable"] + totales["desfavorable"]
+    pct_fav = (totales["favorable"] / total_con_dato * 100) if total_con_dato else 0
+    fig.add_annotation(
+        text=f"<b>{pct_fav:.0f}%</b><br><span style='font-size:11px'>Favorable</span>",
+        showarrow=False,
+        font=dict(size=22, color=TREND_COLORS["favorable"] if pct_fav >= 50 else TREND_COLORS["desfavorable"]),
+    )
+    fig.update_layout(
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+        margin=dict(l=10, r=10, t=20, b=10),
+        height=280,
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
+
+
 def chart_sunburst_jerarquia(df_trend: pd.DataFrame, title: str = "") -> go.Figure:
     """Mapa jerárquico Factor→Característica→Indicador, coloreado por tendencia.
 
