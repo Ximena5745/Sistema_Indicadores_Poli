@@ -1,0 +1,337 @@
+"""
+services/plan_mejoramiento_loader.py — Carga y análisis de tendencia CNA
+
+Fuente: data/raw/Plan de mejoramiento/Resultados_Consolidados_CNA_actualizado.xlsx
+Hojas usadas: "Metricas" (hecho, largo por Periodo) y "Factor- Caracteristica"
+(mapeo canónico Factor→Característica).
+
+Responsabilidad única: cargar el Excel, limpiar/derivar columnas, y calcular
+tendencia (favorable/desfavorable/estable) de Ejecución por Periodo — sin
+Meta/Cumplimiento (prácticamente vacíos en la fuente) y sin información de
+ficha técnica/formulación del indicador.
+
+Funciones públicas:
+  - load_metricas_raw()
+  - load_factor_caracteristica_map()
+  - get_factor_options()
+  - get_caracteristicas_for_factor()
+  - build_indicador_series()
+  - compute_trend_table()
+  - aggregate_trend_by()
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+from core.config import CACHE_TTL, DATA_RAW, SENTIDO_NEGATIVO, SENTIDO_POSITIVO
+
+PM_XLSX = DATA_RAW / "Plan de mejoramiento" / "Resultados_Consolidados_CNA_actualizado.xlsx"
+SHEET_METRICAS = "Metricas"
+SHEET_FACTOR_CARACTERISTICA = "Factor- Caracteristica"
+
+_FACTOR_NUM_RE = re.compile(r"Factor\s+(\d+)", flags=re.IGNORECASE)
+
+METRICAS_COLS = [
+    "Id",
+    "Indicador",
+    "Subindicador",
+    "Factor",
+    "Caracteristica",
+    "Proceso",
+    "Periodicidad",
+    "Sentido",
+    "Fecha",
+    "Año",
+    "Mes",
+    "Periodo",
+    "Ejecución",
+    "Ejecución s",
+    "Llave",
+    "DecimalesEje",
+    "Proyecto",
+]
+
+
+def _parse_ejecucion(value, unidad: str) -> float | None:
+    """Convierte el valor crudo de Ejecución a float, respetando su unidad.
+
+    `unidad` (columna "Ejecución s") ∈ {"ENT", "$", "DEC", "%"} indica cómo
+    interpretar/limpiar el valor, pero el resultado siempre es el número tal
+    cual reportado (sin dividir % entre 100): el formateo de presentación se
+    hace por separado según la unidad.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    text = text.replace("$", "").replace("%", "").replace(",", "").strip()
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _split_periodo(periodo: str) -> tuple[int, int]:
+    """'2019-1' -> (2019, 1). Valores inválidos ordenan al final."""
+    try:
+        anio_str, sem_str = str(periodo).split("-")
+        return int(anio_str), int(sem_str)
+    except (ValueError, AttributeError):
+        return 9999, 9
+
+
+def _factor_num(factor_label: str) -> int | None:
+    match = _FACTOR_NUM_RE.search(str(factor_label or ""))
+    return int(match.group(1)) if match else None
+
+
+def _factor_nombre(factor_label: str) -> str:
+    text = str(factor_label or "")
+    return text.split(".", 1)[1].strip() if "." in text else text.strip()
+
+
+@st.cache_data(ttl=CACHE_TTL, show_spinner="Cargando Plan de Mejoramiento...")
+def load_metricas_raw() -> pd.DataFrame:
+    """Carga la hoja Metricas, limpia y deriva columnas de análisis."""
+    if not PM_XLSX.exists():
+        return pd.DataFrame(columns=METRICAS_COLS)
+
+    df = pd.read_excel(PM_XLSX, sheet_name=SHEET_METRICAS, engine="openpyxl")
+
+    keep = [c for c in METRICAS_COLS if c in df.columns]
+    df = df[keep].copy()
+
+    for col in ("Factor", "Caracteristica", "Indicador", "Subindicador", "Periodo", "Sentido", "Proceso", "Periodicidad"):
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+
+    df["Factor_num"] = df["Factor"].map(_factor_num)
+    df["Factor_nombre"] = df["Factor"].map(_factor_nombre)
+
+    periodo_split = df["Periodo"].map(_split_periodo)
+    df["Periodo_anio"] = periodo_split.map(lambda t: t[0])
+    df["Periodo_sem"] = periodo_split.map(lambda t: t[1])
+
+    df["Ejecucion_num"] = [
+        _parse_ejecucion(val, unidad)
+        for val, unidad in zip(df.get("Ejecución"), df.get("Ejecución s", pd.Series(dtype=str)))
+    ]
+
+    return df.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
+
+
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
+def load_factor_caracteristica_map() -> pd.DataFrame:
+    """Mapeo canónico Factor→Característica (fuente del filtro dependiente)."""
+    if not PM_XLSX.exists():
+        return pd.DataFrame(columns=["Factor", "Caracteristica"])
+
+    df = pd.read_excel(PM_XLSX, sheet_name=SHEET_FACTOR_CARACTERISTICA, engine="openpyxl")
+    df = df.rename(columns={"Características": "Caracteristica", "Característica": "Caracteristica"})
+    df = df[["Factor", "Caracteristica"]].copy()
+    df["Factor"] = df["Factor"].astype(str).str.strip()
+    df["Caracteristica"] = df["Caracteristica"].astype(str).str.strip()
+    df["Factor_num"] = df["Factor"].map(_factor_num)
+    df["Factor_nombre"] = df["Factor"].map(_factor_nombre)
+    return df.drop_duplicates().sort_values(["Factor_num", "Caracteristica"]).reset_index(drop=True)
+
+
+def get_factor_options() -> list[dict]:
+    """Los 12 factores, ordenados por número — fuente única de orden en toda la página."""
+    catalog = load_factor_caracteristica_map()
+    if catalog.empty:
+        return []
+    factores = catalog[["Factor_num", "Factor_nombre", "Factor"]].drop_duplicates()
+    factores = factores.sort_values("Factor_num")
+    return [
+        {"num": int(row.Factor_num), "nombre": row.Factor_nombre, "label": row.Factor}
+        for row in factores.itertuples()
+        if pd.notna(row.Factor_num)
+    ]
+
+
+def get_caracteristicas_for_factor(factor_label: str) -> list[str]:
+    """Características canónicas de un Factor (filtro dependiente)."""
+    catalog = load_factor_caracteristica_map()
+    if catalog.empty:
+        return []
+    return (
+        catalog.loc[catalog["Factor"] == factor_label, "Caracteristica"]
+        .drop_duplicates()
+        .tolist()
+    )
+
+
+def classify_trend(serie: pd.DataFrame, sentido: str) -> str:
+    """Clasifica la tendencia comparando los dos últimos periodos con dato.
+
+    `serie`: DataFrame ordenado cronológicamente con columna `Ejecucion_num`.
+    Retorna: "favorable" | "desfavorable" | "estable" | "sin_datos".
+    """
+    valores = serie["Ejecucion_num"].dropna()
+    if len(valores) < 2:
+        return "sin_datos"
+
+    ultimo, previo = valores.iloc[-1], valores.iloc[-2]
+    delta = ultimo - previo
+
+    if delta == 0:
+        return "estable"
+
+    sentido_norm = str(sentido or "").strip().lower()
+    positivo = SENTIDO_POSITIVO.lower()
+    negativo = SENTIDO_NEGATIVO.lower()
+    if sentido_norm not in (positivo, negativo):
+        return "estable"
+
+    sube_es_bueno = sentido_norm == positivo
+    favorable = (delta > 0) == sube_es_bueno
+    return "favorable" if favorable else "desfavorable"
+
+
+def build_indicador_series(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
+    """Serie larga (una fila por entidad+Periodo) lista para graficar tendencia.
+
+    `group_cols`: ["Indicador"] o ["Indicador", "Subindicador"].
+    """
+    if df.empty:
+        return df
+
+    cols = group_cols + [
+        "Periodo", "Periodo_anio", "Periodo_sem",
+        "Factor", "Factor_num", "Factor_nombre", "Caracteristica",
+        "Ejecucion_num", "Ejecución s", "Sentido",
+    ]
+    cols = [c for c in cols if c in df.columns]
+    serie = df[cols].copy()
+
+    dedup_cols = group_cols + ["Periodo"]
+    serie = serie.drop_duplicates(subset=dedup_cols, keep="last")
+    return serie.sort_values(group_cols + ["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
+
+
+def compute_trend_table(df: pd.DataFrame, level: str) -> pd.DataFrame:
+    """Una fila por Indicador (o Subindicador) con su tendencia y variación.
+
+    `level`: "indicador" | "subindicador".
+    """
+    if df.empty:
+        return pd.DataFrame()
+
+    group_cols = ["Indicador"] if level == "indicador" else ["Indicador", "Subindicador"]
+    serie = build_indicador_series(df, group_cols)
+    if serie.empty:
+        return pd.DataFrame()
+
+    rows = []
+    for keys, grupo in serie.groupby(group_cols, dropna=False):
+        keys = keys if isinstance(keys, tuple) else (keys,)
+        sentido = grupo["Sentido"].dropna().iloc[0] if not grupo["Sentido"].dropna().empty else ""
+        tendencia = classify_trend(grupo, sentido)
+
+        valores = grupo["Ejecucion_num"].dropna()
+        ultimo_valor = valores.iloc[-1] if not valores.empty else None
+        delta_abs = None
+        delta_pct = None
+        if len(valores) >= 2:
+            delta_abs = float(valores.iloc[-1] - valores.iloc[-2])
+            previo = valores.iloc[-2]
+            delta_pct = float(delta_abs / previo * 100) if previo not in (0, None) else None
+
+        row = dict(zip(group_cols, keys))
+        row.update(
+            {
+                "Factor": grupo["Factor"].dropna().iloc[0] if not grupo["Factor"].dropna().empty else None,
+                "Factor_num": grupo["Factor_num"].dropna().iloc[0] if not grupo["Factor_num"].dropna().empty else None,
+                "Caracteristica": grupo["Caracteristica"].dropna().iloc[0] if not grupo["Caracteristica"].dropna().empty else None,
+                "Sentido": sentido,
+                "Tendencia": tendencia,
+                "ultimo_periodo": grupo["Periodo"].dropna().iloc[-1] if not grupo["Periodo"].dropna().empty else None,
+                "ultimo_valor": ultimo_valor,
+                "unidad": grupo["Ejecución s"].dropna().iloc[-1] if not grupo["Ejecución s"].dropna().empty else None,
+                "delta_abs": delta_abs,
+                "delta_pct": delta_pct,
+                "n_periodos": int(len(valores)),
+            }
+        )
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def aggregate_trend_by(df_trend: pd.DataFrame, group_col: str) -> pd.DataFrame:
+    """Cuenta favorable/desfavorable/estable/sin_datos por Factor o Característica.
+
+    Es la métrica de ranking: proporción de indicadores con tendencia
+    favorable, NO promedio de valores crudos (unidades no comparables).
+    """
+    if df_trend.empty or group_col not in df_trend.columns:
+        return pd.DataFrame()
+
+    counts = (
+        df_trend.groupby(group_col)["Tendencia"]
+        .value_counts()
+        .unstack(fill_value=0)
+        .reindex(columns=["favorable", "desfavorable", "estable", "sin_datos"], fill_value=0)
+    )
+    counts.columns = ["n_favorable", "n_desfavorable", "n_estable", "n_sin_datos"]
+    counts["n_total"] = counts.sum(axis=1)
+    con_dato = counts["n_total"] - counts["n_sin_datos"]
+
+    counts["pct_favorable"] = (counts["n_favorable"] / con_dato.replace(0, pd.NA) * 100).fillna(0.0)
+    counts["pct_desfavorable"] = (counts["n_desfavorable"] / con_dato.replace(0, pd.NA) * 100).fillna(0.0)
+
+    return counts.reset_index().sort_values("pct_favorable", ascending=False)
+
+
+def compute_evolucion_agregada(df: pd.DataFrame, group_cols: list[str] | None = None) -> pd.DataFrame:
+    """% de indicadores favorables por Periodo (serie agregada de tendencia).
+
+    Para cada entidad (Indicador, o Indicador+Subindicador si `group_cols` lo
+    incluye) y cada par de periodos consecutivos con dato, clasifica el paso
+    como favorable/desfavorable/estable; agrega el % favorable por periodo
+    de llegada. Es la base de los gráficos de "evolución"/"tendencia".
+    """
+    group_cols = group_cols or ["Indicador"]
+    if df.empty:
+        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+
+    serie = build_indicador_series(df, group_cols)
+    if serie.empty:
+        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+
+    records = []
+    for _, grupo in serie.groupby(group_cols, dropna=False):
+        grupo = grupo.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
+        sentido = grupo["Sentido"].dropna().iloc[0] if not grupo["Sentido"].dropna().empty else ""
+        for i in range(1, len(grupo)):
+            if pd.isna(grupo.loc[i - 1, "Ejecucion_num"]) or pd.isna(grupo.loc[i, "Ejecucion_num"]):
+                continue
+            tendencia = classify_trend(grupo.iloc[i - 1 : i + 1], sentido)
+            records.append(
+                {
+                    "Periodo": grupo.loc[i, "Periodo"],
+                    "Periodo_anio": grupo.loc[i, "Periodo_anio"],
+                    "Periodo_sem": grupo.loc[i, "Periodo_sem"],
+                    "Tendencia": tendencia,
+                }
+            )
+
+    if not records:
+        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+
+    df_rec = pd.DataFrame(records)
+    agg = (
+        df_rec.groupby(["Periodo", "Periodo_anio", "Periodo_sem"])["Tendencia"]
+        .apply(lambda s: float((s == "favorable").mean() * 100))
+        .reset_index(name="pct_favorable")
+    )
+    return agg.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)

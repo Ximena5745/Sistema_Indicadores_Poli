@@ -1,595 +1,429 @@
-from datetime import date as _date
+"""
+pages/plan_mejoramiento.py — Plan de Mejoramiento (Factores CNA)
+
+Navegación jerárquica Factor → Característica → Indicador → Subindicador,
+analizando exclusivamente Ejecución por Periodo (sin Meta/Cumplimiento ni
+ficha técnica del indicador). Lectura ejecutiva macro→micro: Resumen de los
+12 factores → Factor → Características → Indicadores → Subindicadores →
+Evolución temporal, con breadcrumb persistente.
+"""
+
+from __future__ import annotations
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
-try:
-    from ..utils.formatting import formatear_meta_ejecucion_df
-except ImportError:
-    from streamlit_app.utils.formatting import formatear_meta_ejecucion_df
+from services.plan_mejoramiento_loader import (
+    aggregate_trend_by,
+    build_indicador_series,
+    compute_evolucion_agregada,
+    compute_trend_table,
+    get_caracteristicas_for_factor,
+    get_factor_options,
+    load_metricas_raw,
+)
+from streamlit_app.components.plan_mejoramiento_charts import (
+    chart_evolucion_agregada,
+    chart_sunburst_jerarquia,
+    chart_trend_detail,
+    chart_trend_ranking,
+)
+from streamlit_app.components.renderers import kpi_card, render_alert_strip
+from streamlit_app.pages.plan_mejoramiento_utils import (
+    build_alerts,
+    build_breadcrumb_items,
+    format_delta,
+    format_ejecucion,
+    trend_badge_html,
+)
+from streamlit_app.utils.cna_icons import factor_icon_html, factor_icon_path
 
-try:
-    from services.data_loader import cargar_acciones_mejora
-    from services.strategic_indicators import (
-        NIVEL_COLOR_EXT,
-        load_cna_catalog,
-        preparar_cna_con_cierre,
-        load_cierres,
-    )
-except (ImportError, ModuleNotFoundError):
-    import sys
-
-    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent))
-    from services.data_loader import cargar_acciones_mejora
-    from services.strategic_indicators import (
-        NIVEL_COLOR_EXT,
-        load_cna_catalog,
-        preparar_cna_con_cierre,
-        load_cierres,
-    )
-
-try:
-    from streamlit_app.components.filter_panel import render_filter_panel
-except ImportError:
-    import sys
-    sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent.parent))
-    from streamlit_app.components.filter_panel import render_filter_panel
-
-CORTE_SEMESTRAL = {
-    "Junio": 6,
-    "Diciembre": 12,
-}
+DRILL_KEYS = [
+    "pm_drill_factor",
+    "pm_drill_caracteristica",
+    "pm_drill_indicador",
+    "pm_drill_subindicador",
+]
 
 
-def _default_corte(anios: list[int]) -> tuple[int, str]:
-    if 2025 in anios:
-        return 2025, "Diciembre"
-    if anios:
-        return anios[-1], "Diciembre"
-    return _date.today().year, "Diciembre"
+def _go(level_key: str, value) -> None:
+    idx = DRILL_KEYS.index(level_key)
+    for key in DRILL_KEYS[idx:]:
+        st.session_state[key] = None
+    st.session_state[level_key] = value
 
 
-def render():
-    st.title("Plan de Mejoramiento")
-    st.caption(
-        "Indicadores CNA con filtros dependientes por Factor y Característica + cumplimiento de cierre."
-    )
+def _init_state() -> None:
+    for key in DRILL_KEYS:
+        st.session_state.setdefault(key, None)
 
-    cierres = load_cierres()
-    if cierres.empty:
-        st.error("No se encontró información de cierres en Resultados Consolidados.xlsx.")
-        return
 
-    anios = sorted(
-        pd.to_numeric(cierres["Anio"], errors="coerce").dropna().astype(int).unique().tolist()
-    )
-    if not anios:
-        st.error("No hay años disponibles en consolidado de cierres.")
-        return
+def _short(text: str, n: int = 30) -> str:
+    text = str(text or "")
+    return text if len(text) <= n else text[: n - 1] + "…"
 
-    _anio_default, _corte_default = _default_corte(anios)
 
-    _pm_reset_keys = ["pm_cna_anio", "pm_cna_corte"]
-    sels_corte = render_filter_panel(
-        filters=[
-            {
-                "key": "anio", "label": "Año de corte",
-                "type": "segmented_control",
-                "options": anios, "default": _anio_default, "include_all": False,
-            },
-            {
-                "key": "corte", "label": "Corte semestral",
-                "type": "segmented_control",
-                "options": list(CORTE_SEMESTRAL.keys()),
-                "default": _corte_default, "include_all": False,
-            },
-        ],
-        title="Filtros",
-        key_prefix="pm_cna",
-        n_cols=2,
-        show_reset=True,
-        reset_keys=["pm_cna_anio", "pm_cna_corte", "pm_cna_factor",
-                    "pm_cna_caracteristica", "pm_cna_nombre", "_pm_cna_last_anio"],
-    )
-    anio = sels_corte["anio"] or _anio_default
-    corte = sels_corte["corte"] or _corte_default
+def _current_level() -> tuple[str, str | None, str | None, str | None, str | None]:
+    factor = st.session_state["pm_drill_factor"]
+    caracteristica = st.session_state["pm_drill_caracteristica"]
+    indicador = st.session_state["pm_drill_indicador"]
+    subindicador = st.session_state["pm_drill_subindicador"]
 
-    mes = CORTE_SEMESTRAL[corte]
-    df = preparar_cna_con_cierre(int(anio), int(mes))
-    if df.empty:
-        st.warning("No hay indicadores CNA (flag=1) para el corte seleccionado.")
-        return
-
-    cna_catalog = load_cna_catalog()
-    factores = sorted(
-        cna_catalog["Factor"].dropna().astype(str).unique().tolist()
-        if not cna_catalog.empty
-        else df["Factor"].dropna().astype(str).unique().tolist()
-    )
-
-    # Panel de filtros CNA — factor primero, luego cargar caracts dinámicamente
-    factor_sel = st.session_state.get("pm_cna_factor", "Todos")
-    if not cna_catalog.empty:
-        car_pool = (
-            cna_catalog if factor_sel == "Todos"
-            else cna_catalog[cna_catalog["Factor"] == factor_sel]
-        )
-        caracts = sorted(car_pool["Caracteristica"].dropna().astype(str).unique().tolist())
+    if subindicador:
+        level = "subindicador"
+    elif indicador:
+        level = "indicador"
+    elif caracteristica:
+        level = "caracteristica"
+    elif factor:
+        level = "factor"
     else:
-        df_car = df if factor_sel == "Todos" else df[df["Factor"] == factor_sel]
-        caracts = sorted(df_car["Caracteristica"].dropna().astype(str).unique().tolist())
+        level = "resumen"
+    return level, factor, caracteristica, indicador, subindicador
 
-    sels_cna = render_filter_panel(
-        filters=[
-            {
-                "key": "factor", "label": "Factor CNA",
-                "type": "selectbox",
-                "options": factores, "include_all": True,
-            },
-            {
-                "key": "caracteristica", "label": "Característica",
-                "type": "selectbox",
-                "options": caracts, "include_all": True, "all_label": "Todas",
-            },
-            {
-                "key": "nombre", "label": "Buscar indicador",
-                "type": "text",
-                "placeholder": "Texto en nombre del indicador",
-            },
-        ],
-        title="Filtros CNA",
-        key_prefix="pm_cna",
-        n_cols=3,
-    )
-    factor_sel = sels_cna["factor"] or "Todos"
-    car_sel = sels_cna["caracteristica"] or "Todas"
-    nombre_q = sels_cna.get("nombre") or ""
 
-    if factor_sel != "Todos":
-        df = df[df["Factor"] == factor_sel]
-    if car_sel != "Todas":
-        df = df[df["Caracteristica"] == car_sel]
-    if nombre_q.strip():
-        df = df[df["Indicador"].astype(str).str.contains(nombre_q.strip(), case=False, na=False)]
-
-    if df.empty:
-        st.info("No hay registros para los filtros seleccionados.")
-        return
-
-    activos = []
-    if factor_sel != "Todos":
-        activos.append(f"Factor: {factor_sel}")
-    if car_sel != "Todas":
-        activos.append(f"Característica: {car_sel}")
-    if nombre_q.strip():
-        activos.append(f"Indicador contiene: {nombre_q.strip()}")
-    if activos:
-        st.caption("Filtros activos: " + " · ".join(activos))
-    st.caption(f"Corte seleccionado: {corte} {anio}")
-
-    total = len(df)
-    con_dato = int(df["cumplimiento_pct"].notna().sum())
-    prom = float(df["cumplimiento_pct"].mean()) if con_dato else 0.0
-    n_fact = int(df["Factor"].nunique())
-    n_car = int(df["Caracteristica"].nunique())
-    total_fact_catalogo = int(cna_catalog["Factor"].nunique()) if not cna_catalog.empty else n_fact
-    total_car_catalogo = (
-        int(cna_catalog["Caracteristica"].nunique()) if not cna_catalog.empty else n_car
-    )
-
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Indicadores CNA", total)
-    k2.metric("Factores visibles", n_fact)
-    k3.metric("Características visibles", n_car)
-    k4.metric("Con cumplimiento", con_dato)
-    k5.metric("Promedio cumplimiento", f"{prom:.1f}%")
-
-    st.caption(
-        f"Catálogo CNA: {total_fact_catalogo} factores y {total_car_catalogo} características. "
-        f"Con indicadores CNA=1 en corte: {n_fact} factores y {n_car} características."
-    )
-
-    factor_palette = (
-        px.colors.qualitative.Set3 + px.colors.qualitative.Pastel + px.colors.qualitative.Bold
-    )
-    factor_list = sorted(df["Factor"].dropna().astype(str).unique().tolist())
-    factor_color_map = {
-        f: factor_palette[i % len(factor_palette)] for i, f in enumerate(factor_list)
-    }
-
-    r1c1, r1c2 = st.columns([1, 1])
-    with r1c1:
-        by_factor = (
-            df.groupby("Factor", dropna=False)["cumplimiento_pct"]
-            .mean()
-            .fillna(0)
-            .reset_index()
-            .sort_values("cumplimiento_pct", ascending=True)
-        )
-        fig_factor = px.bar(
-            by_factor,
-            x="cumplimiento_pct",
-            y="Factor",
-            orientation="h",
-            title="Cumplimiento promedio por factor",
-            labels={"cumplimiento_pct": "Cumplimiento (%)", "Factor": "Factor"},
-            color="Factor",
-            color_discrete_map=factor_color_map,
-        )
-        fig_factor.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
-        try:
-            from components.renderers import render_echarts
-
-            def _option_factor_bar(df_by_factor, color_map):
-                labels = df_by_factor["Factor"].astype(str).tolist()
-                vals = [float(v) for v in df_by_factor["cumplimiento_pct"].tolist()]
-                data = [
-                    {"value": v, "name": n, "itemStyle": {"color": color_map.get(n, "#888")}}
-                    for n, v in zip(labels, vals)
-                ]
-                option = {
-                    "tooltip": {"trigger": "item"},
-                    "xAxis": {"type": "value"},
-                    "yAxis": {"type": "category", "data": labels[::-1]},
-                    "series": [
-                        {"type": "bar", "data": [d["value"] for d in data[::-1]], "itemStyle": {}}
-                    ],
-                }
-                # attach colors per bar via visualMap workaround (simpler: itemStyle per data in series not supported here),
-                # we instead return data and let render_echarts render basic bars with default colors
-                return {"option": option, "height": 300}
-
-            opt = _option_factor_bar(by_factor, factor_color_map)
-            if opt and opt.get("option"):
-                render_echarts(opt["option"], height=opt.get("height", 300))
+def render_breadcrumb(factor, caracteristica, indicador, subindicador) -> None:
+    items = build_breadcrumb_items(factor, caracteristica, indicador, subindicador)
+    cols = st.columns(len(items))
+    for i, (level_key, label, value) in enumerate(items):
+        with cols[i]:
+            is_last = i == len(items) - 1
+            short_label = _short(label, 24)
+            if is_last:
+                st.markdown(f"**{short_label}**")
             else:
-                st.plotly_chart(fig_factor, use_container_width=True, key="pm_factor_avg")
-        except Exception:
-            st.plotly_chart(fig_factor, use_container_width=True, key="pm_factor_avg")
-
-    with r1c2:
-        niveles = (
-            df["Nivel de cumplimiento"].fillna("Pendiente de reporte").value_counts().reset_index()
-        )
-        niveles.columns = ["Nivel", "Cantidad"]
-        fig_niv = px.pie(
-            niveles,
-            names="Nivel",
-            values="Cantidad",
-            title="Distribución de niveles",
-            color="Nivel",
-            color_discrete_map=NIVEL_COLOR_EXT,
-            hole=0.45,
-        )
-        try:
-            from components.renderers import render_echarts
-
-            def _option_pie_from_counts(df_counts):
-                labels = df_counts["Nivel"].astype(str).tolist()
-                vals = [int(v) for v in df_counts["Cantidad"].tolist()]
-                option = {
-                    "tooltip": {"trigger": "item", "formatter": "{b}: {c} ({d}%)"},
-                    "legend": {"bottom": 0},
-                    "series": [
-                        {
-                            "type": "pie",
-                            "radius": ["40%", "65%"],
-                            "data": [{"name": l, "value": v} for l, v in zip(labels, vals)],
-                        }
-                    ],
-                }
-                return {"option": option, "height": 300}
-
-            opt = _option_pie_from_counts(niveles)
-            if opt and opt.get("option"):
-                render_echarts(opt["option"], height=opt.get("height", 300))
-            else:
-                st.plotly_chart(fig_niv, use_container_width=True, key="pm_niveles_pie")
-        except Exception:
-            st.plotly_chart(fig_niv, use_container_width=True, key="pm_niveles_pie")
-
-    st.markdown("### Gráficas adicionales")
-    r2c1, r2c2 = st.columns([1, 1])
-    with r2c1:
-        df_stack = (
-            df.groupby(["Factor", "Nivel de cumplimiento"], dropna=False)
-            .size()
-            .reset_index(name="Cantidad")
-        )
-        fig_stack = px.bar(
-            df_stack,
-            x="Factor",
-            y="Cantidad",
-            color="Nivel de cumplimiento",
-            title="Indicadores por factor y nivel",
-            barmode="stack",
-            color_discrete_map=NIVEL_COLOR_EXT,
-        )
-        try:
-            from components.renderers import render_echarts
-
-            def _option_stack(df_stack):
-                factors = sorted(df_stack["Factor"].astype(str).unique().tolist())
-                niveles = sorted(df_stack["Nivel de cumplimiento"].astype(str).unique().tolist())
-                series = []
-                for niv in niveles:
-                    vals = []
-                    for f in factors:
-                        row = df_stack[
-                            (df_stack["Factor"] == f) & (df_stack["Nivel de cumplimiento"] == niv)
-                        ]
-                        vals.append(int(row["Cantidad"].sum()) if not row.empty else 0)
-                    series.append({"name": niv, "type": "bar", "stack": "total", "data": vals})
-                option = {
-                    "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
-                    "legend": {"bottom": 0},
-                    "xAxis": {"type": "category", "data": factors},
-                    "yAxis": {"type": "value"},
-                    "series": series,
-                }
-                return {"option": option, "height": 360}
-
-            opt = _option_stack(df_stack)
-            if opt and opt.get("option"):
-                render_echarts(opt["option"], height=opt.get("height", 360))
-            else:
-                st.plotly_chart(fig_stack, use_container_width=True, key="pm_factor_nivel_stack")
-        except Exception:
-            st.plotly_chart(fig_stack, use_container_width=True, key="pm_factor_nivel_stack")
-
-    with r2c2:
-        df_tree = df[["Factor", "Caracteristica"]].copy()
-        df_tree["Factor"] = df_tree["Factor"].astype(str).str.strip()
-        df_tree["Caracteristica"] = df_tree["Caracteristica"].astype(str).str.strip()
-        df_tree = df_tree[
-            df_tree["Factor"].ne("")
-            & df_tree["Caracteristica"].ne("")
-            & ~df_tree["Factor"].isna()
-            & ~df_tree["Caracteristica"].isna()
-        ]
-        df_tree = (
-            df_tree.groupby(["Factor", "Caracteristica"], as_index=False)
-            .size()
-            .rename(columns={"size": "Cantidad"})
-        )
-
-        if df_tree.empty:
-            st.info("No hay datos válidos para el treemap de factor/característica.")
-        else:
-            try:
-                from components.renderers import render_echarts
-
-                # construir estructura anidada para ECharts treemap
-                tree_data = []
-                for f, grp in df_tree.groupby("Factor"):
-                    children = []
-                    for _, r in grp.iterrows():
-                        children.append(
-                            {
-                                "name": r["Caracteristica"],
-                                "value": int(r["Cantidad"]),
-                                "itemStyle": {"color": factor_color_map.get(f)},
-                            }
-                        )
-                    tree_data.append({"name": f, "children": children})
-                option = {"series": [{"type": "treemap", "data": tree_data}]}
-                render_echarts(option, height=360)
-            except Exception:
-                fig_tree = px.treemap(
-                    df_tree,
-                    path=["Factor", "Caracteristica"],
-                    values="Cantidad",
-                    title="Mapa de indicadores por factor y característica",
-                    color="Factor",
-                    color_discrete_map=factor_color_map,
+                st.button(
+                    short_label,
+                    key=f"pm_bc_{i}_{level_key}_{label}",
+                    on_click=_go,
+                    args=(level_key, value),
+                    use_container_width=True,
                 )
-                fig_tree.update_layout(margin=dict(l=10, r=10, t=50, b=10))
-                st.plotly_chart(fig_tree, use_container_width=True, key="pm_factor_car_tree")
 
-    st.markdown("### Indicadores CNA")
-    _cols_cna = [
-        "Id",
-        "Indicador",
-        "Factor",
-        "Caracteristica",
-        "cumplimiento_pct",
-        "Nivel de cumplimiento",
-    ]
-    if "Meta" in df.columns:
-        _cols_cna.append("Meta")
-    if "Ejecucion" in df.columns:
-        _cols_cna.append("Ejecucion")
-    if "Sentido" in df.columns:
-        _cols_cna.append("Sentido")
-    for extra_col in [
-        "Meta_Signo",
-        "Meta s",
-        "MetaS",
-        "Decimales_Meta",
-        "Decimales",
-        "DecMeta",
-        "Ejecucion_Signo",
-        "Ejecución s",
-        "Ejecucion s",
-        "Ejecucion_s",
-        "EjecS",
-        "Decimales_Ejecucion",
-        "DecimalesEje",
-        "DecEjec",
-    ]:
-        if extra_col in df.columns:
-            _cols_cna.append(extra_col)
-    _cols_cna += ["Anio", "Mes", "Fecha"]
-    tabla = df[[c for c in _cols_cna if c in df.columns]].copy()
-    tabla = tabla.rename(
-        columns={
-            "cumplimiento_pct": "Cumplimiento (%)",
-            "Nivel de cumplimiento": "Nivel",
-            "Anio": "Año cierre",
-            "Mes": "Mes cierre",
-            "Caracteristica": "Característica",
-            "Meta": "Meta",
-            "Ejecucion": "Ejecución",
-        }
+
+def _period_range_filter(df: pd.DataFrame) -> pd.DataFrame:
+    periodo_order = (
+        df[["Periodo", "Periodo_anio", "Periodo_sem"]]
+        .drop_duplicates()
+        .sort_values(["Periodo_anio", "Periodo_sem"])["Periodo"]
+        .tolist()
     )
-    tabla["Cumplimiento (%)"] = pd.to_numeric(tabla["Cumplimiento (%)"], errors="coerce").round(1)
-    tabla = formatear_meta_ejecucion_df(tabla, meta_col="Meta", ejec_col="Ejecución")
-    _NIVEL_ICONS_CNA = {
-        "Peligro": "🔴",
-        "Alerta": "🟡",
-        "Cumplimiento": "🟢",
-        "Sobrecumplimiento": "🔵",
-        "No aplica": "⚫",
-        "Pendiente de reporte": "⚪",
-    }
-    if "Nivel" in tabla.columns:
-        tabla["Nivel"] = tabla["Nivel"].apply(
-            lambda n: f'{_NIVEL_ICONS_CNA.get(str(n), "")} {n}' if pd.notna(n) else n
+    if len(periodo_order) < 2:
+        return df
+
+    desde, hasta = st.select_slider(
+        "Rango de periodos",
+        options=periodo_order,
+        value=(periodo_order[0], periodo_order[-1]),
+        key="pm_periodo_range",
+    )
+    i0, i1 = periodo_order.index(desde), periodo_order.index(hasta)
+    seleccionados = set(periodo_order[i0 : i1 + 1])
+    return df[df["Periodo"].isin(seleccionados)]
+
+
+def _render_alerts(trend_ind: pd.DataFrame) -> None:
+    alerts = build_alerts(trend_ind)
+    danger = [a for a in alerts if a["level"] == "danger"]
+    if danger:
+        render_alert_strip(
+            f"{len(danger)} indicador(es) muestran comportamiento desfavorable en el último periodo reportado.",
+            level="danger",
         )
-    _sort_cols = [c for c in ["Factor", "Característica", "Id"] if c in tabla.columns]
-    tabla = tabla.sort_values(_sort_cols, na_position="last")
-    _cfg_cna = {
-        "Id": st.column_config.TextColumn("ID", width="small"),
-        "Indicador": st.column_config.TextColumn("Indicador", width="large"),
-        "Factor": st.column_config.TextColumn("Factor", width="medium"),
-        "Característica": st.column_config.TextColumn("Característica", width="medium"),
-        "Nivel": st.column_config.TextColumn("Nivel", width="medium"),
-        "Cumplimiento (%)": st.column_config.NumberColumn(
-            "Cumplimiento %", format="%.1f", width="small"
-        ),
-        "Meta": st.column_config.TextColumn("Meta", width="small"),
-        "Ejecución": st.column_config.TextColumn("Ejecución", width="small"),
-        "Sentido": st.column_config.TextColumn("Sentido", width="small"),
-        "Año cierre": st.column_config.NumberColumn("Año", format="%d", width="small"),
-        "Mes cierre": st.column_config.NumberColumn("Mes", format="%d", width="small"),
-        "Fecha": st.column_config.DatetimeColumn("Fecha", width="small"),
-    }
-    st.dataframe(
-        tabla,
+
+
+def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
+    factores = get_factor_options()
+    trend_ind = compute_trend_table(periodo_filtered, level="indicador")
+    agg_factor = aggregate_trend_by(trend_ind, "Factor")
+
+    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
+    total_ind = trend_ind["Indicador"].nunique() if not trend_ind.empty else 0
+    pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
+    pct_desfav = (con_dato["Tendencia"] == "desfavorable").mean() * 100 if not con_dato.empty else 0.0
+    mejor = agg_factor.iloc[0]["Factor"] if not agg_factor.empty else "—"
+    peor = agg_factor.iloc[-1]["Factor"] if not agg_factor.empty else "—"
+
+    kpi_cols = st.columns(4)
+    with kpi_cols[0]:
+        kpi_card("Indicadores con dato", total_ind, show_progress=False)
+    with kpi_cols[1]:
+        kpi_card("% Favorable global", f"{pct_fav:.0f}%", show_progress=False)
+    with kpi_cols[2]:
+        kpi_card("% Desfavorable global", f"{pct_desfav:.0f}%", show_progress=False)
+    with kpi_cols[3]:
+        kpi_card("Mejor / peor factor", _short(mejor, 22), delta=_short(peor, 22), show_progress=False)
+
+    _render_alerts(trend_ind)
+
+    st.subheader("Ranking de Factores")
+    st.plotly_chart(chart_trend_ranking(agg_factor, "Factor"), use_container_width=True)
+
+    st.caption("Selecciona un factor para explorar sus características")
+    n_cols = 6
+    for i in range(0, len(factores), n_cols):
+        fila = factores[i : i + n_cols]
+        cols = st.columns(len(fila))
+        for col, f in zip(cols, fila):
+            with col:
+                st.image(str(factor_icon_path(f["num"])), use_container_width=True)
+                st.button(
+                    f"Factor {f['num']}",
+                    key=f"pm_factor_btn_{f['num']}",
+                    on_click=_go,
+                    args=("pm_drill_factor", f["label"]),
+                    use_container_width=True,
+                    help=f["nombre"],
+                )
+
+    evo = compute_evolucion_agregada(periodo_filtered)
+    st.plotly_chart(
+        chart_evolucion_agregada(evo, "Evolución global — % indicadores con tendencia favorable"),
         use_container_width=True,
-        hide_index=True,
-        column_config={k: v for k, v in _cfg_cna.items() if k in tabla.columns},
     )
 
-    # ── Acciones de mejora vinculadas a indicadores CNA ───────────────────
-    st.markdown("---")
-    st.markdown("### 📋 Acciones de Mejora asociadas")
-    st.caption(
-        "Acciones registradas en acciones_mejora.xlsx cuyo ID coincide con indicadores CNA visibles."
-    )
+    with st.expander("Ver mapa jerárquico completo"):
+        _render_sunburst(trend_ind)
 
-    df_acc = cargar_acciones_mejora()
-    if df_acc.empty:
-        st.info("No hay datos de acciones de mejora disponibles.")
+
+def _render_sunburst(trend_ind: pd.DataFrame) -> None:
+    if trend_ind.empty:
+        st.info("Sin datos suficientes para el mapa jerárquico.")
+        return
+    trend_score = {"favorable": 1, "estable": 0, "desfavorable": -1}
+    df_plot = trend_ind.copy()
+    df_plot["trend_score"] = df_plot["Tendencia"].map(trend_score)
+    df_plot = df_plot.dropna(subset=["trend_score", "Factor", "Caracteristica", "Indicador"])
+    if df_plot.empty:
+        st.info("Sin datos suficientes para el mapa jerárquico.")
+        return
+    fig = chart_sunburst_jerarquia(df_plot, title="Factor → Característica → Indicador")
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def section_factor(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str) -> None:
+    df_factor = periodo_filtered[periodo_filtered["Factor"] == factor]
+    factor_nums = df[df["Factor"] == factor]["Factor_num"].dropna()
+    factor_num = int(factor_nums.iloc[0]) if not factor_nums.empty else None
+
+    header_cols = st.columns([1, 6])
+    with header_cols[0]:
+        if factor_num:
+            st.markdown(factor_icon_html(factor_num, size=64), unsafe_allow_html=True)
+    with header_cols[1]:
+        st.subheader(factor)
+
+    trend_ind = compute_trend_table(df_factor, level="indicador")
+    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
+    pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
+    n_desfav = int((trend_ind["Tendencia"] == "desfavorable").sum()) if not trend_ind.empty else 0
+
+    kpi_cols = st.columns(3)
+    with kpi_cols[0]:
+        kpi_card("Indicadores", trend_ind["Indicador"].nunique() if not trend_ind.empty else 0, show_progress=False)
+    with kpi_cols[1]:
+        kpi_card("% Favorable", f"{pct_fav:.0f}%", show_progress=False)
+    with kpi_cols[2]:
+        kpi_card("Desfavorables", n_desfav, show_progress=False)
+
+    _render_alerts(trend_ind)
+
+    agg_car = aggregate_trend_by(trend_ind, "Caracteristica")
+    st.subheader("Características")
+    st.plotly_chart(chart_trend_ranking(agg_car, "Caracteristica"), use_container_width=True)
+
+    caracteristicas = get_caracteristicas_for_factor(factor)
+    st.caption("Selecciona una característica para ver sus indicadores")
+    n_cols = 3
+    for i in range(0, len(caracteristicas), n_cols):
+        fila = caracteristicas[i : i + n_cols]
+        cols = st.columns(len(fila))
+        for col, car in zip(cols, fila):
+            with col:
+                st.button(
+                    _short(car, 40),
+                    key=f"pm_car_btn_{car}",
+                    on_click=_go,
+                    args=("pm_drill_caracteristica", car),
+                    use_container_width=True,
+                )
+
+    evo = compute_evolucion_agregada(df_factor)
+    st.plotly_chart(chart_evolucion_agregada(evo, f"Evolución — {factor}"), use_container_width=True)
+
+
+def section_caracteristica(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, caracteristica: str) -> None:
+    df_car = periodo_filtered[(periodo_filtered["Factor"] == factor) & (periodo_filtered["Caracteristica"] == caracteristica)]
+    st.subheader(caracteristica)
+
+    trend_ind = compute_trend_table(df_car, level="indicador")
+    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
+    pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
+    n_desfav = int((trend_ind["Tendencia"] == "desfavorable").sum()) if not trend_ind.empty else 0
+
+    kpi_cols = st.columns(3)
+    with kpi_cols[0]:
+        kpi_card("Indicadores", trend_ind["Indicador"].nunique() if not trend_ind.empty else 0, show_progress=False)
+    with kpi_cols[1]:
+        kpi_card("% Favorable", f"{pct_fav:.0f}%", show_progress=False)
+    with kpi_cols[2]:
+        kpi_card("Desfavorables", n_desfav, show_progress=False)
+
+    _render_alerts(trend_ind)
+
+    st.caption("Indicadores")
+    if trend_ind.empty:
+        st.info("Sin indicadores con datos para esta característica en el rango de periodos seleccionado.")
     else:
-        # Intentar encontrar columna de ID de indicador en acciones
-        id_col_acc = None
-        for cand in ("ID_INDICADOR", "Id", "ID", "INDICADOR_ID", "id_indicador"):
-            if cand in df_acc.columns:
-                id_col_acc = cand
-                break
+        n_cols = 2
+        registros = trend_ind.to_dict("records")
+        for i in range(0, len(registros), n_cols):
+            fila = registros[i : i + n_cols]
+            cols = st.columns(len(fila))
+            for col, item in zip(cols, fila):
+                with col:
+                    with st.container(border=True):
+                        st.markdown(f"**{item['Indicador']}**")
+                        st.markdown(trend_badge_html(item["Tendencia"]), unsafe_allow_html=True)
+                        st.caption(
+                            f"Último: {format_ejecucion(item['ultimo_valor'], item['unidad'])} · {item['ultimo_periodo']}"
+                        )
+                        st.button(
+                            "Ver detalle",
+                            key=f"pm_ind_btn_{item['Indicador']}",
+                            on_click=_go,
+                            args=("pm_drill_indicador", item["Indicador"]),
+                            use_container_width=True,
+                        )
 
-        if id_col_acc is None:
-            st.info("No se encontró columna de ID de indicador en acciones_mejora.xlsx.")
-        else:
-            # Normalizar IDs para cruce
-            ids_cna = set(df["Id"].astype(str).str.strip().unique())
-            df_acc_v = df_acc.copy()
-            df_acc_v["_id_norm"] = df_acc_v[id_col_acc].apply(
-                lambda x: (
-                    str(int(float(x))) if str(x).replace(".", "").isdigit() else str(x).strip()
-                )
+    evo = compute_evolucion_agregada(df_car)
+    st.plotly_chart(chart_evolucion_agregada(evo, f"Evolución — {caracteristica}"), use_container_width=True)
+
+
+def section_indicador(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, indicador: str) -> None:
+    df_ind_all = df[(df["Factor"] == factor) & (df["Indicador"] == indicador)]
+    df_ind_filtered = periodo_filtered[(periodo_filtered["Factor"] == factor) & (periodo_filtered["Indicador"] == indicador)]
+
+    st.subheader(indicador)
+    proceso = df_ind_all["Proceso"].dropna().iloc[0] if not df_ind_all["Proceso"].dropna().empty else "—"
+    periodicidad = df_ind_all["Periodicidad"].dropna().iloc[0] if not df_ind_all["Periodicidad"].dropna().empty else "—"
+    st.caption(f"Proceso: {proceso} · Periodicidad: {periodicidad}")
+
+    trend_row = compute_trend_table(df_ind_filtered, level="indicador")
+    if not trend_row.empty:
+        row = trend_row.iloc[0]
+        kpi_cols = st.columns(3)
+        with kpi_cols[0]:
+            kpi_card(
+                "Último valor",
+                format_ejecucion(row["ultimo_valor"], row["unidad"]),
+                delta=format_delta(row["delta_abs"], row["unidad"]),
+                show_progress=False,
             )
-            df_acc_cna = df_acc_v[df_acc_v["_id_norm"].isin(ids_cna)].copy()
+        with kpi_cols[1]:
+            st.markdown("**Tendencia**")
+            st.markdown(trend_badge_html(row["Tendencia"]), unsafe_allow_html=True)
+            st.caption(f"Sentido: {row['Sentido'] or '—'}")
+        with kpi_cols[2]:
+            kpi_card("Periodos con dato", int(row["n_periodos"]), show_progress=False)
+    else:
+        st.info("Sin datos para este indicador en el rango de periodos seleccionado.")
 
-            if df_acc_cna.empty:
-                st.info(
-                    "No se encontraron acciones vinculadas a los indicadores CNA del corte actual."
-                )
-            else:
-                # KPIs
-                total_acc = len(df_acc_cna)
-                estado_col = "ESTADO" if "ESTADO" in df_acc_cna.columns else None
-                cerradas = int((df_acc_cna[estado_col] == "Cerrada").sum()) if estado_col else 0
-                abiertas = total_acc - cerradas
-                avance_ser = pd.to_numeric(
-                    df_acc_cna.get("AVANCE", pd.Series(dtype=float)), errors="coerce"
-                ).dropna()
-                avance_prom = float(avance_ser.mean()) if not avance_ser.empty else None
-                vencidas = (
-                    int((df_acc_cna.get("Estado_Tiempo", "") == "Vencida").sum())
-                    if "Estado_Tiempo" in df_acc_cna.columns
-                    else None
-                )
+    sentido = df_ind_all["Sentido"].dropna().iloc[0] if not df_ind_all["Sentido"].dropna().empty else ""
+    serie = build_indicador_series(df_ind_filtered, ["Indicador"])
+    st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución", sentido), use_container_width=True)
 
-                ak1, ak2, ak3, ak4 = st.columns(4)
-                ak1.metric("Total acciones", total_acc)
-                ak2.metric("Cerradas", cerradas)
-                ak3.metric("Abiertas", abiertas)
-                ak4.metric(
-                    "Avance promedio", f"{avance_prom:.1f}%" if avance_prom is not None else "—"
-                )
+    subindicadores = sorted(
+        s
+        for s in df_ind_all["Subindicador"].dropna().unique().tolist()
+        if s and s.strip().lower() not in ("nan", "none", "")
+    )
+    if subindicadores:
+        st.caption("Subindicadores asociados")
+        n_cols = 2
+        for i in range(0, len(subindicadores), n_cols):
+            fila = subindicadores[i : i + n_cols]
+            cols = st.columns(len(fila))
+            for col, sub in zip(cols, fila):
+                with col:
+                    with st.container(border=True):
+                        st.markdown(f"**{sub}**")
+                        st.button(
+                            "Ver detalle",
+                            key=f"pm_sub_btn_{sub}",
+                            on_click=_go,
+                            args=("pm_drill_subindicador", sub),
+                            use_container_width=True,
+                        )
+    else:
+        st.caption("Este indicador no tiene subindicadores asociados.")
 
-                if vencidas is not None:
-                    st.caption(f"Acciones vencidas: **{vencidas}**")
 
-                # Gráfica avance por estado
-                if estado_col and "AVANCE" in df_acc_cna.columns:
-                    _acc_g = df_acc_cna.groupby(estado_col)["AVANCE"].mean().reset_index()
-                    _acc_g.columns = ["Estado", "Avance promedio (%)"]
-                    _acc_g["Avance promedio (%)"] = _acc_g["Avance promedio (%)"].round(1)
-                    fig_acc = px.bar(
-                        _acc_g,
-                        x="Estado",
-                        y="Avance promedio (%)",
-                        title="Avance promedio por estado de acción",
-                        color="Estado",
-                        text_auto=True,
-                    )
-                    try:
-                        from components.renderers import render_echarts
+def section_subindicador(
+    df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, indicador: str, subindicador: str
+) -> None:
+    df_sub_all = df[(df["Factor"] == factor) & (df["Indicador"] == indicador) & (df["Subindicador"] == subindicador)]
+    df_sub_filtered = periodo_filtered[
+        (periodo_filtered["Factor"] == factor)
+        & (periodo_filtered["Indicador"] == indicador)
+        & (periodo_filtered["Subindicador"] == subindicador)
+    ]
 
-                        labels = _acc_g["Estado"].astype(str).tolist()
-                        vals = [float(v) for v in _acc_g["Avance promedio (%)"].tolist()]
-                        option = {
-                            "tooltip": {"trigger": "axis"},
-                            "xAxis": {"type": "category", "data": labels},
-                            "yAxis": {"type": "value"},
-                            "series": [{"type": "bar", "data": vals, "label": {"show": True}}],
-                        }
-                        render_echarts(option, height=300)
-                    except Exception:
-                        fig_acc.update_layout(margin=dict(l=10, r=10, t=50, b=10), showlegend=False)
-                        st.plotly_chart(fig_acc, use_container_width=True, key="pm_acc_avance")
+    st.subheader(subindicador)
+    st.caption(f"Indicador: {indicador}")
 
-                # Tabla de acciones
-                _show_cols = [
-                    c
-                    for c in [
-                        "_id_norm",
-                        "ACCION",
-                        "ESTADO",
-                        "Estado_Tiempo",
-                        "AVANCE",
-                        "FECHA_ESTIMADA_CIERRE",
-                        "RESPONSABLE",
-                    ]
-                    if c in df_acc_cna.columns
-                ]
-                _rename = {
-                    "_id_norm": "Id indicador",
-                    "ACCION": "Acción",
-                    "ESTADO": "Estado",
-                    "Estado_Tiempo": "Estado tiempo",
-                    "AVANCE": "Avance (%)",
-                    "FECHA_ESTIMADA_CIERRE": "Fecha compromiso",
-                    "RESPONSABLE": "Responsable",
-                }
-                if _show_cols:
-                    tbl_acc = df_acc_cna[_show_cols].rename(columns=_rename).copy()
-                    if "Avance (%)" in tbl_acc.columns:
-                        tbl_acc["Avance (%)"] = pd.to_numeric(
-                            tbl_acc["Avance (%)"], errors="coerce"
-                        ).round(1)
-                    st.dataframe(tbl_acc, use_container_width=True, hide_index=True, height=320)
+    trend_row = compute_trend_table(df_sub_filtered, level="subindicador")
+    if not trend_row.empty:
+        row = trend_row.iloc[0]
+        kpi_cols = st.columns(3)
+        with kpi_cols[0]:
+            kpi_card(
+                "Último valor",
+                format_ejecucion(row["ultimo_valor"], row["unidad"]),
+                delta=format_delta(row["delta_abs"], row["unidad"]),
+                show_progress=False,
+            )
+        with kpi_cols[1]:
+            st.markdown("**Tendencia**")
+            st.markdown(trend_badge_html(row["Tendencia"]), unsafe_allow_html=True)
+            st.caption(f"Sentido: {row['Sentido'] or '—'}")
+        with kpi_cols[2]:
+            kpi_card("Periodos con dato", int(row["n_periodos"]), show_progress=False)
+    else:
+        st.info("Sin datos para este subindicador en el rango de periodos seleccionado.")
+
+    sentido = df_sub_all["Sentido"].dropna().iloc[0] if not df_sub_all["Sentido"].dropna().empty else ""
+    serie = build_indicador_series(df_sub_filtered, ["Indicador", "Subindicador"])
+    st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución", sentido), use_container_width=True)
+
+
+def render() -> None:
+    st.title("Plan de Mejoramiento")
+    st.caption("Ejecución por Periodo de los indicadores asociados a los factores de acreditación CNA.")
+
+    _init_state()
+
+    df = load_metricas_raw()
+    if df.empty:
+        st.warning(
+            "No se encontraron datos del Plan de Mejoramiento. Verifica que "
+            "'data/raw/Plan de mejoramiento/Resultados_Consolidados_CNA_actualizado.xlsx' exista."
+        )
+        return
+
+    periodo_filtered = _period_range_filter(df)
+
+    level, factor, caracteristica, indicador, subindicador = _current_level()
+    if level != "resumen":
+        render_breadcrumb(factor, caracteristica, indicador, subindicador)
+
+    if level == "resumen":
+        section_resumen(df, periodo_filtered)
+    elif level == "factor":
+        section_factor(df, periodo_filtered, factor)
+    elif level == "caracteristica":
+        section_caracteristica(df, periodo_filtered, factor, caracteristica)
+    elif level == "indicador":
+        section_indicador(df, periodo_filtered, factor, indicador)
+    elif level == "subindicador":
+        section_subindicador(df, periodo_filtered, factor, indicador, subindicador)
