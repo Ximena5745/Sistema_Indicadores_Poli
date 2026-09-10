@@ -45,6 +45,25 @@ def format_delta(delta_abs: float | None, unidad: str | None) -> str | None:
     return f"{sign}{format_ejecucion(delta_abs, unidad)}"
 
 
+def trend_legend_html() -> str:
+    """Leyenda horizontal compacta favorable/estable/desfavorable/sin dato.
+
+    Usada bajo los heatmaps Factor×Periodo (que no llevan colorbar continua,
+    ver `chart_heatmap_periodo`) para que sus 4 colores sólidos sigan siendo
+    legibles sin necesidad de pasar el mouse por cada celda.
+    """
+    chips = []
+    for key in ("favorable", "estable", "desfavorable", "sin_datos"):
+        color = TREND_COLORS[key]
+        chips.append(
+            f'<span style="display:inline-flex;align-items:center;gap:5px;margin-right:16px;'
+            f'font-size:0.78rem;color:#455A64;">'
+            f'<span style="width:11px;height:11px;border-radius:3px;background:{color};"></span>'
+            f"{TREND_LABELS[key]}</span>"
+        )
+    return f'<div style="margin-top:2px;">{"".join(chips)}</div>'
+
+
 def trend_badge_html(tendencia: str) -> str:
     """Chip de color (no emoji) para el estado de tendencia."""
     color = TREND_COLORS.get(tendencia, TREND_COLORS["sin_datos"])

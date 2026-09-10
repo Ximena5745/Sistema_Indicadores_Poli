@@ -38,6 +38,7 @@ from streamlit_app.pages.plan_mejoramiento_utils import (
     format_delta,
     format_ejecucion,
     trend_badge_html,
+    trend_legend_html,
 )
 from streamlit_app.utils.cna_icons import factor_icon_html, factor_style
 
@@ -181,16 +182,19 @@ def _render_alerts(trend_ind: pd.DataFrame) -> None:
         )
 
 
-def _narrative_insight(pct_fav: float, pct_desfav: float, mejor: str, peor: str, n_alertas: int) -> str:
+def _narrative_insight(pct_fav: float, pct_desfav: float, n_factores_alerta: int, n_alertas: int) -> str:
+    """Nunca declara un factor "mejor" o "peor": los 12 factores agrupan
+    métricas de naturaleza distinta (unidades, escalas, significado) y no
+    son comparables entre sí como un ranking único — solo se resume el
+    panorama agregado y cuántos factores concentran comportamiento
+    desfavorable, sin ordenarlos unos contra otros."""
     tono = "favorable" if pct_fav >= pct_desfav else "de atención"
     texto = (
         f"El Plan de Mejoramiento muestra un panorama <b>{tono}</b>: "
-        f"<b>{pct_fav:.0f}%</b> de los indicadores con dato avanzan en la dirección esperada. "
-        f"<b>{_short(mejor, 45)}</b> lidera el desempeño"
+        f"<b>{pct_fav:.0f}%</b> de los indicadores con dato avanzan en la dirección esperada."
     )
-    if peor and peor != mejor:
-        texto += f", mientras <b>{_short(peor, 45)}</b> concentra las mayores oportunidades de mejora"
-    texto += "."
+    if n_factores_alerta:
+        texto += f" <b>{n_factores_alerta}</b> de los 12 factores concentran más indicadores desfavorables que favorables."
     if n_alertas:
         texto += f" Hay <b>{n_alertas}</b> indicador(es) que requieren atención prioritaria."
     return texto
@@ -268,8 +272,9 @@ def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
     con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
     pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
     pct_desfav = (con_dato["Tendencia"] == "desfavorable").mean() * 100 if not con_dato.empty else 0.0
-    mejor = agg_factor.iloc[0]["Factor"] if not agg_factor.empty else "—"
-    peor = agg_factor.iloc[-1]["Factor"] if not agg_factor.empty else "—"
+    n_factores_alerta = (
+        int((agg_factor["n_desfavorable"] > agg_factor["n_favorable"]).sum()) if not agg_factor.empty else 0
+    )
     alerts = build_alerts(trend_ind)
     n_danger = len([a for a in alerts if a["level"] == "danger"])
 
@@ -279,7 +284,8 @@ def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
         st.markdown(
             f"<div style='background:linear-gradient(135deg,#EFF6FF 0%,#F8FAFF 100%);"
             f"border:1px solid #DCE8FA;border-radius:14px;padding:20px 22px;height:100%;"
-            f"font-size:1.05rem;line-height:1.55;color:#1A2B3C;'>{_narrative_insight(pct_fav, pct_desfav, mejor, peor, n_danger)}</div>",
+            f"font-size:1.05rem;line-height:1.55;color:#1A2B3C;'>"
+            f"{_narrative_insight(pct_fav, pct_desfav, n_factores_alerta, n_danger)}</div>",
             unsafe_allow_html=True,
         )
     with hero_cols[1]:
@@ -301,13 +307,19 @@ def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
     _render_factor_pill_grid(factores, agg_factor)
 
     # ── Heatmap Factor × Periodo — dónde y cuándo mejoró/estancó cada uno ──
+    # Orden fijo 1→12 (el mismo del grid de arriba), NUNCA por desempeño: los
+    # 12 factores agrupan métricas de naturaleza distinta (unidades, escalas,
+    # significado) y no son comparables entre sí como un ranking único — el
+    # color de cada celda sigue mostrando el estado propio de ese factor.
     st.subheader("Evolución por Factor y Periodo")
-    st.caption("Cada celda es el % de indicadores favorables de ese factor en ese periodo — permite ver patrones temporales de un vistazo.")
+    st.caption("Cada celda resume el comportamiento de ese factor en ese periodo — orden 1 a 12, sin implicar ranking entre factores.")
     evo_factor = compute_evolucion_por_segmento(periodo_filtered, "Factor")
-    st.plotly_chart(chart_heatmap_periodo(evo_factor, "Factor"), use_container_width=True)
+    orden_factores = [f["label"] for f in factores]
+    st.plotly_chart(chart_heatmap_periodo(evo_factor, "Factor", row_order=orden_factores), use_container_width=True)
+    st.markdown(trend_legend_html(), unsafe_allow_html=True)
 
-    with st.expander("Ver ranking detallado en barras"):
-        st.plotly_chart(chart_trend_ranking(agg_factor, "Factor"), use_container_width=True)
+    with st.expander("Ver detalle en barras por Factor"):
+        st.plotly_chart(chart_trend_ranking(agg_factor, "Factor", category_order=orden_factores), use_container_width=True)
 
     with st.expander("Ver mapa jerárquico completo"):
         _render_sunburst(trend_ind)
@@ -382,11 +394,16 @@ def section_factor(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str
 
     _render_alerts(trend_ind)
 
+    # Orden fijo (el de la hoja Factor-Característica), nunca por desempeño:
+    # las características agrupan métricas distintas y no son comparables
+    # entre sí como un ranking único.
+    caracteristicas = get_caracteristicas_for_factor(factor)
     agg_car = aggregate_trend_by(trend_ind, "Caracteristica")
     st.subheader("Características")
-    st.plotly_chart(chart_trend_ranking(agg_car, "Caracteristica"), use_container_width=True)
+    st.plotly_chart(
+        chart_trend_ranking(agg_car, "Caracteristica", category_order=caracteristicas), use_container_width=True
+    )
 
-    caracteristicas = get_caracteristicas_for_factor(factor)
     st.caption("Selecciona una característica para ver sus indicadores")
     n_cols = 3
     for i in range(0, len(caracteristicas), n_cols):
@@ -404,7 +421,8 @@ def section_factor(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str
 
     st.subheader("Evolución por Característica y Periodo")
     evo_car = compute_evolucion_por_segmento(df_factor, "Caracteristica")
-    st.plotly_chart(chart_heatmap_periodo(evo_car, "Caracteristica"), use_container_width=True)
+    st.plotly_chart(chart_heatmap_periodo(evo_car, "Caracteristica", row_order=caracteristicas), use_container_width=True)
+    st.markdown(trend_legend_html(), unsafe_allow_html=True)
 
 
 def section_caracteristica(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, caracteristica: str) -> None:

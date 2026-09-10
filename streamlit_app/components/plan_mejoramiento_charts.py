@@ -31,13 +31,25 @@ TREND_LABELS = {
 }
 
 
-def chart_trend_ranking(df_agg: pd.DataFrame, category_col: str, title: str = "") -> go.Figure:
+def chart_trend_ranking(
+    df_agg: pd.DataFrame,
+    category_col: str,
+    title: str = "",
+    category_order: list[str] | None = None,
+) -> go.Figure:
     """Barra horizontal 100%-apilada (favorable/estable/desfavorable/sin dato).
 
     Cada barra suma siempre 100%, así las categorías son comparables sin
     importar cuántos indicadores tenga cada una (una con 2 indicadores no
     queda invisible frente a una con 25). El conteo real va en el hover y
     como texto dentro del segmento favorable.
+
+    Deliberadamente NO es un ranking por desempeño: los Factores/
+    Características agrupan métricas de naturaleza distinta (unidades,
+    escalas, significado), así que ordenarlos por "% favorable" sugeriría
+    una comparación que los datos no respaldan. `category_order` fija el
+    orden canónico (p.ej. Factor 1→12); si no se provee, se usa el orden de
+    aparición en `df_agg`.
 
     `df_agg`: salida de `aggregate_trend_by` (columnas n_favorable,
     n_estable, n_desfavorable, n_sin_datos, n_total).
@@ -48,7 +60,15 @@ def chart_trend_ranking(df_agg: pd.DataFrame, category_col: str, title: str = ""
         fig.update_layout(title="Sin datos disponibles")
         return fig
 
-    df_plot = df_agg.sort_values("pct_favorable", ascending=True).copy()
+    df_plot = df_agg.copy()
+    if category_order:
+        orden = [c for c in category_order if c in df_plot[category_col].values]
+        orden += [c for c in df_plot[category_col] if c not in orden]
+        df_plot[category_col] = pd.Categorical(df_plot[category_col], categories=orden, ordered=True)
+        df_plot = df_plot.sort_values(category_col)
+    # Plotly dibuja el primer elemento del arreglo ABAJO; se invierte para
+    # que el primero del orden solicitado quede arriba, como una lista.
+    df_plot = df_plot.iloc[::-1]
     categorias = df_plot[category_col].astype(str).tolist()
     total_seguro = df_plot["n_total"].replace(0, 1)
 
@@ -200,22 +220,51 @@ def chart_trend_detail(df_serie: pd.DataFrame, titulo: str, sentido: str) -> go.
     return fig
 
 
-def chart_heatmap_periodo(df_seg: pd.DataFrame, segment_col: str, title: str = "") -> go.Figure:
+def _bucket_pct(pct: float | None) -> int:
+    """Mismos umbrales que las píldoras de Factor: 0=sin dato, 1=desfavorable, 2=estable, 3=favorable."""
+    if pct is None or pd.isna(pct):
+        return 0
+    if pct < 35:
+        return 1
+    if pct < 60:
+        return 2
+    return 3
+
+
+_BUCKET_KEY = {0: "sin_datos", 1: "desfavorable", 2: "estable", 3: "favorable"}
+# Colorscale en 4 bandas SÓLIDAS (sin degradado) — mismo semáforo que el
+# resto de la página: rojo/azul/verde, nunca un tono intermedio confuso.
+_BUCKET_COLORSCALE = [
+    [0.00, TREND_COLORS["sin_datos"]], [0.25, TREND_COLORS["sin_datos"]],
+    [0.25, TREND_COLORS["desfavorable"]], [0.50, TREND_COLORS["desfavorable"]],
+    [0.50, TREND_COLORS["estable"]], [0.75, TREND_COLORS["estable"]],
+    [0.75, TREND_COLORS["favorable"]], [1.00, TREND_COLORS["favorable"]],
+]
+
+
+def chart_heatmap_periodo(
+    df_seg: pd.DataFrame,
+    segment_col: str,
+    title: str = "",
+    row_order: list[str] | None = None,
+) -> go.Figure:
     """Heatmap segmento × periodo — dónde y cuándo mejoró o se estancó cada uno.
 
-    Reemplaza una línea agregada única por una matriz: cada fila es un
-    Factor/Característica, cada columna un Periodo, el color el % de
-    indicadores favorables en ese corte — permite leer patrones temporales
-    por categoría en un solo vistazo, en vez de 12 gráficos de línea.
+    Cada celda se clasifica en las MISMAS 4 categorías (y colores sólidos)
+    que el resto de la página — favorable/estable/desfavorable/sin dato —
+    en vez de un degradado continuo, que con muestras pequeñas por celda
+    genera tonos intermedios confusos y no dice nada de un vistazo.
+
+    `row_order`: orden de filas de arriba hacia abajo (p.ej. el mismo orden
+    del ranking de Factores) — mantiene consistencia visual con el resto de
+    la página en vez de un orden propio que contradiga lo ya mostrado.
     """
     if df_seg is None or df_seg.empty:
         fig = go.Figure()
         fig.update_layout(title="Sin datos suficientes para el heatmap")
         return fig
 
-    pivot = df_seg.pivot_table(
-        index=segment_col, columns="Periodo", values="pct_favorable", aggfunc="mean"
-    )
+    pivot = df_seg.pivot_table(index=segment_col, columns="Periodo", values="pct_favorable", aggfunc="mean")
     orden_periodo = (
         df_seg[["Periodo", "Periodo_anio", "Periodo_sem"]]
         .drop_duplicates()
@@ -224,30 +273,38 @@ def chart_heatmap_periodo(df_seg: pd.DataFrame, segment_col: str, title: str = "
     )
     pivot = pivot.reindex(columns=orden_periodo)
 
-    orden_filas = pivot.mean(axis=1, skipna=True).sort_values(ascending=True).index
-    pivot = pivot.loc[orden_filas]
+    if row_order:
+        orden_filas = [r for r in row_order if r in pivot.index] + [r for r in pivot.index if r not in row_order]
+    else:
+        orden_filas = sorted(pivot.index.tolist())
+    # Plotly dibuja la primera fila del arreglo ABAJO; se invierte para que
+    # el orden solicitado (mejor primero) quede arriba, como una lista.
+    pivot = pivot.loc[list(reversed(orden_filas))]
+
+    z = pivot.map(_bucket_pct)
 
     fig = go.Figure(
         go.Heatmap(
-            z=pivot.values,
+            z=z.values,
             x=pivot.columns,
             y=[str(i) for i in pivot.index],
-            colorscale=[
-                [0, TREND_COLORS["desfavorable"]],
-                [0.5, TREND_COLORS["estable"]],
-                [1, TREND_COLORS["favorable"]],
-            ],
+            customdata=pivot.values,
+            colorscale=_BUCKET_COLORSCALE,
             zmin=0,
-            zmax=100,
-            colorbar=dict(title="% favorable", ticksuffix="%"),
-            hovertemplate="<b>%{y}</b><br>%{x}: %{z:.0f}% favorable<extra></extra>",
+            zmax=3,
+            showscale=False,
+            xgap=3,
+            ygap=3,
+            hovertemplate=(
+                "<b>%{y}</b><br>%{x}: %{customdata:.0f}% favorable<extra></extra>"
+            ),
             hoverongaps=False,
         )
     )
     fig.update_layout(
         title=title,
         margin=dict(l=10, r=10, t=50 if title else 10, b=10),
-        height=max(240, 32 * len(pivot.index) + 100),
+        height=max(240, 34 * len(pivot.index) + 100),
         xaxis=dict(type="category", side="bottom"),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
