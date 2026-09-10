@@ -23,6 +23,7 @@ from services.plan_mejoramiento_loader import (
     load_metricas_raw,
 )
 from streamlit_app.components.plan_mejoramiento_charts import (
+    TREND_COLORS,
     chart_evolucion_agregada,
     chart_sunburst_jerarquia,
     chart_trend_detail,
@@ -122,6 +123,52 @@ def _period_range_filter(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["Periodo"].isin(seleccionados)]
 
 
+def _quick_filter_panel() -> None:
+    """Acceso directo por Factor/Característica, alternativo al clic en el grid.
+
+    Se evalúa ANTES de derivar el nivel actual, para que un cambio aquí se
+    refleje en la misma corrida del script (sin necesidad de `st.rerun()`).
+    """
+    factor = st.session_state["pm_drill_factor"]
+    caracteristica = st.session_state["pm_drill_caracteristica"]
+
+    factores = get_factor_options()
+    opciones_factor = ["Todos los factores"] + [f["label"] for f in factores]
+    idx_factor = opciones_factor.index(factor) if factor in opciones_factor else 0
+
+    with st.container(border=True):
+        cols = st.columns(2)
+        with cols[0]:
+            sel_factor = st.selectbox(
+                "Ir directamente a un Factor",
+                opciones_factor,
+                index=idx_factor,
+                key=f"pm_quick_factor_select_{factor}",
+            )
+
+        opciones_car = ["Todas las características"]
+        if sel_factor != "Todos los factores":
+            opciones_car += get_caracteristicas_for_factor(sel_factor)
+        idx_car = opciones_car.index(caracteristica) if caracteristica in opciones_car else 0
+        with cols[1]:
+            sel_car = st.selectbox(
+                "Ir directamente a una Característica",
+                opciones_car,
+                index=idx_car,
+                disabled=sel_factor == "Todos los factores",
+                key=f"pm_quick_car_select_{sel_factor}_{caracteristica}",
+            )
+
+    if sel_factor == "Todos los factores" and factor is not None:
+        _go("pm_drill_factor", None)
+    elif sel_factor != "Todos los factores" and sel_factor != factor:
+        _go("pm_drill_factor", sel_factor)
+    elif sel_car != "Todas las características" and sel_car != caracteristica:
+        _go("pm_drill_caracteristica", sel_car)
+    elif sel_car == "Todas las características" and caracteristica is not None and sel_factor == factor:
+        _go("pm_drill_caracteristica", None)
+
+
 def _render_alerts(trend_ind: pd.DataFrame) -> None:
     alerts = build_alerts(trend_ind)
     danger = [a for a in alerts if a["level"] == "danger"]
@@ -152,29 +199,47 @@ def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
     with kpi_cols[2]:
         kpi_card("% Desfavorable global", f"{pct_desfav:.0f}%", show_progress=False)
     with kpi_cols[3]:
-        kpi_card("Mejor / peor factor", _short(mejor, 22), delta=_short(peor, 22), show_progress=False)
+        st.markdown("**Mejor / peor factor**")
+        st.caption(f"↑ {_short(mejor, 32)}")
+        st.caption(f"↓ {_short(peor, 32)}")
 
     _render_alerts(trend_ind)
 
     st.subheader("Ranking de Factores")
+    st.caption("Cada barra suma 100% — el color muestra la proporción de indicadores, sin importar cuántos tenga cada factor.")
     st.plotly_chart(chart_trend_ranking(agg_factor, "Factor"), use_container_width=True)
 
-    st.caption("Selecciona un factor para explorar sus características")
-    n_cols = 6
+    st.subheader("Explorar por Factor")
+    st.caption("Selecciona un factor para ver sus características e indicadores")
+    agg_lookup = agg_factor.set_index("Factor") if not agg_factor.empty else pd.DataFrame()
+    n_cols = 4
     for i in range(0, len(factores), n_cols):
         fila = factores[i : i + n_cols]
         cols = st.columns(len(fila))
         for col, f in zip(cols, fila):
             with col:
-                st.image(str(factor_icon_path(f["num"])), use_container_width=True)
-                st.button(
-                    f"Factor {f['num']}",
-                    key=f"pm_factor_btn_{f['num']}",
-                    on_click=_go,
-                    args=("pm_drill_factor", f["label"]),
-                    use_container_width=True,
-                    help=f["nombre"],
-                )
+                with st.container(border=True):
+                    st.image(str(factor_icon_path(f["num"])), use_container_width=True)
+                    if f["label"] in agg_lookup.index:
+                        pct = agg_lookup.loc[f["label"], "pct_favorable"]
+                        color = TREND_COLORS["favorable"] if pct >= 50 else TREND_COLORS["desfavorable"]
+                        st.markdown(
+                            f"<div style='text-align:center;font-size:0.78rem;font-weight:700;color:{color};'>"
+                            f"{pct:.0f}% favorable</div>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            "<div style='text-align:center;font-size:0.78rem;color:#9E9E9E;'>Sin dato</div>",
+                            unsafe_allow_html=True,
+                        )
+                    st.button(
+                        _short(f["nombre"], 28),
+                        key=f"pm_factor_btn_{f['num']}",
+                        on_click=_go,
+                        args=("pm_drill_factor", f["label"]),
+                        use_container_width=True,
+                    )
 
     evo = compute_evolucion_agregada(periodo_filtered)
     st.plotly_chart(
@@ -199,6 +264,33 @@ def _render_sunburst(trend_ind: pd.DataFrame) -> None:
         return
     fig = chart_sunburst_jerarquia(df_plot, title="Factor → Característica → Indicador")
     st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_historia_table(serie: pd.DataFrame) -> None:
+    """Tabla Periodo · Ejecución · Variación — evita que el detalle se pierda
+    al quedarse solo con el último valor en las tarjetas KPI."""
+    if serie is None or serie.empty:
+        return
+
+    serie = serie.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
+    valores = serie["Ejecucion_num"]
+    unidad_col = serie["Ejecución s"] if "Ejecución s" in serie.columns else pd.Series([None] * len(serie))
+
+    filas = []
+    for i in range(len(serie)):
+        variacion = "—"
+        if i > 0 and pd.notna(valores.iloc[i]) and pd.notna(valores.iloc[i - 1]) and valores.iloc[i - 1] != 0:
+            variacion = f"{(valores.iloc[i] - valores.iloc[i - 1]) / valores.iloc[i - 1] * 100:+.1f}%"
+        filas.append(
+            {
+                "Periodo": serie.loc[i, "Periodo"],
+                "Ejecución": format_ejecucion(valores.iloc[i], unidad_col.iloc[i]),
+                "Variación vs. periodo anterior": variacion,
+            }
+        )
+
+    st.caption("Historial por periodo")
+    st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
 
 def section_factor(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str) -> None:
@@ -332,6 +424,7 @@ def section_indicador(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: 
     sentido = df_ind_all["Sentido"].dropna().iloc[0] if not df_ind_all["Sentido"].dropna().empty else ""
     serie = build_indicador_series(df_ind_filtered, ["Indicador"])
     st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución", sentido), use_container_width=True)
+    _render_historia_table(serie)
 
     subindicadores = sorted(
         s
@@ -395,6 +488,7 @@ def section_subindicador(
     sentido = df_sub_all["Sentido"].dropna().iloc[0] if not df_sub_all["Sentido"].dropna().empty else ""
     serie = build_indicador_series(df_sub_filtered, ["Indicador", "Subindicador"])
     st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución", sentido), use_container_width=True)
+    _render_historia_table(serie)
 
 
 def render() -> None:
@@ -412,6 +506,7 @@ def render() -> None:
         return
 
     periodo_filtered = _period_range_filter(df)
+    _quick_filter_panel()
 
     level, factor, caracteristica, indicador, subindicador = _current_level()
     if level != "resumen":

@@ -32,10 +32,15 @@ TREND_LABELS = {
 
 
 def chart_trend_ranking(df_agg: pd.DataFrame, category_col: str, title: str = "") -> go.Figure:
-    """Barra horizontal apilada favorable/estable/desfavorable por categoría.
+    """Barra horizontal 100%-apilada (favorable/estable/desfavorable/sin dato).
+
+    Cada barra suma siempre 100%, así las categorías son comparables sin
+    importar cuántos indicadores tenga cada una (una con 2 indicadores no
+    queda invisible frente a una con 25). El conteo real va en el hover y
+    como texto dentro del segmento favorable.
 
     `df_agg`: salida de `aggregate_trend_by` (columnas n_favorable,
-    n_estable, n_desfavorable, ordenado por pct_favorable desc).
+    n_estable, n_desfavorable, n_sin_datos, n_total).
     `category_col`: "Factor" o "Caracteristica".
     """
     if df_agg is None or df_agg.empty:
@@ -43,33 +48,55 @@ def chart_trend_ranking(df_agg: pd.DataFrame, category_col: str, title: str = ""
         fig.update_layout(title="Sin datos disponibles")
         return fig
 
-    df_plot = df_agg.sort_values("pct_favorable", ascending=True)
+    df_plot = df_agg.sort_values("pct_favorable", ascending=True).copy()
     categorias = df_plot[category_col].astype(str).tolist()
+    total_seguro = df_plot["n_total"].replace(0, 1)
 
     fig = go.Figure()
-    for key in ("desfavorable", "estable", "favorable"):
+    for key in ("desfavorable", "estable", "favorable", "sin_datos"):
+        pct = (df_plot[f"n_{key}"] / total_seguro * 100).round(1)
+        counts = df_plot[f"n_{key}"]
+        text = [f"{p:.0f}%" if key == "favorable" and p >= 10 else "" for p in pct]
         fig.add_trace(
             go.Bar(
                 y=categorias,
-                x=df_plot[f"n_{key}"],
+                x=pct,
                 name=TREND_LABELS[key],
                 orientation="h",
                 marker_color=TREND_COLORS[key],
-                hovertemplate=f"<b>%{{y}}</b><br>{TREND_LABELS[key]}: %{{x}}<extra></extra>",
+                text=text,
+                textposition="inside",
+                textfont=dict(color="white", size=11),
+                customdata=counts,
+                hovertemplate=(
+                    f"<b>%{{y}}</b><br>{TREND_LABELS[key]}: %{{customdata}} indicador(es) "
+                    f"(%{{x:.0f}}%)<extra></extra>"
+                ),
             )
         )
 
     fig.update_layout(
         barmode="stack",
         title=title,
-        xaxis_title="Indicadores",
+        xaxis_title="% de indicadores",
         yaxis_title="",
+        xaxis=dict(range=[0, 100], ticksuffix="%"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=10, r=10, t=50, b=10),
         height=max(220, 40 * len(categorias) + 80),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
     )
+
+    for cat, n_total in zip(categorias, df_plot["n_total"]):
+        if n_total == 0:
+            fig.add_annotation(
+                x=50,
+                y=cat,
+                text="Sin indicadores con datos en el rango seleccionado",
+                showarrow=False,
+                font=dict(size=10, color=COLORS["gray_600"]),
+            )
     return fig
 
 
