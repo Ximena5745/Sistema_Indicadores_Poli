@@ -1,21 +1,19 @@
 """
 services/plan_mejoramiento_loader.py — Carga y análisis de dirección CNA
 
-Fuente: data/raw/Plan de mejoramiento/Resultados_Consolidados_CNA_actualizado.xlsx
-Hojas usadas: "Metricas" (hecho, largo por Periodo) y "Factor- Caracteristica"
-(mapeo canónico Factor→Característica).
+Dos fuentes INDEPENDIENTES (sin join a nivel indicador):
 
-Responsabilidad única: cargar el Excel, limpiar/derivar columnas, y calcular
-la DIRECCIÓN (aumento/disminución/estable) de Ejecución por Periodo — sin
-Meta/Cumplimiento (prácticamente vacíos en la fuente) y sin información de
-ficha técnica/formulación del indicador.
+1) **Métricas CNA** (Resultados_Consolidados_CNA_actualizado.xlsx → hoja "Metricas"):
+   Ejecución por Periodo, clasificación NEUTRA aumento/disminución/estable.
+   Sin Meta/Cumplimiento (prácticamente vacíos en la fuente).
 
-Estas son métricas crudas (conteos, totales, montos), no indicadores con una
-meta que defina qué dirección es "buena". Por eso la clasificación es
-deliberadamente NEUTRA: describe si el valor subió, bajó o se mantuvo, nunca
-si eso es favorable o desfavorable (el campo Sentido no se usa para juzgar).
+2) **Indicadores Plan de Mejoramiento** (Indicadores Plan de Mejoramiento.xlsx):
+   Meta, Ejecución 2025-2026, % Cumplimiento, Estado, Aprobación.
 
-Funciones públicas:
+Llave entre fuentes: SOLO a nivel Factor/Característica (no indicador).
+Cruce a nivel indicador: 0 coincidencias exactas (ver docs/metodologia_plan_cna.md).
+
+Funciones públicas Métricas:
   - load_metricas_raw()
   - load_factor_caracteristica_map()
   - get_factor_options()
@@ -25,17 +23,24 @@ Funciones públicas:
   - aggregate_trend_by()
   - compute_evolucion_agregada()
   - compute_evolucion_por_segmento()
+
+Funciones públicas Plan:
+  - load_plan_indicadores()
+  - classify_plan_estado()
+  - compute_plan_cumplimiento_by_factor()
+  - get_plan_indicadores_for_factor()
+  - aggregate_plan_estado_by()
 """
 
 from __future__ import annotations
 
 import re
-from pathlib import Path
+import unicodedata
 
 import pandas as pd
 import streamlit as st
 
-from core.config import CACHE_TTL, DATA_RAW
+from core.config import CACHE_TTL, DATA_RAW  # noqa: F401
 
 PM_XLSX = DATA_RAW / "Plan de mejoramiento" / "Resultados_Consolidados_CNA_actualizado.xlsx"
 SHEET_METRICAS = "Metricas"
@@ -362,3 +367,221 @@ def compute_evolucion_por_segmento(df: pd.DataFrame, segment_col: str = "Factor"
         return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_aumento"])
 
     return pd.concat(piezas, ignore_index=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PLAN DE MEJORAMIENTO — Indicadores con Meta/Ejecución/%Cump
+# ─────────────────────────────────────────────────────────────────────────────
+
+PLAN_XLSX = DATA_RAW / "Plan de mejoramiento" / "Indicadores Plan de Mejoramiento.xlsx"
+SHEET_PLAN = "Indicadores Plan de Mejor"
+
+
+def _norm_text(text: object) -> str:
+    """Normaliza texto: minúsculas, sin acentos, espacios colapsados."""
+    if pd.isna(text):
+        return ""
+    s = str(text).strip().lower()
+    s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+    return " ".join(s.split())
+
+
+def _parse_meta_ejecucion(value: object) -> float | None:
+    """Parsea valores de Meta/Ejecución, descartando texto no numérico."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text or text.lower() in {"n/a", "na", "pendiente", "linea base", "línea base"}:
+        return None
+    text = text.replace("$", "").replace("%", "").replace(",", "").strip()
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _classify_plan_estado(row: pd.Series) -> str:
+    """Clasifica estado combinando 'Estado' y 'Estado de aprobación'.
+
+    Regla (decisión del usuario):
+      - Activo:  Estado_aprobación=Aprobado AND (Indicador_o_Metrica=Indicador
+                AND tiene Meta o Ejecución numérica en 2025/2026)
+      - Aprobado: Estado_aprobación=Aprobado pero sin medición aún
+      - Pendiente: Estado_aprobación=Pendiente OR Estado∈{Pendiente,Crear}
+                OR Indicador_o_Metrica=Pendiente
+    """
+    aprob = str(row.get("Estado_Aprobacion", "")).strip()
+    tipo = str(row.get("Tipo", "")).strip()
+
+    tiene_medicion = any(
+        pd.notna(row.get(c))
+        for c in ["Meta_2025", "Ejecucion_2025", "Meta_2026", "Ejecucion_2026"]
+    )
+
+    if aprob == "Aprobado" and tipo == "Indicador" and tiene_medicion:
+        return "Activo"
+    if aprob == "Aprobado":
+        return "Aprobado"
+    return "Pendiente"
+
+
+@st.cache_data(ttl=CACHE_TTL, show_spinner="Cargando Indicadores del Plan...")
+def load_plan_indicadores() -> pd.DataFrame:
+    """Carga el Excel de Indicadores del Plan de Mejoramiento.
+
+    Wide→long: Meta|Ejecución|%Cump × 2025,2026 (+2027-2030 futuros).
+    Deriva: Factor_num, Factor_nombre, Estado_final, tiene_medicion,
+    Meta_num, Ejecucion_num, Cumplimiento_pct.
+    """
+    if not PLAN_XLSX.exists():
+        return pd.DataFrame()
+
+    df = pd.read_excel(PLAN_XLSX, sheet_name=SHEET_PLAN, header=1, engine="openpyxl")
+
+    # Renombrar columnas con saltos de línea
+    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
+
+    rename_map = {
+        "FACTOR": "Factor",
+        "CARACTERÍSTICA": "Caracteristica",
+        "ACCIÓN DE MEJORA": "Accion_Mejora",
+        "INDICADOR DE RESULTADO O IMPACTO": "Indicador",
+        "ID Kawak": "Id_Kawak",
+        "Indicador o Metrica": "Tipo",
+        "Observación Desempeño": "Observacion",
+        "Estado": "Estado_raw",
+        "Estado de aprobación": "Estado_Aprobacion",
+        "Fórmula": "Formula",
+        "Fuente": "Fuente",
+        "Responsable de la gestión": "Responsable",
+        "PERIODICIDAD DE MEDICIÓN": "Periodicidad",
+        "Meta 2025": "Meta_2025",
+        "Ejecución 2025": "Ejecucion_2025",
+        "% Cump 2025": "Cump_2025",
+        "Meta 2026": "Meta_2026",
+        "Ejecución 2026": "Ejecucion_2026",
+        "% Cump 2026": "Cump_2026",
+    }
+    # Aplicar solo columnas que existen
+    existing = {k: v for k, v in rename_map.items() if k in df.columns}
+    df = df.rename(columns=existing)
+
+    # Limpiar strings
+    for col in ("Factor", "Caracteristica", "Indicador", "Tipo", "Estado_raw", "Estado_Aprobacion", "Periodicidad"):
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+
+    # Derivar Factor_num / Factor_nombre
+    if "Factor" in df.columns:
+        df["Factor_num"] = df["Factor"].map(_factor_num)
+        df["Factor_nombre"] = df["Factor"].map(_factor_nombre)
+
+    # Parsear numéricos Meta/Ejecución/Cumplimiento
+    for year in ("2025", "2026"):
+        for prefix in ("Meta", "Ejecucion", "Cump"):
+            col = f"{prefix}_{year}"
+            if col in df.columns:
+                if prefix == "Cump":
+                    df[f"{prefix}_num_{year}"] = df[col].apply(
+                        lambda v: float(v) if isinstance(v, (int, float)) and pd.notna(v) else None
+                    )
+                else:
+                    df[f"{prefix}_num_{year}"] = df[col].apply(_parse_meta_ejecucion)
+
+    # Estado combinado
+    if "Estado_raw" in df.columns and "Estado_Aprobacion" in df.columns:
+        df["Estado_final"] = df.apply(_classify_plan_estado, axis=1)
+    elif "Estado_raw" in df.columns:
+        df["Estado_final"] = df["Estado_raw"]
+    else:
+        df["Estado_final"] = "Sin estado"
+
+    # Flag tiene_medicion
+    meta_ejec_cols = [f"Meta_num_{y}" for y in ("2025", "2026")] + [
+        f"Ejecucion_num_{y}" for y in ("2025", "2026")
+    ]
+    existentes = [c for c in meta_ejec_cols if c in df.columns]
+    if existentes:
+        df["tiene_medicion"] = df[existentes].notna().any(axis=1)
+    else:
+        df["tiene_medicion"] = False
+
+    # Cumplimiento: solo donde Meta y Ejecución son numéricos
+    for year in ("2025", "2026"):
+        meta_col = f"Meta_num_{year}"
+        ejec_col = f"Ejecucion_num_{year}"
+        cump_col = f"Cump_calc_{year}"
+        if meta_col in df.columns and ejec_col in df.columns:
+            df[cump_col] = None
+            mask = df[meta_col].notna() & df[ejec_col].notna() & (df[meta_col] != 0)
+            df.loc[mask, cump_col] = (df.loc[mask, ejec_col] / df.loc[mask, meta_col]).clip(upper=1.3)
+        else:
+            df[cump_col] = None
+
+    return df.sort_values(["Factor_num", "Indicador"]).reset_index(drop=True)
+
+
+def get_plan_indicadores_for_factor(factor_label: str) -> pd.DataFrame:
+    """Retorna los indicadores del Plan filtrados por Factor."""
+    df = load_plan_indicadores()
+    if df.empty or "Factor" not in df.columns:
+        return pd.DataFrame()
+    return df[df["Factor"] == factor_label].copy()
+
+
+def compute_plan_cumplimiento_by_factor(df: pd.DataFrame) -> pd.DataFrame:
+    """Calcula cumplimiento promedio por Factor (solo filas con dato).
+
+    Retorna: DataFrame con Factor, Factor_num, n_total, n_con_dato,
+    cump_promedio, n_en_brecha (<60%), n_alto (>=90%).
+    """
+    if df.empty:
+        return pd.DataFrame()
+
+    rows = []
+    for factor, grupo in df.groupby("Factor", dropna=False):
+        nums = [f"Cump_calc_{y}" for y in ("2025", "2026")]
+        existentes = [c for c in nums if c in grupo.columns]
+        if not existentes:
+            continue
+
+        vals = pd.to_numeric(grupo[existentes].stack(), errors="coerce").dropna()
+        n_total = len(grupo)
+        n_con_dato = len(vals)
+        cump_prom = float(vals.mean()) if n_con_dato > 0 else None
+        n_en_brecha = int((vals < 0.60).sum()) if n_con_dato > 0 else 0
+        n_alto = int((vals >= 0.90).sum()) if n_con_dato > 0 else 0
+
+        fnum = grupo["Factor_num"].dropna().iloc[0] if not grupo["Factor_num"].dropna().empty else None
+        rows.append({
+            "Factor": factor,
+            "Factor_num": fnum,
+            "n_total": n_total,
+            "n_con_dato": n_con_dato,
+            "cump_promedio": cump_prom,
+            "n_en_brecha": n_en_brecha,
+            "n_alto": n_alto,
+        })
+
+    return pd.DataFrame(rows)
+
+
+def aggregate_plan_estado_by(df: pd.DataFrame, group_col: str = "Factor") -> pd.DataFrame:
+    """Cuenta indicadores por Estado_final, desglosado por Factor o general.
+
+    Retorna: DataFrame con group_col, n_Activo, n_Aprobado, n_Pendiente, n_total.
+    """
+    if df.empty or "Estado_final" not in df.columns:
+        return pd.DataFrame()
+
+    counts = (
+        df.groupby(group_col)["Estado_final"]
+        .value_counts()
+        .unstack(fill_value=0)
+        .reindex(columns=["Activo", "Aprobado", "Pendiente"], fill_value=0)
+    )
+    counts.columns = ["n_Activo", "n_Aprobado", "n_Pendiente"]
+    counts["n_total"] = counts.sum(axis=1)
+    return counts.reset_index()
