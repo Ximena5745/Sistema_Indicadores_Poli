@@ -63,6 +63,8 @@ def _go(level_key: str, value) -> None:
     for key in DRILL_KEYS[idx:]:
         st.session_state[key] = None
     st.session_state[level_key] = value
+    if level_key == "pm_drill_factor":
+        st.session_state["pm_plan_selected"] = None
 
 
 def _init_state() -> None:
@@ -591,9 +593,10 @@ def _render_tab_a_indicadores(df_p_factor: pd.DataFrame, factor: str) -> None:
         st.info("Sin indicadores del Plan para este factor.")
         return
 
-    st.caption("Indicadores del Plan de Mejoramiento — Meta → Ejecución → % Cumplimiento")
+    st.caption("Selecciona un indicador para ver su detalle completo (Meta → Ejecución → % Cumplimiento).")
 
     caracteristicas = get_caracteristicas_for_factor(factor)
+    selected = st.session_state.get("pm_plan_selected")
 
     for car in caracteristicas:
         df_car = df_p_factor[df_p_factor["Caracteristica"] == car]
@@ -602,62 +605,165 @@ def _render_tab_a_indicadores(df_p_factor: pd.DataFrame, factor: str) -> None:
 
         with st.expander(f"**{car}** ({len(df_car)} indicadores)", expanded=True):
             for _, row in df_car.iterrows():
-                ind_name = row.get("Indicador", "")
-                estado = row.get("Estado_final", "")
-                periodicidad = row.get("Periodicidad", "—")
+                row_key = f"{factor}||{car}||{row.get('Indicador', '')}"
+                _render_plan_indicador_row(row, row_key, is_selected=(selected == row_key))
 
-                # Determinar color del borde según estado
-                border_color = "#43A047" if estado == "Activo" else "#FBAF17" if estado == "Aprobado" else "#9E9E9E"
 
-                # Calcular cumplimiento más reciente
-                cump_val = None
-                for year in ("2026", "2025"):
-                    m = row.get(f"Meta_num_{year}")
-                    e = row.get(f"Ejecucion_num_{year}")
-                    if pd.notna(m) and pd.notna(e) and m != 0:
-                        cump_val = min(e / m, 1.3)
-                        break
+_ESTADO_COLORS = {"Activo": "#43A047", "Aprobado": "#FBAF17", "Pendiente": "#9E9E9E"}
 
-                # Badge estado
-                estado_color = "#43A047" if estado == "Activo" else "#FBAF17" if estado == "Aprobado" else "#9E9E9E"
-                estado_html = (
-                    f'<span style="display:inline-flex;align-items:center;gap:4px;'
-                    f'background:{estado_color}1A;color:{estado_color};border:1px solid {estado_color}55;'
-                    f'border-radius:12px;padding:2px 10px;font-size:0.72rem;font-weight:600;">'
-                    f'<span style="width:6px;height:6px;border-radius:50%;background:{estado_color};"></span>'
-                    f'{estado}</span>'
-                )
 
-                # Ficha completa
-                st.markdown(
-                    f'<div style="border-left:4px solid {border_color};background:#FAFBFC;'
-                    f'border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:10px;">'
-                    f'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">'
-                    f'<div style="flex:1;">'
-                    f'<div style="font-weight:600;font-size:0.95rem;color:#1A2B3C;margin-bottom:4px;">{ind_name}</div>'
-                    f'<div style="font-size:0.78rem;color:#666;">{estado_html} · Periodicidad: {periodicidad}</div>'
-                    f'</div>'
-                    f'<div style="text-align:right;">'
-                    f'{_cump_badge_html(cump_val)}'
-                    f'</div></div></div>',
-                    unsafe_allow_html=True,
-                )
+def _estado_badge_html(estado: str) -> str:
+    color = _ESTADO_COLORS.get(estado, "#9E9E9E")
+    return (
+        f'<span style="display:inline-flex;align-items:center;gap:4px;'
+        f'background:{color}1A;color:{color};border:1px solid {color}55;'
+        f'border-radius:12px;padding:2px 10px;font-size:0.72rem;font-weight:600;">'
+        f'<span style="width:6px;height:6px;border-radius:50%;background:{color};"></span>'
+        f"{estado}</span>"
+    )
 
-                # Tabla de metas por año
-                years_data = []
-                for year in ("2025", "2026", "2027", "2028", "2029", "2030"):
-                    meta = row.get(f"Meta_num_{year}")
-                    ejec = row.get(f"Ejecucion_num_{year}") if year in ("2025", "2026") else None
-                    cump = row.get(f"Cump_calc_{year}") if year in ("2025", "2026") else None
-                    years_data.append({
-                        "Periodo": year,
-                        "Meta": f"{meta:,.2f}" if pd.notna(meta) else "—",
-                        "Ejecución": f"{ejec:,.2f}" if pd.notna(ejec) else ("—" if year in ("2025", "2026") else "Pendiente"),
-                        "%Cump": f"{cump:.1%}" if pd.notna(cump) else "—",
-                    })
 
-                df_years = pd.DataFrame(years_data)
-                st.dataframe(df_years, use_container_width=True, hide_index=True)
+def _fmt_meta_ejec(value) -> str:
+    return f"{value:,.2f}" if pd.notna(value) else "—"
+
+
+def _render_year_card(row: pd.Series, year: str) -> str:
+    """Tarjeta de seguimiento real (Meta/Ejecución/%Cump) de un año con dato — 2025/2026."""
+    meta = row.get(f"Meta_num_{year}")
+    ejec = row.get(f"Ejecucion_num_{year}")
+    cump = row.get(f"Cump_calc_{year}")
+    color = _cump_color(cump)
+    pct_ancho = min(max(float(cump), 0.0), 1.3) / 1.3 * 100 if pd.notna(cump) else 0.0
+    cump_texto = f"{cump:.1%}" if pd.notna(cump) else "Sin dato"
+
+    return (
+        f'<div style="border:1px solid #E3E8EC;border-radius:10px;padding:12px 14px;background:#FFFFFF;height:100%;">'
+        f'<div style="font-size:0.7rem;font-weight:700;color:#90A4AE;letter-spacing:.04em;">{year}</div>'
+        f'<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.84rem;">'
+        f'<span style="color:#607D8B;">Meta</span>'
+        f'<span style="font-weight:600;color:#1A2B3C;">{_fmt_meta_ejec(meta)}</span></div>'
+        f'<div style="display:flex;justify-content:space-between;font-size:0.84rem;margin-top:2px;">'
+        f'<span style="color:#607D8B;">Ejecución</span>'
+        f'<span style="font-weight:600;color:#1A2B3C;">{_fmt_meta_ejec(ejec)}</span></div>'
+        f'<div style="margin-top:10px;height:6px;border-radius:3px;background:#EEF1F3;overflow:hidden;">'
+        f'<div style="height:100%;width:{pct_ancho:.0f}%;background:{color};border-radius:3px;"></div></div>'
+        f'<div style="text-align:right;margin-top:4px;font-size:0.76rem;font-weight:700;color:{color};">{cump_texto}</div>'
+        f"</div>"
+    )
+
+
+def _render_metas_futuras_strip(row: pd.Series) -> str | None:
+    """Franja atenuada con las metas ya definidas para 2027-2030 (sin ejecución todavía).
+
+    Deliberadamente separada de las tarjetas de 2025/2026: mezclar ambas en una
+    sola tabla (como antes) hacía parecer que la meta futura era un dato de
+    seguimiento real, cuando en esta fuente 2027-2030 son solo metas
+    proyectadas, sin Ejecución ni %Cump disponibles aún.
+    """
+    chips = []
+    for year in ("2027", "2028", "2029", "2030"):
+        meta = row.get(f"Meta_num_{year}")
+        if pd.notna(meta):
+            chips.append(
+                f'<span style="display:inline-flex;align-items:center;gap:5px;'
+                f'border:1px dashed #C7CDD3;border-radius:8px;padding:3px 10px;'
+                f'font-size:0.76rem;color:#607D8B;background:#FAFBFC;">'
+                f'<b style="color:#455A64;">{year}</b> · meta {meta:,.2f}</span>'
+            )
+    if not chips:
+        return None
+    return (
+        f'<div style="margin-top:10px;">'
+        f'<div style="font-size:0.68rem;font-weight:700;color:#B0BEC5;letter-spacing:.04em;'
+        f'text-transform:uppercase;margin-bottom:5px;">Metas proyectadas · sin ejecución aún</div>'
+        f'<div style="display:flex;flex-wrap:wrap;gap:6px;">{"".join(chips)}</div>'
+        f"</div>"
+    )
+
+
+def _toggle_plan_selected(row_key: str) -> None:
+    current = st.session_state.get("pm_plan_selected")
+    st.session_state["pm_plan_selected"] = None if current == row_key else row_key
+
+
+def _ultimo_cump(row: pd.Series) -> float | None:
+    """%Cump más reciente con dato (prioriza 2026 sobre 2025)."""
+    for year in ("2026", "2025"):
+        cump = row.get(f"Cump_calc_{year}")
+        if pd.notna(cump):
+            return float(cump)
+    return None
+
+
+def _render_plan_indicador_row(row: pd.Series, row_key: str, is_selected: bool) -> None:
+    """Fila compacta de la lista de Indicadores del Plan; expande a la ficha
+    completa solo para el indicador seleccionado (lista primero, detalle bajo
+    demanda, en vez de mostrar todas las fichas expandidas de una vez)."""
+    ind_name = row.get("Indicador", "")
+    estado = row.get("Estado_final", "")
+    cump_val = _ultimo_cump(row)
+
+    cols = st.columns([5, 2, 2, 1.3])
+    with cols[0]:
+        st.markdown(f"**{ind_name}**")
+    with cols[1]:
+        st.markdown(_estado_badge_html(estado), unsafe_allow_html=True)
+    with cols[2]:
+        st.markdown(_cump_badge_html(cump_val), unsafe_allow_html=True)
+    with cols[3]:
+        st.button(
+            "Ocultar" if is_selected else "Ver detalle",
+            key=f"pm_plan_toggle_{row_key}",
+            on_click=_toggle_plan_selected,
+            args=(row_key,),
+            use_container_width=True,
+        )
+
+    if is_selected:
+        _render_ficha_indicador_detalle(row)
+
+    st.markdown('<hr style="margin:6px 0;border-color:#EEF1F3;">', unsafe_allow_html=True)
+
+
+def _render_ficha_indicador_detalle(row: pd.Series) -> None:
+    """Detalle completo de un indicador del Plan: periodicidad + seguimiento
+    real (2025/2026) + franja de metas futuras (2027-2030), separadas
+    visualmente — se muestra solo cuando el indicador está seleccionado."""
+    periodicidad = row.get("Periodicidad")
+    periodicidad = periodicidad if pd.notna(periodicidad) else "Sin definir"
+
+    with st.container(border=True):
+        st.caption(f"Periodicidad: {periodicidad}")
+        cols = st.columns(2)
+        for col, year in zip(cols, ("2025", "2026")):
+            with col:
+                st.markdown(_render_year_card(row, year), unsafe_allow_html=True)
+
+        futuras_html = _render_metas_futuras_strip(row)
+        if futuras_html:
+            st.markdown(futuras_html, unsafe_allow_html=True)
+
+
+def _render_metrica_indicador_row(item: dict) -> None:
+    """Fila compacta de la lista de indicadores (Métricas): nombre, dirección,
+    último valor — el detalle completo (evolución, subindicadores) se muestra
+    solo al hacer clic en 'Ver detalle', saltando directo al nivel Indicador."""
+    cols = st.columns([5, 2, 3, 1.3])
+    with cols[0]:
+        st.markdown(f"**{item['Indicador']}**")
+    with cols[1]:
+        st.markdown(trend_badge_html(item["Tendencia"]), unsafe_allow_html=True)
+    with cols[2]:
+        st.caption(f"Último: {format_ejecucion(item['ultimo_valor'], item['unidad'])} · {item['ultimo_periodo']}")
+    with cols[3]:
+        st.button(
+            "Ver detalle",
+            key=f"pm_metrica_btn_{item['Indicador']}",
+            on_click=_go,
+            args=("pm_drill_indicador", item["Indicador"]),
+            use_container_width=True,
+        )
+    st.markdown('<hr style="margin:4px 0;border-color:#EEF1F3;">', unsafe_allow_html=True)
 
 
 def _render_tab_b_metricas(df_m_factor: pd.DataFrame, factor: str, periodo_filtered: pd.DataFrame) -> None:
@@ -698,6 +804,15 @@ def _render_tab_b_metricas(df_m_factor: pd.DataFrame, factor: str, periodo_filte
         kpi_card("En disminución", n_disminucion, show_progress=False)
     with kpi_cols[3]:
         kpi_card("Sin datos", n_sin_datos, show_progress=False)
+
+    # Lista de indicadores (Métricas) — selección directa a detalle completo
+    st.subheader("Indicadores")
+    st.caption("Selecciona un indicador para ver su evolución completa.")
+    if trend_ind.empty:
+        st.info("Sin indicadores con datos para este factor en el rango de periodos seleccionado.")
+    else:
+        for item in trend_ind.sort_values("Indicador").to_dict("records"):
+            _render_metrica_indicador_row(item)
 
     # Botones de drill-down por característica
     st.subheader("Explorar por Característica")

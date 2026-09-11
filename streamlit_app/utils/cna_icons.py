@@ -38,13 +38,24 @@ def factor_icon_data_uri(factor_num: int) -> str | None:
     return f"data:image/jpeg;base64,{b64}" if b64 else None
 
 
+
+# Todas las píldoras comparten la misma plantilla (2064×512 px): el pictograma
+# ocupa aproximadamente el 7%-31% del ancho (cápsula redondeada + ícono, antes
+# del divisor "|" y el texto). `_ICON_OBJECT_POSITION_X` es el porcentaje de
+# object-position que, con object-fit:cover sobre un contenedor cuadrado,
+# centra la ventana visible en esa franja (fórmula estándar de
+# background-position: offset = (ancho_mostrado - ancho_contenedor) * X%).
+# Antes se usaba object-position:left (0%), que dejaba el margen blanco del
+# borde izquierdo dentro del recorte y ocultaba el pictograma real.
+_ICON_OBJECT_POSITION_X = 8.6
+
+
 def factor_icon_html(factor_num: int, size: int = 48, rounded: bool = True) -> str:
     """HTML `<img>` recortado al pictograma del factor (o un placeholder si falta).
 
-    La imagen fuente es una píldora ancha (ícono + texto); se recorta desde
-    la izquierda (`object-position: left center`) para mostrar solo el
-    ícono en usos pequeños — un recorte centrado mostraría el divisor/texto
-    en blanco en vez del pictograma.
+    La imagen fuente es una píldora ancha (ícono + divisor + texto); se
+    recorta con `object-fit: cover` + `object-position` desplazado para
+    aislar solo el pictograma en usos pequeños (breadcrumb, headers).
     """
     uri = factor_icon_data_uri(factor_num)
     radius = "50%" if rounded else "8px"
@@ -57,7 +68,8 @@ def factor_icon_html(factor_num: int, size: int = 48, rounded: bool = True) -> s
     return (
         f'<div style="width:{size}px;height:{size}px;border-radius:{radius};overflow:hidden;'
         f'display:inline-block;box-shadow:0 1px 4px rgba(0,0,0,0.15);vertical-align:middle;">'
-        f'<img src="{uri}" style="width:400%;height:100%;object-fit:cover;object-position:left center;" '
+        f'<img src="{uri}" style="width:100%;height:100%;object-fit:cover;'
+        f'object-position:{_ICON_OBJECT_POSITION_X}% center;" '
         f'alt="Factor {factor_num}" />'
         f"</div>"
     )
