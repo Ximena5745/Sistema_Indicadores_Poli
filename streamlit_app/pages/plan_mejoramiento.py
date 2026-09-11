@@ -586,14 +586,13 @@ def section_factor(df_m: pd.DataFrame, df_p: pd.DataFrame, periodo_filtered: pd.
 
 
 def _render_tab_a_indicadores(df_p_factor: pd.DataFrame, factor: str) -> None:
-    """Tab A: Indicadores del Plan — Meta, Ejecución, %Cump, tendencia."""
+    """Tab A: Indicadores del Plan — fichas completas con Meta/Ejecución/%Cump por año."""
     if df_p_factor.empty:
         st.info("Sin indicadores del Plan para este factor.")
         return
 
     st.caption("Indicadores del Plan de Mejoramiento — Meta → Ejecución → % Cumplimiento")
 
-    # Características del factor
     caracteristicas = get_caracteristicas_for_factor(factor)
 
     for car in caracteristicas:
@@ -605,50 +604,60 @@ def _render_tab_a_indicadores(df_p_factor: pd.DataFrame, factor: str) -> None:
             for _, row in df_car.iterrows():
                 ind_name = row.get("Indicador", "")
                 estado = row.get("Estado_final", "")
-                tiene_med = row.get("tiene_medicion", False)
+                periodicidad = row.get("Periodicidad", "—")
+
+                # Determinar color del borde según estado
+                border_color = "#43A047" if estado == "Activo" else "#FBAF17" if estado == "Aprobado" else "#9E9E9E"
 
                 # Calcular cumplimiento más reciente
                 cump_val = None
-                meta_val = None
-                ejec_val = None
-                periodo = None
                 for year in ("2026", "2025"):
                     m = row.get(f"Meta_num_{year}")
                     e = row.get(f"Ejecucion_num_{year}")
                     if pd.notna(m) and pd.notna(e) and m != 0:
                         cump_val = min(e / m, 1.3)
-                        meta_val = m
-                        ejec_val = e
-                        periodo = year
                         break
 
-                with st.container(border=True):
-                    cols = st.columns([3, 1, 1, 1])
-                    with cols[0]:
-                        st.markdown(f"**{ind_name}**")
-                        if tiene_med:
-                            st.caption(f"Estado: {estado}")
-                        else:
-                            st.caption(f"Estado: {estado} · Pendiente medición")
-                    with cols[1]:
-                        if meta_val is not None:
-                            st.markdown("**Meta**")
-                            st.caption(f"{meta_val:,.2f}")
-                        else:
-                            st.markdown("*Sin meta*")
-                    with cols[2]:
-                        if ejec_val is not None:
-                            st.markdown("**Ejecución**")
-                            st.caption(f"{ejec_val:,.2f} ({periodo})")
-                        else:
-                            st.markdown("*Sin ejecución*")
-                    with cols[3]:
-                        if cump_val is not None:
-                            st.markdown("**%Cump**")
-                            st.markdown(_cump_badge_html(cump_val), unsafe_allow_html=True)
-                        else:
-                            st.markdown("**%Cump**")
-                            st.markdown(_cump_badge_html(None), unsafe_allow_html=True)
+                # Badge estado
+                estado_color = "#43A047" if estado == "Activo" else "#FBAF17" if estado == "Aprobado" else "#9E9E9E"
+                estado_html = (
+                    f'<span style="display:inline-flex;align-items:center;gap:4px;'
+                    f'background:{estado_color}1A;color:{estado_color};border:1px solid {estado_color}55;'
+                    f'border-radius:12px;padding:2px 10px;font-size:0.72rem;font-weight:600;">'
+                    f'<span style="width:6px;height:6px;border-radius:50%;background:{estado_color};"></span>'
+                    f'{estado}</span>'
+                )
+
+                # Ficha completa
+                st.markdown(
+                    f'<div style="border-left:4px solid {border_color};background:#FAFBFC;'
+                    f'border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:10px;">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">'
+                    f'<div style="flex:1;">'
+                    f'<div style="font-weight:600;font-size:0.95rem;color:#1A2B3C;margin-bottom:4px;">{ind_name}</div>'
+                    f'<div style="font-size:0.78rem;color:#666;">{estado_html} · Periodicidad: {periodicidad}</div>'
+                    f'</div>'
+                    f'<div style="text-align:right;">'
+                    f'{_cump_badge_html(cump_val)}'
+                    f'</div></div></div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Tabla de metas por año
+                years_data = []
+                for year in ("2025", "2026", "2027", "2028", "2029", "2030"):
+                    meta = row.get(f"Meta_num_{year}")
+                    ejec = row.get(f"Ejecucion_num_{year}") if year in ("2025", "2026") else None
+                    cump = row.get(f"Cump_calc_{year}") if year in ("2025", "2026") else None
+                    years_data.append({
+                        "Periodo": year,
+                        "Meta": f"{meta:,.2f}" if pd.notna(meta) else "—",
+                        "Ejecución": f"{ejec:,.2f}" if pd.notna(ejec) else ("—" if year in ("2025", "2026") else "Pendiente"),
+                        "%Cump": f"{cump:.1%}" if pd.notna(cump) else "—",
+                    })
+
+                df_years = pd.DataFrame(years_data)
+                st.dataframe(df_years, use_container_width=True, hide_index=True)
 
 
 def _render_tab_b_metricas(df_m_factor: pd.DataFrame, factor: str, periodo_filtered: pd.DataFrame) -> None:
@@ -657,22 +666,41 @@ def _render_tab_b_metricas(df_m_factor: pd.DataFrame, factor: str, periodo_filte
         st.info("Sin métricas CNA para este factor.")
         return
 
-    st.caption("Métricas CNA — Ejecución por Periodo (sin Meta/Cumplimiento)")
+    st.subheader("Métricas CNA")
+    st.caption("Ejecución por Periodo — dirección del comportamiento histórico")
 
     # Características del factor (desde catálogo canónico)
     caracteristicas = get_caracteristicas_for_factor(factor)
-    agg_car = aggregate_trend_by(
-        compute_trend_table(df_m_factor, level="indicador"), "Caracteristica"
-    )
+    trend_ind = compute_trend_table(df_m_factor, level="indicador")
+    agg_car = aggregate_trend_by(trend_ind, "Caracteristica")
 
     if not agg_car.empty:
-        st.subheader("Características")
+        st.subheader("Distribución por Característica")
         st.plotly_chart(
             chart_trend_ranking(agg_car, "Caracteristica", category_order=caracteristicas),
             use_container_width=True,
         )
+        st.markdown(trend_legend_html(), unsafe_allow_html=True)
+
+    # KPIs resumen Métricas
+    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
+    n_aumento = int((con_dato["Tendencia"] == "aumento").sum()) if not con_dato.empty else 0
+    n_disminucion = int((con_dato["Tendencia"] == "disminucion").sum()) if not con_dato.empty else 0
+    n_estable = int((con_dato["Tendencia"] == "estable").sum()) if not con_dato.empty else 0
+    n_sin_datos = int((trend_ind["Tendencia"] == "sin_datos").sum()) if not trend_ind.empty else 0
+
+    kpi_cols = st.columns(4)
+    with kpi_cols[0]:
+        kpi_card("En aumento", n_aumento, show_progress=False)
+    with kpi_cols[1]:
+        kpi_card("Estables", n_estable, show_progress=False)
+    with kpi_cols[2]:
+        kpi_card("En disminución", n_disminucion, show_progress=False)
+    with kpi_cols[3]:
+        kpi_card("Sin datos", n_sin_datos, show_progress=False)
 
     # Botones de drill-down por característica
+    st.subheader("Explorar por Característica")
     st.caption("Selecciona una característica para ver sus indicadores")
     n_cols = 3
     for i in range(0, len(caracteristicas), n_cols):

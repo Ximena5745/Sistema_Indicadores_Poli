@@ -6,10 +6,8 @@ nunca identidad de Factor — la identidad de Factor la da el ícono CNA (ver
 utils/cna_icons.py). Sin Meta/Cumplimiento: no hay bandas de umbral, solo
 dirección de Ejecución respecto al periodo anterior.
 
-Deliberadamente NEUTRO: estas son métricas crudas (conteos, totales), no
-indicadores con una meta que definiría qué dirección es "buena" — por eso
-la paleta usa azul/ámbar (subir/bajar), nunca verde/rojo tipo semáforo, que
-se leería como un juicio de valor que los datos no respaldan.
+Paleta institucional: azul/verde/ámbar/rojo para dirección,
+consistente con el design system del dashboard.
 """
 
 from __future__ import annotations
@@ -21,10 +19,10 @@ import plotly.graph_objects as go
 from streamlit_app.styles.design_system import COLORS
 
 TREND_COLORS = {
-    "aumento": COLORS["info_dark"],
-    "disminucion": COLORS["warning_dark"],
-    "estable": COLORS["gray_500"],
-    "sin_datos": COLORS["gray_300"],
+    "aumento": COLORS["success"],       # Verde institucional #43A047
+    "disminucion": COLORS["danger"],    # Rojo institucional #D32F2F
+    "estable": COLORS["info"],          # Azul info #2196F3
+    "sin_datos": COLORS["gray_400"],    # Gris visible #BDBDBD
 }
 
 TREND_LABELS = {

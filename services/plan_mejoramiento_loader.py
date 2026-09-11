@@ -490,6 +490,12 @@ def load_plan_indicadores() -> pd.DataFrame:
                 else:
                     df[f"{prefix}_num_{year}"] = df[col].apply(_parse_meta_ejecucion)
 
+    # Metas futuras 2027-2030 (solo metas, sin ejecución)
+    for year in ("2027", "2028", "2029", "2030"):
+        col = str(year)
+        if col in df.columns:
+            df[f"Meta_num_{year}"] = df[col].apply(_parse_meta_ejecucion)
+
     # Estado combinado
     if "Estado_raw" in df.columns and "Estado_Aprobacion" in df.columns:
         df["Estado_final"] = df.apply(_classify_plan_estado, axis=1)
