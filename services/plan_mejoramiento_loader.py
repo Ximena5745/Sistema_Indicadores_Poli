@@ -1,14 +1,19 @@
 """
-services/plan_mejoramiento_loader.py — Carga y análisis de tendencia CNA
+services/plan_mejoramiento_loader.py — Carga y análisis de dirección CNA
 
 Fuente: data/raw/Plan de mejoramiento/Resultados_Consolidados_CNA_actualizado.xlsx
 Hojas usadas: "Metricas" (hecho, largo por Periodo) y "Factor- Caracteristica"
 (mapeo canónico Factor→Característica).
 
 Responsabilidad única: cargar el Excel, limpiar/derivar columnas, y calcular
-tendencia (favorable/desfavorable/estable) de Ejecución por Periodo — sin
+la DIRECCIÓN (aumento/disminución/estable) de Ejecución por Periodo — sin
 Meta/Cumplimiento (prácticamente vacíos en la fuente) y sin información de
 ficha técnica/formulación del indicador.
+
+Estas son métricas crudas (conteos, totales, montos), no indicadores con una
+meta que defina qué dirección es "buena". Por eso la clasificación es
+deliberadamente NEUTRA: describe si el valor subió, bajó o se mantuvo, nunca
+si eso es favorable o desfavorable (el campo Sentido no se usa para juzgar).
 
 Funciones públicas:
   - load_metricas_raw()
@@ -18,6 +23,8 @@ Funciones públicas:
   - build_indicador_series()
   - compute_trend_table()
   - aggregate_trend_by()
+  - compute_evolucion_agregada()
+  - compute_evolucion_por_segmento()
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from core.config import CACHE_TTL, DATA_RAW, SENTIDO_NEGATIVO, SENTIDO_POSITIVO
+from core.config import CACHE_TTL, DATA_RAW
 
 PM_XLSX = DATA_RAW / "Plan de mejoramiento" / "Resultados_Consolidados_CNA_actualizado.xlsx"
 SHEET_METRICAS = "Metricas"
@@ -170,35 +177,28 @@ def get_caracteristicas_for_factor(factor_label: str) -> list[str]:
     )
 
 
-def classify_trend(serie: pd.DataFrame, sentido: str) -> str:
-    """Clasifica la tendencia comparando los dos últimos periodos con dato.
+def classify_trend(serie: pd.DataFrame) -> str:
+    """Clasifica la DIRECCIÓN comparando los dos últimos periodos con dato.
+
+    Deliberadamente neutro: no evalúa si subir o bajar es "bueno" — son
+    métricas crudas (conteos, totales), no indicadores con una meta que
+    definiría una dirección deseable.
 
     `serie`: DataFrame ordenado cronológicamente con columna `Ejecucion_num`.
-    Retorna: "favorable" | "desfavorable" | "estable" | "sin_datos".
+    Retorna: "aumento" | "disminucion" | "estable" | "sin_datos".
     """
     valores = serie["Ejecucion_num"].dropna()
     if len(valores) < 2:
         return "sin_datos"
 
-    ultimo, previo = valores.iloc[-1], valores.iloc[-2]
-    delta = ultimo - previo
-
+    delta = valores.iloc[-1] - valores.iloc[-2]
     if delta == 0:
         return "estable"
-
-    sentido_norm = str(sentido or "").strip().lower()
-    positivo = SENTIDO_POSITIVO.lower()
-    negativo = SENTIDO_NEGATIVO.lower()
-    if sentido_norm not in (positivo, negativo):
-        return "estable"
-
-    sube_es_bueno = sentido_norm == positivo
-    favorable = (delta > 0) == sube_es_bueno
-    return "favorable" if favorable else "desfavorable"
+    return "aumento" if delta > 0 else "disminucion"
 
 
 def build_indicador_series(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
-    """Serie larga (una fila por entidad+Periodo) lista para graficar tendencia.
+    """Serie larga (una fila por entidad+Periodo) lista para graficar evolución.
 
     `group_cols`: ["Indicador"] o ["Indicador", "Subindicador"].
     """
@@ -219,7 +219,7 @@ def build_indicador_series(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFr
 
 
 def compute_trend_table(df: pd.DataFrame, level: str) -> pd.DataFrame:
-    """Una fila por Indicador (o Subindicador) con su tendencia y variación.
+    """Una fila por Indicador (o Subindicador) con su dirección y variación.
 
     `level`: "indicador" | "subindicador".
     """
@@ -234,8 +234,7 @@ def compute_trend_table(df: pd.DataFrame, level: str) -> pd.DataFrame:
     rows = []
     for keys, grupo in serie.groupby(group_cols, dropna=False):
         keys = keys if isinstance(keys, tuple) else (keys,)
-        sentido = grupo["Sentido"].dropna().iloc[0] if not grupo["Sentido"].dropna().empty else ""
-        tendencia = classify_trend(grupo, sentido)
+        direccion = classify_trend(grupo)
 
         valores = grupo["Ejecucion_num"].dropna()
         ultimo_valor = valores.iloc[-1] if not valores.empty else None
@@ -252,8 +251,8 @@ def compute_trend_table(df: pd.DataFrame, level: str) -> pd.DataFrame:
                 "Factor": grupo["Factor"].dropna().iloc[0] if not grupo["Factor"].dropna().empty else None,
                 "Factor_num": grupo["Factor_num"].dropna().iloc[0] if not grupo["Factor_num"].dropna().empty else None,
                 "Caracteristica": grupo["Caracteristica"].dropna().iloc[0] if not grupo["Caracteristica"].dropna().empty else None,
-                "Sentido": sentido,
-                "Tendencia": tendencia,
+                "Sentido": grupo["Sentido"].dropna().iloc[0] if not grupo["Sentido"].dropna().empty else "",
+                "Tendencia": direccion,
                 "ultimo_periodo": grupo["Periodo"].dropna().iloc[-1] if not grupo["Periodo"].dropna().empty else None,
                 "ultimo_valor": ultimo_valor,
                 "unidad": grupo["Ejecución s"].dropna().iloc[-1] if not grupo["Ejecución s"].dropna().empty else None,
@@ -268,10 +267,12 @@ def compute_trend_table(df: pd.DataFrame, level: str) -> pd.DataFrame:
 
 
 def aggregate_trend_by(df_trend: pd.DataFrame, group_col: str) -> pd.DataFrame:
-    """Cuenta favorable/desfavorable/estable/sin_datos por Factor o Característica.
+    """Cuenta aumento/disminución/estable/sin_datos por Factor o Característica.
 
-    Es la métrica de ranking: proporción de indicadores con tendencia
-    favorable, NO promedio de valores crudos (unidades no comparables).
+    Puramente descriptivo — NO es un ranking de desempeño: los Factores/
+    Características agrupan métricas de naturaleza distinta y no son
+    comparables entre sí. El orden de presentación lo decide quien llama
+    (normalmente el orden canónico 1→12), no este DataFrame.
     """
     if df_trend.empty or group_col not in df_trend.columns:
         return pd.DataFrame()
@@ -280,72 +281,72 @@ def aggregate_trend_by(df_trend: pd.DataFrame, group_col: str) -> pd.DataFrame:
         df_trend.groupby(group_col)["Tendencia"]
         .value_counts()
         .unstack(fill_value=0)
-        .reindex(columns=["favorable", "desfavorable", "estable", "sin_datos"], fill_value=0)
+        .reindex(columns=["aumento", "disminucion", "estable", "sin_datos"], fill_value=0)
     )
-    counts.columns = ["n_favorable", "n_desfavorable", "n_estable", "n_sin_datos"]
+    counts.columns = ["n_aumento", "n_disminucion", "n_estable", "n_sin_datos"]
     counts["n_total"] = counts.sum(axis=1)
     con_dato = counts["n_total"] - counts["n_sin_datos"]
 
-    counts["pct_favorable"] = (counts["n_favorable"] / con_dato.replace(0, pd.NA) * 100).fillna(0.0)
-    counts["pct_desfavorable"] = (counts["n_desfavorable"] / con_dato.replace(0, pd.NA) * 100).fillna(0.0)
+    counts["pct_aumento"] = (counts["n_aumento"] / con_dato.replace(0, pd.NA) * 100).fillna(0.0)
+    counts["pct_disminucion"] = (counts["n_disminucion"] / con_dato.replace(0, pd.NA) * 100).fillna(0.0)
 
-    return counts.reset_index().sort_values("pct_favorable", ascending=False)
+    return counts.reset_index()
 
 
 def compute_evolucion_agregada(df: pd.DataFrame, group_cols: list[str] | None = None) -> pd.DataFrame:
-    """% de indicadores favorables por Periodo (serie agregada de tendencia).
+    """% de indicadores en aumento por Periodo (serie agregada de dirección).
 
     Para cada entidad (Indicador, o Indicador+Subindicador si `group_cols` lo
     incluye) y cada par de periodos consecutivos con dato, clasifica el paso
-    como favorable/desfavorable/estable; agrega el % favorable por periodo
-    de llegada. Es la base de los gráficos de "evolución"/"tendencia".
+    como aumento/disminución/estable; agrega el % en aumento por periodo de
+    llegada. Es la base de los gráficos de "evolución" — describe dirección,
+    no desempeño.
     """
     group_cols = group_cols or ["Indicador"]
     if df.empty:
-        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_aumento"])
 
     serie = build_indicador_series(df, group_cols)
     if serie.empty:
-        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_aumento"])
 
     records = []
     for _, grupo in serie.groupby(group_cols, dropna=False):
         grupo = grupo.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
-        sentido = grupo["Sentido"].dropna().iloc[0] if not grupo["Sentido"].dropna().empty else ""
         for i in range(1, len(grupo)):
             if pd.isna(grupo.loc[i - 1, "Ejecucion_num"]) or pd.isna(grupo.loc[i, "Ejecucion_num"]):
                 continue
-            tendencia = classify_trend(grupo.iloc[i - 1 : i + 1], sentido)
+            direccion = classify_trend(grupo.iloc[i - 1 : i + 1])
             records.append(
                 {
                     "Periodo": grupo.loc[i, "Periodo"],
                     "Periodo_anio": grupo.loc[i, "Periodo_anio"],
                     "Periodo_sem": grupo.loc[i, "Periodo_sem"],
-                    "Tendencia": tendencia,
+                    "Tendencia": direccion,
                 }
             )
 
     if not records:
-        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+        return pd.DataFrame(columns=["Periodo", "Periodo_anio", "Periodo_sem", "pct_aumento"])
 
     df_rec = pd.DataFrame(records)
     agg = (
         df_rec.groupby(["Periodo", "Periodo_anio", "Periodo_sem"])["Tendencia"]
-        .apply(lambda s: float((s == "favorable").mean() * 100))
-        .reset_index(name="pct_favorable")
+        .apply(lambda s: float((s == "aumento").mean() * 100))
+        .reset_index(name="pct_aumento")
     )
     return agg.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
 
 
 def compute_evolucion_por_segmento(df: pd.DataFrame, segment_col: str = "Factor") -> pd.DataFrame:
-    """% favorable por Periodo, desglosado por Factor o Característica.
+    """% en aumento por Periodo, desglosado por Factor o Característica.
 
     Insumo del heatmap Factor×Periodo: una fila por (segmento, periodo) con
-    su % de indicadores favorables — permite ver EN QUÉ periodo cada factor
-    mejoró o se estancó, no solo el promedio global.
+    su % de indicadores en aumento — permite ver EN QUÉ periodo cada factor
+    subió o bajó, no solo el promedio global.
     """
     if df.empty or segment_col not in df.columns:
-        return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+        return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_aumento"])
 
     piezas = []
     for valor in df[segment_col].dropna().unique():
@@ -358,6 +359,6 @@ def compute_evolucion_por_segmento(df: pd.DataFrame, segment_col: str = "Factor"
         piezas.append(evo)
 
     if not piezas:
-        return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_favorable"])
+        return pd.DataFrame(columns=[segment_col, "Periodo", "Periodo_anio", "Periodo_sem", "pct_aumento"])
 
     return pd.concat(piezas, ignore_index=True)

@@ -40,7 +40,7 @@ from streamlit_app.pages.plan_mejoramiento_utils import (
     trend_badge_html,
     trend_legend_html,
 )
-from streamlit_app.utils.cna_icons import factor_icon_html, factor_style
+from streamlit_app.utils.cna_icons import factor_icon_data_uri, factor_icon_html
 
 DRILL_KEYS = [
     "pm_drill_factor",
@@ -173,74 +173,86 @@ def _quick_filter_panel() -> None:
 
 
 def _render_alerts(trend_ind: pd.DataFrame) -> None:
+    """Nota informativa, no una advertencia de "mal desempeño": son métricas
+    crudas, una disminución no es intrínsecamente negativa."""
     alerts = build_alerts(trend_ind)
-    danger = [a for a in alerts if a["level"] == "danger"]
-    if danger:
+    disminuciones = [a for a in alerts if a["level"] == "info"]
+    if disminuciones:
         render_alert_strip(
-            f"{len(danger)} indicador(es) muestran comportamiento desfavorable en el último periodo reportado.",
-            level="danger",
+            f"{len(disminuciones)} indicador(es) disminuyeron en el último periodo reportado.",
+            level="info",
         )
 
 
-def _narrative_insight(pct_fav: float, pct_desfav: float, n_factores_alerta: int, n_alertas: int) -> str:
-    """Nunca declara un factor "mejor" o "peor": los 12 factores agrupan
-    métricas de naturaleza distinta (unidades, escalas, significado) y no
-    son comparables entre sí como un ranking único — solo se resume el
-    panorama agregado y cuántos factores concentran comportamiento
-    desfavorable, sin ordenarlos unos contra otros."""
-    tono = "favorable" if pct_fav >= pct_desfav else "de atención"
+def _narrative_insight(pct_aumento: float, pct_disminucion: float, n_factores_mas_disminucion: int) -> str:
+    """Puramente descriptivo: nunca califica el panorama de "bueno" o "malo",
+    ni declara un factor "mejor" o "peor" — los 12 factores agrupan métricas
+    de naturaleza distinta (unidades, escalas, significado) y no son
+    comparables entre sí como un ranking único."""
     texto = (
-        f"El Plan de Mejoramiento muestra un panorama <b>{tono}</b>: "
-        f"<b>{pct_fav:.0f}%</b> de los indicadores con dato avanzan en la dirección esperada."
+        f"Del total de indicadores con dato en el rango seleccionado, "
+        f"<b>{pct_aumento:.0f}%</b> aumentó y <b>{pct_disminucion:.0f}%</b> disminuyó "
+        f"respecto al periodo anterior."
     )
-    if n_factores_alerta:
-        texto += f" <b>{n_factores_alerta}</b> de los 12 factores concentran más indicadores desfavorables que favorables."
-    if n_alertas:
-        texto += f" Hay <b>{n_alertas}</b> indicador(es) que requieren atención prioritaria."
+    if n_factores_mas_disminucion:
+        texto += (
+            f" En <b>{n_factores_mas_disminucion}</b> de los 12 factores, más indicadores "
+            "disminuyeron que aumentaron en su último corte."
+        )
     return texto
 
 
-def _inject_factor_pill_css(factores: list[dict]) -> None:
+def _inject_factor_pill_css(factores: list[dict], agg_factor: pd.DataFrame) -> None:
     """CSS por factor, dirigido a `.st-key-pm_factor_btn_<n>` (la clase que
     Streamlit agrega automáticamente a un widget cuando se le pasa `key=`).
-    Convierte el st.button nativo en la píldora de color de Consolidado.png
-    sin agregar ningún elemento visual aparte — ícono y botón son el mismo
-    nodo del DOM.
+
+    El fondo del st.button ES la imagen real de assets/CNA/{n}.jpeg (la
+    píldora completa: ícono + nombre, ya diseñada) — no una recreación con
+    Material Symbols. Ícono y botón son el mismo nodo del DOM: el texto
+    nativo del botón se oculta visualmente (sigue accesible para lectores de
+    pantalla) porque el nombre ya está dibujado en la imagen; el único
+    contenido añadido por CSS es el badge de "% en aumento", que no existe
+    en la imagen fuente.
     """
+    agg_lookup = agg_factor.set_index("Factor") if agg_factor is not None and not agg_factor.empty else pd.DataFrame()
     rules = []
     for f in factores:
-        style = factor_style(f["num"])
-        bg, fg = style["bg"], style["fg"]
         key = f"pm_factor_btn_{f['num']}"
+        uri = factor_icon_data_uri(f["num"])
+        bg_rule = f"background-image:url({uri});" if uri else "background:#1A3A5C;"
+        if f["label"] in agg_lookup.index:
+            badge = f"{agg_lookup.loc[f['label'], 'pct_aumento']:.0f}% en aumento"
+        else:
+            badge = "Sin dato"
         rules.append(
             f".st-key-{key} button {{"
-            f"background:{bg} !important;"
-            f"border:none !important;"
-            f"border-radius:999px !important;"
-            f"padding:16px 22px !important;"
-            f"min-height:68px !important;"
-            f"width:100% !important;"
-            f"justify-content:flex-start !important;"
-            f"gap:14px !important;"
+            f"{bg_rule}"
+            f"background-size:cover;background-position:center;background-repeat:no-repeat;"
+            f"aspect-ratio:4/1;height:auto !important;min-height:0 !important;"
+            f"border:none !important;border-radius:999px !important;width:100% !important;"
+            f"padding:0 !important;position:relative;overflow:hidden;"
             f"box-shadow:0 2px 10px rgba(0,0,0,0.16) !important;"
             f"transition:transform .12s ease, box-shadow .12s ease !important;"
             f"}}"
             f".st-key-{key} button:hover {{"
-            f"transform:translateY(-2px);"
-            f"box-shadow:0 8px 18px rgba(0,0,0,0.24) !important;"
+            f"transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,0.24) !important;"
             f"}}"
             f".st-key-{key} button p {{"
-            f"color:{fg} !important;font-weight:700 !important;"
-            f"font-size:0.9rem !important;text-align:left !important;white-space:normal !important;"
+            f"position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;"
+            f"margin:-1px !important;overflow:hidden !important;clip:rect(0,0,0,0) !important;"
+            f"white-space:nowrap !important;border:0 !important;"
             f"}}"
-            f".st-key-{key} button svg {{ fill:{fg} !important; width:28px !important; height:28px !important; flex-shrink:0; }}"
+            f".st-key-{key} button::after {{"
+            f'content:"{badge}";position:absolute;top:8px;right:14px;'
+            f"background:rgba(255,255,255,0.94);color:#1A2B3C;font-size:0.66rem;font-weight:700;"
+            f"padding:2px 9px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"
+            f"}}"
         )
     st.markdown(f"<style>{''.join(rules)}</style>", unsafe_allow_html=True)
 
 
 def _render_factor_pill_grid(factores: list[dict], agg_factor: pd.DataFrame) -> None:
-    _inject_factor_pill_css(factores)
-    agg_lookup = agg_factor.set_index("Factor") if agg_factor is not None and not agg_factor.empty else pd.DataFrame()
+    _inject_factor_pill_css(factores, agg_factor)
 
     n_cols = 3
     for i in range(0, len(factores), n_cols):
@@ -248,15 +260,8 @@ def _render_factor_pill_grid(factores: list[dict], agg_factor: pd.DataFrame) -> 
         cols = st.columns(len(fila))
         for col, f in zip(cols, fila):
             with col:
-                style = factor_style(f["num"])
-                if f["label"] in agg_lookup.index:
-                    pct = agg_lookup.loc[f["label"], "pct_favorable"]
-                    label = f"{f['nombre']} · {pct:.0f}% favorable"
-                else:
-                    label = f"{f['nombre']} · Sin dato"
                 st.button(
-                    label,
-                    icon=f":material/{style['icon']}:",
+                    f["nombre"],
                     key=f"pm_factor_btn_{f['num']}",
                     on_click=_go,
                     args=("pm_drill_factor", f["label"]),
@@ -270,13 +275,11 @@ def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
     agg_factor = aggregate_trend_by(trend_ind, "Factor")
 
     con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
-    pct_desfav = (con_dato["Tendencia"] == "desfavorable").mean() * 100 if not con_dato.empty else 0.0
-    n_factores_alerta = (
-        int((agg_factor["n_desfavorable"] > agg_factor["n_favorable"]).sum()) if not agg_factor.empty else 0
+    pct_aumento = (con_dato["Tendencia"] == "aumento").mean() * 100 if not con_dato.empty else 0.0
+    pct_disminucion = (con_dato["Tendencia"] == "disminucion").mean() * 100 if not con_dato.empty else 0.0
+    n_factores_mas_disminucion = (
+        int((agg_factor["n_disminucion"] > agg_factor["n_aumento"]).sum()) if not agg_factor.empty else 0
     )
-    alerts = build_alerts(trend_ind)
-    n_danger = len([a for a in alerts if a["level"] == "danger"])
 
     # ── Hero: narrativa ejecutiva + dona de composición global ─────────────
     hero_cols = st.columns([3, 2])
@@ -285,17 +288,13 @@ def section_resumen(df: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
             f"<div style='background:linear-gradient(135deg,#EFF6FF 0%,#F8FAFF 100%);"
             f"border:1px solid #DCE8FA;border-radius:14px;padding:20px 22px;height:100%;"
             f"font-size:1.05rem;line-height:1.55;color:#1A2B3C;'>"
-            f"{_narrative_insight(pct_fav, pct_desfav, n_factores_alerta, n_danger)}</div>",
+            f"{_narrative_insight(pct_aumento, pct_disminucion, n_factores_mas_disminucion)}</div>",
             unsafe_allow_html=True,
         )
     with hero_cols[1]:
         st.plotly_chart(chart_global_donut(agg_factor), use_container_width=True)
 
-    if n_danger:
-        render_alert_strip(
-            f"{n_danger} indicador(es) muestran comportamiento desfavorable en el último periodo reportado.",
-            level="danger",
-        )
+    _render_alerts(trend_ind)
 
     # ── Los 12 Factores CNA — grid de píldoras (basado en assets/CNA/Consolidado.png) ──
     # Ícono + nombre + % son UN solo st.button (icon= nativo), nunca dos
@@ -329,7 +328,7 @@ def _render_sunburst(trend_ind: pd.DataFrame) -> None:
     if trend_ind.empty:
         st.info("Sin datos suficientes para el mapa jerárquico.")
         return
-    trend_score = {"favorable": 1, "estable": 0, "desfavorable": -1}
+    trend_score = {"aumento": 1, "estable": 0, "disminucion": -1}
     df_plot = trend_ind.copy()
     df_plot["trend_score"] = df_plot["Tendencia"].map(trend_score)
     df_plot = df_plot.dropna(subset=["trend_score", "Factor", "Caracteristica", "Indicador"])
@@ -381,16 +380,16 @@ def section_factor(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str
 
     trend_ind = compute_trend_table(df_factor, level="indicador")
     con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
-    n_desfav = int((trend_ind["Tendencia"] == "desfavorable").sum()) if not trend_ind.empty else 0
+    pct_aumento = (con_dato["Tendencia"] == "aumento").mean() * 100 if not con_dato.empty else 0.0
+    n_disminucion = int((trend_ind["Tendencia"] == "disminucion").sum()) if not trend_ind.empty else 0
 
     kpi_cols = st.columns(3)
     with kpi_cols[0]:
         kpi_card("Indicadores", trend_ind["Indicador"].nunique() if not trend_ind.empty else 0, show_progress=False)
     with kpi_cols[1]:
-        kpi_card("% Favorable", f"{pct_fav:.0f}%", show_progress=False)
+        kpi_card("% en aumento", f"{pct_aumento:.0f}%", show_progress=False)
     with kpi_cols[2]:
-        kpi_card("Desfavorables", n_desfav, show_progress=False)
+        kpi_card("En disminución", n_disminucion, show_progress=False)
 
     _render_alerts(trend_ind)
 
@@ -431,16 +430,16 @@ def section_caracteristica(df: pd.DataFrame, periodo_filtered: pd.DataFrame, fac
 
     trend_ind = compute_trend_table(df_car, level="indicador")
     con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    pct_fav = (con_dato["Tendencia"] == "favorable").mean() * 100 if not con_dato.empty else 0.0
-    n_desfav = int((trend_ind["Tendencia"] == "desfavorable").sum()) if not trend_ind.empty else 0
+    pct_aumento = (con_dato["Tendencia"] == "aumento").mean() * 100 if not con_dato.empty else 0.0
+    n_disminucion = int((trend_ind["Tendencia"] == "disminucion").sum()) if not trend_ind.empty else 0
 
     kpi_cols = st.columns(3)
     with kpi_cols[0]:
         kpi_card("Indicadores", trend_ind["Indicador"].nunique() if not trend_ind.empty else 0, show_progress=False)
     with kpi_cols[1]:
-        kpi_card("% Favorable", f"{pct_fav:.0f}%", show_progress=False)
+        kpi_card("% en aumento", f"{pct_aumento:.0f}%", show_progress=False)
     with kpi_cols[2]:
-        kpi_card("Desfavorables", n_desfav, show_progress=False)
+        kpi_card("En disminución", n_disminucion, show_progress=False)
 
     _render_alerts(trend_ind)
 
@@ -494,17 +493,15 @@ def section_indicador(df: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: 
                 show_progress=False,
             )
         with kpi_cols[1]:
-            st.markdown("**Tendencia**")
+            st.markdown("**Dirección**")
             st.markdown(trend_badge_html(row["Tendencia"]), unsafe_allow_html=True)
-            st.caption(f"Sentido: {row['Sentido'] or '—'}")
         with kpi_cols[2]:
             kpi_card("Periodos con dato", int(row["n_periodos"]), show_progress=False)
     else:
         st.info("Sin datos para este indicador en el rango de periodos seleccionado.")
 
-    sentido = df_ind_all["Sentido"].dropna().iloc[0] if not df_ind_all["Sentido"].dropna().empty else ""
     serie = build_indicador_series(df_ind_filtered, ["Indicador"])
-    st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución", sentido), use_container_width=True)
+    st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución"), use_container_width=True)
     _render_historia_table(serie)
 
     subindicadores = sorted(
@@ -558,17 +555,15 @@ def section_subindicador(
                 show_progress=False,
             )
         with kpi_cols[1]:
-            st.markdown("**Tendencia**")
+            st.markdown("**Dirección**")
             st.markdown(trend_badge_html(row["Tendencia"]), unsafe_allow_html=True)
-            st.caption(f"Sentido: {row['Sentido'] or '—'}")
         with kpi_cols[2]:
             kpi_card("Periodos con dato", int(row["n_periodos"]), show_progress=False)
     else:
         st.info("Sin datos para este subindicador en el rango de periodos seleccionado.")
 
-    sentido = df_sub_all["Sentido"].dropna().iloc[0] if not df_sub_all["Sentido"].dropna().empty else ""
     serie = build_indicador_series(df_sub_filtered, ["Indicador", "Subindicador"])
-    st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución", sentido), use_container_width=True)
+    st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución"), use_container_width=True)
     _render_historia_table(serie)
 
 

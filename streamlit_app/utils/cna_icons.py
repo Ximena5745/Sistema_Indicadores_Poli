@@ -1,9 +1,13 @@
 """
-utils/cna_icons.py — Íconos numerados de los 12 factores CNA
+utils/cna_icons.py — Identidad visual de los 12 factores CNA
 
-Fuente: assets/CNA/{1..12}.jpeg. No usa emoji: son las imágenes de
-identidad visual provistas para cada factor de acreditación, embebidas como
-data-URI para uso inline (breadcrumb, headers, alertas).
+Fuente: assets/CNA/{1..12}.jpeg — NO son íconos sueltos: cada archivo es la
+píldora de color completa ya diseñada (ícono + divisor + nombre del factor,
+ver Consolidado.png/Tablero.png). No se recrean con Material Symbols ni con
+CSS: se usa la imagen real, embebida como data-URI, ya sea como `<img>}`
+completo (grid de factores, vía background del propio botón) o recortada a
+la izquierda para mostrar solo el pictograma en usos pequeños (breadcrumb,
+headers) — ver `object-position` en `factor_icon_html`.
 """
 
 from __future__ import annotations
@@ -14,30 +18,6 @@ from pathlib import Path
 import streamlit as st
 
 ASSETS_CNA_DIR = Path(__file__).resolve().parents[2] / "assets" / "CNA"
-
-# Identidad visual por factor — paleta y pictograma tomados de
-# assets/CNA/Consolidado.png (el mismo mapa de color se usa en Tablero.png).
-# icon = nombre de Material Symbol (sin emoji, por convención del proyecto).
-FACTOR_STYLE: dict[int, dict[str, str]] = {
-    1: {"icon": "fingerprint", "bg": "#EC0677", "fg": "#FFFFFF"},
-    2: {"icon": "visibility", "bg": "#1CA8E0", "fg": "#FFFFFF"},
-    3: {"icon": "eco", "bg": "#FBA919", "fg": "#FFFFFF"},
-    4: {"icon": "fact_check", "bg": "#17D6E0", "fg": "#0E2F4C"},
-    5: {"icon": "account_tree", "bg": "#0E2F4C", "fg": "#FFFFFF"},
-    6: {"icon": "query_stats", "bg": "#39B54A", "fg": "#FFFFFF"},
-    7: {"icon": "volunteer_activism", "bg": "#7E1E9C", "fg": "#FFFFFF"},
-    8: {"icon": "public", "bg": "#1C6B3B", "fg": "#FFFFFF"},
-    9: {"icon": "favorite", "bg": "#E31E3C", "fg": "#FFFFFF"},
-    10: {"icon": "co_present", "bg": "#FFCC00", "fg": "#3A2E00"},
-    11: {"icon": "person", "bg": "#C7C9CB", "fg": "#2E3538"},
-    12: {"icon": "school", "bg": "#4453D6", "fg": "#FFFFFF"},
-}
-
-DEFAULT_FACTOR_STYLE = {"icon": "category", "bg": "#1A3A5C", "fg": "#FFFFFF"}
-
-
-def factor_style(factor_num: int) -> dict[str, str]:
-    return FACTOR_STYLE.get(int(factor_num), DEFAULT_FACTOR_STYLE)
 
 
 @st.cache_data(ttl=None, show_spinner=False)
@@ -59,7 +39,13 @@ def factor_icon_data_uri(factor_num: int) -> str | None:
 
 
 def factor_icon_html(factor_num: int, size: int = 48, rounded: bool = True) -> str:
-    """HTML `<img>` inline con el ícono del factor, o un placeholder si falta."""
+    """HTML `<img>` recortado al pictograma del factor (o un placeholder si falta).
+
+    La imagen fuente es una píldora ancha (ícono + texto); se recorta desde
+    la izquierda (`object-position: left center`) para mostrar solo el
+    ícono en usos pequeños — un recorte centrado mostraría el divisor/texto
+    en blanco en vez del pictograma.
+    """
     uri = factor_icon_data_uri(factor_num)
     radius = "50%" if rounded else "8px"
     if uri is None:
@@ -69,8 +55,9 @@ def factor_icon_html(factor_num: int, size: int = 48, rounded: bool = True) -> s
             f'font-size:{max(10, size // 3)}px;color:#757575;">{factor_num}</div>'
         )
     return (
-        f'<img src="{uri}" width="{size}" height="{size}" '
-        f'style="border-radius:{radius}; object-fit:cover; border:2px solid #fff; '
-        f'box-shadow:0 1px 4px rgba(0,0,0,0.15); vertical-align:middle;" '
+        f'<div style="width:{size}px;height:{size}px;border-radius:{radius};overflow:hidden;'
+        f'display:inline-block;box-shadow:0 1px 4px rgba(0,0,0,0.15);vertical-align:middle;">'
+        f'<img src="{uri}" style="width:400%;height:100%;object-fit:cover;object-position:left center;" '
         f'alt="Factor {factor_num}" />'
+        f"</div>"
     )

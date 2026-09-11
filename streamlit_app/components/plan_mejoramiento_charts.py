@@ -1,10 +1,15 @@
 """
-components/plan_mejoramiento_charts.py — Gráficos de tendencia CNA (Plotly)
+components/plan_mejoramiento_charts.py — Gráficos de dirección CNA (Plotly)
 
-Todos los gráficos codifican COLOR = TENDENCIA (favorable/desfavorable/
-estable), nunca identidad de Factor — la identidad de Factor la da el ícono
-CNA (ver utils/cna_icons.py). Sin Meta/Cumplimiento: no hay bandas de umbral,
-solo dirección de Ejecución respecto al periodo anterior.
+Todos los gráficos codifican COLOR = DIRECCIÓN (aumento/disminución/estable),
+nunca identidad de Factor — la identidad de Factor la da el ícono CNA (ver
+utils/cna_icons.py). Sin Meta/Cumplimiento: no hay bandas de umbral, solo
+dirección de Ejecución respecto al periodo anterior.
+
+Deliberadamente NEUTRO: estas son métricas crudas (conteos, totales), no
+indicadores con una meta que definiría qué dirección es "buena" — por eso
+la paleta usa azul/ámbar (subir/bajar), nunca verde/rojo tipo semáforo, que
+se leería como un juicio de valor que los datos no respaldan.
 """
 
 from __future__ import annotations
@@ -13,19 +18,18 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from core.config import SENTIDO_NEGATIVO, SENTIDO_POSITIVO
 from streamlit_app.styles.design_system import COLORS
 
 TREND_COLORS = {
-    "favorable": COLORS["success"],
-    "desfavorable": COLORS["danger"],
-    "estable": COLORS["info"],
-    "sin_datos": COLORS["gray_400"],
+    "aumento": COLORS["info_dark"],
+    "disminucion": COLORS["warning_dark"],
+    "estable": COLORS["gray_500"],
+    "sin_datos": COLORS["gray_300"],
 }
 
 TREND_LABELS = {
-    "favorable": "Favorable",
-    "desfavorable": "Desfavorable",
+    "aumento": "Aumentó",
+    "disminucion": "Disminuyó",
     "estable": "Estable",
     "sin_datos": "Sin datos",
 }
@@ -37,22 +41,22 @@ def chart_trend_ranking(
     title: str = "",
     category_order: list[str] | None = None,
 ) -> go.Figure:
-    """Barra horizontal 100%-apilada (favorable/estable/desfavorable/sin dato).
+    """Barra horizontal 100%-apilada (aumento/estable/disminución/sin dato).
 
     Cada barra suma siempre 100%, así las categorías son comparables sin
     importar cuántos indicadores tenga cada una (una con 2 indicadores no
     queda invisible frente a una con 25). El conteo real va en el hover y
-    como texto dentro del segmento favorable.
+    como texto dentro del segmento de aumento.
 
     Deliberadamente NO es un ranking por desempeño: los Factores/
     Características agrupan métricas de naturaleza distinta (unidades,
-    escalas, significado), así que ordenarlos por "% favorable" sugeriría
+    escalas, significado), así que ordenarlos por "% en aumento" sugeriría
     una comparación que los datos no respaldan. `category_order` fija el
     orden canónico (p.ej. Factor 1→12); si no se provee, se usa el orden de
     aparición en `df_agg`.
 
-    `df_agg`: salida de `aggregate_trend_by` (columnas n_favorable,
-    n_estable, n_desfavorable, n_sin_datos, n_total).
+    `df_agg`: salida de `aggregate_trend_by` (columnas n_aumento, n_estable,
+    n_disminucion, n_sin_datos, n_total).
     `category_col`: "Factor" o "Caracteristica".
     """
     if df_agg is None or df_agg.empty:
@@ -73,10 +77,10 @@ def chart_trend_ranking(
     total_seguro = df_plot["n_total"].replace(0, 1)
 
     fig = go.Figure()
-    for key in ("desfavorable", "estable", "favorable", "sin_datos"):
+    for key in ("disminucion", "estable", "aumento", "sin_datos"):
         pct = (df_plot[f"n_{key}"] / total_seguro * 100).round(1)
         counts = df_plot[f"n_{key}"]
-        text = [f"{p:.0f}%" if key == "favorable" and p >= 10 else "" for p in pct]
+        text = [f"{p:.0f}%" if key == "aumento" and p >= 10 else "" for p in pct]
         fig.add_trace(
             go.Bar(
                 y=categorias,
@@ -125,10 +129,10 @@ def chart_evolucion_agregada(
     title: str = "",
     compact: bool = False,
 ) -> go.Figure:
-    """Línea de % de indicadores favorables por Periodo (tendencia agregada).
+    """Línea de % de indicadores en aumento por Periodo (dirección agregada).
 
     `df_trend_series`: DataFrame con columnas [Periodo, Periodo_anio,
-    Periodo_sem, pct_favorable] — una fila por periodo evaluado.
+    Periodo_sem, pct_aumento] — una fila por periodo evaluado.
     """
     fig = go.Figure()
     if df_trend_series is None or df_trend_series.empty:
@@ -139,11 +143,11 @@ def chart_evolucion_agregada(
     fig.add_trace(
         go.Scatter(
             x=df_plot["Periodo"],
-            y=df_plot["pct_favorable"],
+            y=df_plot["pct_aumento"],
             mode="lines+markers",
             line=dict(color=COLORS["primary"], width=2),
             marker=dict(size=8, color=COLORS["primary"]),
-            hovertemplate="<b>%{x}</b><br>% Favorable: %{y:.1f}%<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>% en aumento: %{y:.1f}%<extra></extra>",
             showlegend=False,
         )
     )
@@ -162,11 +166,12 @@ def chart_evolucion_agregada(
     return fig
 
 
-def chart_trend_detail(df_serie: pd.DataFrame, titulo: str, sentido: str) -> go.Figure:
+def chart_trend_detail(df_serie: pd.DataFrame, titulo: str) -> go.Figure:
     """Línea + marcadores de Ejecución por Periodo para un indicador/subindicador.
 
     Eje x categórico (no temporal) por periodicidad irregular (Anual vs.
-    Semestral). Color de marcador = tendencia del paso hacia ese punto.
+    Semestral). Color de marcador = dirección del paso hacia ese punto
+    (subió/bajó/estable) — nunca si eso es "bueno" o "malo".
     """
     fig = go.Figure()
     if df_serie is None or df_serie.empty:
@@ -176,11 +181,6 @@ def chart_trend_detail(df_serie: pd.DataFrame, titulo: str, sentido: str) -> go.
     df_plot = df_serie.sort_values(["Periodo_anio", "Periodo_sem"]).copy()
     valores = df_plot["Ejecucion_num"]
 
-    positivo = str(SENTIDO_POSITIVO).strip().lower()
-    negativo = str(SENTIDO_NEGATIVO).strip().lower()
-    sentido_norm = str(sentido or "").strip().lower()
-    sube_es_bueno = sentido_norm == positivo if sentido_norm in (positivo, negativo) else None
-
     marker_colors = [TREND_COLORS["sin_datos"]]
     for i in range(1, len(valores)):
         prev, curr = valores.iloc[i - 1], valores.iloc[i]
@@ -188,11 +188,10 @@ def chart_trend_detail(df_serie: pd.DataFrame, titulo: str, sentido: str) -> go.
             marker_colors.append(TREND_COLORS["sin_datos"])
         elif curr == prev:
             marker_colors.append(TREND_COLORS["estable"])
-        elif sube_es_bueno is None:
-            marker_colors.append(TREND_COLORS["estable"])
+        elif curr > prev:
+            marker_colors.append(TREND_COLORS["aumento"])
         else:
-            favorable = (curr > prev) == sube_es_bueno
-            marker_colors.append(TREND_COLORS["favorable"] if favorable else TREND_COLORS["desfavorable"])
+            marker_colors.append(TREND_COLORS["disminucion"])
 
     fig.add_trace(
         go.Scatter(
@@ -221,7 +220,7 @@ def chart_trend_detail(df_serie: pd.DataFrame, titulo: str, sentido: str) -> go.
 
 
 def _bucket_pct(pct: float | None) -> int:
-    """Mismos umbrales que las píldoras de Factor: 0=sin dato, 1=desfavorable, 2=estable, 3=favorable."""
+    """Mismos umbrales que las píldoras de Factor: 0=sin dato, 1=disminución, 2=estable, 3=aumento."""
     if pct is None or pd.isna(pct):
         return 0
     if pct < 35:
@@ -231,14 +230,13 @@ def _bucket_pct(pct: float | None) -> int:
     return 3
 
 
-_BUCKET_KEY = {0: "sin_datos", 1: "desfavorable", 2: "estable", 3: "favorable"}
-# Colorscale en 4 bandas SÓLIDAS (sin degradado) — mismo semáforo que el
-# resto de la página: rojo/azul/verde, nunca un tono intermedio confuso.
+# Colorscale en 4 bandas SÓLIDAS (sin degradado) — mismo esquema neutro
+# (azul/ámbar/gris) de toda la página, nunca un tono intermedio confuso.
 _BUCKET_COLORSCALE = [
     [0.00, TREND_COLORS["sin_datos"]], [0.25, TREND_COLORS["sin_datos"]],
-    [0.25, TREND_COLORS["desfavorable"]], [0.50, TREND_COLORS["desfavorable"]],
+    [0.25, TREND_COLORS["disminucion"]], [0.50, TREND_COLORS["disminucion"]],
     [0.50, TREND_COLORS["estable"]], [0.75, TREND_COLORS["estable"]],
-    [0.75, TREND_COLORS["favorable"]], [1.00, TREND_COLORS["favorable"]],
+    [0.75, TREND_COLORS["aumento"]], [1.00, TREND_COLORS["aumento"]],
 ]
 
 
@@ -248,23 +246,23 @@ def chart_heatmap_periodo(
     title: str = "",
     row_order: list[str] | None = None,
 ) -> go.Figure:
-    """Heatmap segmento × periodo — dónde y cuándo mejoró o se estancó cada uno.
+    """Heatmap segmento × periodo — dónde y cuándo subió o bajó cada uno.
 
     Cada celda se clasifica en las MISMAS 4 categorías (y colores sólidos)
-    que el resto de la página — favorable/estable/desfavorable/sin dato —
-    en vez de un degradado continuo, que con muestras pequeñas por celda
-    genera tonos intermedios confusos y no dice nada de un vistazo.
+    que el resto de la página — aumento/estable/disminución/sin dato — en
+    vez de un degradado continuo, que con muestras pequeñas por celda genera
+    tonos intermedios confusos y no dice nada de un vistazo.
 
-    `row_order`: orden de filas de arriba hacia abajo (p.ej. el mismo orden
-    del ranking de Factores) — mantiene consistencia visual con el resto de
-    la página en vez de un orden propio que contradiga lo ya mostrado.
+    `row_order`: orden de filas de arriba hacia abajo (el orden canónico
+    1→12, nunca uno derivado del desempeño) — mantiene consistencia visual
+    con el resto de la página.
     """
     if df_seg is None or df_seg.empty:
         fig = go.Figure()
         fig.update_layout(title="Sin datos suficientes para el heatmap")
         return fig
 
-    pivot = df_seg.pivot_table(index=segment_col, columns="Periodo", values="pct_favorable", aggfunc="mean")
+    pivot = df_seg.pivot_table(index=segment_col, columns="Periodo", values="pct_aumento", aggfunc="mean")
     orden_periodo = (
         df_seg[["Periodo", "Periodo_anio", "Periodo_sem"]]
         .drop_duplicates()
@@ -278,7 +276,7 @@ def chart_heatmap_periodo(
     else:
         orden_filas = sorted(pivot.index.tolist())
     # Plotly dibuja la primera fila del arreglo ABAJO; se invierte para que
-    # el orden solicitado (mejor primero) quede arriba, como una lista.
+    # el primero del orden solicitado quede arriba, como una lista.
     pivot = pivot.loc[list(reversed(orden_filas))]
 
     z = pivot.map(_bucket_pct)
@@ -295,9 +293,7 @@ def chart_heatmap_periodo(
             showscale=False,
             xgap=3,
             ygap=3,
-            hovertemplate=(
-                "<b>%{y}</b><br>%{x}: %{customdata:.0f}% favorable<extra></extra>"
-            ),
+            hovertemplate="<b>%{y}</b><br>%{x}: %{customdata:.0f}% en aumento<extra></extra>",
             hoverongaps=False,
         )
     )
@@ -313,14 +309,14 @@ def chart_heatmap_periodo(
 
 
 def chart_global_donut(agg_factor: pd.DataFrame) -> go.Figure:
-    """Dona de composición global favorable/estable/desfavorable/sin dato."""
+    """Dona de composición global aumento/estable/disminución/sin dato."""
     fig = go.Figure()
     if agg_factor is None or agg_factor.empty:
         fig.update_layout(title="Sin datos disponibles")
         return fig
 
     totales = {
-        key: int(agg_factor[f"n_{key}"].sum()) for key in ("favorable", "estable", "desfavorable", "sin_datos")
+        key: int(agg_factor[f"n_{key}"].sum()) for key in ("aumento", "estable", "disminucion", "sin_datos")
     }
     fig.add_trace(
         go.Pie(
@@ -332,12 +328,15 @@ def chart_global_donut(agg_factor: pd.DataFrame) -> go.Figure:
             hovertemplate="<b>%{label}</b>: %{value} indicadores (%{percent})<extra></extra>",
         )
     )
-    total_con_dato = totales["favorable"] + totales["estable"] + totales["desfavorable"]
-    pct_fav = (totales["favorable"] / total_con_dato * 100) if total_con_dato else 0
+    total_con_dato = totales["aumento"] + totales["estable"] + totales["disminucion"]
+    pct_aumento = (totales["aumento"] / total_con_dato * 100) if total_con_dato else 0
+    # Color fijo (no condicional): un tono más alto de aumento no es "mejor",
+    # solo describe la composición — condicionar el color reintroduciría el
+    # juicio de valor que esta vista evita a propósito.
     fig.add_annotation(
-        text=f"<b>{pct_fav:.0f}%</b><br><span style='font-size:11px'>Favorable</span>",
+        text=f"<b>{pct_aumento:.0f}%</b><br><span style='font-size:11px'>En aumento</span>",
         showarrow=False,
-        font=dict(size=22, color=TREND_COLORS["favorable"] if pct_fav >= 50 else TREND_COLORS["desfavorable"]),
+        font=dict(size=22, color=COLORS["text_primary"]),
     )
     fig.update_layout(
         showlegend=True,
@@ -350,12 +349,12 @@ def chart_global_donut(agg_factor: pd.DataFrame) -> go.Figure:
 
 
 def chart_sunburst_jerarquia(df_trend: pd.DataFrame, title: str = "") -> go.Figure:
-    """Mapa jerárquico Factor→Característica→Indicador, coloreado por tendencia.
+    """Mapa jerárquico Factor→Característica→Indicador, coloreado por dirección.
 
     `df_trend`: salida de `compute_trend_table(level="indicador")`, con una
-    fila agregada `trend_score` (-1 desfavorable, 0 estable, 1 favorable) ya
-    calculada por el llamador. Tamaño de cada segmento = conteo (1 por
-    indicador); color = trend_score promedio del segmento.
+    columna `trend_score` (-1 disminución, 0 estable, 1 aumento) ya calculada
+    por el llamador. Tamaño de cada segmento = conteo (1 por indicador);
+    color = trend_score promedio del segmento.
     """
     if df_trend is None or df_trend.empty:
         fig = go.Figure()
@@ -370,7 +369,11 @@ def chart_sunburst_jerarquia(df_trend: pd.DataFrame, title: str = "") -> go.Figu
         path=["Factor", "Caracteristica", "Indicador"],
         values="peso",
         color="trend_score",
-        color_continuous_scale=[[0, TREND_COLORS["desfavorable"]], [0.5, TREND_COLORS["estable"]], [1, TREND_COLORS["favorable"]]],
+        color_continuous_scale=[
+            [0, TREND_COLORS["disminucion"]],
+            [0.5, TREND_COLORS["estable"]],
+            [1, TREND_COLORS["aumento"]],
+        ],
         range_color=[-1, 1],
         title=title,
     )

@@ -46,14 +46,14 @@ def format_delta(delta_abs: float | None, unidad: str | None) -> str | None:
 
 
 def trend_legend_html() -> str:
-    """Leyenda horizontal compacta favorable/estable/desfavorable/sin dato.
+    """Leyenda horizontal compacta aumento/estable/disminución/sin dato.
 
     Usada bajo los heatmaps Factor×Periodo (que no llevan colorbar continua,
     ver `chart_heatmap_periodo`) para que sus 4 colores sólidos sigan siendo
     legibles sin necesidad de pasar el mouse por cada celda.
     """
     chips = []
-    for key in ("favorable", "estable", "desfavorable", "sin_datos"):
+    for key in ("aumento", "estable", "disminucion", "sin_datos"):
         color = TREND_COLORS[key]
         chips.append(
             f'<span style="display:inline-flex;align-items:center;gap:5px;margin-right:16px;'
@@ -100,26 +100,26 @@ def build_breadcrumb_items(
     return items
 
 
-def build_alerts(df_trend: pd.DataFrame, min_periodos_desfavorables: int = 2) -> list[dict]:
-    """Detecta indicadores/subindicadores que requieren atención.
-
-    Marca: (a) tendencia desfavorable en el último corte, o (b) sin datos en
-    el periodo más reciente pese a tener historial ("dejó de reportar").
+def build_alerts(df_trend: pd.DataFrame) -> list[dict]:
+    """Señala cambios recientes dignos de revisión — sin calificarlos de
+    buenos o malos (son métricas crudas, no indicadores con meta):
+    (a) el valor disminuyó respecto al periodo anterior, o (b) el
+    indicador/subindicador dejó de reportar pese a tener historial.
     Retorna una lista de dicts con `level`, `message` y datos para drill-down.
     """
     if df_trend is None or df_trend.empty:
         return []
 
     alerts = []
-    desfavorables = df_trend[df_trend["Tendencia"] == "desfavorable"]
-    for _, row in desfavorables.iterrows():
+    disminuciones = df_trend[df_trend["Tendencia"] == "disminucion"]
+    for _, row in disminuciones.iterrows():
         nombre = row.get("Subindicador") or row.get("Indicador")
         alerts.append(
             {
-                "level": "danger",
+                "level": "info",
                 "message": (
-                    f"<b>{nombre}</b> ({row.get('Factor')}) muestra comportamiento "
-                    f"desfavorable en {row.get('ultimo_periodo')}."
+                    f"<b>{nombre}</b> ({row.get('Factor')}) disminuyó en {row.get('ultimo_periodo')} "
+                    "respecto al periodo anterior."
                 ),
                 "factor": row.get("Factor"),
                 "caracteristica": row.get("Caracteristica"),
@@ -134,7 +134,7 @@ def build_alerts(df_trend: pd.DataFrame, min_periodos_desfavorables: int = 2) ->
         alerts.append(
             {
                 "level": "warning",
-                "message": f"<b>{nombre}</b> ({row.get('Factor')}) tiene un solo periodo reportado — tendencia aún no determinable.",
+                "message": f"<b>{nombre}</b> ({row.get('Factor')}) tiene un solo periodo reportado — dirección aún no determinable.",
                 "factor": row.get("Factor"),
                 "caracteristica": row.get("Caracteristica"),
                 "indicador": row.get("Indicador"),
