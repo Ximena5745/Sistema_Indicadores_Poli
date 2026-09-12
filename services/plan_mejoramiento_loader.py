@@ -61,6 +61,7 @@ METRICAS_COLS = [
     "Año",
     "Mes",
     "Periodo",
+    "Meta",
     "Ejecución",
     "Ejecución s",
     "Llave",
@@ -136,6 +137,7 @@ def load_metricas_raw() -> pd.DataFrame:
         _parse_ejecucion(val, unidad)
         for val, unidad in zip(df.get("Ejecución"), df.get("Ejecución s", pd.Series(dtype=str)))
     ]
+    df["Meta_num"] = pd.to_numeric(df.get("Meta"), errors="coerce")
 
     return df.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
 
@@ -591,3 +593,102 @@ def aggregate_plan_estado_by(df: pd.DataFrame, group_col: str = "Factor") -> pd.
     counts.columns = ["n_Activo", "n_Aprobado", "n_Pendiente"]
     counts["n_total"] = counts.sum(axis=1)
     return counts.reset_index()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MÉTRICAS — serie anual completa (vista plana "Métricas" de la pestaña)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Opciones fijas del filtro de tendencia (NO se derivan de los datos): el
+# valor "Sin suficiente historia" existe como resultado posible de la
+# clasificación pero deliberadamente no es una opción de filtro seleccionable.
+TENDENCIA_METRICAS_FILTRO_OPTIONS = ["Toda tendencia", "Creciente", "Decreciente", "Estable"]
+
+
+def _classify_tendencia_historico(variacion_promedio_pct: float | None, n_anios_con_dato: int) -> str:
+    """Clasifica la tendencia de una serie ANUAL completa (no solo el último paso).
+
+    Regla explícita (el mockup de referencia no expone su algoritmo real, solo
+    el resultado ya calculado):
+      - "Sin suficiente historia" si hay menos de 2 años con dato.
+      - "Creciente" si el promedio de variación interanual > +3%.
+      - "Decreciente" si < -3%.
+      - "Estable" en otro caso.
+    """
+    if n_anios_con_dato < 2 or variacion_promedio_pct is None or pd.isna(variacion_promedio_pct):
+        return "Sin suficiente historia"
+    if variacion_promedio_pct > 3:
+        return "Creciente"
+    if variacion_promedio_pct < -3:
+        return "Decreciente"
+    return "Estable"
+
+
+@st.cache_data(ttl=CACHE_TTL, show_spinner="Cargando histórico de Métricas...")
+def build_metricas_historico() -> pd.DataFrame:
+    """Una fila por (Factor, Característica, Indicador, Subindicador): serie ANUAL
+    completa + último valor + variaciones + tendencia. Insumo único de la vista
+    plana "Métricas" (reemplaza el drilldown Factor→Característica→Indicador).
+
+    Reshape anual: agrupa `Metricas` por año y toma el ÚLTIMO registro del año
+    (regla ya documentada en docs/metodologia_plan_cna.md §6: "Múltiples
+    registros por periodo -> keep='last'"), para no mezclar el eje semestral
+    crudo de origen con el eje anual de esta vista.
+    """
+    df = load_metricas_raw()
+    if df.empty:
+        return pd.DataFrame()
+
+    group_cols = ["Factor", "Factor_num", "Caracteristica", "Indicador", "Subindicador"]
+    anual = (
+        df.sort_values(["Periodo_anio", "Periodo_sem"])
+        .drop_duplicates(subset=group_cols + ["Periodo_anio"], keep="last")
+    )
+
+    rows = []
+    for keys, grupo in anual.groupby(group_cols, dropna=False):
+        grupo = grupo.sort_values("Periodo_anio")
+
+        serie = [
+            {"anio": int(anio), "ejecucion": ejec, "meta": meta}
+            for anio, ejec, meta in zip(grupo["Periodo_anio"], grupo["Ejecucion_num"], grupo["Meta_num"])
+            if pd.notna(anio)
+        ]
+
+        con_dato = grupo.dropna(subset=["Ejecucion_num"])
+        n_anios_con_dato = len(con_dato)
+        ultimo_anio = int(con_dato["Periodo_anio"].iloc[-1]) if n_anios_con_dato else None
+        ultimo_valor = con_dato["Ejecucion_num"].iloc[-1] if n_anios_con_dato else None
+
+        variacion_ultima_pct = None
+        if n_anios_con_dato >= 2:
+            previo = con_dato["Ejecucion_num"].iloc[-2]
+            if pd.notna(previo) and previo != 0:
+                variacion_ultima_pct = float((con_dato["Ejecucion_num"].iloc[-1] - previo) / previo * 100)
+
+        variaciones = []
+        valores_lista = con_dato["Ejecucion_num"].tolist()
+        for i in range(1, len(valores_lista)):
+            previo, actual = valores_lista[i - 1], valores_lista[i]
+            if previo not in (0, None) and pd.notna(previo) and pd.notna(actual):
+                variaciones.append((actual - previo) / previo * 100)
+        variacion_promedio_pct = float(pd.Series(variaciones).mean()) if variaciones else None
+
+        row = dict(zip(group_cols, keys))
+        row.update(
+            {
+                "Proceso": grupo["Proceso"].dropna().iloc[-1] if not grupo["Proceso"].dropna().empty else None,
+                "Sentido": grupo["Sentido"].dropna().iloc[-1] if not grupo["Sentido"].dropna().empty else None,
+                "Periodicidad": grupo["Periodicidad"].dropna().iloc[-1] if not grupo["Periodicidad"].dropna().empty else None,
+                "serie": serie,
+                "ultimo_anio": ultimo_anio,
+                "ultimo_valor": ultimo_valor,
+                "variacion_ultima_pct": variacion_ultima_pct,
+                "variacion_promedio_pct": variacion_promedio_pct,
+                "n_anios_con_dato": n_anios_con_dato,
+                "tendencia": _classify_tendencia_historico(variacion_promedio_pct, n_anios_con_dato),
+            }
+        )
+        rows.append(row)
+
+    return pd.DataFrame(rows).sort_values("Factor_num").reset_index(drop=True)

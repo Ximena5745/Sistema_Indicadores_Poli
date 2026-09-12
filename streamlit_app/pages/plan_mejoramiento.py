@@ -1,1038 +1,526 @@
 """
-pages/plan_mejoramiento.py — Medición del Plan de Mejoramiento CNA
+pages/plan_mejoramiento.py — Plan de Mejoramiento CNA (vista plana)
 
-Dos módulos independientes (sin join a nivel indicador):
+Réplica del mockup `plan_mejoramiento_cna.html` (ver plan
+`rol-actuar-como-scalable-hollerith.md`): 2 pestañas planas — Indicadores /
+Métricas — con KPIs, filtros, gráfico y tabla clickable con modal de detalle.
+Sin drilldown Factor→Característica→Indicador (reemplazado por completo).
 
-**P = Indicadores del Plan:** Meta → Ejecución → % Cumplimiento → Estado
-  Fuente: Indicadores Plan de Mejoramiento.xlsx (66 indicadores)
-
-**M = Métricas CNA:** Ejecución → Histórico → Dirección
-  Fuente: Resultados_Consolidados_CNA_actualizado.xlsx (1142 registros)
-
-Narrativa: Estado → Cumplimiento → Factor → Indicadores/Métricas → Tendencia
-→ Avances, brechas y comportamiento.
+Fuentes de datos (sin join a nivel indicador — ver
+docs/metodologia_plan_cna.md):
+  - Indicadores del Plan: `load_plan_indicadores()` (66 filas, Meta/Ejecución/
+    %Cump 2025-2026, metas 2026-2030).
+  - Métricas CNA: `build_metricas_historico()` (serie anual completa por
+    indicador/subindicador, con tendencia Creciente/Decreciente/Estable/Sin
+    suficiente historia).
 """
 
 from __future__ import annotations
+
+import io
 
 import pandas as pd
 import streamlit as st
 
 from services.plan_mejoramiento_loader import (
-    aggregate_plan_estado_by,
-    aggregate_trend_by,
-    build_indicador_series,
-    compute_evolucion_agregada,
-    compute_evolucion_por_segmento,
-    compute_plan_cumplimiento_by_factor,
-    compute_trend_table,
-    get_caracteristicas_for_factor,
+    TENDENCIA_METRICAS_FILTRO_OPTIONS,
+    build_metricas_historico,
     get_factor_options,
-    load_metricas_raw,
     load_plan_indicadores,
 )
 from streamlit_app.components.plan_mejoramiento_charts import (
-    chart_evolucion_agregada,
-    chart_global_donut,
-    chart_heatmap_periodo,
-    chart_sunburst_jerarquia,
-    chart_trend_detail,
-    chart_trend_ranking,
+    chart_indicadores_cumplimiento,
+    chart_indicadores_metas_por_factor,
+    chart_metrica_detalle,
+    chart_metricas_por_factor,
 )
-from streamlit_app.components.renderers import kpi_card, render_alert_strip
 from streamlit_app.pages.plan_mejoramiento_utils import (
-    build_alerts,
-    build_breadcrumb_items,
-    format_delta,
-    format_ejecucion,
-    trend_badge_html,
-    trend_legend_html,
+    PM_COLORS,
+    build_indicador_cump_texto,
+    build_indicador_metas_futuras_texto,
+    fmt_num_or_dash,
+    fmt_variacion_or_dash,
+    kpi_card_html,
+    tipo_tag_html,
+    variacion_html,
 )
-from streamlit_app.utils.cna_icons import factor_icon_data_uri, factor_icon_html
 
-DRILL_KEYS = [
-    "pm_drill_factor",
-    "pm_drill_caracteristica",
-    "pm_drill_indicador",
-    "pm_drill_subindicador",
-]
+_METAS_FUTURAS_YEARS = ("2026", "2027", "2028", "2029", "2030")
+_TIPO_FILTRO_MAP = {"Solo indicadores": "Indicador", "Solo métricas": "Metrica", "Sin clasificar": "Pendiente"}
 
 
-def _go(level_key: str, value) -> None:
-    idx = DRILL_KEYS.index(level_key)
-    for key in DRILL_KEYS[idx:]:
-        st.session_state[key] = None
-    st.session_state[level_key] = value
-    if level_key == "pm_drill_factor":
-        st.session_state["pm_plan_selected"] = None
+# ─────────────────────────────────────────────────────────────────────────────
+# Estilos / hero
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _inject_pm_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+        div[data-testid="stAppViewContainer"] * { font-family: 'Montserrat', sans-serif; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
-def _init_state() -> None:
-    for key in DRILL_KEYS:
-        st.session_state.setdefault(key, None)
+def _render_hero() -> None:
+    st.markdown(
+        f'<div style="background:linear-gradient(120deg,{PM_COLORS["navy"]} 0%,#1B2C46 100%);'
+        f'color:#fff;border-radius:14px;padding:20px 26px;margin-bottom:14px;'
+        f'display:flex;align-items:center;gap:14px;">'
+        f'<div style="width:34px;height:34px;border-radius:9px;flex:none;'
+        f'background:linear-gradient(135deg,{PM_COLORS["blue"]},{PM_COLORS["cyan"]});'
+        f'display:flex;align-items:center;justify-content:center;font-weight:800;'
+        f'color:{PM_COLORS["navy"]};font-size:14px;">P</div>'
+        f'<div>'
+        f'<div style="font-size:18px;font-weight:700;">Evaluación de Indicadores y Métricas — Modelo CNA</div>'
+        f'<div style="font-size:12px;color:rgba(255,255,255,.72);margin-top:2px;">'
+        f'Politécnico Grancolombiano · Gerencia de Planeación · Medición y Mejora</div>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
 
 
-def _short(text: str, n: int = 30) -> str:
-    text = str(text or "")
-    return text if len(text) <= n else text[: n - 1] + "…"
+def _or_default(value, default: str = "—") -> str:
+    """`value or default` falla si `value` es NaN (float NaN es truthy en
+    Python) — este helper comprueba nulos explícitamente."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return default
+    text = str(value).strip()
+    return text if text else default
 
 
-def _current_level() -> tuple[str, str | None, str | None, str | None, str | None]:
-    factor = st.session_state["pm_drill_factor"]
-    caracteristica = st.session_state["pm_drill_caracteristica"]
-    indicador = st.session_state["pm_drill_indicador"]
-    subindicador = st.session_state["pm_drill_subindicador"]
+def _factor_full_badge_html(factor_label: str | None) -> str:
+    return (
+        f'<span style="display:inline-block;font-size:11px;font-weight:800;color:#fff;'
+        f'background:{PM_COLORS["navy"]};padding:3px 10px;border-radius:6px;">'
+        f'{factor_label or "—"}</span>'
+    )
 
-    if subindicador:
-        level = "subindicador"
-    elif indicador:
-        level = "indicador"
-    elif caracteristica:
-        level = "caracteristica"
-    elif factor:
-        level = "factor"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pestaña Indicadores
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_export_button(rows_view: pd.DataFrame, es_metas: bool) -> None:
+    if rows_view.empty:
+        st.button("Exportar a Excel", disabled=True, use_container_width=True, key="pm_export_disabled")
+        return
+
+    def _num(serie: pd.Series) -> pd.Series:
+        return pd.to_numeric(serie, errors="coerce")
+
+    if es_metas:
+        data = pd.DataFrame(
+            {
+                "Factor": rows_view["Factor"],
+                "Característica": rows_view["Caracteristica"],
+                "Indicador": rows_view["Indicador"],
+                "Tipo": rows_view["Tipo"],
+                **{f"Meta {y}": _num(rows_view[f"Meta_num_{y}"]) for y in _METAS_FUTURAS_YEARS},
+            }
+        )
+        sheet_name, file_suffix = "Metas 2026-2030", "metas"
     else:
-        level = "resumen"
-    return level, factor, caracteristica, indicador, subindicador
-
-
-def render_breadcrumb(factor, caracteristica, indicador, subindicador) -> None:
-    items = build_breadcrumb_items(factor, caracteristica, indicador, subindicador)
-    cols = st.columns(len(items))
-    for i, (level_key, label, value) in enumerate(items):
-        with cols[i]:
-            is_last = i == len(items) - 1
-            short_label = _short(label, 24)
-            if is_last:
-                st.markdown(f"**{short_label}**")
-            else:
-                st.button(
-                    short_label,
-                    key=f"pm_bc_{i}_{level_key}_{label}",
-                    on_click=_go,
-                    args=(level_key, value),
-                    use_container_width=True,
-                )
-
-
-def _period_range_filter(df: pd.DataFrame) -> pd.DataFrame:
-    """Filtro de rango de periodos (solo para Métricas M)."""
-    if "Periodo" not in df.columns:
-        return df
-    periodo_order = (
-        df[["Periodo", "Periodo_anio", "Periodo_sem"]]
-        .drop_duplicates()
-        .sort_values(["Periodo_anio", "Periodo_sem"])["Periodo"]
-        .tolist()
-    )
-    if len(periodo_order) < 2:
-        return df
-
-    desde, hasta = st.select_slider(
-        "Rango de periodos",
-        options=periodo_order,
-        value=(periodo_order[0], periodo_order[-1]),
-        key="pm_periodo_range",
-    )
-    i0, i1 = periodo_order.index(desde), periodo_order.index(hasta)
-    seleccionados = set(periodo_order[i0 : i1 + 1])
-    return df[df["Periodo"].isin(seleccionados)]
-
-
-def _quick_filter_panel() -> None:
-    """Acceso directo por Factor/Característica."""
-    factor = st.session_state["pm_drill_factor"]
-    caracteristica = st.session_state["pm_drill_caracteristica"]
-
-    factores = get_factor_options()
-    opciones_factor = ["Todos los factores"] + [f["label"] for f in factores]
-    idx_factor = opciones_factor.index(factor) if factor in opciones_factor else 0
-
-    with st.container(border=True):
-        cols = st.columns(2)
-        with cols[0]:
-            sel_factor = st.selectbox(
-                "Ir directamente a un Factor",
-                opciones_factor,
-                index=idx_factor,
-                key=f"pm_quick_factor_select_{factor}",
-            )
-
-        opciones_car = ["Todas las características"]
-        if sel_factor != "Todos los factores":
-            opciones_car += get_caracteristicas_for_factor(sel_factor)
-        idx_car = opciones_car.index(caracteristica) if caracteristica in opciones_car else 0
-        with cols[1]:
-            sel_car = st.selectbox(
-                "Ir directamente a una Característica",
-                opciones_car,
-                index=idx_car,
-                disabled=sel_factor == "Todos los factores",
-                key=f"pm_quick_car_select_{sel_factor}_{caracteristica}",
-            )
-
-    if sel_factor == "Todos los factores" and factor is not None:
-        _go("pm_drill_factor", None)
-    elif sel_factor != "Todos los factores" and sel_factor != factor:
-        _go("pm_drill_factor", sel_factor)
-    elif sel_car != "Todas las características" and sel_car != caracteristica:
-        _go("pm_drill_caracteristica", sel_car)
-    elif sel_car == "Todas las características" and caracteristica is not None and sel_factor == factor:
-        _go("pm_drill_caracteristica", None)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# helpers de presentación Plan
-# ─────────────────────────────────────────────────────────────────────────────
-
-_CUMP_COLORS = {
-    "alto": "#43A047",
-    "medio": "#FBAF17",
-    "bajo": "#D32F2F",
-    "sin_dato": "#BDBDBD",
-}
-
-
-def _cump_color(pct: float | None) -> str:
-    if pct is None or pd.isna(pct):
-        return _CUMP_COLORS["sin_dato"]
-    if pct >= 0.90:
-        return _CUMP_COLORS["alto"]
-    if pct >= 0.60:
-        return _CUMP_COLORS["medio"]
-    return _CUMP_COLORS["bajo"]
-
-
-def _cump_badge_html(pct: float | None, n_con_dato: int = 0, n_total: int = 0) -> str:
-    """Badge de cumplimiento con color semáforo."""
-    color = _cump_color(pct)
-    if pct is None or pd.isna(pct):
-        texto = "Sin dato"
-    else:
-        texto = f"{pct:.1%}"
-    sub = f"({n_con_dato}/{n_total} con dato)" if n_total > 0 else ""
-    return (
-        f'<span style="display:inline-flex;align-items:center;gap:4px;'
-        f'background:{color}1A;color:{color};border:1px solid {color}55;'
-        f'border-radius:12px;padding:2px 10px;font-size:0.82rem;font-weight:600;">'
-        f'<span style="width:8px;height:8px;border-radius:50%;background:{color};"></span>'
-        f"{texto}</span>"
-        f'<span style="font-size:0.72rem;color:#757575;margin-left:4px;">{sub}</span>'
-    )
-
-
-def _render_alerts(trend_ind: pd.DataFrame) -> None:
-    alerts = build_alerts(trend_ind)
-    disminuciones = [a for a in alerts if a["level"] == "info"]
-    if disminuciones:
-        render_alert_strip(
-            f"{len(disminuciones)} indicador(es) disminuyeron en el último periodo reportado.",
-            level="info",
+        data = pd.DataFrame(
+            {
+                "Factor": rows_view["Factor"],
+                "Indicador": rows_view["Indicador"],
+                "Meta 2025": _num(rows_view["Meta_num_2025"]),
+                "Ejecución 2025": _num(rows_view["Ejecucion_num_2025"]),
+                "% Cump 2025": _num(rows_view["Cump_calc_2025"]) * 100,
+                "Meta 2026": _num(rows_view["Meta_num_2026"]),
+                "Ejecución 2026": _num(rows_view["Ejecucion_num_2026"]),
+                "% Cump 2026": _num(rows_view["Cump_calc_2026"]) * 100,
+            }
         )
+        sheet_name, file_suffix = "Cumplimiento historico", "cumplimiento"
 
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+        data.to_excel(writer, sheet_name=sheet_name, index=False)
 
-def _narrative_insight(pct_aumento: float, pct_disminucion: float, n_factores_mas_disminucion: int) -> str:
-    texto = (
-        f"Del total de indicadores con dato en el rango seleccionado, "
-        f"<b>{pct_aumento:.0f}%</b> aumentó y <b>{pct_disminucion:.0f}%</b> disminuyó "
-        f"respecto al periodo anterior."
-    )
-    if n_factores_mas_disminucion:
-        texto += (
-            f" En <b>{n_factores_mas_disminucion}</b> de los 12 factores, más indicadores "
-            "disminuyeron que aumentaron en su último corte."
-        )
-    return texto
-
-
-def _inject_factor_pill_css(factores: list[dict], agg_factor: pd.DataFrame, plan_cump: pd.DataFrame | None = None) -> None:
-    """CSS por factor: píldora con imagen + badge %Cump (Plan) o % en aumento (M)."""
-    agg_lookup = agg_factor.set_index("Factor") if agg_factor is not None and not agg_factor.empty else pd.DataFrame()
-    cump_lookup = plan_cump.set_index("Factor") if plan_cump is not None and not plan_cump.empty else pd.DataFrame()
-    rules = []
-    for f in factores:
-        key = f"pm_factor_btn_{f['num']}"
-        uri = factor_icon_data_uri(f["num"])
-        bg_rule = f"background-image:url({uri});" if uri else "background:#1A3A5C;"
-
-        # Badge: preferir %Cump del Plan, si no hay usar % en aumento de Métricas
-        if f["label"] in cump_lookup.index and pd.notna(cump_lookup.loc[f["label"], "cump_promedio"]):
-            badge = f'{cump_lookup.loc[f["label"], "cump_promedio"]:.0%} cumplimiento'
-        elif f["label"] in agg_lookup.index:
-            badge = f'{agg_lookup.loc[f["label"], "pct_aumento"]:.0f}% en aumento'
-        else:
-            badge = "Sin dato"
-
-        rules.append(
-            f".st-key-{key} button {{"
-            f"{bg_rule}"
-            f"background-size:cover;background-position:center;background-repeat:no-repeat;"
-            f"aspect-ratio:4/1;height:auto !important;min-height:0 !important;"
-            f"border:none !important;border-radius:999px !important;width:100% !important;"
-            f"padding:0 !important;position:relative;overflow:hidden;"
-            f"box-shadow:0 2px 10px rgba(0,0,0,0.16) !important;"
-            f"transition:transform .12s ease, box-shadow .12s ease !important;"
-            f"}}"
-            f".st-key-{key} button:hover {{"
-            f"transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,0.24) !important;"
-            f"}}"
-            f".st-key-{key} button p {{"
-            f"position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;"
-            f"margin:-1px !important;overflow:hidden !important;clip:rect(0,0,0,0) !important;"
-            f"white-space:nowrap !important;border:0 !important;"
-            f"}}"
-            f".st-key-{key} button::after {{"
-            f'content:"{badge}";position:absolute;top:8px;right:14px;'
-            f"background:rgba(255,255,255,0.94);color:#1A2B3C;font-size:0.66rem;font-weight:700;"
-            f"padding:2px 9px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"
-            f"}}"
-        )
-    st.markdown(f"<style>{''.join(rules)}</style>", unsafe_allow_html=True)
-
-
-def _render_factor_pill_grid(factores: list[dict], agg_factor: pd.DataFrame, plan_cump: pd.DataFrame | None = None) -> None:
-    _inject_factor_pill_css(factores, agg_factor, plan_cump)
-
-    n_cols = 3
-    for i in range(0, len(factores), n_cols):
-        fila = factores[i : i + n_cols]
-        cols = st.columns(len(fila))
-        for col, f in zip(cols, fila):
-            with col:
-                st.button(
-                    f["nombre"],
-                    key=f"pm_factor_btn_{f['num']}",
-                    on_click=_go,
-                    args=("pm_drill_factor", f["label"]),
-                    use_container_width=True,
-                )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NIVEL 0 — Resumen Ejecutivo
-# ─────────────────────────────────────────────────────────────────────────────
-
-def section_resumen(df_m: pd.DataFrame, df_p: pd.DataFrame, periodo_filtered: pd.DataFrame) -> None:
-    factores = get_factor_options()
-
-    # ── Datos Plan (P) ──────────────────────────────────────────────
-    estado_agg = aggregate_plan_estado_by(df_p)
-    cump_factor = compute_plan_cumplimiento_by_factor(df_p)
-    n_total = len(df_p)
-    n_activo = int(estado_agg["n_Activo"].sum()) if not estado_agg.empty else 0
-    n_aprobado = int(estado_agg["n_Aprobado"].sum()) if not estado_agg.empty else 0
-    n_pendiente = int(estado_agg["n_Pendiente"].sum()) if not estado_agg.empty else 0
-
-    vals_cump = cump_factor["cump_promedio"].dropna() if not cump_factor.empty else pd.Series(dtype=float)
-    cump_general = float(vals_cump.mean()) if not vals_cump.empty else None
-    n_con_dato_cump = int(cump_factor["n_con_dato"].sum()) if not cump_factor.empty else 0
-    n_total_cump = int(cump_factor["n_total"].sum()) if not cump_factor.empty else 0
-
-    # ── Datos Métricas (M) ──────────────────────────────────────────
-    trend_ind = compute_trend_table(periodo_filtered, level="indicador")
-    agg_factor = aggregate_trend_by(trend_ind, "Factor")
-    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    pct_aumento = (con_dato["Tendencia"] == "aumento").mean() * 100 if not con_dato.empty else 0.0
-    pct_disminucion = (con_dato["Tendencia"] == "disminucion").mean() * 100 if not con_dato.empty else 0.0
-    n_factores_mas_disminucion = (
-        int((agg_factor["n_disminucion"] > agg_factor["n_aumento"]).sum()) if not agg_factor.empty else 0
-    )
-
-    # ── Hero: narrativa + dona ──────────────────────────────────────
-    hero_cols = st.columns([3, 2])
-    with hero_cols[0]:
-        # Narrativa Plan
-        cump_text = ""
-        if cump_general is not None:
-            cump_text = f"Cumplimiento general: <b>{cump_general:.1%}</b> ({n_con_dato_cump}/{n_total_cump} con dato). "
-        st.markdown(
-            f"<div style='background:linear-gradient(135deg,#EFF6FF 0%,#F8FAFF 100%);"
-            f"border:1px solid #DCE8FA;border-radius:14px;padding:20px 22px;height:100%;"
-            f"font-size:1.05rem;line-height:1.55;color:#1A2B3C;'>"
-            f"{cump_text}"
-            f"{_narrative_insight(pct_aumento, pct_disminucion, n_factores_mas_disminucion)}</div>",
-            unsafe_allow_html=True,
-        )
-    with hero_cols[1]:
-        st.plotly_chart(chart_global_donut(agg_factor), use_container_width=True)
-
-    _render_alerts(trend_ind)
-
-    # ── KPIs Estado (P) ────────────────────────────────────────────
-    st.subheader("Estado del Plan de Mejoramiento")
-    kpi_cols = st.columns(5)
-    with kpi_cols[0]:
-        kpi_card("Total Indicadores", n_total, show_progress=False)
-    with kpi_cols[1]:
-        kpi_card("Activos", n_activo, show_progress=False)
-    with kpi_cols[2]:
-        kpi_card("Aprobados", n_aprobado, show_progress=False)
-    with kpi_cols[3]:
-        kpi_card("Pendientes", n_pendiente, show_progress=False)
-    with kpi_cols[4]:
-        st.markdown("**Cumplimiento General**")
-        st.markdown(_cump_badge_html(cump_general, n_con_dato_cump, n_total_cump), unsafe_allow_html=True)
-
-    # ── Barras por factor: Cumplimiento (P) ─────────────────────────
-    if not cump_factor.empty:
-        cump_sorted = cump_factor.sort_values("Factor_num")
-        st.subheader("Cumplimiento por Factor (Plan)")
-        st.caption("Promedio de %Cump por factor — solo indicadores con Meta y Ejecución numéricas")
-        fig_cump = _chart_cump_por_factor(cump_sorted)
-        st.plotly_chart(fig_cump, use_container_width=True)
-
-    # ── Los 12 Factores CNA — grid de píldoras ─────────────────────
-    st.subheader("Los 12 Factores CNA")
-    st.caption("Haz clic en un factor para explorar sus características, indicadores y métricas.")
-    _render_factor_pill_grid(factores, agg_factor, cump_factor)
-
-    # ── Heatmap Factor × Periodo (M) ────────────────────────────────
-    st.subheader("Evolución por Factor y Periodo")
-    st.caption("Cada celda resume el comportamiento de ese factor en ese periodo — orden 1 a 12.")
-    evo_factor = compute_evolucion_por_segmento(periodo_filtered, "Factor")
-    orden_factores = [f["label"] for f in factores]
-    st.plotly_chart(chart_heatmap_periodo(evo_factor, "Factor", row_order=orden_factores), use_container_width=True)
-    st.markdown(trend_legend_html(), unsafe_allow_html=True)
-
-    # ── Tendencia histórica separada P y M ─────────────────────────
-    with st.expander("Evolución de cumplimiento por periodo (Plan)"):
-        evo_cump = _compute_evo_cump_por_periodo(df_p)
-        if not evo_cump.empty:
-            st.plotly_chart(_chart_evo_cump(evo_cump), use_container_width=True)
-        else:
-            st.info("Sin datos de cumplimiento en el rango seleccionado.")
-
-    with st.expander("Evolución de dirección por periodo (Métricas)"):
-        evo_dir = compute_evolucion_agregada(periodo_filtered)
-        st.plotly_chart(chart_evolucion_agregada(evo_dir, "% en aumento por periodo"), use_container_width=True)
-
-    with st.expander("Ver detalle en barras por Factor"):
-        st.plotly_chart(chart_trend_ranking(agg_factor, "Factor", category_order=orden_factores), use_container_width=True)
-
-    with st.expander("Ver mapa jerárquico completo"):
-        _render_sunburst(trend_ind)
-
-
-def _chart_cump_por_factor(cump_df: pd.DataFrame):
-    """Barras horizontales de %Cump por factor con color semáforo."""
-    import plotly.graph_objects as go
-
-    if cump_df.empty:
-        fig = go.Figure()
-        fig.update_layout(title="Sin datos de cumplimiento")
-        return fig
-
-    df_plot = cump_df.copy().sort_values("Factor_num")
-    df_plot = df_plot.iloc[::-1]  # invertir para que Factor 1 quede arriba
-
-    colors = [_cump_color(v) for v in df_plot["cump_promedio"]]
-    labels = [_short(f, 40) for f in df_plot["Factor"]]
-
-    fig = go.Figure(
-        go.Bar(
-            y=labels,
-            x=df_plot["cump_promedio"].fillna(0) * 100,
-            orientation="h",
-            marker_color=colors,
-            text=[f"{v:.1%}" if pd.notna(v) else "Sin dato" for v in df_plot["cump_promedio"]],
-            textposition="inside",
-            textfont=dict(color="white", size=11),
-            customdata=df_plot[["n_con_dato", "n_total"]].values,
-            hovertemplate=(
-                "<b>%{y}</b><br>%Cump: %{x:.1f}%<br>"
-                "Con dato: %{customdata[0]}/%{customdata[1]}<extra></extra>"
-            ),
-        )
-    )
-    fig.update_layout(
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=max(240, 34 * len(df_plot) + 40),
-        xaxis=dict(range=[0, max(130, (df_plot["cump_promedio"].fillna(0).max() * 100 * 1.1))], ticksuffix="%"),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
-    return fig
-
-
-def _compute_evo_cump_por_periodo(df_p: pd.DataFrame) -> pd.DataFrame:
-    """Serie de %Cump promedio por periodo (2025, 2026)."""
-    rows = []
-    for year in ("2025", "2026"):
-        meta_col = f"Meta_num_{year}"
-        ejec_col = f"Ejecucion_num_{year}"
-        if meta_col not in df_p.columns or ejec_col not in df_p.columns:
-            continue
-        mask = df_p[meta_col].notna() & df_p[ejec_col].notna() & (df_p[meta_col] != 0)
-        if mask.sum() == 0:
-            continue
-        vals = df_p.loc[mask, ejec_col] / df_p.loc[mask, meta_col]
-        vals = vals.clip(upper=1.3)
-        rows.append({
-            "Periodo": f"{year}-2",
-            "Periodo_anio": int(year),
-            "Periodo_sem": 2,
-            "pct_cumplimiento": float(vals.mean()) * 100,
-            "n": int(mask.sum()),
-        })
-    return pd.DataFrame(rows)
-
-
-def _chart_evo_cump(evo: pd.DataFrame):
-    """Línea de %Cump promedio por periodo."""
-    import plotly.graph_objects as go
-    from streamlit_app.styles.design_system import COLORS
-
-    fig = go.Figure()
-    df_plot = evo.sort_values(["Periodo_anio", "Periodo_sem"])
-    fig.add_trace(
-        go.Scatter(
-            x=df_plot["Periodo"],
-            y=df_plot["pct_cumplimiento"],
-            mode="lines+markers+text",
-            line=dict(color=COLORS["primary"], width=2),
-            marker=dict(size=10, color=COLORS["primary"]),
-            text=[f"{v:.1f}%" for v in df_plot["pct_cumplimiento"]],
-            textposition="top center",
-            textfont=dict(size=10),
-            hovertemplate="<b>%{x}</b><br>%Cump: %{y:.1f}%<br>n: %{customdata}<extra></extra>",
-            customdata=df_plot["n"],
-            showlegend=False,
-        )
-    )
-    fig.update_layout(
-        margin=dict(l=10, r=10, t=30, b=10),
-        height=280,
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
-    fig.update_xaxes(type="category")
-    fig.update_yaxes(ticksuffix="%")
-    return fig
-
-
-def _render_sunburst(trend_ind: pd.DataFrame) -> None:
-    if trend_ind.empty:
-        st.info("Sin datos suficientes para el mapa jerárquico.")
-        return
-    trend_score = {"aumento": 1, "estable": 0, "disminucion": -1}
-    df_plot = trend_ind.copy()
-    df_plot["trend_score"] = df_plot["Tendencia"].map(trend_score)
-    df_plot = df_plot.dropna(subset=["trend_score", "Factor", "Caracteristica", "Indicador"])
-    if df_plot.empty:
-        st.info("Sin datos suficientes para el mapa jerárquico.")
-        return
-    fig = chart_sunburst_jerarquia(df_plot, title="Factor → Característica → Indicador")
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NIVEL 1 — Factor Seleccionado (tabs A: Indicadores / B: Métricas)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def section_factor(df_m: pd.DataFrame, df_p: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str) -> None:
-    # ── Header Factor ──────────────────────────────────────────────
-    factor_nums = df_m[df_m["Factor"] == factor]["Factor_num"].dropna() if not df_m.empty else pd.Series()
-    if factor_nums.empty and not df_p.empty:
-        factor_nums = df_p[df_p["Factor"] == factor]["Factor_num"].dropna()
-    factor_num = int(factor_nums.iloc[0]) if not factor_nums.empty else None
-
-    header_cols = st.columns([1, 6])
-    with header_cols[0]:
-        if factor_num:
-            st.markdown(factor_icon_html(factor_num, size=64), unsafe_allow_html=True)
-    with header_cols[1]:
-        st.subheader(factor)
-
-    # ── KPIs Factor ────────────────────────────────────────────────
-    # Plan (P)
-    df_p_factor = df_p[df_p["Factor"] == factor] if not df_p.empty else pd.DataFrame()
-    cump_f = compute_plan_cumplimiento_by_factor(df_p_factor)
-    n_ind_p = len(df_p_factor)
-    cump_f_val = float(cump_f["cump_promedio"].iloc[0]) if not cump_f.empty and pd.notna(cump_f["cump_promedio"].iloc[0]) else None
-    n_brecha = int(cump_f["n_en_brecha"].iloc[0]) if not cump_f.empty else 0
-    n_con_dato_f = int(cump_f["n_con_dato"].iloc[0]) if not cump_f.empty else 0
-
-    # Métricas (M)
-    df_m_factor = periodo_filtered[periodo_filtered["Factor"] == factor] if not periodo_filtered.empty else pd.DataFrame()
-    trend_ind = compute_trend_table(df_m_factor, level="indicador")
-    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    pct_aumento = (con_dato["Tendencia"] == "aumento").mean() * 100 if not con_dato.empty else 0.0
-    n_disminucion = int((trend_ind["Tendencia"] == "disminucion").sum()) if not trend_ind.empty else 0
-    n_ind_m = trend_ind["Indicador"].nunique() if not trend_ind.empty else 0
-
-    kpi_cols = st.columns(6)
-    with kpi_cols[0]:
-        kpi_card("Indicadores (P)", n_ind_p, show_progress=False)
-    with kpi_cols[1]:
-        st.markdown("**%Cump (P)**")
-        st.markdown(_cump_badge_html(cump_f_val, n_con_dato_f, n_ind_p), unsafe_allow_html=True)
-    with kpi_cols[2]:
-        kpi_card("En brecha (P)", n_brecha, show_progress=False)
-    with kpi_cols[3]:
-        kpi_card("Métricas (M)", n_ind_m, show_progress=False)
-    with kpi_cols[4]:
-        kpi_card("% en aumento (M)", f"{pct_aumento:.0f}%", show_progress=False)
-    with kpi_cols[5]:
-        kpi_card("En disminución (M)", n_disminucion, show_progress=False)
-
-    _render_alerts(trend_ind)
-
-    # ── Tabs A/B ───────────────────────────────────────────────────
-    tab_a, tab_b = st.tabs(["Indicadores del Plan (P)", "Métricas CNA (M)"])
-
-    with tab_a:
-        _render_tab_a_indicadores(df_p_factor, factor)
-
-    with tab_b:
-        _render_tab_b_metricas(df_m_factor, factor, periodo_filtered)
-
-
-def _render_tab_a_indicadores(df_p_factor: pd.DataFrame, factor: str) -> None:
-    """Tab A: Indicadores del Plan — fichas completas con Meta/Ejecución/%Cump por año."""
-    if df_p_factor.empty:
-        st.info("Sin indicadores del Plan para este factor.")
-        return
-
-    st.caption("Selecciona un indicador para ver su detalle completo (Meta → Ejecución → % Cumplimiento).")
-
-    caracteristicas = get_caracteristicas_for_factor(factor)
-    selected = st.session_state.get("pm_plan_selected")
-
-    for car in caracteristicas:
-        df_car = df_p_factor[df_p_factor["Caracteristica"] == car]
-        if df_car.empty:
-            continue
-
-        with st.expander(f"**{car}** ({len(df_car)} indicadores)", expanded=True):
-            for _, row in df_car.iterrows():
-                row_key = f"{factor}||{car}||{row.get('Indicador', '')}"
-                _render_plan_indicador_row(row, row_key, is_selected=(selected == row_key))
-
-
-_ESTADO_COLORS = {"Activo": "#43A047", "Aprobado": "#FBAF17", "Pendiente": "#9E9E9E"}
-
-
-def _estado_badge_html(estado: str) -> str:
-    color = _ESTADO_COLORS.get(estado, "#9E9E9E")
-    return (
-        f'<span style="display:inline-flex;align-items:center;gap:4px;'
-        f'background:{color}1A;color:{color};border:1px solid {color}55;'
-        f'border-radius:12px;padding:2px 10px;font-size:0.72rem;font-weight:600;">'
-        f'<span style="width:6px;height:6px;border-radius:50%;background:{color};"></span>'
-        f"{estado}</span>"
+    st.download_button(
+        "Exportar a Excel",
+        data=buffer.getvalue(),
+        file_name=f"indicadores_{file_suffix}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+        key="pm_export_btn",
     )
 
 
-def _fmt_meta_ejec(value) -> str:
-    return f"{value:,.2f}" if pd.notna(value) else "—"
+def _open_indicador_modal(row: pd.Series) -> None:
+    @st.dialog(row["Indicador"])
+    def _dialog() -> None:
+        st.markdown(_factor_full_badge_html(row.get("Factor")), unsafe_allow_html=True)
+        st.markdown("**Característica**")
+        st.write(_or_default(row.get("Caracteristica")))
+
+        c1 = st.columns(2)
+        with c1[0]:
+            st.markdown("**Acción de mejora**")
+            st.write(_or_default(row.get("Accion_Mejora")))
+        with c1[1]:
+            st.markdown("**Tipo**")
+            st.markdown(tipo_tag_html(row.get("Tipo")), unsafe_allow_html=True)
+
+        c2 = st.columns(2)
+        with c2[0]:
+            st.markdown("**Estado / Aprobación**")
+            st.write(f"{_or_default(row.get('Estado_raw'))} / {_or_default(row.get('Estado_Aprobacion'))}")
+        with c2[1]:
+            st.markdown("**Responsable**")
+            st.write(_or_default(row.get("Responsable")))
+
+        c3 = st.columns(2)
+        with c3[0]:
+            st.markdown("**Fuente**")
+            st.write(_or_default(row.get("Fuente")))
+        with c3[1]:
+            st.markdown("**Periodicidad**")
+            st.write(_or_default(row.get("Periodicidad"), "No definida"))
+
+        st.markdown("**Fórmula**")
+        st.write(_or_default(row.get("Formula"), "No registrada"))
+        st.markdown("**Observación de desempeño**")
+        st.write(_or_default(row.get("Observacion"), "Sin observaciones"))
+        st.markdown("**Meta / Ejecución / % Cumplimiento — 2025 y 2026**")
+        st.write(build_indicador_cump_texto(row))
+        st.markdown("**Metas 2026 – 2030**")
+        st.write(build_indicador_metas_futuras_texto(row))
+
+    _dialog()
 
 
-def _render_year_card(row: pd.Series, year: str) -> str:
-    """Tarjeta de seguimiento real (Meta/Ejecución/%Cump) de un año con dato — 2025/2026."""
-    meta = row.get(f"Meta_num_{year}")
-    ejec = row.get(f"Ejecucion_num_{year}")
-    cump = row.get(f"Cump_calc_{year}")
-    color = _cump_color(cump)
-    pct_ancho = min(max(float(cump), 0.0), 1.3) / 1.3 * 100 if pd.notna(cump) else 0.0
-    cump_texto = f"{cump:.1%}" if pd.notna(cump) else "Sin dato"
-
-    return (
-        f'<div style="border:1px solid #E3E8EC;border-radius:10px;padding:12px 14px;background:#FFFFFF;height:100%;">'
-        f'<div style="font-size:0.7rem;font-weight:700;color:#90A4AE;letter-spacing:.04em;">{year}</div>'
-        f'<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.84rem;">'
-        f'<span style="color:#607D8B;">Meta</span>'
-        f'<span style="font-weight:600;color:#1A2B3C;">{_fmt_meta_ejec(meta)}</span></div>'
-        f'<div style="display:flex;justify-content:space-between;font-size:0.84rem;margin-top:2px;">'
-        f'<span style="color:#607D8B;">Ejecución</span>'
-        f'<span style="font-weight:600;color:#1A2B3C;">{_fmt_meta_ejec(ejec)}</span></div>'
-        f'<div style="margin-top:10px;height:6px;border-radius:3px;background:#EEF1F3;overflow:hidden;">'
-        f'<div style="height:100%;width:{pct_ancho:.0f}%;background:{color};border-radius:3px;"></div></div>'
-        f'<div style="text-align:right;margin-top:4px;font-size:0.76rem;font-weight:700;color:{color};">{cump_texto}</div>'
-        f"</div>"
-    )
-
-
-def _render_metas_futuras_strip(row: pd.Series) -> str | None:
-    """Franja atenuada con las metas ya definidas para 2027-2030 (sin ejecución todavía).
-
-    Deliberadamente separada de las tarjetas de 2025/2026: mezclar ambas en una
-    sola tabla (como antes) hacía parecer que la meta futura era un dato de
-    seguimiento real, cuando en esta fuente 2027-2030 son solo metas
-    proyectadas, sin Ejecución ni %Cump disponibles aún.
-    """
-    chips = []
-    for year in ("2027", "2028", "2029", "2030"):
-        meta = row.get(f"Meta_num_{year}")
-        if pd.notna(meta):
-            chips.append(
-                f'<span style="display:inline-flex;align-items:center;gap:5px;'
-                f'border:1px dashed #C7CDD3;border-radius:8px;padding:3px 10px;'
-                f'font-size:0.76rem;color:#607D8B;background:#FAFBFC;">'
-                f'<b style="color:#455A64;">{year}</b> · meta {meta:,.2f}</span>'
-            )
-    if not chips:
-        return None
-    return (
-        f'<div style="margin-top:10px;">'
-        f'<div style="font-size:0.68rem;font-weight:700;color:#B0BEC5;letter-spacing:.04em;'
-        f'text-transform:uppercase;margin-bottom:5px;">Metas proyectadas · sin ejecución aún</div>'
-        f'<div style="display:flex;flex-wrap:wrap;gap:6px;">{"".join(chips)}</div>'
-        f"</div>"
-    )
-
-
-def _toggle_plan_selected(row_key: str) -> None:
-    current = st.session_state.get("pm_plan_selected")
-    st.session_state["pm_plan_selected"] = None if current == row_key else row_key
-
-
-def _ultimo_cump(row: pd.Series) -> float | None:
-    """%Cump más reciente con dato (prioriza 2026 sobre 2025)."""
-    for year in ("2026", "2025"):
-        cump = row.get(f"Cump_calc_{year}")
-        if pd.notna(cump):
-            return float(cump)
-    return None
-
-
-def _render_plan_indicador_row(row: pd.Series, row_key: str, is_selected: bool) -> None:
-    """Fila compacta de la lista de Indicadores del Plan; expande a la ficha
-    completa solo para el indicador seleccionado (lista primero, detalle bajo
-    demanda, en vez de mostrar todas las fichas expandidas de una vez)."""
-    ind_name = row.get("Indicador", "")
-    estado = row.get("Estado_final", "")
-    cump_val = _ultimo_cump(row)
-
-    cols = st.columns([5, 2, 2, 1.3])
-    with cols[0]:
-        st.markdown(f"**{ind_name}**")
-    with cols[1]:
-        st.markdown(_estado_badge_html(estado), unsafe_allow_html=True)
-    with cols[2]:
-        st.markdown(_cump_badge_html(cump_val), unsafe_allow_html=True)
-    with cols[3]:
-        st.button(
-            "Ocultar" if is_selected else "Ver detalle",
-            key=f"pm_plan_toggle_{row_key}",
-            on_click=_toggle_plan_selected,
-            args=(row_key,),
-            use_container_width=True,
-        )
-
-    if is_selected:
-        _render_ficha_indicador_detalle(row)
-
-    st.markdown('<hr style="margin:6px 0;border-color:#EEF1F3;">', unsafe_allow_html=True)
-
-
-def _render_ficha_indicador_detalle(row: pd.Series) -> None:
-    """Detalle completo de un indicador del Plan: periodicidad + seguimiento
-    real (2025/2026) + franja de metas futuras (2027-2030), separadas
-    visualmente — se muestra solo cuando el indicador está seleccionado."""
-    periodicidad = row.get("Periodicidad")
-    periodicidad = periodicidad if pd.notna(periodicidad) else "Sin definir"
-
-    with st.container(border=True):
-        st.caption(f"Periodicidad: {periodicidad}")
-        cols = st.columns(2)
-        for col, year in zip(cols, ("2025", "2026")):
-            with col:
-                st.markdown(_render_year_card(row, year), unsafe_allow_html=True)
-
-        futuras_html = _render_metas_futuras_strip(row)
-        if futuras_html:
-            st.markdown(futuras_html, unsafe_allow_html=True)
-
-
-def _render_metrica_indicador_row(item: dict) -> None:
-    """Fila compacta de la lista de indicadores (Métricas): nombre, dirección,
-    último valor — el detalle completo (evolución, subindicadores) se muestra
-    solo al hacer clic en 'Ver detalle', saltando directo al nivel Indicador."""
-    cols = st.columns([5, 2, 3, 1.3])
-    with cols[0]:
-        st.markdown(f"**{item['Indicador']}**")
-    with cols[1]:
-        st.markdown(trend_badge_html(item["Tendencia"]), unsafe_allow_html=True)
-    with cols[2]:
-        st.caption(f"Último: {format_ejecucion(item['ultimo_valor'], item['unidad'])} · {item['ultimo_periodo']}")
-    with cols[3]:
-        st.button(
-            "Ver detalle",
-            key=f"pm_metrica_btn_{item['Indicador']}",
-            on_click=_go,
-            args=("pm_drill_indicador", item["Indicador"]),
-            use_container_width=True,
-        )
-    st.markdown('<hr style="margin:4px 0;border-color:#EEF1F3;">', unsafe_allow_html=True)
-
-
-def _render_tab_b_metricas(df_m_factor: pd.DataFrame, factor: str, periodo_filtered: pd.DataFrame) -> None:
-    """Tab B: Métricas CNA — Ejecución, histórico, dirección."""
-    if df_m_factor.empty:
-        st.info("Sin métricas CNA para este factor.")
-        return
-
-    st.subheader("Métricas CNA")
-    st.caption("Ejecución por Periodo — dirección del comportamiento histórico")
-
-    # Características del factor (desde catálogo canónico)
-    caracteristicas = get_caracteristicas_for_factor(factor)
-    trend_ind = compute_trend_table(df_m_factor, level="indicador")
-    agg_car = aggregate_trend_by(trend_ind, "Caracteristica")
-
-    if not agg_car.empty:
-        st.subheader("Distribución por Característica")
-        st.plotly_chart(
-            chart_trend_ranking(agg_car, "Caracteristica", category_order=caracteristicas),
-            use_container_width=True,
-        )
-        st.markdown(trend_legend_html(), unsafe_allow_html=True)
-
-    # KPIs resumen Métricas
-    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    n_aumento = int((con_dato["Tendencia"] == "aumento").sum()) if not con_dato.empty else 0
-    n_disminucion = int((con_dato["Tendencia"] == "disminucion").sum()) if not con_dato.empty else 0
-    n_estable = int((con_dato["Tendencia"] == "estable").sum()) if not con_dato.empty else 0
-    n_sin_datos = int((trend_ind["Tendencia"] == "sin_datos").sum()) if not trend_ind.empty else 0
+def _render_tab_indicadores(df_plan: pd.DataFrame) -> None:
+    total = len(df_plan)
+    meta_cols = [f"Meta_num_{y}" for y in _METAS_FUTURAS_YEARS]
+    con_meta = int(df_plan[meta_cols].notna().any(axis=1).sum()) if total else 0
+    con_hist = int((df_plan["Cump_calc_2025"].notna() | df_plan["Cump_calc_2026"].notna()).sum()) if total else 0
+    aprobados = int((df_plan["Estado_Aprobacion"] == "Aprobado").sum()) if total else 0
+    pct_aprobados = round(aprobados / total * 100) if total else 0
 
     kpi_cols = st.columns(4)
     with kpi_cols[0]:
-        kpi_card("En aumento", n_aumento, show_progress=False)
-    with kpi_cols[1]:
-        kpi_card("Estables", n_estable, show_progress=False)
-    with kpi_cols[2]:
-        kpi_card("En disminución", n_disminucion, show_progress=False)
-    with kpi_cols[3]:
-        kpi_card("Sin datos", n_sin_datos, show_progress=False)
-
-    # Lista de indicadores (Métricas) — selección directa a detalle completo
-    st.subheader("Indicadores")
-    st.caption("Selecciona un indicador para ver su evolución completa.")
-    if trend_ind.empty:
-        st.info("Sin indicadores con datos para este factor en el rango de periodos seleccionado.")
-    else:
-        for item in trend_ind.sort_values("Indicador").to_dict("records"):
-            _render_metrica_indicador_row(item)
-
-    # Botones de drill-down por característica
-    st.subheader("Explorar por Característica")
-    st.caption("Selecciona una característica para ver sus indicadores")
-    n_cols = 3
-    for i in range(0, len(caracteristicas), n_cols):
-        fila = caracteristicas[i : i + n_cols]
-        cols = st.columns(len(fila))
-        for col, car in zip(cols, fila):
-            with col:
-                st.button(
-                    _short(car, 40),
-                    key=f"pm_car_btn_{car}",
-                    on_click=_go,
-                    args=("pm_drill_caracteristica", car),
-                    use_container_width=True,
-                )
-
-    # Heatmap Característica × Periodo
-    st.subheader("Evolución por Característica y Periodo")
-    evo_car = compute_evolucion_por_segmento(df_m_factor, "Caracteristica")
-    st.plotly_chart(chart_heatmap_periodo(evo_car, "Caracteristica", row_order=caracteristicas), use_container_width=True)
-    st.markdown(trend_legend_html(), unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NIVEL 2 — Característica / Indicador / Subindicador (Métricas existentes)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def section_caracteristica(df_m: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, caracteristica: str) -> None:
-    df_car = periodo_filtered[(periodo_filtered["Factor"] == factor) & (periodo_filtered["Caracteristica"] == caracteristica)]
-    st.subheader(caracteristica)
-
-    trend_ind = compute_trend_table(df_car, level="indicador")
-    con_dato = trend_ind[trend_ind["Tendencia"] != "sin_datos"] if not trend_ind.empty else trend_ind
-    pct_aumento = (con_dato["Tendencia"] == "aumento").mean() * 100 if not con_dato.empty else 0.0
-    n_disminucion = int((trend_ind["Tendencia"] == "disminucion").sum()) if not trend_ind.empty else 0
-
-    kpi_cols = st.columns(3)
-    with kpi_cols[0]:
-        kpi_card("Indicadores", trend_ind["Indicador"].nunique() if not trend_ind.empty else 0, show_progress=False)
-    with kpi_cols[1]:
-        kpi_card("% en aumento", f"{pct_aumento:.0f}%", show_progress=False)
-    with kpi_cols[2]:
-        kpi_card("En disminución", n_disminucion, show_progress=False)
-
-    _render_alerts(trend_ind)
-
-    st.caption("Indicadores")
-    if trend_ind.empty:
-        st.info("Sin indicadores con datos para esta característica en el rango de periodos seleccionado.")
-    else:
-        n_cols = 2
-        registros = trend_ind.to_dict("records")
-        for i in range(0, len(registros), n_cols):
-            fila = registros[i : i + n_cols]
-            cols = st.columns(len(fila))
-            for col, item in zip(cols, fila):
-                with col:
-                    with st.container(border=True):
-                        st.markdown(f"**{item['Indicador']}**")
-                        st.markdown(trend_badge_html(item["Tendencia"]), unsafe_allow_html=True)
-                        st.caption(
-                            f"Último: {format_ejecucion(item['ultimo_valor'], item['unidad'])} · {item['ultimo_periodo']}"
-                        )
-                        st.button(
-                            "Ver detalle",
-                            key=f"pm_ind_btn_{item['Indicador']}",
-                            on_click=_go,
-                            args=("pm_drill_indicador", item["Indicador"]),
-                            use_container_width=True,
-                        )
-
-    evo = compute_evolucion_agregada(df_car)
-    st.plotly_chart(chart_evolucion_agregada(evo, f"Evolución — {caracteristica}"), use_container_width=True)
-
-
-def section_indicador(df_m: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, indicador: str) -> None:
-    df_ind_all = df_m[(df_m["Factor"] == factor) & (df_m["Indicador"] == indicador)]
-    df_ind_filtered = periodo_filtered[(periodo_filtered["Factor"] == factor) & (periodo_filtered["Indicador"] == indicador)]
-
-    st.subheader(indicador)
-    proceso = df_ind_all["Proceso"].dropna().iloc[0] if not df_ind_all["Proceso"].dropna().empty else "—"
-    periodicidad = df_ind_all["Periodicidad"].dropna().iloc[0] if not df_ind_all["Periodicidad"].dropna().empty else "—"
-    st.caption(f"Proceso: {proceso} · Periodicidad: {periodicidad}")
-
-    trend_row = compute_trend_table(df_ind_filtered, level="indicador")
-    if not trend_row.empty:
-        row = trend_row.iloc[0]
-        kpi_cols = st.columns(3)
-        with kpi_cols[0]:
-            kpi_card(
-                "Último valor",
-                format_ejecucion(row["ultimo_valor"], row["unidad"]),
-                delta=format_delta(row["delta_abs"], row["unidad"]),
-                show_progress=False,
-            )
-        with kpi_cols[1]:
-            st.markdown("**Dirección**")
-            st.markdown(trend_badge_html(row["Tendencia"]), unsafe_allow_html=True)
-            if row["Sentido"]:
-                st.caption(f"Sentido (dato de origen): {row['Sentido']}")
-        with kpi_cols[2]:
-            kpi_card("Periodos con dato", int(row["n_periodos"]), show_progress=False)
-    else:
-        st.info("Sin datos para este indicador en el rango de periodos seleccionado.")
-
-    serie = build_indicador_series(df_ind_filtered, ["Indicador"])
-    _render_evolucion(serie)
-
-    subindicadores = sorted(
-        s
-        for s in df_ind_all["Subindicador"].dropna().unique().tolist()
-        if s and s.strip().lower() not in ("nan", "none", "") and s.strip() != indicador.strip()
-    )
-    if subindicadores:
-        trend_sub = compute_trend_table(
-            df_ind_filtered[df_ind_filtered["Subindicador"].isin(subindicadores)], level="subindicador"
+        st.markdown(
+            kpi_card_html("Indicadores del plan", total, "asociados a 12 factores CNA", PM_COLORS["blue"]),
+            unsafe_allow_html=True,
         )
-        trend_sub_lookup = trend_sub.set_index("Subindicador") if not trend_sub.empty else pd.DataFrame()
+    with kpi_cols[1]:
+        st.markdown(
+            kpi_card_html("Con meta 2026–2030", con_meta, "al menos un año definido", PM_COLORS["cyan"]),
+            unsafe_allow_html=True,
+        )
+    with kpi_cols[2]:
+        st.markdown(
+            kpi_card_html("Con cumplimiento histórico", con_hist, "dato real en 2025 y/o 2026", PM_COLORS["gold"]),
+            unsafe_allow_html=True,
+        )
+    with kpi_cols[3]:
+        st.markdown(
+            kpi_card_html("Aprobados", aprobados, f"{pct_aprobados}% del total", PM_COLORS["lime"]),
+            unsafe_allow_html=True,
+        )
 
-        st.caption("Subindicadores asociados — cada uno con su propio último valor y dirección")
-        n_cols = 2
-        for i in range(0, len(subindicadores), n_cols):
-            fila = subindicadores[i : i + n_cols]
-            cols = st.columns(len(fila))
-            for col, sub in zip(cols, fila):
-                with col:
-                    with st.container(border=True):
-                        st.markdown(f"**{sub}**")
-                        if sub in trend_sub_lookup.index:
-                            srow = trend_sub_lookup.loc[sub]
-                            st.markdown(trend_badge_html(srow["Tendencia"]), unsafe_allow_html=True)
-                            st.caption(
-                                f"Último: {format_ejecucion(srow['ultimo_valor'], srow['unidad'])} · {srow['ultimo_periodo']}"
-                            )
-                        else:
-                            st.caption("Sin dato en el rango seleccionado")
-                        st.button(
-                            "Ver detalle",
-                            key=f"pm_sub_btn_{sub}",
-                            on_click=_go,
-                            args=("pm_drill_subindicador", sub),
-                            use_container_width=True,
-                        )
-    else:
-        st.caption("Este indicador no tiene subindicadores asociados.")
+    st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
 
+    subview = st.segmented_control(
+        "Sub-vista",
+        ["Metas 2026–2030", "Cumplimiento histórico"],
+        default="Metas 2026–2030",
+        required=True,
+        key="pm_ind_subview",
+        label_visibility="collapsed",
+    )
+    es_metas = subview == "Metas 2026–2030"
 
-def section_subindicador(
-    df_m: pd.DataFrame, periodo_filtered: pd.DataFrame, factor: str, indicador: str, subindicador: str
-) -> None:
-    df_sub_filtered = periodo_filtered[
-        (periodo_filtered["Factor"] == factor)
-        & (periodo_filtered["Indicador"] == indicador)
-        & (periodo_filtered["Subindicador"] == subindicador)
-    ]
+    st.subheader(subview)
+    st.caption(
+        "Trayectoria de metas definidas por indicador, agrupadas por factor CNA."
+        if es_metas
+        else "Meta, ejecución y % de cumplimiento 2025–2026, solo para indicadores con información registrada."
+    )
 
-    st.subheader(subindicador)
-    st.caption(f"Indicador: {indicador}")
+    factores = get_factor_options()
+    filt_cols = st.columns([2, 2, 3, 1.4, 1.6])
+    with filt_cols[0]:
+        factor_sel = st.selectbox(
+            "Factor", ["Todos los factores"] + [f["label"] for f in factores], key="pm_ind_factor"
+        )
+    with filt_cols[1]:
+        tipo_sel = st.selectbox(
+            "Tipo",
+            ["Indicador y métrica", "Solo indicadores", "Solo métricas", "Sin clasificar"],
+            key="pm_ind_tipo",
+        )
+    with filt_cols[2]:
+        query = st.text_input(
+            "Buscar",
+            placeholder="Buscar por indicador, característica...",
+            key="pm_ind_search",
+            label_visibility="collapsed",
+        )
 
-    trend_row = compute_trend_table(df_sub_filtered, level="subindicador")
-    if not trend_row.empty:
-        row = trend_row.iloc[0]
-        kpi_cols = st.columns(3)
-        with kpi_cols[0]:
-            kpi_card(
-                "Último valor",
-                format_ejecucion(row["ultimo_valor"], row["unidad"]),
-                delta=format_delta(row["delta_abs"], row["unidad"]),
-                show_progress=False,
-            )
-        with kpi_cols[1]:
-            st.markdown("**Dirección**")
-            st.markdown(trend_badge_html(row["Tendencia"]), unsafe_allow_html=True)
-            if row["Sentido"]:
-                st.caption(f"Sentido (dato de origen): {row['Sentido']}")
-        with kpi_cols[2]:
-            kpi_card("Periodos con dato", int(row["n_periodos"]), show_progress=False)
-    else:
-        st.info("Sin datos para este subindicador en el rango de periodos seleccionado.")
+    rows = df_plan.copy()
+    if factor_sel != "Todos los factores":
+        rows = rows[rows["Factor"] == factor_sel]
+    if tipo_sel in _TIPO_FILTRO_MAP:
+        rows = rows[rows["Tipo"] == _TIPO_FILTRO_MAP[tipo_sel]]
+    if query.strip():
+        q = query.strip().lower()
+        hay = (
+            rows["Indicador"].fillna("") + " " + rows["Caracteristica"].fillna("") + " " + rows["Accion_Mejora"].fillna("")
+        ).str.lower()
+        rows = rows[hay.str.contains(q, na=False, regex=False)]
 
-    serie = build_indicador_series(df_sub_filtered, ["Indicador", "Subindicador"])
-    _render_evolucion(serie)
+    rows_view = (
+        rows[rows[meta_cols].notna().any(axis=1)]
+        if es_metas
+        else rows[rows["Cump_calc_2025"].notna() | rows["Cump_calc_2026"].notna()]
+    )
 
+    with filt_cols[3]:
+        st.markdown(
+            f'<div style="text-align:center;font-size:11.5px;font-weight:700;color:{PM_COLORS["navy"]};'
+            f'background:{PM_COLORS["surface_2"]};padding:8px 10px;border-radius:9px;'
+            f'border:1px solid {PM_COLORS["border"]};">'
+            f'{len(rows_view)} {"con meta definida" if es_metas else "con dato histórico"}</div>',
+            unsafe_allow_html=True,
+        )
+    with filt_cols[4]:
+        _render_export_button(rows_view, es_metas)
 
-def _render_evolucion(serie: pd.DataFrame) -> None:
-    n_con_dato = int(serie["Ejecucion_num"].notna().sum()) if serie is not None and not serie.empty else 0
-    if n_con_dato >= 2:
-        st.plotly_chart(chart_trend_detail(serie, "Evolución de Ejecución"), use_container_width=True)
-    elif n_con_dato == 1:
-        st.info("Este indicador tiene un único periodo con dato — aún no es posible mostrar evolución.")
-    else:
-        st.info("Sin datos de Ejecución en el rango de periodos seleccionado.")
-    _render_historia_table(serie)
+    st.plotly_chart(
+        chart_indicadores_metas_por_factor(rows_view) if es_metas else chart_indicadores_cumplimiento(rows_view),
+        use_container_width=True,
+    )
 
-
-def _render_historia_table(serie: pd.DataFrame) -> None:
-    if serie is None or serie.empty:
+    if rows_view.empty:
+        st.info(
+            "No hay indicadores con metas 2026–2030 definidas para este filtro."
+            if es_metas
+            else "Ningún indicador de este filtro tiene cumplimiento histórico registrado todavía."
+        )
         return
 
-    serie = serie.sort_values(["Periodo_anio", "Periodo_sem"]).reset_index(drop=True)
-    valores = serie["Ejecucion_num"]
-    unidad_col = serie["Ejecución s"] if "Ejecución s" in serie.columns else pd.Series([None] * len(serie))
+    rows_sorted = rows_view.sort_values("Factor_num").reset_index(drop=True)
+    factor_col = [f"F{int(f)}" if pd.notna(f) else "—" for f in rows_sorted["Factor_num"]]
 
-    filas = []
-    for i in range(len(serie)):
-        variacion = "—"
-        if i > 0 and pd.notna(valores.iloc[i]) and pd.notna(valores.iloc[i - 1]) and valores.iloc[i - 1] != 0:
-            variacion = f"{(valores.iloc[i] - valores.iloc[i - 1]) / valores.iloc[i - 1] * 100:+.1f}%"
-        filas.append(
+    if es_metas:
+        display = pd.DataFrame(
             {
-                "Periodo": serie.loc[i, "Periodo"],
-                "Ejecución": format_ejecucion(valores.iloc[i], unidad_col.iloc[i]),
-                "Variación vs. periodo anterior": variacion,
+                "Factor": factor_col,
+                "Indicador": rows_sorted["Indicador"],
+                "Tipo": rows_sorted["Tipo"],
+                "Meta 2026": rows_sorted["Meta_num_2026"].map(fmt_num_or_dash),
+                "Meta 2027": rows_sorted["Meta_num_2027"].map(fmt_num_or_dash),
+                "Meta 2028": rows_sorted["Meta_num_2028"].map(fmt_num_or_dash),
+                "Meta 2029": rows_sorted["Meta_num_2029"].map(fmt_num_or_dash),
+                "Meta 2030": rows_sorted["Meta_num_2030"].map(fmt_num_or_dash),
+            }
+        )
+    else:
+        display = pd.DataFrame(
+            {
+                "Factor": factor_col,
+                "Indicador": rows_sorted["Indicador"],
+                "Meta 2025": rows_sorted["Meta_num_2025"].map(fmt_num_or_dash),
+                "Ejec. 2025": rows_sorted["Ejecucion_num_2025"].map(fmt_num_or_dash),
+                "% Cump 2025": (rows_sorted["Cump_calc_2025"] * 100).map(lambda v: fmt_num_or_dash(v, 1, "%")),
+                "Meta 2026": rows_sorted["Meta_num_2026"].map(fmt_num_or_dash),
+                "Ejec. 2026": rows_sorted["Ejecucion_num_2026"].map(fmt_num_or_dash),
+                "% Cump 2026": (rows_sorted["Cump_calc_2026"] * 100).map(lambda v: fmt_num_or_dash(v, 1, "%")),
             }
         )
 
-    st.caption("Historial por periodo")
-    st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+    event = st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key="pm_ind_table",
+    )
+    seleccion = event.selection["rows"] if event and event.selection else []
+    if seleccion:
+        _open_indicador_modal(rows_sorted.iloc[seleccion[0]])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pestaña Métricas
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _open_metrica_modal(row: pd.Series) -> None:
+    @st.dialog(row["Indicador"])
+    def _dialog() -> None:
+        st.markdown(_factor_full_badge_html(row.get("Factor")), unsafe_allow_html=True)
+        subindicador = row.get("Subindicador")
+        if _or_default(subindicador, "") and subindicador != row.get("Indicador"):
+            st.caption(subindicador)
+
+        st.plotly_chart(chart_metrica_detalle(row), use_container_width=True)
+
+        c1 = st.columns(2)
+        with c1[0]:
+            st.markdown("**Proceso**")
+            st.write(_or_default(row.get("Proceso")))
+        with c1[1]:
+            st.markdown("**Sentido / Periodicidad**")
+            st.write(f"{_or_default(row.get('Sentido'))} · {_or_default(row.get('Periodicidad'))}")
+
+        c2 = st.columns(2)
+        with c2[0]:
+            st.markdown("**Variación último año**")
+            st.markdown(
+                variacion_html(row.get("variacion_ultima_pct")) + " respecto al año anterior",
+                unsafe_allow_html=True,
+            )
+        with c2[1]:
+            st.markdown("**Variación promedio anual**")
+            st.markdown(
+                variacion_html(row.get("variacion_promedio_pct")) + " promedio interanual",
+                unsafe_allow_html=True,
+            )
+
+    _dialog()
+
+
+def _render_tab_metricas(df_historico: pd.DataFrame) -> None:
+    total = len(df_historico)
+    n_factores = df_historico["Factor"].nunique() if total else 0
+    n_creciente = int((df_historico["tendencia"] == "Creciente").sum()) if total else 0
+    n_decreciente = int((df_historico["tendencia"] == "Decreciente").sum()) if total else 0
+    pct_creciente = round(n_creciente / total * 100) if total else 0
+    pct_decreciente = round(n_decreciente / total * 100) if total else 0
+
+    kpi_cols = st.columns(4)
+    with kpi_cols[0]:
+        st.markdown(
+            kpi_card_html("Métricas con histórico", total, "series 2019–2026", PM_COLORS["blue"]),
+            unsafe_allow_html=True,
+        )
+    with kpi_cols[1]:
+        st.markdown(
+            kpi_card_html("Factores cubiertos", n_factores, "de 12 del modelo CNA", PM_COLORS["cyan"]),
+            unsafe_allow_html=True,
+        )
+    with kpi_cols[2]:
+        st.markdown(
+            kpi_card_html("En tendencia creciente", n_creciente, f"{pct_creciente}% del total", PM_COLORS["gold"]),
+            unsafe_allow_html=True,
+        )
+    with kpi_cols[3]:
+        st.markdown(
+            kpi_card_html(
+                "En tendencia decreciente", n_decreciente, f"{pct_decreciente}% del total", PM_COLORS["magenta"]
+            ),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
+    st.subheader("Resultados por factor")
+    st.caption("Número de métricas con serie histórica registrada, por factor del modelo CNA.")
+
+    factores = get_factor_options()
+    opciones_pill = ["Todos"] + [f["label"] for f in factores]
+
+    chart_event = st.plotly_chart(
+        chart_metricas_por_factor(df_historico),
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="points",
+        key="pm_met_factor_chart",
+    )
+    if chart_event and chart_event.selection and chart_event.selection["points"]:
+        factor_clic = chart_event.selection["points"][0].get("customdata")
+        if factor_clic in opciones_pill:
+            st.session_state["pm_met_factor_pill"] = factor_clic
+
+    st.subheader("Resultados, tendencia y variaciones")
+    st.caption(
+        "Selecciona un factor para filtrar. Haz clic en una métrica para ver su gráfica completa "
+        "(resultado vs. meta cuando existe)."
+    )
+
+    st.session_state.setdefault("pm_met_factor_pill", "Todos")
+    numero_por_label = {f["label"]: f["num"] for f in factores}
+
+    filt_cols = st.columns([5, 2, 3])
+    with filt_cols[0]:
+        factor_sel = st.pills(
+            "Factor",
+            opciones_pill,
+            format_func=lambda f: "Todos" if f == "Todos" else f"F{numero_por_label.get(f, '?')}",
+            key="pm_met_factor_pill",
+        )
+    with filt_cols[1]:
+        tendencia_sel = st.selectbox("Tendencia", TENDENCIA_METRICAS_FILTRO_OPTIONS, key="pm_met_tendencia")
+    with filt_cols[2]:
+        query = st.text_input(
+            "Buscar", placeholder="Buscar métrica...", key="pm_met_search", label_visibility="collapsed"
+        )
+
+    factor_sel = factor_sel or "Todos"
+    if factor_sel != "Todos":
+        st.caption(f"Filtrando por: **{factor_sel}**")
+
+    rows = df_historico.copy()
+    if factor_sel != "Todos":
+        rows = rows[rows["Factor"] == factor_sel]
+    if tendencia_sel != "Toda tendencia":
+        rows = rows[rows["tendencia"] == tendencia_sel]
+    if query.strip():
+        q = query.strip().lower()
+        hay = (rows["Indicador"].fillna("") + " " + rows["Subindicador"].fillna("")).str.lower()
+        rows = rows[hay.str.contains(q, na=False, regex=False)]
+
+    if rows.empty:
+        st.info("No hay métricas que coincidan con el filtro.")
+        return
+
+    rows_sorted = rows.sort_values("ultimo_anio", ascending=False, na_position="last").reset_index(drop=True)
+
+    display = pd.DataFrame(
+        {
+            "Factor": [f"F{int(f)}" if pd.notna(f) else "—" for f in rows_sorted["Factor_num"]],
+            "Métrica": [
+                ind if (not sub or sub == ind) else f"{ind} · {sub}"
+                for ind, sub in zip(rows_sorted["Indicador"], rows_sorted["Subindicador"])
+            ],
+            "Proceso": rows_sorted["Proceso"],
+            "Último año": rows_sorted["ultimo_anio"].map(lambda v: fmt_num_or_dash(v, 0)),
+            "Resultado": rows_sorted["ultimo_valor"].map(lambda v: fmt_num_or_dash(v, 2)),
+            "Variación último año": rows_sorted["variacion_ultima_pct"].map(fmt_variacion_or_dash),
+            # Solo texto plano — st.dataframe no soporta HTML/color por celda,
+            # a diferencia del <span> coloreado del mockup (limitación nativa
+            # de la grilla, ver plan §restricciones técnicas).
+            "Tendencia": [
+                tendencia if tendencia in ("Creciente", "Decreciente", "Estable") else "—"
+                for tendencia in rows_sorted["tendencia"]
+            ],
+            "Serie": [
+                [p["ejecucion"] for p in serie if p["ejecucion"] is not None] for serie in rows_sorted["serie"]
+            ],
+        }
+    )
+
+    event = st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key="pm_met_table",
+        column_config={
+            "Serie": st.column_config.LineChartColumn("Serie", width="small"),
+        },
+    )
+    seleccion = event.selection["rows"] if event and event.selection else []
+    if seleccion:
+        _open_metrica_modal(rows_sorted.iloc[seleccion[0]])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1040,39 +528,31 @@ def _render_historia_table(serie: pd.DataFrame) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render() -> None:
-    st.title("Plan de Mejoramiento (Factores CNA)")
-    st.caption(
-        "Ejecución y cumplimiento de los indicadores del Plan de Mejoramiento "
-        "asociados a los factores de acreditación CNA. "
-        "Referencia: Anexo 02 CESU 2020."
+    _inject_pm_styles()
+    _render_hero()
+
+    view = st.segmented_control(
+        "Vista",
+        ["Indicadores", "Métricas"],
+        default="Indicadores",
+        required=True,
+        key="pm_active_view",
+        label_visibility="collapsed",
     )
 
-    _init_state()
+    df_plan = load_plan_indicadores()
+    df_historico = build_metricas_historico()
 
-    # ── Cargar ambas fuentes ───────────────────────────────────────
-    df_m = load_metricas_raw()
-    df_p = load_plan_indicadores()
-
-    if df_m.empty and df_p.empty:
+    if df_plan.empty and df_historico.empty:
         st.warning("No se encontraron datos del Plan de Mejoramiento. Verifica los archivos en data/raw.")
         return
 
-    # ── Filtros ────────────────────────────────────────────────────
-    periodo_filtered = _period_range_filter(df_m) if not df_m.empty else pd.DataFrame()
-    _quick_filter_panel()
+    if view == "Métricas":
+        _render_tab_metricas(df_historico)
+    else:
+        _render_tab_indicadores(df_plan)
 
-    # ── Navegación ─────────────────────────────────────────────────
-    level, factor, caracteristica, indicador, subindicador = _current_level()
-    if level != "resumen":
-        render_breadcrumb(factor, caracteristica, indicador, subindicador)
-
-    if level == "resumen":
-        section_resumen(df_m, df_p, periodo_filtered)
-    elif level == "factor":
-        section_factor(df_m, df_p, periodo_filtered, factor)
-    elif level == "caracteristica":
-        section_caracteristica(df_m, periodo_filtered, factor, caracteristica)
-    elif level == "indicador":
-        section_indicador(df_m, periodo_filtered, factor, indicador)
-    elif level == "subindicador":
-        section_subindicador(df_m, periodo_filtered, factor, indicador, subindicador)
+    st.caption(
+        'Panel generado a partir de "Indicadores Plan de Mejoramiento" y '
+        '"Resultados Consolidados CNA – Métricas" · Politécnico Grancolombiano'
+    )
