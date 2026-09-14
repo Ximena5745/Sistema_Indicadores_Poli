@@ -58,7 +58,7 @@ def _inject_pm_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
-        div[data-testid="stAppViewContainer"] * { font-family: 'Montserrat', sans-serif; }
+        div[data-testid="stAppViewContainer"] *:not([data-testid="stIconMaterial"]) { font-family: 'Montserrat', sans-serif; }
         </style>
         """,
         unsafe_allow_html=True,
