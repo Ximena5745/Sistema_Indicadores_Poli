@@ -11,6 +11,7 @@ from __future__ import annotations
 import pandas as pd
 
 from streamlit_app.components.plan_mejoramiento_charts import TENDENCIA_COLORS, TENDENCIA_LABELS
+from streamlit_app.utils.formatting import fmt_valor
 
 PM_COLORS = {
     "navy": "#263A58",
@@ -177,24 +178,53 @@ def factor_badge_html(factor_num: int | None) -> str:
     )
 
 
+def fmt_valor_plan(value, signo, decimales) -> str:
+    """`fmt_valor` con soporte para "%FRAC": el Excel fuente del Plan de
+    Mejoramiento no es consistente en cómo guarda Meta/Ejecución de
+    indicadores de tipo porcentaje — algunos como fracción 0–1 (0.95 = 95%,
+    Signo="%FRAC", se escala aquí *100) y otros ya en escala 0–100
+    (86.1 = 86,1%, Signo="%", igual que el resto de la app). Ver catálogo en
+    services/plan_mejoramiento_loader.py::load_catalogo_plan_indicadores."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return "—"
+    if str(signo or "").strip() == "%FRAC":
+        return fmt_valor(float(value) * 100, "%", decimales)
+    return fmt_valor(value, signo, decimales)
+
+
+def _fmt_valor_o(value, signo, decimales, texto_defecto: str = "N/A") -> str:
+    """`fmt_valor_plan` con "N/A" en vez de "—" para nulos — mantiene el texto
+    exacto que ya usaban los modales."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return texto_defecto
+    return fmt_valor_plan(value, signo, decimales)
+
+
 def build_indicador_cump_texto(row) -> str:
     """Línea combinada 'Meta / Ejecución / % Cumplimiento — 2025 y 2026' — texto
-    exacto del modal de indicador (mockup: `miCump`)."""
+    exacto del modal de indicador (mockup: `miCump`). Meta/Ejecución se formatean
+    según el Signo/Decimales del indicador (catálogo Plan de Mejoramiento);
+    % Cump siempre es porcentaje (Decimales_Cump)."""
+    signo, decimales, dec_cump = row.get("Signo"), row.get("Decimales"), row.get("Decimales_Cump")
+    cump_2025 = row.get("Cump_calc_2025")
+    cump_2026 = row.get("Cump_calc_2026")
     return (
-        f"2025 — Meta: {_valor_o(row.get('Meta_num_2025'))} · "
-        f"Ejecución: {_valor_o(row.get('Ejecucion_num_2025'))} · "
-        f"% Cump: {_valor_o(row.get('Cump_calc_2025') * 100 if pd.notna(row.get('Cump_calc_2025')) else None, 'N/A')}"
-        f"{'%' if pd.notna(row.get('Cump_calc_2025')) else ''}"
+        f"2025 — Meta: {_fmt_valor_o(row.get('Meta_num_2025'), signo, decimales)} · "
+        f"Ejecución: {_fmt_valor_o(row.get('Ejecucion_num_2025'), signo, decimales)} · "
+        f"% Cump: {_fmt_valor_o(cump_2025 * 100 if pd.notna(cump_2025) else None, '%', dec_cump)}"
         "   |   "
-        f"2026 — Meta: {_valor_o(row.get('Meta_num_2026'))} · "
-        f"Ejecución: {_valor_o(row.get('Ejecucion_num_2026'))} · "
-        f"% Cump: {_valor_o(row.get('Cump_calc_2026') * 100 if pd.notna(row.get('Cump_calc_2026')) else None, 'N/A')}"
-        f"{'%' if pd.notna(row.get('Cump_calc_2026')) else ''}"
+        f"2026 — Meta: {_fmt_valor_o(row.get('Meta_num_2026'), signo, decimales)} · "
+        f"Ejecución: {_fmt_valor_o(row.get('Ejecucion_num_2026'), signo, decimales)} · "
+        f"% Cump: {_fmt_valor_o(cump_2026 * 100 if pd.notna(cump_2026) else None, '%', dec_cump)}"
     )
 
 
 def build_indicador_metas_futuras_texto(row) -> str:
     """Línea 'Metas 2026 – 2030' — texto exacto del modal de indicador
-    (mockup: `miMetas`)."""
-    partes = [f"{y}: {_valor_o(row.get(f'Meta_num_{y}'))}" for y in ("2026", "2027", "2028", "2029", "2030")]
+    (mockup: `miMetas`), formateada según el Signo/Decimales del indicador."""
+    signo, decimales = row.get("Signo"), row.get("Decimales")
+    partes = [
+        f"{y}: {_fmt_valor_o(row.get(f'Meta_num_{y}'), signo, decimales)}"
+        for y in ("2026", "2027", "2028", "2029", "2030")
+    ]
     return " · ".join(partes)

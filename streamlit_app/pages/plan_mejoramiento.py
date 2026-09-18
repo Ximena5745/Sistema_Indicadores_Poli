@@ -39,11 +39,13 @@ from streamlit_app.pages.plan_mejoramiento_utils import (
     build_indicador_cump_texto,
     build_indicador_metas_futuras_texto,
     fmt_num_or_dash,
+    fmt_valor_plan,
     fmt_variacion_or_dash,
     kpi_card_html,
     tipo_tag_html,
     variacion_html,
 )
+from streamlit_app.utils.formatting import fmt_valor
 
 _METAS_FUTURAS_YEARS = ("2026", "2027", "2028", "2029", "2030")
 _TIPO_FILTRO_MAP = {"Solo indicadores": "Indicador", "Solo métricas": "Metrica", "Sin clasificar": "Pendiente"}
@@ -308,6 +310,16 @@ def _render_tab_indicadores(df_plan: pd.DataFrame) -> None:
 
     rows_sorted = rows_view.sort_values("Factor_num").reset_index(drop=True)
     factor_col = [f"F{int(f)}" if pd.notna(f) else "—" for f in rows_sorted["Factor_num"]]
+    signo_col, dec_col, dec_cump_col = rows_sorted["Signo"], rows_sorted["Decimales"], rows_sorted["Decimales_Cump"]
+
+    def _meta(col: str) -> list[str]:
+        return [fmt_valor_plan(v, s, d) for v, s, d in zip(rows_sorted[col], signo_col, dec_col)]
+
+    def _cump(col: str) -> list[str]:
+        return [
+            fmt_valor(v * 100, "%", d) if pd.notna(v) else "—"
+            for v, d in zip(rows_sorted[col], dec_cump_col)
+        ]
 
     if es_metas:
         display = pd.DataFrame(
@@ -315,11 +327,11 @@ def _render_tab_indicadores(df_plan: pd.DataFrame) -> None:
                 "Factor": factor_col,
                 "Indicador": rows_sorted["Indicador"],
                 "Tipo": rows_sorted["Tipo"],
-                "Meta 2026": rows_sorted["Meta_num_2026"].map(fmt_num_or_dash),
-                "Meta 2027": rows_sorted["Meta_num_2027"].map(fmt_num_or_dash),
-                "Meta 2028": rows_sorted["Meta_num_2028"].map(fmt_num_or_dash),
-                "Meta 2029": rows_sorted["Meta_num_2029"].map(fmt_num_or_dash),
-                "Meta 2030": rows_sorted["Meta_num_2030"].map(fmt_num_or_dash),
+                "Meta 2026": _meta("Meta_num_2026"),
+                "Meta 2027": _meta("Meta_num_2027"),
+                "Meta 2028": _meta("Meta_num_2028"),
+                "Meta 2029": _meta("Meta_num_2029"),
+                "Meta 2030": _meta("Meta_num_2030"),
             }
         )
     else:
@@ -327,12 +339,12 @@ def _render_tab_indicadores(df_plan: pd.DataFrame) -> None:
             {
                 "Factor": factor_col,
                 "Indicador": rows_sorted["Indicador"],
-                "Meta 2025": rows_sorted["Meta_num_2025"].map(fmt_num_or_dash),
-                "Ejec. 2025": rows_sorted["Ejecucion_num_2025"].map(fmt_num_or_dash),
-                "% Cump 2025": (rows_sorted["Cump_calc_2025"] * 100).map(lambda v: fmt_num_or_dash(v, 1, "%")),
-                "Meta 2026": rows_sorted["Meta_num_2026"].map(fmt_num_or_dash),
-                "Ejec. 2026": rows_sorted["Ejecucion_num_2026"].map(fmt_num_or_dash),
-                "% Cump 2026": (rows_sorted["Cump_calc_2026"] * 100).map(lambda v: fmt_num_or_dash(v, 1, "%")),
+                "Meta 2025": _meta("Meta_num_2025"),
+                "Ejec. 2025": _meta("Ejecucion_num_2025"),
+                "% Cump 2025": _cump("Cump_calc_2025"),
+                "Meta 2026": _meta("Meta_num_2026"),
+                "Ejec. 2026": _meta("Ejecucion_num_2026"),
+                "% Cump 2026": _cump("Cump_calc_2026"),
             }
         )
 

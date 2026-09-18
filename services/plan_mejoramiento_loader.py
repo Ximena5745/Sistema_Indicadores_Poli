@@ -27,6 +27,7 @@ Funciones públicas Métricas:
   - compute_evolucion_por_segmento()
 
 Funciones públicas Plan:
+  - load_catalogo_plan_indicadores()
   - load_plan_indicadores()
   - classify_plan_estado()
   - compute_plan_cumplimiento_by_factor()
@@ -384,6 +385,22 @@ def compute_evolucion_por_segmento(df: pd.DataFrame, segment_col: str = "Factor"
 PLAN_XLSX = DATA_RAW / "Plan de mejoramiento" / "Indicadores Plan de Mejoramiento.xlsx"
 SHEET_PLAN = "Indicadores Plan de Mejor"
 
+# Catálogo Signo/Decimales por indicador (generado por
+# scripts/plan_mejoramiento/build_catalogo_indicadores.py, revisado a mano) —
+# el Excel fuente de Indicadores del Plan no define unidad/decimales por
+# indicador (a diferencia del catálogo de indicadores normales), así que
+# vive en un archivo separado para no tocar el Excel fuente.
+CATALOGO_PLAN_XLSX = DATA_RAW / "Plan de mejoramiento" / "Catalogo_Indicadores_Plan_Mejoramiento.xlsx"
+SHEET_CATALOGO_PLAN = "Catalogo"
+
+# Fallback cuando el catálogo no existe o un indicador no tiene fila propia
+# (comportamiento previo a la existencia del catálogo: Meta/Ejecución se
+# mostraban como número plano de 2 decimales, sin escalar; solo % Cump ya
+# se multiplicaba por 100 con 1 decimal — ver Decimales_Cump).
+_SIGNO_DEFAULT = "DEC"
+_DECIMALES_DEFAULT = 2
+_DECIMALES_CUMP_DEFAULT = 1
+
 
 def _norm_text(text: object) -> str:
     """Normaliza texto: minúsculas, sin acentos, espacios colapsados."""
@@ -433,6 +450,22 @@ def _classify_plan_estado(row: pd.Series) -> str:
     if aprob == "Aprobado":
         return "Aprobado"
     return "Pendiente"
+
+
+@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
+def load_catalogo_plan_indicadores() -> pd.DataFrame:
+    """Catálogo Signo/Decimales/Decimales_Cump por indicador del Plan (ver
+    CATALOGO_PLAN_XLSX). Vacío si el archivo no existe — `load_plan_indicadores()`
+    aplica el fallback en ese caso."""
+    if not CATALOGO_PLAN_XLSX.exists():
+        return pd.DataFrame(columns=["Factor", "Indicador", "Signo", "Decimales", "Decimales_Cump"])
+
+    df = pd.read_excel(CATALOGO_PLAN_XLSX, sheet_name=SHEET_CATALOGO_PLAN, engine="openpyxl")
+    for col in ("Factor", "Indicador"):
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+    cols = ["Factor", "Indicador", "Signo", "Decimales", "Decimales_Cump"]
+    return df[[c for c in cols if c in df.columns]].drop_duplicates(subset=["Factor", "Indicador"])
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner="Cargando Indicadores del Plan...")
@@ -533,6 +566,19 @@ def load_plan_indicadores() -> pd.DataFrame:
             df.loc[mask, cump_col] = (df.loc[mask, ejec_col] / df.loc[mask, meta_col]).clip(upper=1.3)
         else:
             df[cump_col] = None
+
+    catalogo = load_catalogo_plan_indicadores()
+    if not catalogo.empty:
+        df = df.merge(catalogo, on=["Factor", "Indicador"], how="left")
+    else:
+        df["Signo"] = pd.NA
+        df["Decimales"] = pd.NA
+        df["Decimales_Cump"] = pd.NA
+    df["Signo"] = df["Signo"].fillna(_SIGNO_DEFAULT)
+    df["Decimales"] = pd.to_numeric(df["Decimales"], errors="coerce").fillna(_DECIMALES_DEFAULT).astype(int)
+    df["Decimales_Cump"] = (
+        pd.to_numeric(df["Decimales_Cump"], errors="coerce").fillna(_DECIMALES_CUMP_DEFAULT).astype(int)
+    )
 
     return df.sort_values(["Factor_num", "Indicador"]).reset_index(drop=True)
 
