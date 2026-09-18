@@ -3,9 +3,11 @@ services/plan_mejoramiento_loader.py — Carga y análisis de dirección CNA
 
 Dos fuentes INDEPENDIENTES (sin join a nivel indicador):
 
-1) **Métricas CNA** (Resultados_Consolidados_CNA_actualizado.xlsx → hoja "Metricas"):
+1) **Métricas CNA** (data/output/Resultados_Consolidados_CNA.xlsx → hoja "Metricas"):
+   Generado por scripts/cna_extraction/ a partir del Anexo Estadístico Dcto.
+   Autoevaluacion.xlsx (fuente oficial) — ver scripts/cna_extraction/build_cli.py.
    Ejecución por Periodo, clasificación NEUTRA aumento/disminución/estable.
-   Sin Meta/Cumplimiento (prácticamente vacíos en la fuente).
+   Sin Meta/Cumplimiento (no derivables del Anexo; quedan vacíos).
 
 2) **Indicadores Plan de Mejoramiento** (Indicadores Plan de Mejoramiento.xlsx):
    Meta, Ejecución 2025-2026, % Cumplimiento, Estado, Aprobación.
@@ -40,9 +42,13 @@ import unicodedata
 import pandas as pd
 import streamlit as st
 
-from core.config import CACHE_TTL, DATA_RAW  # noqa: F401
+from core.config import CACHE_TTL, DATA_OUTPUT, DATA_RAW  # noqa: F401
 
-PM_XLSX = DATA_RAW / "Plan de mejoramiento" / "Resultados_Consolidados_CNA_actualizado.xlsx"
+# Generado por scripts/cna_extraction/build_cli.py --write a partir del Anexo
+# Estadístico (fuente oficial). Ya no se lee directamente
+# data/raw/Plan de mejoramiento/Resultados_Consolidados_CNA_actualizado.xlsx
+# (ese archivo queda solo como referencia histórica/de esquema).
+PM_XLSX = DATA_OUTPUT / "Resultados_Consolidados_CNA.xlsx"
 SHEET_METRICAS = "Metricas"
 SHEET_FACTOR_CARACTERISTICA = "Factor- Caracteristica"
 
